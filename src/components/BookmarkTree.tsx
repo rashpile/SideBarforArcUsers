@@ -20,6 +20,9 @@ import { BookmarkCreateFolderModal } from './BookmarkCreateFolderModal';
 import * as ContextMenu from './menu/ContextMenu';
 import { TreeRow } from './TreeRow';
 import { useInView } from '../hooks/useInView';
+import { useChromeLocalStorage } from '../hooks/useChromeLocalStorage';
+import { BookmarkRecency, BookmarkRecencyRecord, BOOKMARK_RECENCY_KEY } from '../stores/bookmarkRecencyStore';
+import { FolderRecentPopover, useFolderPeek } from './FolderRecentPopover';
 import { SPEAKER_ICON_SIZE } from '../constants';
 import {
   Globe,
@@ -183,8 +186,9 @@ interface BookmarkRowProps {
   onRemovePin?: (bookmarkId: string) => void;
   onRemoveSelectedPins?: () => void;
   isMuted?: boolean;
-  isActivePeek?: boolean;
-  hasActivePeek?: boolean;
+  isPeek?: boolean;  // Open bookmark surfaced from inside a collapsed folder
+  hasPeek?: boolean; // Collapsed folder currently surfacing open descendants
+  hasActivePeek?: boolean; // ...and one of them is the active page
   allSelectedAreBookmarks?: boolean;
   selectedLiveBookmarkCount?: number;
   allSelectedLiveBookmarksMuted?: boolean;
@@ -193,6 +197,8 @@ interface BookmarkRowProps {
   listeners?: SyntheticListenerMap;
   // Window ID for tab creation
   windowId?: number;
+  // Last-active times for the collapsed-folder recent popover (feature 034)
+  bookmarkRecency?: BookmarkRecency;
 }
 
 // Forward ref to attach to the main div
@@ -252,7 +258,8 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
   onRemovePin,
   onRemoveSelectedPins,
   isMuted,
-  isActivePeek,
+  isPeek,
+  hasPeek,
   hasActivePeek,
   allSelectedAreBookmarks,
   selectedLiveBookmarkCount = 0,
@@ -260,10 +267,40 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
   attributes,
   listeners,
   windowId,
+  bookmarkRecency,
 }, ref) => {
   const isFolder = !node.url;
   const dndId = `bookmark-${node.id}`;
   const isSpecialFolder = SPECIAL_FOLDER_IDS.includes(node.id);
+
+  // Collapsed folders peek their recently used pages on hover, like Arc (feature 034)
+  const folderPeek = useFolderPeek(
+    isFolder
+    && !isSpecialFolder
+    && !expandedState[node.id]
+    && bookmarkOpenMode === 'arc'
+    && !globalDragActive
+    && !!bookmarkRecency
+  );
+
+  // Open a page picked in the folder peek, with the same modifiers as the tree's open button
+  const handlePeekOpen = (bookmark: chrome.bookmarks.BookmarkTreeNode, e: React.MouseEvent | React.KeyboardEvent) =>
+  {
+    folderPeek.close();
+    if (e.metaKey || e.ctrlKey)
+    {
+      chrome.tabs.create({ url: bookmark.url!, active: true, windowId: windowId ?? undefined });
+    }
+    else if (e.shiftKey)
+    {
+      chrome.windows.create({ url: bookmark.url! });
+    }
+    else
+    {
+      onOpenBookmark?.(bookmark.id, bookmark.url!);
+    }
+  };
+
   const visualState = resolveBookmarkRowVisualState({
     isActive: !!isActive,
     isSelected: !!isSelected,
@@ -404,7 +441,7 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
     <SpaceFolderIcon
       space={matchingSpace}
       size={20}
-      state={resolveArcFolderIconState(!!expandedState[node.id], !!hasActivePeek)}
+      state={resolveArcFolderIconState(!!expandedState[node.id], !!hasPeek)}
     />
   ) : node.url ? (
     <img
@@ -448,7 +485,7 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
           <Minus size={15} strokeWidth={2.25} />
         </button>
       )}
-      {isFolder && !expandedState[node.id] && hasActivePeek && (
+      {isFolder && !expandedState[node.id] && hasPeek && (
         <span className="arc-folder-collapse-action p-1.5" aria-hidden="true">
           <Minus size={15} strokeWidth={2.25} />
         </span>
@@ -539,14 +576,16 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
               role="treeitem"
               tabIndex={0}
               aria-expanded={isFolder ? !!expandedState[node.id] : undefined}
-              onClick={handleRowClick}
+              onClick={(e) => { folderPeek.close(); handleRowClick(e); }}
               onKeyDown={handleRowKeyDown}
+              onPointerEnter={folderPeek.rowHandlers.onPointerEnter}
+              onPointerLeave={folderPeek.rowHandlers.onPointerLeave}
               onDoubleClick={() => {
                 if (node.url && bookmarkOpenMode === 'arc' && onOpenBookmark) {
                   onOpenBookmark(node.id, node.url);
                 }
               }}
-              onContextMenu={() => onSelectionContextMenu?.()}
+              onContextMenu={() => { folderPeek.close(); onSelectionContextMenu?.(); }}
               isActive={bookmarkOpenMode === 'arc' && visualState === 'active'}
               isSelected={visualState === 'selected'}
               isHighlighted={visualState === 'default' && isOpen}
@@ -558,7 +597,7 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
               data-is-folder={isFolder}
               data-expanded={isFolder && expandedState[node.id] ? 'true' : undefined}
               data-has-active-peek={isFolder && hasActivePeek ? 'true' : undefined}
-              data-active-peek={isActivePeek || undefined}
+              data-peek={isPeek || undefined}
               data-depth={depth}
               data-dnd-id={dndId}
               className={clsx(
@@ -579,6 +618,18 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
               <DropIndicators showBefore={showDropBefore} showAfter={showDropAfter} beforeIndentPx={beforeIndentPx} afterIndentPx={afterIndentPx} />
             </TreeRow>
           </ContextMenu.Trigger>
+          {folderPeek.anchorRect && bookmarkRecency && (
+            <FolderRecentPopover
+              folder={node}
+              anchorRect={folderPeek.anchorRect}
+              popoverRef={folderPeek.popoverRef}
+              recency={bookmarkRecency}
+              onOpenBookmark={handlePeekOpen}
+              onClose={folderPeek.close}
+              onPointerEnter={folderPeek.popoverHandlers.onPointerEnter}
+              onPointerLeave={folderPeek.popoverHandlers.onPointerLeave}
+            />
+          )}
           <ContextMenu.Portal>
             <ContextMenu.Content>
           {selectionCount && selectionCount > 1 ? (
@@ -913,9 +964,12 @@ const BookmarkItem = (props: BookmarkRowProps) => {
     ? getVisibleBookmarkChildren(
         node,
         !!expandedState[node.id],
-        (bookmarkId) => checkIsActive?.(bookmarkId) ?? false,
+        (bookmarkId) => (checkIsLoaded?.(bookmarkId) || checkIsActive?.(bookmarkId)) ?? false,
       )
     : [];
+  // Open pages surfaced under a collapsed folder; the folder row is highlighted only when one is active
+  const hasPeek = visibleChildren.some(child => child.isPeek);
+  const hasActivePeek = visibleChildren.some(child => child.isPeek && !!checkIsActive?.(child.node.id));
 
   return (
     <>
@@ -924,20 +978,22 @@ const BookmarkItem = (props: BookmarkRowProps) => {
           ref={ref}
           {...props}
           matchingSpace={matchingSpace}
-          hasActivePeek={visibleChildren.some(child => child.isActivePeek)}
+          hasPeek={hasPeek}
+          hasActivePeek={hasActivePeek}
         />
       ) : (
         <StaticBookmarkRow
           ref={ref}
           {...props}
           matchingSpace={matchingSpace}
-          hasActivePeek={visibleChildren.some(child => child.isActivePeek)}
+          hasPeek={hasPeek}
+          hasActivePeek={hasActivePeek}
         />
       )}
 
       {visibleChildren.length > 0 && (
         <div>
-          {visibleChildren.map(({ node: child, isActivePeek }, childIndex) =>
+          {visibleChildren.map(({ node: child, isPeek }, childIndex) =>
           {
             const childIsFolder = !child.url;
             // Always create a selection item for child - use parent's getSelectionItem if available,
@@ -951,7 +1007,7 @@ const BookmarkItem = (props: BookmarkRowProps) => {
                 {...props} // Pass through all handlers
                 node={child}
                 depth={depth + 1}
-                isActivePeek={isActivePeek}
+                isPeek={isPeek}
                 isLoaded={checkIsLoaded ? checkIsLoaded(child.id) : false}
                 isAudible={checkIsAudible ? checkIsAudible(child.id) : false}
                 isMuted={checkIsMuted ? checkIsMuted(child.id) : false}
@@ -999,6 +1055,10 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
   const { openBookmarkTab, closeBookmarkTab, isBookmarkLoaded, isBookmarkAudible, isBookmarkMuted, isBookmarkActive, getBookmarkLiveTitle, deassociateBookmarkTab, getTabIdForBookmark, getItemKeyForTab, restoreItemAssociation, associateExistingTab } = useBookmarkTabsContext();
   const { spaces, updateSpace, updateSpaceFolderPaths, windowId } = useSpacesContext();
   const findSpaceForFolder = useFindSpaceForFolder(getBookmarkSegments, spaces);
+
+  // Read-only: background.ts records last-active times (feature 034)
+  const [bookmarkRecencyRecord] = useChromeLocalStorage<BookmarkRecencyRecord>(BOOKMARK_RECENCY_KEY, {});
+  const bookmarkRecency = useMemo(() => new BookmarkRecency(bookmarkRecencyRecord), [bookmarkRecencyRecord]);
 
   // Re-group a bookmark's associated live tab (if any) to match its new folder's
   // Space - mirrors associateExistingTab, keeps "a bookmark tab always lives in
@@ -1260,10 +1320,10 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
         const visibleChildren = getVisibleBookmarkChildren(
           node,
           isExpanded,
-          isBookmarkActive,
+          (bookmarkId) => isBookmarkLoaded(bookmarkId) || isBookmarkActive(bookmarkId),
         );
 
-        // 折叠文件夹只加入活跃后代；展开文件夹仍按原树结构递归加入直接子节点。
+        // 折叠文件夹只加入已打开的后代；展开文件夹仍按原树结构递归加入直接子节点。
         for (const { node: child } of visibleChildren)
         {
           flattenNode(child, !!expandedState[child.id]);
@@ -1277,7 +1337,7 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
     }
 
     return items;
-  }, [visibleBookmarks, expandedState, isBookmarkActive]);
+  }, [visibleBookmarks, expandedState, isBookmarkLoaded, isBookmarkActive]);
 
   // Get items in range for shift-click selection
   const getBookmarkItemsInRange = useCallback((startIndex: number, endIndex: number): SelectionItem[] =>
@@ -2526,6 +2586,7 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
               key={node.id}
               node={node}
               depth={0}
+              bookmarkRecency={bookmarkRecency}
               expandedState={expandedState}
               toggleFolder={toggleFolder}
               onRemove={handleDeleteSelectedBookmarks}

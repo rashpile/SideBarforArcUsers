@@ -165,6 +165,15 @@ Array<{
 - Consumers: `src/components/PinnedBar.tsx`
 - Instances: 1 per extension (shared across windows)
 
+### `bookmarkLastActiveAt`
+Last time each bookmark's Arc-style tab was active (feature 034, folder recent popover)
+```typescript
+string  // JSON of Record<bookmarkId, epochMillis>
+```
+- Owner: `src/background.ts` (via `BookmarkRecencyStore`, the only writer)
+- Consumers: `src/components/BookmarkTree.tsx` (via `useChromeLocalStorage`, read-only)
+- Instances: 1 per extension (shared across windows)
+
 ---
 
 ## Browser localStorage

@@ -32,7 +32,7 @@ When a behavior can be implemented safely with Chrome APIs, this fork prefers Ar
 - Pinned pages are backed by bookmarks so their position survives closing the live tab.
 - Unpinned tabs belong to the current Space through a persistent internal assignment that survives extension reloads and browser restoration.
 - Only one Space is visible at a time; the upstream aggregate `All` view is intentionally removed.
-- Collapsed folders can still expose the currently active pinned page, matching Arc's location cue.
+- Collapsed folders still expose their open pinned pages (the active one as a card), matching Arc's location cue. Hovering a collapsed folder shows its recently used pages with search.
 - Active rows, spacing, translucency, typography, icons, bottom Space navigation, and context menus are tuned against Arc screenshots.
 
 Platform limitations are documented rather than hidden. Features that require control over Chrome's native window chrome—such as replacing the horizontal tab strip or styling the Side Panel host header—are outside an extension's control.
@@ -50,7 +50,7 @@ The following differences describe this fork relative to the upstream version it
 | Spaces | Removes the visible `All` Space. The sidebar, swipe navigation, and Space Navigator show one real Space at a time. Legacy `all` state migrates to the first real Space. |
 | Space tab ownership | Space membership is stored independently from Chrome native tab groups. Native groups remain fully user-owned and can span tabs from different Spaces without changing their Space assignment. |
 | Pinned-page persistence | Bookmark/Favorite-to-tab associations use session state plus a local recovery backup, so closing and reopening the Side Panel does not duplicate pinned pages in the Tabs section. |
-| Arc-style tree behavior | Clicking a folder row expands or collapses it. A collapsed folder can surface its active pinned descendant as a single inset card. |
+| Arc-style tree behavior | Clicking a folder row expands or collapses it. A collapsed folder surfaces its open pinned descendants, with the active one as an inset card, and shows a recent-pages popover on hover. |
 | Context menus | Pinned-page single and multi-selection menus follow Arc's supported actions, including `New Folder with N Items`, move, duplicate, mute, share, and remove-pin behavior. Unsupported Arc-only features such as Split View and Customize Page are deliberately omitted. |
 | Visual system | Adds Arc-oriented colors, translucency, row geometry, Favorites grid, active-page cards, folder icons, spacing, and bottom Space navigation. |
 | Startup performance | Shares bookmark/tab subscriptions, restores associations concurrently, lazy-loads secondary dialogs, and includes Performance Timeline marks for cold-start diagnosis. |

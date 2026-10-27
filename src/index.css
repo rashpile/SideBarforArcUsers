@@ -192,7 +192,7 @@ html, body, #root {
   transform: translate(-50%, -50%);
 }
 
-.arc-tree-row[data-active-peek="true"] {
+.arc-tree-row[data-peek="true"] {
   margin-top: 1px;
   margin-bottom: 3px;
 }

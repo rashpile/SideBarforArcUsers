@@ -12,6 +12,7 @@ import { PinnedSitesManager } from './managers/impl/pinnedSitesManager';
 import { TabAssociationReadiness } from './utils/tabAssociationReadiness';
 import { resolveActiveSpaceId } from './utils/spaceSelection';
 import { findParkedReplacementTab, getEffectiveTabUrl, parseParkedTabUrl } from './utils/parkedTabAssociation';
+import { BookmarkRecencyStore } from './stores/bookmarkRecencyStore';
 
 // Set side panel to open when clicking the extension toolbar button
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
@@ -301,6 +302,67 @@ const tabAssociationReadiness = new TabAssociationReadiness(
 const stateReady = tabAssociationReadiness.wait();
 
 // =============================================================================
+// Bookmark recency (feature 034) - last-active time per Arc-style bookmark tab,
+// read by the sidebar's collapsed-folder popover. Background is the only writer.
+// =============================================================================
+
+const bookmarkRecencyStore = new BookmarkRecencyStore({
+  get: (key) => chrome.storage.local.get(key),
+  set: (values) => chrome.storage.local.set(values),
+});
+
+const BOOKMARK_ITEM_KEY_PREFIX = 'bookmark-';
+
+// Record the activation if the tab is a bookmark's Arc-style tab
+function recordBookmarkActivation(windowId: number, tabId: number): void
+{
+  getTabAssociations(windowId)
+    .then((associations) =>
+    {
+      const itemKey = associations[tabId];
+      if (!itemKey?.startsWith(BOOKMARK_ITEM_KEY_PREFIX)) return;
+      return bookmarkRecencyStore.touch(itemKey.slice(BOOKMARK_ITEM_KEY_PREFIX.length));
+    })
+    .catch((error) => console.error('[BookmarkRecency] failed to record activation:', error));
+}
+
+// Opening a bookmark from the sidebar activates the new tab before the sidebar
+// stores its association, so onActivated finds nothing. Re-check the window's
+// active tab whenever its associations change.
+chrome.storage.onChanged.addListener((changes, areaName) =>
+{
+  if (areaName !== 'session') return;
+
+  // Each changed tabAssociations_{windowId} key names a window to re-check
+  for (const key of Object.keys(changes))
+  {
+    const match = /^tabAssociations_(\d+)$/.exec(key);
+    if (!match) continue;
+
+    const windowId = Number(match[1]);
+    chrome.tabs.query({ active: true, windowId })
+      .then(([tab]) =>
+      {
+        if (tab?.id !== undefined) recordBookmarkActivation(windowId, tab.id);
+      })
+      .catch(() => { /* Window may be gone */ });
+  }
+});
+
+// Collect a removed node's id and, for folders, every descendant id
+function collectBookmarkIds(node: chrome.bookmarks.BookmarkTreeNode): string[]
+{
+  return [node.id, ...(node.children ?? []).flatMap(collectBookmarkIds)];
+}
+
+chrome.bookmarks.onRemoved.addListener((id, removeInfo) =>
+{
+  const ids = removeInfo.node ? collectBookmarkIds(removeInfo.node) : [id];
+  bookmarkRecencyStore.forget(ids)
+    .catch((error) => console.error('[BookmarkRecency] failed to forget removed bookmarks:', error));
+});
+
+// =============================================================================
 // Event Listeners
 // =============================================================================
 
@@ -325,6 +387,8 @@ chrome.tabs.onActivated.addListener(async (activeInfo) =>
   {
     historyManager.push(activeInfo.windowId, activeInfo.tabId);
   }
+
+  recordBookmarkActivation(activeInfo.windowId, activeInfo.tabId);
 
   const persistedSpaceId = spaceStateManager.getActiveSpace(activeInfo.windowId);
   const currentSpaceId = resolveActiveSpaceId(spaceManager.getSpaces(), persistedSpaceId);

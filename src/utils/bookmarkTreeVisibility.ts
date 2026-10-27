@@ -6,7 +6,8 @@ export interface BookmarkTreeNodeLike {
 
 export interface VisibleBookmarkChild<TNode extends BookmarkTreeNodeLike> {
   node: TNode;
-  isActivePeek: boolean;
+  /** Open bookmark surfaced from inside a collapsed folder. */
+  isPeek: boolean;
 }
 
 export type BookmarkRowClickIntent = 'toggle-folder' | 'select-only' | 'open-bookmark';
@@ -28,14 +29,13 @@ export const getVisibleSpaceRootItems = <TNode extends BookmarkTreeNodeLike>(
 /**
  * 返回文件夹当前应渲染的子节点。
  *
- * 折叠时仍递归寻找活跃固定 Tab，是为了复现 Arc 的行为：文件夹结构保持折叠，
- * 但用户仍能看到当前页面位于哪个文件夹。当前窗口只会有一个活跃 Tab，因此找到
- * 第一个活跃书签后即可提前结束遍历，避免每次渲染扫描完整棵子树。
+ * 折叠时仍递归寻找所有已打开的固定 Tab：文件夹结构保持折叠，但用户能看到
+ * 哪些页面开着、当前页面位于哪个文件夹。活跃项依旧由行本身的 active 样式标出。
  */
 export const getVisibleBookmarkChildren = <TNode extends BookmarkTreeNodeLike>(
   folder: TNode,
   isExpanded: boolean,
-  isActive: (bookmarkId: string) => boolean,
+  isOpen: (bookmarkId: string) => boolean,
 ): VisibleBookmarkChild<TNode>[] =>
 {
   if (!folder.children?.length)
@@ -47,37 +47,31 @@ export const getVisibleBookmarkChildren = <TNode extends BookmarkTreeNodeLike>(
   {
     return folder.children.map((node) => ({
       node: node as TNode,
-      isActivePeek: false,
+      isPeek: false,
     }));
   }
 
-  const findActiveDescendant = (nodes: BookmarkTreeNodeLike[]): TNode | undefined =>
+  const openDescendants: VisibleBookmarkChild<TNode>[] = [];
+
+  const collectOpenDescendants = (nodes: BookmarkTreeNodeLike[]) =>
   {
-    // 深度优先查找可以保持书签树原有顺序，同时在命中当前活跃项后立即停止。
+    // 深度优先遍历保持书签树原有顺序
     for (const node of nodes)
     {
-      if (node.url && isActive(node.id))
+      if (node.url && isOpen(node.id))
       {
-        return node as TNode;
+        openDescendants.push({ node: node as TNode, isPeek: true });
       }
 
       if (node.children?.length)
       {
-        const activeDescendant = findActiveDescendant(node.children);
-        if (activeDescendant)
-        {
-          return activeDescendant;
-        }
+        collectOpenDescendants(node.children);
       }
     }
-
-    return undefined;
   };
 
-  const activeDescendant = findActiveDescendant(folder.children);
-  return activeDescendant
-    ? [{ node: activeDescendant, isActivePeek: true }]
-    : [];
+  collectOpenDescendants(folder.children);
+  return openDescendants;
 };
 
 /**
