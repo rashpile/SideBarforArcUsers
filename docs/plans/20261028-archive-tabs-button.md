@@ -146,10 +146,13 @@ Three layers, each testable on its own:
 - [x] run `make build` (type-check) and `make test` - must pass before task 5
 
 ### Task 5: Verify acceptance criteria
-- [ ] verify all requirements from Overview are implemented (tab set incl. active/audible, filter respected, empty pages, failures kept open, confirm on full window, Undo)
-- [ ] verify edge cases are handled (no Space folder → no button, duplicate URLs in one batch, archive folder missing → created once)
-- [ ] run full test suite: `make test`
-- [ ] run `make build`
+- [x] verify all requirements from Overview are implemented (tab set incl. active/audible, filter respected, empty pages, failures kept open, confirm on full window, Undo)
+- [x] verify edge cases are handled (no Space folder → no button, duplicate URLs in one batch, archive folder missing → created once)
+- [x] run full test suite: `make test`
+- [x] run `make build`
+- ⚠️ known limitations (not fixed, rare; carry into the 035 spec in Task 6):
+  - Pressing Archive again while the first press still runs starts a second batch over the same tabs. Undo of the press that finished last can then remove archive items while reopening nothing, since the other press closed the tabs. Clear has the same lack of an in-flight guard.
+  - If background auto-archive and the button both find `asd_Archive` missing at the same moment, two archive folders can appear; `findArchiveFolder` then uses the one with the lowest index.
 
 ### Task 6: [Final] Update documentation
 - [ ] `docs/features/035-tab-auto-archive.md`: note the Archive button as the exception to "manually closed tabs do not go to the archive", with a short section on its rules
