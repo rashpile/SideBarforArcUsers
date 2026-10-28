@@ -39,13 +39,17 @@ import { TreeRow } from './TreeRow';
 import { FolderPickerDialog } from './FolderPickerDialog';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import { CloseTabAction } from '../actions/closeTabAction';
+import { ArchiveTabsAction } from '../actions/archiveTabsAction';
 import type { UndoableAction } from '../actions/types';
+import { TabArchiveBatch } from '../utils/tabArchiveBatch';
+import type { ArchivableTab } from '../utils/tabArchiveBatch';
+import type { ArchiveBookmarksApi } from '../utils/archiveFolder';
 import { SpaceNavigatorDialog } from './SpaceNavigatorDialog';
 import { AddToGroupDialog } from './AddToGroupDialog';
 import { ChangeGroupColorDialog } from './ChangeGroupColorDialog';
 import { ExportConflictDialog, ExportConflictMode } from './ExportConflictDialog';
 import { RenameGroupDialog } from './RenameGroupDialog';
-import { Globe, Volume2, Pin, Plus, X, ArrowDown, ArrowDownAZ, ArrowDownZA, Edit, Palette, FolderPlus, Copy, SquareStack, Bookmark, ExternalLink, Link, Check } from 'lucide-react';
+import { Globe, Volume2, Pin, Plus, X, Archive, ArrowDown, ArrowDownAZ, ArrowDownZA, Edit, Palette, FolderPlus, Copy, SquareStack, Bookmark, ExternalLink, Link, Check } from 'lucide-react';
 import { getArcTabSectionItems } from '../utils/arcTabSection';
 import { getIndentPadding } from '../utils/indent';
 import { matchesFilter } from '../utils/searchParser';
@@ -471,11 +475,12 @@ interface DroppableNewTabRowProps
   showDropIndicator: boolean;
   showDropInto: boolean;
   menuContent: React.ReactNode;
+  onArchiveTabs?: () => void;  // Undefined hides the Archive button (no Space folder to archive to)
   onClearTabs?: () => void;
 }
 
 const DroppableNewTabRow = forwardRef<HTMLDivElement, DroppableNewTabRowProps>(
-  ({ onClick, showDropIndicator, showDropInto, menuContent, onClearTabs }, forwardedRef) =>
+  ({ onClick, showDropIndicator, showDropInto, menuContent, onArchiveTabs, onClearTabs }, forwardedRef) =>
   {
     const { setNodeRef: setDropRef } = useDroppable({
       id: 'end-of-list',
@@ -532,21 +537,41 @@ const DroppableNewTabRow = forwardRef<HTMLDivElement, DroppableNewTabRowProps>(
                 : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
             )}
             data-dnd-id="end-of-list"
-            actions={onClearTabs && (
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onClearTabs();
-                }}
-                className="arc-clear-tabs flex items-center gap-1 px-1.5 py-1 rounded"
-                title="Clear tabs"
-                aria-label="Clear tabs"
-              >
-                <ArrowDown size={12} />
-                <span>Clear</span>
-              </button>
+            actions={(onArchiveTabs || onClearTabs) && (
+              <div className="flex items-center gap-1">
+                {onArchiveTabs && (
+                  <button
+                    type="button"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onArchiveTabs();
+                    }}
+                    className="arc-tab-list-action flex items-center gap-1 px-1.5 py-1 rounded"
+                    title="Archive tabs"
+                    aria-label="Archive tabs"
+                  >
+                    <Archive size={12} />
+                    <span>Archive</span>
+                  </button>
+                )}
+                {onClearTabs && (
+                  <button
+                    type="button"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onClearTabs();
+                    }}
+                    className="arc-tab-list-action flex items-center gap-1 px-1.5 py-1 rounded"
+                    title="Clear tabs"
+                    aria-label="Clear tabs"
+                  >
+                    <ArrowDown size={12} />
+                    <span>Clear</span>
+                  </button>
+                )}
+              </div>
             )}
           >
             {showDropIndicator && (
@@ -821,6 +846,18 @@ type DisplayItem =
   | { type: 'group'; group: chrome.tabGroups.TabGroup; tabs: chrome.tabs.Tab[]; startIndex: number }
   | { type: 'tab'; tab: chrome.tabs.Tab };
 
+// chrome.bookmarks calls for the Archive button's TabArchiveBatch (feature 035)
+const chromeArchiveBookmarks: ArchiveBookmarksApi = {
+  getChildren: (id) => chrome.bookmarks.getChildren(id),
+  create: (bookmark) => chrome.bookmarks.create(bookmark),
+  remove: (id) => chrome.bookmarks.remove(id),
+};
+
+const isArchivableTab = (tab: chrome.tabs.Tab): tab is chrome.tabs.Tab & ArchivableTab => tab.id !== undefined;
+
+// Which action the "close every tab in the window" confirmation runs
+type CloseAllMode = 'close' | 'archive';
+
 interface TabListProps {
   onPin?: (url: string, title: string, faviconUrl?: string, tabId?: number) => void;
   onPinMultiple?: (pins: Array<{ url: string; title: string; faviconUrl?: string }>) => void;
@@ -882,18 +919,22 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     createTab();
   }, [createTab]);
 
+  // True when closing these tabs leaves the window without tabs, so the window closes (no undo)
+  const closesWholeWindow = useCallback((tabIds: readonly number[]) =>
+  {
+    const closingSet = new Set(tabIds);
+    return tabs.every(t => t.id === undefined || closingSet.has(t.id));
+  }, [tabs]);
+
   // Close tabs via CloseTabAction (undoable when onPerformAction available).
   // If closing all tabs in window, show confirmation (no undo — window will close).
   const performClose = useCallback((tabIds: number[]) =>
   {
     if (tabIds.length === 0) return;
 
-    // Check if this would close every tab in the window
-    const closingSet = new Set(tabIds);
-    const remaining = tabs.filter(t => t.id !== undefined && !closingSet.has(t.id!));
-    if (remaining.length === 0)
+    if (closesWholeWindow(tabIds))
     {
-      setConfirmCloseAllDialog({ isOpen: true, tabIds });
+      setConfirmCloseAllDialog({ isOpen: true, tabIds, mode: 'close' });
       return;
     }
 
@@ -908,7 +949,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     {
       action.do();
     }
-  }, [tabs, onPerformAction, windowId, getItemKeyForTab, restoreItemAssociation]);
+  }, [closesWholeWindow, onPerformAction, windowId, getItemKeyForTab, restoreItemAssociation]);
 
   // Space-aware close all tabs - closes only visible tabs
   const handleCloseAllTabs = useCallback(() =>
@@ -1087,16 +1128,21 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     {}
   );
 
+  // The active Space's bookmark folder; undefined for "All", a Space without a folder, or a folder that is gone
+  const activeSpaceFolderId = useMemo(() =>
+  {
+    if (!activeSpace || activeSpace.id === 'all') return undefined;
+    return (activeSpace.bookmarkFolderSegments?.length)
+      ? findFolderBySegments(activeSpace.bookmarkFolderSegments, activeSpace.bookmarkFolderInAccount)?.id
+      : undefined;
+  }, [activeSpace, findFolderBySegments]);
+
   // Default folder for Add to Bookmark dialogs: remembered folder for this space, or space root bookmark folder
   const lastSelectedBookmarkFolderDefaultId = useMemo(() =>
   {
     if (!activeSpace || activeSpace.id === 'all') return undefined;
-    const remembered = lastSelectedBookmarkFolderPerSpace[activeSpace.id];
-    if (remembered) return remembered;
-    return (activeSpace.bookmarkFolderSegments?.length)
-      ? findFolderBySegments(activeSpace.bookmarkFolderSegments, activeSpace.bookmarkFolderInAccount)?.id
-      : undefined;
-  }, [activeSpace, lastSelectedBookmarkFolderPerSpace, findFolderBySegments]);
+    return lastSelectedBookmarkFolderPerSpace[activeSpace.id] || activeSpaceFolderId;
+  }, [activeSpace, lastSelectedBookmarkFolderPerSpace, activeSpaceFolderId]);
 
   // Save the selected bookmark folder for the current space
   const saveLastSelectedBookmarkFolder = useCallback((folderId: string) =>
@@ -1649,11 +1695,13 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     }
   }, [activeTabId, isTabSelected, clearSelection]);
 
-  // Confirm dialog for closing all tabs in window (window will close, no undo possible)
+  // Confirm dialog for closing all tabs in window (window will close, no undo possible).
+  // mode 'archive' comes from the Archive button: the tabs are archived before they close
   const [confirmCloseAllDialog, setConfirmCloseAllDialog] = useState<{
     isOpen: boolean;
     tabIds: number[];
-  }>({ isOpen: false, tabIds: [] });
+    mode: CloseAllMode;
+  }>({ isOpen: false, tabIds: [], mode: 'close' });
 
   // Sync local overlay state when unified context drag starts/ends
   useEffect(() =>
@@ -2437,13 +2485,74 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     }
   }, [getTabSelectionInfo, performClose, clearSelection]);
 
+  // The Archive button's action: save the tabs into the Space's archive, then close them through CloseTabAction
+  const createArchiveTabsAction = useCallback((archiveTabs: ArchivableTab[], spaceFolderId: string, targetWindowId: number) =>
+    new ArchiveTabsAction(
+      archiveTabs,
+      spaceFolderId,
+      new TabArchiveBatch(chromeArchiveBookmarks),
+      (tabIds) => new CloseTabAction(tabIds, targetWindowId, getItemKeyForTab, restoreItemAssociation)
+    ), [getItemKeyForTab, restoreItemAssociation]);
+
+  // Archive button: archives and closes the tabs Clear would close (the visible ones, active and audible included)
+  const handleArchiveAllTabs = useCallback(() =>
+  {
+    if (!activeSpaceFolderId || !windowId) return;
+    const archiveTabs = visibleTabs.filter(isArchivableTab);
+    if (archiveTabs.length === 0) return;
+
+    const tabIds = archiveTabs.map(tab => tab.id);
+    if (closesWholeWindow(tabIds))
+    {
+      setConfirmCloseAllDialog({ isOpen: true, tabIds, mode: 'archive' });
+      return;
+    }
+
+    const action = createArchiveTabsAction(archiveTabs, activeSpaceFolderId, windowId);
+    if (onPerformAction)
+    {
+      onPerformAction(action);
+    }
+    else
+    {
+      action.do().catch(error => console.error('[TabList] Failed to archive tabs:', error));
+    }
+    clearSelection();
+  }, [activeSpaceFolderId, windowId, visibleTabs, closesWholeWindow, createArchiveTabsAction, onPerformAction, clearSelection]);
+
+  // Archive after the close-all confirmation: runs without Undo, since the window closes.
+  // Tabs whose archive item fails stay open, and then the window and the toast survive
+  const archiveWholeWindow = useCallback(async (tabIds: number[]) =>
+  {
+    if (!activeSpaceFolderId || !windowId) return;
+    const closingSet = new Set(tabIds);
+    const archiveTabs = tabs.filter(isArchivableTab).filter(tab => closingSet.has(tab.id));
+    const action = createArchiveTabsAction(archiveTabs, activeSpaceFolderId, windowId);
+    try
+    {
+      await action.do();
+      showToast(action.description);
+    }
+    catch (error)
+    {
+      showToast(error instanceof Error ? error.message : 'Could not archive tabs');
+    }
+  }, [activeSpaceFolderId, windowId, tabs, createArchiveTabsAction, showToast]);
+
   // Confirm close all tabs in window (no undo — window will close)
   const handleConfirmCloseAll = useCallback(() =>
   {
-    closeTabs(confirmCloseAllDialog.tabIds);
+    if (confirmCloseAllDialog.mode === 'archive')
+    {
+      archiveWholeWindow(confirmCloseAllDialog.tabIds);
+    }
+    else
+    {
+      closeTabs(confirmCloseAllDialog.tabIds);
+    }
     clearSelection();
-    setConfirmCloseAllDialog({ isOpen: false, tabIds: [] });
-  }, [confirmCloseAllDialog.tabIds, closeTabs, clearSelection]);
+    setConfirmCloseAllDialog({ isOpen: false, tabIds: [], mode: 'close' });
+  }, [confirmCloseAllDialog.mode, confirmCloseAllDialog.tabIds, archiveWholeWindow, closeTabs, clearSelection]);
 
   // Open save groups to bookmarks dialog
   const openSaveGroupsToBookmarksDialog = useCallback(() =>
@@ -2561,6 +2670,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
                   ref={endOfListRef}
                   onClick={handleNewTab}
                   menuContent={tabsMenuContent}
+                  onArchiveTabs={visibleTabs.length > 0 && activeSpaceFolderId ? handleArchiveAllTabs : undefined}
                   onClearTabs={visibleTabs.length > 0 ? handleCloseAllTabs : undefined}
                   showDropIndicator={dropTargetId === 'end-of-list' && dropPosition === 'before' && !isInSpace}
                   showDropInto={
@@ -2846,9 +2956,11 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
         isOpen={confirmCloseAllDialog.isOpen}
         itemCount={confirmCloseAllDialog.tabIds.length}
         itemType="tabs"
-        details="This will close the window."
+        details={confirmCloseAllDialog.mode === 'archive'
+          ? 'They are archived first. This will close the window.'
+          : 'This will close the window.'}
         onConfirm={handleConfirmCloseAll}
-        onClose={() => setConfirmCloseAllDialog({ isOpen: false, tabIds: [] })}
+        onClose={() => setConfirmCloseAllDialog({ isOpen: false, tabIds: [], mode: 'close' })}
       />
 
       {/* Multi-selection dialogs */}

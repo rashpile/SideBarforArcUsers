@@ -254,7 +254,8 @@ html, body, #root {
   opacity: 1;
 }
 
-.arc-clear-tabs {
+/* Archive and Clear buttons on the "+ New Tab" row, shown on row hover */
+.arc-tab-list-action {
   color: var(--arc-muted);
   font-size: 0.82em;
   font-weight: 500;
@@ -263,13 +264,13 @@ html, body, #root {
   transition: opacity 120ms ease;
 }
 
-.arc-new-tab-row:hover .arc-clear-tabs,
-.arc-new-tab-row:focus-within .arc-clear-tabs {
+.arc-new-tab-row:hover .arc-tab-list-action,
+.arc-new-tab-row:focus-within .arc-tab-list-action {
   opacity: 1;
   pointer-events: auto;
 }
 
-.arc-clear-tabs:hover {
+.arc-tab-list-action:hover {
   background: rgba(255, 255, 255, 0.32);
   color: var(--arc-text);
 }

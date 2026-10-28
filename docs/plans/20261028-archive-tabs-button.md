@@ -95,6 +95,7 @@ Three layers, each testable on its own:
 - Real deps: `new TabArchiveBatch({ getChildren: id => chrome.bookmarks.getChildren(id), create: b => chrome.bookmarks.create(b), remove: id => chrome.bookmarks.remove(id) })`; factory `ids => new CloseTabAction(ids, windowId, getItemKeyForTab, restoreItemAssociation)`.
 - `NewTabRow` gets `onArchiveTabs?: () => void`; `actions` renders Archive then Clear in a `flex items-center gap-1` wrapper; both buttons stop pointer-down propagation like Clear. Reuse the `arc-clear-tabs` look (rename the CSS class to something shared, e.g. `arc-tab-list-action`, or add a second selector — builder's call).
 - Clear selection after archiving, as the close-all confirm does.
+- As built: `activeSpaceFolderId` memo (also feeds `lastSelectedBookmarkFolderDefaultId`); `closesWholeWindow(tabIds)` shared by `performClose` and the Archive button; CSS class renamed to `arc-tab-list-action` for both buttons. In archive mode the confirm dialog's details read "They are archived first. This will close the window."; after confirming, the action's description (or its error) goes to TabList's own toast, which only stays visible when some tab was kept open and the window survives.
 
 ## What Goes Where
 - **Implementation Steps** (`[ ]` checkboxes): code, tests, docs in this repo
@@ -137,12 +138,12 @@ Three layers, each testable on its own:
 - Modify: `src/components/TabList.tsx`
 - Modify: `src/index.css`
 
-- [ ] add `onArchiveTabs` to `NewTabRow` and render the Archive button left of Clear (lucide `Archive` icon, `title`/`aria-label` "Archive tabs")
-- [ ] compute the active Space's folder id; pass `onArchiveTabs` only when it exists and `visibleTabs` is not empty
-- [ ] add `handleArchiveAllTabs` with the real `TabArchiveBatch` and `CloseTabAction` factory, run through `onPerformAction`
-- [ ] extend `confirmCloseAllDialog` with `mode` and run the archive action on confirm in archive mode
-- [ ] make the hover-reveal CSS cover both buttons
-- [ ] run `make build` (type-check) and `make test` - must pass before task 5
+- [x] add `onArchiveTabs` to `NewTabRow` and render the Archive button left of Clear (lucide `Archive` icon, `title`/`aria-label` "Archive tabs")
+- [x] compute the active Space's folder id; pass `onArchiveTabs` only when it exists and `visibleTabs` is not empty
+- [x] add `handleArchiveAllTabs` with the real `TabArchiveBatch` and `CloseTabAction` factory, run through `onPerformAction`
+- [x] extend `confirmCloseAllDialog` with `mode` and run the archive action on confirm in archive mode
+- [x] make the hover-reveal CSS cover both buttons
+- [x] run `make build` (type-check) and `make test` - must pass before task 5
 
 ### Task 5: Verify acceptance criteria
 - [ ] verify all requirements from Overview are implemented (tab set incl. active/audible, filter respected, empty pages, failures kept open, confirm on full window, Undo)
