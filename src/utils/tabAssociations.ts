@@ -9,11 +9,15 @@ import type {
 } from '../stores/tabAssociationBackupStore.ts';
 import { mergeRestoredTabAssociations } from './restoreTabAssociations.ts';
 import { getEffectiveTabUrl } from './parkedTabAssociation.ts';
+import { isSameSite } from './storedTabMatcher.ts';
 
 export type { TabAssociationBackupEntry, WindowAssociationBackup } from '../stores/tabAssociationBackupStore.ts';
 
 // Storage key helper
 const getStorageKey = (windowId: number) => `tabAssociations_${windowId}`;
+
+/** Item key of a bookmark's tab: `bookmark-{bookmarkId}` (a Favorite's is `pinned-{id}`). */
+export const BOOKMARK_ITEM_KEY_PREFIX = 'bookmark-';
 
 const tabAssociationSessionStore = new TabAssociationSessionStore({
   get: (key) => chrome.storage.session.get(key),
@@ -186,17 +190,166 @@ interface WindowMatch
   tabMatches: Record<string, number>;
 }
 
+export interface BackupMatchOptions
+{
+  /**
+   * True on a worker restart within the browser session that wrote the backup
+   * (BrowserSessionMarker): window and tab IDs are exact. False after a browser
+   * restart or an extension reload/update, when they may be reused.
+   */
+  sameBrowserSession: boolean;
+  /** Receives each pass's decisions (the caller passes console.log in DEV builds). */
+  log?: (message: string) => void;
+}
+
 // Shared state threaded through all matching passes
 interface MatchContext
 {
   result: Map<number, WindowMatch>;
   claimedWindowIds: Set<number>;
+  // Pass 1 matches that found only some entries' tabs, held back for pass 3
+  partialDirectMatches: Map<number, WindowMatch>;
   backups: Map<number, WindowAssociationBackup>;
   allWindows: chrome.windows.Window[];
+  sameBrowserSession: boolean;
+  log: (message: string) => void;
 }
 
-// Pass 1: direct match — backup window ID still exists.
-// Tab IDs should also be preserved (extension reload), so match by stored tabId.
+// One live tab as the passes compare it: effective URL (parked tabs count by their page) and domain
+interface ComparedTab
+{
+  id: number;
+  index: number;
+  url: string;
+  domain: string;
+}
+
+/**
+ * The live tabs of one window while a backup's entries are placed in it.
+ * Each tab goes to one entry at most.
+ */
+class WindowTabs
+{
+  #tabs: ComparedTab[];
+  #taken = new Set<number>();
+
+  constructor(win: chrome.windows.Window)
+  {
+    this.#tabs = (win.tabs ?? []).flatMap(tab => tab.id === undefined ? [] : [{
+      id: tab.id,
+      index: tab.index,
+      url: getEffectiveTabUrl(tab.url),
+      domain: getDomain(tab.url ?? ''),
+    }]);
+  }
+
+  /** The effective URL of the window's tab with this ID; undefined when there is none. */
+  urlOf(tabId: number): string | undefined
+  {
+    return this.#tabs.find(tab => tab.id === tabId)?.url;
+  }
+
+  /** Take the tab if the window has it and no entry took it yet. */
+  take(tabId: number): boolean
+  {
+    if (this.#taken.has(tabId) || !this.#tabs.some(tab => tab.id === tabId)) return false;
+    this.#taken.add(tabId);
+    return true;
+  }
+
+  /** Take the free tab showing exactly this page, nearest to the index. */
+  takeShowingPage(url: string, index: number): number | undefined
+  {
+    if (!url) return undefined;
+    return this.#takeNearest(index, tab => tab.url === url);
+  }
+
+  /** Take the free tab on this domain nearest to the index. */
+  takeOnDomain(domain: string, index: number): number | undefined
+  {
+    if (!domain) return undefined;
+    return this.#takeNearest(index, tab => tab.domain === domain);
+  }
+
+  // The free tab passing the test closest to the index; the leftmost one wins a tie
+  #takeNearest(index: number, accepts: (tab: ComparedTab) => boolean): number | undefined
+  {
+    let best: ComparedTab | undefined;
+
+    // Keep the closest free tab that passes the test
+    for (const tab of this.#tabs)
+    {
+      if (this.#taken.has(tab.id) || !accepts(tab)) continue;
+      if (!best || Math.abs(tab.index - index) < Math.abs(best.index - index)) best = tab;
+    }
+    if (!best) return undefined;
+    this.#taken.add(best.id);
+    return best.id;
+  }
+}
+
+/**
+ * Give backup entries tabs of the window their backup was matched to. An entry
+ * takes, in this order: its candidate (the tab a pass picked by ID or index)
+ * when that tab shows the entry's exact page; a free tab showing its exact page
+ * (the backup URL follows navigations and Chrome restores exact URLs), so a
+ * reused tab ID or a stale index can't hand a Favorite to another page of its
+ * site; its candidate on another page of the site. Without candidates (domain
+ * overlap) an entry falls back to the free tab on its domain nearest its old
+ * index. With candidates, entries that have none get nothing.
+ */
+function placeEntries(
+  entries: Array<[string, TabAssociationBackupEntry]>,
+  tabs: WindowTabs,
+  candidates?: ReadonlyMap<string, number>
+): Record<string, number>
+{
+  const placed: Record<string, number> = {};
+  const toPlace = candidates ? entries.filter(([itemKey]) => candidates.has(itemKey)) : entries;
+
+  // Round 1: candidates already on the entry's exact page
+  for (const [itemKey, entry] of toPlace)
+  {
+    const candidate = candidates?.get(itemKey);
+    if (candidate !== undefined && tabs.urlOf(candidate) === entry.url && tabs.take(candidate))
+    {
+      placed[itemKey] = candidate;
+    }
+  }
+
+  // Round 2: a free tab showing the entry's exact page
+  for (const [itemKey, entry] of toPlace)
+  {
+    if (itemKey in placed) continue;
+    const tabId = tabs.takeShowingPage(entry.url, entry.tabIndex);
+    if (tabId !== undefined) placed[itemKey] = tabId;
+  }
+
+  // Round 3: the candidate on another page of its site, or without candidates the nearest tab on the domain
+  for (const [itemKey, entry] of toPlace)
+  {
+    if (itemKey in placed) continue;
+    const candidate = candidates?.get(itemKey);
+
+    // With candidates every entry here has one; it may have gone to another entry's exact page
+    if (candidate !== undefined)
+    {
+      if (tabs.take(candidate)) placed[itemKey] = candidate;
+      continue;
+    }
+    const tabId = tabs.takeOnDomain(getDomain(entry.url), entry.tabIndex);
+    if (tabId !== undefined) placed[itemKey] = tabId;
+  }
+
+  return placed;
+}
+
+// Pass 1: direct match — the backup's window ID still exists.
+// Same browser session (worker restart): window and tab IDs are exact, so the
+// window is claimed and each entry keeps the tab with its stored ID, whatever
+// page it shows now (its stored URL may lag a navigation made while the worker
+// slept); an entry whose tab is gone (closed while the worker slept) is dropped.
+// Otherwise (browser restart, extension reload or update) see matchDirectOnSite.
 function matchDirect(ctx: MatchContext, backupIds: number[]): void
 {
   const currentIds = new Set(ctx.allWindows.map(w => w.id!));
@@ -207,47 +360,124 @@ function matchDirect(ctx: MatchContext, backupIds: number[]): void
     // Skip backups whose window ID no longer exists (needs fuzzy matching in later passes)
     if (!currentIds.has(backupId))
     {
-      if (import.meta.env.DEV)
-      {
-        console.log(`[matchBackup] pass1: backup=${backupId} — window ID not found`);
-      }
+      ctx.log(`[matchBackup] pass1: backup=${backupId} — window ID not found`);
       continue;
     }
 
     const backup = ctx.backups.get(backupId)!;
     const win = ctx.allWindows.find(w => w.id === backupId)!;
-    const currentTabIds = new Set((win.tabs ?? []).map(t => t.id!));
-
-    const tabMatches: Record<string, number> = {};
-    const logLines: string[] = [];
-
-    // Check each backup entry's stored tabId against the window's current tab IDs
-    for (const [itemKey, entry] of Object.entries(backup))
+    if (ctx.sameBrowserSession)
     {
-      if (currentTabIds.has(entry.tabId))
-      {
-        tabMatches[itemKey] = entry.tabId;
-        logLines.push(`  ${itemKey}: tabId=${entry.tabId} ✓`);
-      }
-      else
-      {
-        logLines.push(`  ${itemKey}: tabId=${entry.tabId} — tab gone ✗`);
-      }
+      claimWindowById(ctx, backupId, backup, win);
     }
-
-    ctx.result.set(backupId, { currentId: backupId, matchType: 'direct', tabMatches });
-    ctx.claimedWindowIds.add(backupId);
-    if (import.meta.env.DEV)
+    else
     {
-      console.log(`[matchBackup] pass1: backup=${backupId} → direct (${Object.keys(tabMatches).length}/${Object.keys(backup).length} tabs)\n${logLines.join('\n')}`);
+      matchDirectOnSite(ctx, backupId, backup, win);
     }
   }
+}
+
+// Pass 1 within the same browser session: claim the window, keep each entry's tab by ID
+function claimWindowById(
+  ctx: MatchContext,
+  backupId: number,
+  backup: WindowAssociationBackup,
+  win: chrome.windows.Window
+): void
+{
+  const currentTabIds = new Set((win.tabs ?? []).map(t => t.id!));
+  const tabMatches: Record<string, number> = {};
+  const logLines: string[] = [];
+
+  // Check each backup entry's stored tabId against the window's current tab IDs
+  for (const [itemKey, entry] of Object.entries(backup))
+  {
+    if (currentTabIds.has(entry.tabId))
+    {
+      tabMatches[itemKey] = entry.tabId;
+      logLines.push(`  ${itemKey}: tabId=${entry.tabId} ✓`);
+    }
+    else
+    {
+      logLines.push(`  ${itemKey}: tabId=${entry.tabId} — tab gone ✗`);
+    }
+  }
+
+  ctx.result.set(backupId, { currentId: backupId, matchType: 'direct', tabMatches });
+  ctx.claimedWindowIds.add(backupId);
+  ctx.log(`[matchBackup] pass1: backup=${backupId} → direct, same browser session (${Object.keys(tabMatches).length}/${Object.keys(backup).length} tabs)\n${logLines.join('\n')}`);
+}
+
+// Pass 1 after a browser restart or an extension reload/update: the backup takes
+// its old window ID only when every entry's stored tab ID is still in it, on the
+// entry's site (on a reload IDs are kept and the backup URL follows navigations).
+// After a browser restart Chrome hands out low window and tab IDs again, so the
+// old window ID often exists again with unrelated tabs under the stored IDs. Such
+// a backup stays unclaimed, and so does its window, for the index+domain and
+// domain passes. When some entries matched and the others' tabs are simply gone
+// (closed or dragged to another window while the extension wasn't running), the
+// ID matches are held back for pass 3. Within the window an entry prefers a tab
+// showing its exact page over its ID's tab on another page (placeEntries).
+function matchDirectOnSite(
+  ctx: MatchContext,
+  backupId: number,
+  backup: WindowAssociationBackup,
+  win: chrome.windows.Window
+): void
+{
+  const tabs = new WindowTabs(win);
+  const candidates = new Map<string, number>();
+  const logLines: string[] = [];
+  let otherSiteCount = 0;
+
+  // Check each backup entry's stored tabId against the window's current tabs and their sites
+  for (const [itemKey, entry] of Object.entries(backup))
+  {
+    const currentUrl = tabs.urlOf(entry.tabId);
+    if (currentUrl !== undefined && isSameSite(entry.url, currentUrl))
+    {
+      candidates.set(itemKey, entry.tabId);
+      logLines.push(`  ${itemKey}: tabId=${entry.tabId} ✓`);
+    }
+    else
+    {
+      if (currentUrl !== undefined) otherSiteCount++;
+      logLines.push(`  ${itemKey}: tabId=${entry.tabId} — ${currentUrl === undefined ? 'tab gone' : 'other site'} ✗`);
+    }
+  }
+
+  const entryCount = Object.keys(backup).length;
+  const allFound = candidates.size === entryCount;
+  let outcome = 'left for passes 2-4';
+
+  // Every entry found its tab, or some tabs are gone but none was taken by another site
+  if (allFound || (candidates.size > 0 && otherSiteCount === 0))
+  {
+    const tabMatches = placeEntries(Object.entries(backup), tabs, candidates);
+    const match: WindowMatch = { currentId: backupId, matchType: 'direct', tabMatches };
+
+    // Every entry found its tab: the same window as before, claim it now
+    if (allFound)
+    {
+      ctx.result.set(backupId, match);
+      ctx.claimedWindowIds.add(backupId);
+      outcome = 'direct';
+    }
+    // Otherwise keep the ID matches in case pass 2 finds nothing
+    else
+    {
+      ctx.partialDirectMatches.set(backupId, match);
+      outcome = 'partial, held for pass 3';
+    }
+  }
+  ctx.log(`[matchBackup] pass1: backup=${backupId} → ${outcome} (${candidates.size}/${entryCount} tabs)\n${logLines.join('\n')}`);
 }
 
 // Pass 2: index+domain matching.
 // Matches when a current window has a tab at the same index whose domain matches
 // for every backup entry. Catches Chrome restoring tabs in the same positions
-// with new IDs.
+// with new IDs. Within the window an entry prefers a tab showing its exact page
+// (placeEntries).
 function matchByIndexAndDomain(ctx: MatchContext, backupIds: number[]): void
 {
   const unmatched = backupIds.filter(id => !ctx.result.has(id));
@@ -281,7 +511,7 @@ function matchByIndexAndDomain(ctx: MatchContext, backupIds: number[]): void
     {
       if (ctx.claimedWindowIds.has(winId)) continue;
 
-      const tabMatches: Record<string, number> = {};
+      const candidates = new Map<string, number>();
       const matchLines: string[] = [];
       const mismatchLines: string[] = [];
 
@@ -292,7 +522,7 @@ function matchByIndexAndDomain(ctx: MatchContext, backupIds: number[]): void
         const current = indexMap.get(entry.tabIndex);
         if (current && current.domain === backupDomain)
         {
-          tabMatches[itemKey] = current.tabId;
+          candidates.set(itemKey, current.tabId);
           matchLines.push(`  [${entry.tabIndex}] ${backupDomain} → tabId=${current.tabId} ✓`);
         }
         else
@@ -302,14 +532,13 @@ function matchByIndexAndDomain(ctx: MatchContext, backupIds: number[]): void
       }
 
       const allMatch = mismatchLines.length === 0;
-      if (import.meta.env.DEV)
-      {
-        console.log(`[matchBackup] pass2: backup=${backupId} vs window=${winId} — ${allMatch ? 'MATCH' : 'no match'}\n${[...matchLines, ...mismatchLines].join('\n')}`);
-      }
+      ctx.log(`[matchBackup] pass2: backup=${backupId} vs window=${winId} — ${allMatch ? 'MATCH' : 'no match'}\n${[...matchLines, ...mismatchLines].join('\n')}`);
 
       // All entries matched — claim this window and move to next backup
       if (allMatch)
       {
+        const win = ctx.allWindows.find(w => w.id === winId)!;
+        const tabMatches = placeEntries(entries, new WindowTabs(win), candidates);
         ctx.result.set(backupId, { currentId: winId, matchType: 'index+domain', tabMatches });
         ctx.claimedWindowIds.add(winId);
         break;
@@ -318,10 +547,31 @@ function matchByIndexAndDomain(ctx: MatchContext, backupIds: number[]): void
   }
 }
 
-// Pass 3: domain-based matching for remaining backup windows.
+// Pass 3: partial direct match. A backup that pass 1 matched only in part (some
+// tabs gone, none on another site) and pass 2 didn't place keeps its ID matches
+// if its window is still free; the entries whose tabs are gone are dropped.
+// Typical case: an extension reload while the backup still listed a closed or
+// dragged-away tab. Runs before pass 4, so the other tabs keep their exact
+// associations instead of a guess by domain.
+function matchPartialDirect(ctx: MatchContext, backupIds: number[]): void
+{
+  // Take each held-back pass 1 match whose backup and window are both still unmatched
+  for (const backupId of backupIds)
+  {
+    const match = ctx.partialDirectMatches.get(backupId);
+    if (!match || ctx.result.has(backupId) || ctx.claimedWindowIds.has(match.currentId)) continue;
+
+    ctx.result.set(backupId, match);
+    ctx.claimedWindowIds.add(match.currentId);
+    ctx.log(`[matchBackup] pass3: backup=${backupId} → direct (${Object.keys(match.tabMatches).length}/${Object.keys(ctx.backups.get(backupId)!).length} tabs)`);
+  }
+}
+
+// Pass 4: domain-based matching for remaining backup windows.
 // For each unmatched backup, scores current windows by domain overlap count.
-// The window with the most overlapping domains wins. Tabs are matched by domain
-// (first unclaimed tab with matching domain).
+// The window with the most overlapping domains wins. Each entry then takes the
+// free tab showing its exact page, else the free tab on its domain nearest its
+// old index (placeEntries).
 function matchByDomainOverlap(ctx: MatchContext, backupIds: number[]): void
 {
   const unmatched = backupIds.filter(id => !ctx.result.has(id));
@@ -330,20 +580,12 @@ function matchByDomainOverlap(ctx: MatchContext, backupIds: number[]): void
   const unclaimed = ctx.allWindows.filter(w => !ctx.claimedWindowIds.has(w.id!));
   if (unclaimed.length === 0) return;
 
-  // Pre-compute domain → tabIds for unclaimed current windows
-  const windowDomainTabs = new Map<number, Map<string, number[]>>();
+  // Pre-compute the domains present in each unclaimed current window
+  const windowDomains = new Map<number, Set<string>>();
   for (const win of unclaimed)
   {
-    const domainMap = new Map<string, number[]>();
-    for (const tab of win.tabs ?? [])
-    {
-      const domain = getDomain(tab.url ?? '');
-      if (!domain) continue;
-      const ids = domainMap.get(domain) ?? [];
-      ids.push(tab.id!);
-      domainMap.set(domain, ids);
-    }
-    windowDomainTabs.set(win.id!, domainMap);
+    const domains = new Set((win.tabs ?? []).map(tab => getDomain(tab.url ?? '')).filter(domain => domain !== ''));
+    windowDomains.set(win.id!, domains);
   }
 
   // Try each unmatched backup — find the unclaimed window with the most domain overlap
@@ -356,94 +598,77 @@ function matchByDomainOverlap(ctx: MatchContext, backupIds: number[]): void
     const backupDomains = new Set(entries.map(([, e]) => getDomain(e.url)));
 
     // Score each unclaimed window by counting how many backup domains appear in its tabs
-    let bestWindowId = -1;
+    let bestWindow: chrome.windows.Window | undefined;
     let bestScore = 0;
 
     for (const win of unclaimed)
     {
       if (ctx.claimedWindowIds.has(win.id!)) continue;
-      const domainMap = windowDomainTabs.get(win.id!)!;
+      const domains = windowDomains.get(win.id!)!;
 
       let overlap = 0;
       for (const domain of backupDomains)
       {
-        if (domainMap.has(domain)) overlap++;
+        if (domains.has(domain)) overlap++;
       }
 
-      if (import.meta.env.DEV)
-      {
-        console.log(`[matchBackup] pass3: backup=${backupId} vs window=${win.id!} — overlap=${overlap}/${backupDomains.size}`);
-      }
+      ctx.log(`[matchBackup] pass4: backup=${backupId} vs window=${win.id!} — overlap=${overlap}/${backupDomains.size}`);
 
       if (overlap > bestScore)
       {
         bestScore = overlap;
-        bestWindowId = win.id!;
+        bestWindow = win;
       }
     }
 
     // No window had any domain overlap — this backup can't be matched
-    if (bestWindowId === -1)
+    if (!bestWindow)
     {
-      if (import.meta.env.DEV)
-      {
-        console.log(`[matchBackup] pass3: backup=${backupId} — no matching window found`);
-      }
+      ctx.log(`[matchBackup] pass4: backup=${backupId} — no matching window found`);
       continue;
     }
 
-    // Best window found — now map each backup entry to a specific tab by domain
-    const domainMap = windowDomainTabs.get(bestWindowId)!;
-    const tabMatches: Record<string, number> = {};
-    const claimedTabIds = new Set<number>();
-    const logLines: string[] = [];
+    // Best window found — now give each backup entry a tab in it
+    const tabMatches = placeEntries(entries, new WindowTabs(bestWindow));
+    const logLines = entries.map(([itemKey, entry]) => itemKey in tabMatches
+      ? `  ${itemKey}: ${entry.url} → tabId=${tabMatches[itemKey]} ✓`
+      : `  ${itemKey}: ${getDomain(entry.url)} — no matching tab ✗`);
 
-    // For each backup entry, find the first unclaimed tab with the same domain
-    for (const [itemKey, entry] of entries)
-    {
-      const domain = getDomain(entry.url);
-      const candidates = domainMap.get(domain);
-      const tabId = candidates?.find(id => !claimedTabIds.has(id));
-      if (tabId !== undefined)
-      {
-        tabMatches[itemKey] = tabId;
-        claimedTabIds.add(tabId);
-        logLines.push(`  ${itemKey}: ${domain} → tabId=${tabId} ✓`);
-      }
-      else
-      {
-        logLines.push(`  ${itemKey}: ${domain} — no matching tab ✗`);
-      }
-    }
-
-    if (import.meta.env.DEV)
-    {
-      console.log(`[matchBackup] pass3: backup=${backupId} → window=${bestWindowId} (${bestScore}/${backupDomains.size} domains, ${Object.keys(tabMatches).length}/${entries.length} tabs)\n${logLines.join('\n')}`);
-    }
-    ctx.result.set(backupId, { currentId: bestWindowId, matchType: 'domain', tabMatches });
-    ctx.claimedWindowIds.add(bestWindowId);
+    ctx.log(`[matchBackup] pass4: backup=${backupId} → window=${bestWindow.id!} (${bestScore}/${backupDomains.size} domains, ${Object.keys(tabMatches).length}/${entries.length} tabs)\n${logLines.join('\n')}`);
+    ctx.result.set(backupId, { currentId: bestWindow.id!, matchType: 'domain', tabMatches });
+    ctx.claimedWindowIds.add(bestWindow.id!);
   }
 }
 
-// Match backed-up windows to current windows using three passes:
-// 1. Direct window ID match (extension reload — tab IDs preserved)
-// 2. Index+domain match (browser restart — tabs at same positions)
-// 3. Domain overlap match (tabs may have shifted positions)
-function matchBackupWindows(
+/**
+ * Match backed-up windows to current windows using four passes:
+ * 1. Direct window ID match: by tab ID within the same browser session; after a
+ *    browser restart or extension reload/update only when every entry's tab ID is
+ *    still there on its site
+ * 2. Index+domain match (browser restart — tabs at same positions)
+ * 3. Partial direct match (pass 1 ID matches of a window where some tabs are gone)
+ * 4. Domain overlap match (tabs may have shifted positions)
+ */
+export function matchBackupWindows(
   backupIds: number[],
   backups: Map<number, WindowAssociationBackup>,
-  allWindows: chrome.windows.Window[]
+  allWindows: chrome.windows.Window[],
+  options: BackupMatchOptions
 ): Map<number, WindowMatch>
 {
   const ctx: MatchContext = {
     result: new Map(),
     claimedWindowIds: new Set(),
+    partialDirectMatches: new Map(),
     backups,
     allWindows,
+    sameBrowserSession: options.sameBrowserSession,
+    log: options.log ?? (() => {}),
   };
 
   matchDirect(ctx, backupIds);
   matchByIndexAndDomain(ctx, backupIds);
+  matchPartialDirect(ctx, backupIds);
   matchByDomainOverlap(ctx, backupIds);
 
   return ctx.result;
@@ -472,7 +697,9 @@ function buildBackupFromAssociations(
 // Restore tab associations from local backup on extension startup.
 // Matches backup windows to current windows, restores session associations
 // for matched tabs, and cleans up unmatched backup data.
-export async function restoreTabAssociationBackup(): Promise<void>
+// sameBrowserSession: true on a worker restart within the browser session that
+// wrote the backup (BrowserSessionMarker), when its tab and window IDs are exact.
+export async function restoreTabAssociationBackup(sameBrowserSession: boolean): Promise<void>
 {
   const backupWindowIds = await tabAssociationBackupStore.windowIds();
   if (backupWindowIds.length === 0)
@@ -513,8 +740,15 @@ export async function restoreTabAssociationBackup(): Promise<void>
     }
   }
 
+  // The matching passes report their decisions in DEV builds only
+  let logMatch = (_message: string): void => {};
+  if (import.meta.env.DEV)
+  {
+    logMatch = (message) => console.log(message);
+  }
+
   // Match windows and restore associations
-  const matches = matchBackupWindows(backupWindowIds, backups, allWindows);
+  const matches = matchBackupWindows(backupWindowIds, backups, allWindows, { sameBrowserSession, log: logMatch });
 
   const restoredBackups = new Map<number, WindowAssociationBackup>();
 

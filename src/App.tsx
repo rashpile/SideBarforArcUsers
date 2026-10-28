@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, Suspense } from 'react';
 import { BookmarkTree } from './components/BookmarkTree';
+import { ArchiveSection } from './components/ArchiveSection';
 import { TabList, ExternalDropTarget, ResolveBookmarkDropTarget } from './components/TabList';
 import { PinnedBar } from './components/PinnedBar';
 import { Toolbar } from './components/Toolbar';
@@ -14,6 +15,8 @@ import { useTabs } from './hooks/useTabs';
 import { useBookmarks, refreshAllBookmarks } from './hooks/useBookmarks';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useChromeLocalStorage } from './hooks/useChromeLocalStorage';
+import { useSectionCollapseState } from './hooks/useSectionCollapseState';
+import { SectionCollapseState, ToggleSection } from './utils/sectionCollapseState';
 import { useSwipeNavigation } from './hooks/useSwipeNavigation';
 import { FontSizeContext } from './contexts/FontSizeContext';
 import { BookmarkTabsProvider, useBookmarkTabsContext } from './contexts/BookmarkTabsContext';
@@ -34,6 +37,7 @@ import { useNewsCheck } from './hooks/useNewsCheck';
 import { lastAudibleTrackerProxy } from './managers/proxies/lastAudibleTrackerProxy';
 import { useFollowActiveTab } from './hooks/useFollowActiveTab';
 import { FollowActiveTabMode, FOLLOW_ACTIVE_TAB_KEY, DEFAULT_FOLLOW_ACTIVE_TAB_MODE, parseFollowActiveTabMode } from './utils/followActiveTab';
+import { AutoArchivePeriod, AUTO_ARCHIVE_AFTER_KEY, DEFAULT_AUTO_ARCHIVE_PERIOD, parseAutoArchivePeriod } from './utils/autoArchive';
 import * as DropdownMenu from './components/menu/DropdownMenu';
 import {
   AI_SETTINGS_STORAGE_KEY,
@@ -88,6 +92,10 @@ interface SidebarContentProps
   onSpaceDropTargetChange?: (spaceId: string | null) => void;
   onAiRenameBookmark?: (bookmark: chrome.bookmarks.BookmarkTreeNode, tabId?: number) => void;
   onBookmarkCreated?: (bookmark: chrome.bookmarks.BookmarkTreeNode, tabId?: number) => void;
+  // Collapse state of the Bookmarks / Archive sections as shown, owned by App (feature 035)
+  sectionCollapseState: SectionCollapseState;
+  // Toggle for section headers rendered in the scroll area (the Archive section); undefined while filtering
+  onToggleSection?: ToggleSection;
 }
 
 // Storage key for scroll position per space per window
@@ -113,6 +121,8 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
   onSpaceDropTargetChange,
   onAiRenameBookmark,
   onBookmarkCreated,
+  sectionCollapseState,
+  onToggleSection,
 }) =>
 {
   const { spaces, activeSpace, activeSpaceId, windowId, getSpaceSwitchSource } = useSpacesContext();
@@ -220,6 +230,17 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
         onPerformAction={onPerformAction}
         onAiRename={onAiRenameBookmark}
         onBookmarkCreated={onBookmarkCreated}
+        isCollapsed={sectionCollapseState.isCollapsed(activeSpaceId, 'bookmarks')}
+      />
+      {/* Keyed by Space so a Space switch closes an open archive peek */}
+      <ArchiveSection
+        key={activeSpaceId}
+        activeSpace={activeSpace}
+        filterText={filterText}
+        filterLiveTabs={filterLiveTabs}
+        isCollapsed={sectionCollapseState.isCollapsed(activeSpaceId, 'archive')}
+        onToggleCollapsed={onToggleSection && (() => onToggleSection(activeSpaceId, 'archive'))}
+        onPerformAction={onPerformAction}
       />
       <TabList
         onPin={onPin}
@@ -246,9 +267,11 @@ interface SpaceTitleProps
   onDeleteSpace: (space: Space) => void;
   onCloseAllTabs: (space: Space) => void;
   onCreateFolder?: () => void;
+  bookmarksCollapsed: boolean;  // Bookmarks section as shown (chevron direction)
+  onToggleBookmarks?: () => void;  // Omitted while the text filter shows the section expanded
 }
 
-const SpaceTitle: React.FC<SpaceTitleProps> = ({ onEditSpace, onDeleteSpace, onCloseAllTabs, onCreateFolder }) =>
+const SpaceTitle: React.FC<SpaceTitleProps> = ({ onEditSpace, onDeleteSpace, onCloseAllTabs, onCreateFolder, bookmarksCollapsed, onToggleBookmarks }) =>
 {
   const { spaces, activeSpace } = useSpacesContext();
   const fontSize = useFontSize();
@@ -287,6 +310,8 @@ const SpaceTitle: React.FC<SpaceTitleProps> = ({ onEditSpace, onDeleteSpace, onC
       showMenuButton={true}
       labelClassName="font-medium"
       className="arc-space-title"
+      collapsed={bookmarksCollapsed}
+      onToggleCollapsed={onToggleBookmarks}
     />
   );
 };
@@ -297,11 +322,19 @@ interface SpaceTitleWrapperProps
   onEditSpace: (space: Space) => void;
   onDeleteSpace: (space: Space) => void;
   onPerformAction?: (action: UndoableAction) => Promise<void>;
+  sectionCollapseState: SectionCollapseState;  // As shown (see App)
+  onToggleSection?: ToggleSection;  // Undefined while the text filter shows every section expanded
 }
 
-const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({ onEditSpace, onDeleteSpace, onPerformAction }) =>
+const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({
+  onEditSpace,
+  onDeleteSpace,
+  onPerformAction,
+  sectionCollapseState,
+  onToggleSection,
+}) =>
 {
-  const { activeSpace, getTabIdsInSpace, windowId } = useSpacesContext();
+  const { activeSpace, activeSpaceId, getTabIdsInSpace, windowId } = useSpacesContext();
   const { getItemKeyForTab, restoreItemAssociation } = useBookmarkTabsContext();
   const { findFolderBySegments, createFolder } = useBookmarks();
   const [confirmCloseAllDialog, setConfirmCloseAllDialog] = useState<{
@@ -312,6 +345,13 @@ const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({ onEditSpace, onDe
 
   // Root folder of the active space - target for "New Folder" in the space menu
   const spaceRoot = findFolderBySegments(activeSpace.bookmarkFolderSegments ?? [], activeSpace.bookmarkFolderInAccount);
+
+  // The Space title toggles the Bookmarks section (feature 035); keyed like SidebarContent's tree
+  const bookmarksCollapsed = sectionCollapseState.isCollapsed(activeSpaceId, 'bookmarks');
+  const handleToggleBookmarks = useCallback(() =>
+  {
+    onToggleSection?.(activeSpaceId, 'bookmarks');
+  }, [onToggleSection, activeSpaceId]);
 
   const handleCreateFolder = useCallback(() =>
   {
@@ -324,7 +364,12 @@ const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({ onEditSpace, onDe
   const handleSaveFolder = useCallback((parentId: string, title: string) =>
   {
     createFolder(parentId, title);
-  }, [createFolder]);
+    // A new folder would stay hidden in a collapsed Bookmarks section - expand it
+    if (bookmarksCollapsed)
+    {
+      handleToggleBookmarks();
+    }
+  }, [createFolder, bookmarksCollapsed, handleToggleBookmarks]);
 
   const handleCloseAllTabs = useCallback(async (space: Space) =>
   {
@@ -371,6 +416,8 @@ const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({ onEditSpace, onDe
         onDeleteSpace={onDeleteSpace}
         onCloseAllTabs={handleCloseAllTabs}
         onCreateFolder={spaceRoot ? handleCreateFolder : undefined}
+        bookmarksCollapsed={bookmarksCollapsed}
+        onToggleBookmarks={onToggleSection && handleToggleBookmarks}
       />
       <BookmarkCreateFolderModal
         isOpen={creatingFolderParentId !== null}
@@ -651,6 +698,12 @@ function App() {
     DEFAULT_FOLLOW_ACTIVE_TAB_MODE,
     { parse: parseFollowActiveTabMode, serialize: (v) => v }
   );
+  // Raw string, not JSON: background.ts reads it to run the auto-archiver
+  const [autoArchiveAfter, setAutoArchiveAfter] = useChromeLocalStorage<AutoArchivePeriod>(
+    AUTO_ARCHIVE_AFTER_KEY,
+    DEFAULT_AUTO_ARCHIVE_PERIOD,
+    { parse: (v) => parseAutoArchivePeriod(v, import.meta.env.DEV), serialize: (v) => v }
+  );
   const [aiSettings, setAiSettings] = useChromeLocalStorage<AiRenameSettings>(
     AI_SETTINGS_STORAGE_KEY,
     DEFAULT_AI_RENAME_SETTINGS,
@@ -661,6 +714,9 @@ function App() {
     false,
     { parse: (v) => v === 'true', serialize: (v) => v.toString() }
   );
+  // Bookmarks / Archive collapse state per Space (feature 035) - one owner for the
+  // Space title, the Bookmarks tree and the Archive section
+  const [storedSectionCollapseState, toggleSection] = useSectionCollapseState();
   const [showSettings, setShowSettings] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showTestRunner, setShowTestRunner] = useState(false);
@@ -725,6 +781,11 @@ function App() {
   const [playingTabs, setPlayingTabs] = useState<chrome.tabs.Tab[]>([]);
   const [lastAudibleTabs, setLastAudibleTabs] = useState<chrome.tabs.Tab[]>([]);
   const [filterText, setFilterText] = useState('');
+  // While the text filter is active every section shows expanded and can't be toggled;
+  // the stored collapse state is left alone
+  const isTextFilterActive = !!filterText.trim();
+  const sectionCollapseState = isTextFilterActive ? SectionCollapseState.ALL_EXPANDED : storedSectionCollapseState;
+  const toggleShownSection = isTextFilterActive ? undefined : toggleSection;
   const [savedFilters, setSavedFilters] = useChromeLocalStorage<string[]>(
     'sidebar-saved-filters',
     [],
@@ -787,6 +848,7 @@ function App() {
     setUseSpaceColor(newSettings.useSpaceColor);
     setSpaceColorAlpha(newSettings.spaceColorAlpha);
     setFollowActiveTab(newSettings.followActiveTab);
+    setAutoArchiveAfter(newSettings.autoArchiveAfter);
     setAiSettings(newSettings.aiSettings);
     setShowSettings(false);
   };
@@ -1192,6 +1254,7 @@ function App() {
               useSpaceColor,
               spaceColorAlpha,
               followActiveTab,
+              autoArchiveAfter,
               aiSettings,
             }}
             onApply={handleApplySettings}
@@ -1458,6 +1521,8 @@ function App() {
         onEditSpace={handleEditSpace}
         onDeleteSpace={handleDeleteSpace}
         onPerformAction={performAction}
+        sectionCollapseState={sectionCollapseState}
+        onToggleSection={toggleShownSection}
       />
 
       {/* Content with 2-finger swipe navigation */}
@@ -1480,6 +1545,8 @@ function App() {
         onSpaceDropTargetChange={setSpaceDropTargetId}
         onAiRenameBookmark={handleAiRenameBookmark}
         onBookmarkCreated={handleBookmarkCreated}
+        sectionCollapseState={sectionCollapseState}
+        onToggleSection={toggleShownSection}
       />
 
       {/* Space Dialogs */}

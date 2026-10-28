@@ -8,6 +8,7 @@ import {
   findRootFolder,
   isInAccountStorage,
 } from '../utils/bookmarkFolderLookup';
+import { isArchiveFolder } from '../utils/archiveFolder';
 
 export type SortOption = 'none' | 'name' | 'dateAdded';
 
@@ -431,7 +432,8 @@ export const useBookmarks = () => {
     return findFolderBySegmentsInTree(bookmarks, segments, inAccount);
   }, [bookmarks]);
 
-  // Get all bookmarks recursively from a folder (including nested subfolders)
+  // Get all bookmarks recursively from a folder (including nested subfolders).
+  // Archive folders (feature 035) are skipped: their items are not part of the Space's bookmarks
   const getAllBookmarksInFolder = useCallback(async (
     folderId: string
   ): Promise<Array<{ id: string; title: string; url: string }>> =>
@@ -441,13 +443,14 @@ export const useBookmarks = () => {
     const collectRecursive = async (id: string): Promise<void> =>
     {
       const children = await getChildren(id);
+      // Depth-first: pages are collected, subfolders other than the archive are walked
       for (const child of children)
       {
         if (child.url)
         {
           results.push({ id: child.id, title: child.title, url: child.url });
         }
-        else
+        else if (!isArchiveFolder(child))
         {
           await collectRecursive(child.id);
         }

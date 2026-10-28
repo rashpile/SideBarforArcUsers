@@ -81,3 +81,34 @@ test('已有普通 Chrome Tab 的 URL 属于书签或 Favorite 时恢复为固�
     }
   );
 });
+
+test('asd_Archive 中的书签不参与 URL 自愈，归档网址上的 Tab 保持普通 Tab', () =>
+{
+  const tabs = [
+    { id: 101, active: true, url: 'https://archived.example.com/page' },
+    { id: 102, active: false, url: parkUrl(42, 'https://archived.example.com/parked') },
+    { id: 103, active: false, url: 'https://kept.example.com' },
+  ];
+  const bookmarks = [{
+    id: 'root',
+    title: '',
+    children: [{
+      id: 'space',
+      title: 'Home',
+      children: [
+        { id: 'kept', title: 'Kept', url: 'https://kept.example.com' },
+        {
+          id: 'archive',
+          title: 'asd_Archive',
+          children: [
+            { id: 'archived-page', title: 'Page', url: 'https://archived.example.com/page' },
+            { id: 'archived-parked', title: 'Parked', url: 'https://archived.example.com/parked' },
+          ],
+        },
+      ],
+    }],
+  }];
+
+  assert.deepEqual(recoverFixedTabAssociations(tabs, {}, bookmarks, []), { 103: 'bookmark-kept' });
+  assert.deepEqual(recoverParkedTabAssociations(tabs, {}, bookmarks, []), {});
+});

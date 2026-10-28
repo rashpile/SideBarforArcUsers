@@ -11,6 +11,7 @@ The extension stores the following data locally on your device using Chrome's st
 - Pinned sites (URLs, titles, custom icons)
 - Favicons (stored as base64 image data)
 - User preferences (font size, icon size, display settings)
+- The URL, window, position in the window, and last-use time of each open tab, recorded only while "Archive tabs after" is turned on, so the extension knows how long a tab has been unused (stored in `chrome.storage.local`; incognito tabs are never recorded). Setting it back to "Never" deletes these records
 
 This data never leaves your device and is not accessible to the developer or any third party.
 
@@ -23,7 +24,11 @@ No user data is sent in these requests beyond standard HTTP headers.
 
 ## Bookmarks and Tabs
 
-The extension reads your Chrome bookmarks and tabs to display them in the sidebar. This data is only used for display purposes and is not stored or transmitted.
+The extension reads your Chrome bookmarks and tabs to display them in the sidebar.
+
+When "Archive tabs after" is turned on in Settings, the extension also creates bookmarks: before it closes an unused tab, it saves the tab's title and URL as a bookmark in an `asd_Archive` folder inside the Space's bookmark folder. These are ordinary Chrome bookmarks. The extension does not send them anywhere; if Chrome Sync is on, Chrome syncs them like your other bookmarks.
+
+Bookmark and tab data is not transmitted to the developer or any third party.
 
 ## Changes to This Policy
 

@@ -1,5 +1,5 @@
 import React, { ReactNode, useRef } from 'react';
-import { MoreHorizontal } from 'lucide-react';
+import { ChevronDown, ChevronRight, MoreHorizontal } from 'lucide-react';
 import * as ContextMenu from './menu/ContextMenu';
 import { getIndentPadding } from '../utils/indent';
 
@@ -14,6 +14,8 @@ interface SectionHeaderProps
   textClassName?: string;  // Optional custom text color classes (overrides default gray)
   labelClassName?: string;  // Optional extra classes for the label span (e.g. font-bold)
   className?: string;  // 供视觉主题使用的语义类名
+  collapsed?: boolean;  // Collapsible section: chevron before the label, right = collapsed, down = expanded
+  onToggleCollapsed?: () => void;  // Row click / Enter / Space toggles the section; omit for a display-only chevron
 }
 
 export const SectionHeader: React.FC<SectionHeaderProps> = ({
@@ -26,9 +28,12 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
   textClassName,
   labelClassName,
   className,
+  collapsed,
+  onToggleCollapsed,
 }) =>
 {
   const menuJustClosedRef = useRef(false);
+  const iconSize = Math.max(fontSize ?? 14, 14);
 
   // Handler for menu button mousedown - detect if menu is open before it closes
   const handleMenuButtonMouseDown = (
@@ -59,27 +64,66 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
     openMenu(rect.right, rect.bottom);
   };
 
+  // Enter/Space on the focused toggle (chevron + label) toggles the section
+  const handleToggleKeyDown = (e: React.KeyboardEvent<HTMLSpanElement>) =>
+  {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    onToggleCollapsed?.();
+  };
+
   const defaultTextColor = 'text-gray-500 dark:text-gray-400';
 
-  const headerContent = (
+  // A collapsible header toggles on a click anywhere in the row (the "..." button stops its
+  // own click). For the keyboard, chevron + label are the toggle button, beside the "..."
+  // button rather than around it
+  const toggleButtonProps: React.HTMLAttributes<HTMLSpanElement> = onToggleCollapsed
+    ? {
+        role: 'button',
+        tabIndex: 0,
+        'aria-expanded': !collapsed,
+        onKeyDown: handleToggleKeyDown,
+      }
+    : {};
+
+  // Row shared by both menu styles; menuButton is the trailing "..." button, if any
+  const renderHeaderRow = (menuButton?: ReactNode) => (
     <div
-      className={`arc-section-header group relative flex items-center py-1 rounded select-none outline-none border-2 border-transparent ${textClassName ?? defaultTextColor} ${className ?? ''}`}
+      onClick={onToggleCollapsed}
+      className={`arc-section-header group relative flex items-center py-1 rounded select-none outline-none border-2 border-transparent ${onToggleCollapsed ? 'cursor-pointer' : ''} ${textClassName ?? defaultTextColor} ${className ?? ''}`}
       style={{
         paddingLeft: `${getIndentPadding(0)}px`,
         paddingRight: '8px',
         ...(fontSize ? { fontSize: `${fontSize}px` } : {})
       }}
     >
-      {icon && (
-        <span className="flex-shrink-0 mr-1.5 flex items-center">
-          {icon}
+      <span
+        {...toggleButtonProps}
+        className="flex flex-1 min-w-0 items-center rounded outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+      >
+        {collapsed !== undefined && (
+          <span className="flex-shrink-0 mr-1 flex items-center" aria-hidden="true">
+            {collapsed ? <ChevronRight size={iconSize} /> : <ChevronDown size={iconSize} />}
+          </span>
+        )}
+        {icon && (
+          <span className="flex-shrink-0 mr-1.5 flex items-center">
+            {icon}
+          </span>
+        )}
+        <span className={`arc-section-label flex-1 ${labelClassName ?? ''}`}>
+          {label}
         </span>
-      )}
-      <span className={`arc-section-label flex-1 ${labelClassName ?? ''}`}>
-        {label}
       </span>
+      {menuButton}
     </div>
   );
+
+  // No menu at all (e.g. the Archive header): a plain row, so right-click doesn't open an empty menu
+  if (!showMenuButton && !menuContent)
+  {
+    return renderHeaderRow();
+  }
 
   // When showMenuButton is false, use right-click (ContextMenu.Trigger)
   if (!showMenuButton)
@@ -87,7 +131,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
     return (
       <ContextMenu.Root>
         <ContextMenu.Trigger asChild>
-          {headerContent}
+          {renderHeaderRow()}
         </ContextMenu.Trigger>
         <ContextMenu.Portal>
           <ContextMenu.Content>
@@ -103,22 +147,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
     <ContextMenu.Root>
       {({ open: openMenu, isOpen: isMenuOpen }) => (
         <>
-          <div
-            className={`arc-section-header group relative flex items-center py-1 rounded select-none outline-none border-2 border-transparent ${textClassName ?? defaultTextColor} ${className ?? ''}`}
-            style={{
-              paddingLeft: `${getIndentPadding(0)}px`,
-              paddingRight: '8px',
-              ...(fontSize ? { fontSize: `${fontSize}px` } : {})
-            }}
-          >
-            {icon && (
-              <span className="flex-shrink-0 mr-1.5 flex items-center">
-                {icon}
-              </span>
-            )}
-            <span className={`arc-section-label flex-1 ${labelClassName ?? ''}`}>
-              {label}
-            </span>
+          {renderHeaderRow(
             <button
               onMouseDown={(e) => handleMenuButtonMouseDown(e, isMenuOpen)}
               onClick={(e) => handleMenuButtonClick(e, openMenu)}
@@ -126,9 +155,9 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
               title={menuTitle}
               aria-label={menuTitle}
             >
-              <MoreHorizontal size={Math.max(fontSize ?? 14, 14)} />
+              <MoreHorizontal size={iconSize} />
             </button>
-          </div>
+          )}
           <ContextMenu.Portal>
             <ContextMenu.Content>
               {menuContent}

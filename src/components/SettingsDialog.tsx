@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Dialog } from './Dialog';
 import { FollowActiveTabMode } from '../utils/followActiveTab';
+import { AutoArchivePeriod } from '../utils/autoArchive';
 import { Eye, EyeOff } from 'lucide-react';
 import {
   AiRenameSettings,
@@ -23,6 +24,7 @@ export interface SettingsValues {
   useSpaceColor: boolean;
   spaceColorAlpha: number;  // 1-100 percent
   followActiveTab: FollowActiveTabMode;
+  autoArchiveAfter: AutoArchivePeriod;
   aiSettings: AiRenameSettings;
 }
 
@@ -52,6 +54,7 @@ export function SettingsDialog({
   const [tempUseSpaceColor, setTempUseSpaceColor] = useState(settings.useSpaceColor);
   const [tempSpaceColorAlpha, setTempSpaceColorAlpha] = useState(settings.spaceColorAlpha);
   const [tempFollowActiveTab, setTempFollowActiveTab] = useState(settings.followActiveTab);
+  const [tempAutoArchiveAfter, setTempAutoArchiveAfter] = useState(settings.autoArchiveAfter);
   const [tempAiSettings, setTempAiSettings] = useState(settings.aiSettings);
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
   const [showApiKey, setShowApiKey] = useState(false);
@@ -86,6 +89,7 @@ export function SettingsDialog({
       setTempUseSpaceColor(settings.useSpaceColor);
       setTempSpaceColorAlpha(settings.spaceColorAlpha);
       setTempFollowActiveTab(settings.followActiveTab);
+      setTempAutoArchiveAfter(settings.autoArchiveAfter);
       setTempAiSettings(settings.aiSettings);
       setShowApiKey(false);
       setAiValidation({ state: 'idle', message: '' });
@@ -109,6 +113,7 @@ export function SettingsDialog({
       useSpaceColor: tempUseSpaceColor,
       spaceColorAlpha: tempSpaceColorAlpha,
       followActiveTab: tempFollowActiveTab,
+      autoArchiveAfter: tempAutoArchiveAfter,
       aiSettings: tempAiSettings,
     });
   };
@@ -400,6 +405,33 @@ export function SettingsDialog({
               </select>
               <p className="mt-0.5 text-gray-500 dark:text-gray-400 ml-5">
                 Controls group placement when multiple groups are visible
+              </p>
+            </div>
+
+            {/* Archive tabs after */}
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 mb-1">
+                Archive tabs after
+              </label>
+              <select
+                value={tempAutoArchiveAfter}
+                onChange={(e) => setTempAutoArchiveAfter(e.target.value as AutoArchivePeriod)}
+                className="w-full px-2 py-1 border rounded dark:bg-gray-900 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+              >
+                <option value="never">Never</option>
+                {import.meta.env.DEV && (
+                  <option value="1m">1 minute</option>
+                )}
+                <option value="12h">12 hours</option>
+                <option value="24h">24 hours</option>
+                <option value="3d">3 days</option>
+                <option value="7d">7 days</option>
+                <option value="30d">30 days</option>
+              </select>
+              <p className="mt-0.5 text-gray-500 dark:text-gray-400 ml-5">
+                {tempAutoArchiveAfter === 'never'
+                  ? "Tabs and open bookmark pages stay open until you close them"
+                  : "Unused tabs move to the space's Archive; unused open bookmark pages close and keep their bookmark"}
               </p>
             </div>
           </>

@@ -10,7 +10,8 @@
     "tabGroups",
     "storage",
     "favicon",
-    "scripting"
+    "scripting",
+    "alarms"
   ],
   "optional_host_permissions": [
     "http://*/*",

@@ -1,6 +1,6 @@
 import { SpaceMessageAction } from './utils/spaceMessages';
 import { FOLLOW_ACTIVE_TAB_KEY, parseFollowActiveTabMode } from './utils/followActiveTab';
-import { getTabAssociations, storeTabAssociation, removeTabAssociation, saveTabAssociationBackup, removeTabAssociationBackup, updateTabAssociationBackupIndices, removeWindowAssociationBackup, restoreTabAssociationBackup, WAIT_FOR_TAB_ASSOCIATIONS_READY } from './utils/tabAssociations';
+import { getTabAssociations, storeTabAssociation, removeTabAssociation, saveTabAssociationBackup, removeTabAssociationBackup, updateTabAssociationBackupIndices, removeWindowAssociationBackup, restoreTabAssociationBackup, WAIT_FOR_TAB_ASSOCIATIONS_READY, BOOKMARK_ITEM_KEY_PREFIX } from './utils/tabAssociations';
 import { fetchFaviconAsBase64, getFaviconUrl } from './utils/favicon';
 import { parseManagerActionId, RoutedManager } from './managers/proxies/messageRouting';
 import { SpaceWindowStateManager } from './managers/impl/spaceWindowStateManager';
@@ -13,6 +13,10 @@ import { TabAssociationReadiness } from './utils/tabAssociationReadiness';
 import { resolveActiveSpaceId } from './utils/spaceSelection';
 import { findParkedReplacementTab, getEffectiveTabUrl, parseParkedTabUrl } from './utils/parkedTabAssociation';
 import { BookmarkRecencyStore } from './stores/bookmarkRecencyStore';
+import { BrowserSessionMarker } from './stores/browserSessionMarker';
+import { TabActivityTracker } from './stores/tabActivityTracker';
+import { queryOpenTabs, readAutoArchivePeriod, TabAutoArchiver } from './services/tabAutoArchiver';
+import { AUTO_ARCHIVE_AFTER_KEY } from './utils/autoArchive';
 
 // Set side panel to open when clicking the extension toolbar button
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
@@ -188,6 +192,22 @@ const pinnedSitesManager = new PinnedSitesManager();
 const lastAudibleTracker = new LastAudibleTracker(historyManager);
 tabSpaceRegistry = new TabSpaceRegistry();
 const newsVersionChecker = new NewsVersionChecker();
+// Last-use time of every tab, for auto-archive (feature 035). Background is the only writer;
+// nothing is recorded while "Archive tabs after" is Never.
+const tabActivityTracker = new TabActivityTracker({
+  local: {
+    get: (key) => chrome.storage.local.get(key),
+    set: (values) => chrome.storage.local.set(values),
+    remove: (key) => chrome.storage.local.remove(key),
+  },
+  session: {
+    get: (key) => chrome.storage.session.get(key),
+    set: (values) => chrome.storage.session.set(values),
+    remove: (key) => chrome.storage.session.remove(key),
+  },
+  isRecording: async () => await readAutoArchivePeriod() !== 'never',
+  getTab: (tabId) => chrome.tabs.get(tabId).catch(() => undefined),
+});
 
 /**
  * 后台启动时迁移每个窗口遗留的 all 或失效 Space ID。
@@ -278,6 +298,41 @@ async function detachLegacySpaceGroups(): Promise<void>
   ]);
 }
 
+// Attach the stored last-use records to the open tabs (or drop them while auto-archive is off).
+// A failure here doesn't hold up the other managers: the tracker then refuses to refresh,
+// and no tab is auto-archived.
+async function loadTabActivity(): Promise<void>
+{
+  try
+  {
+    await tabActivityTracker.load(await queryOpenTabs());
+  }
+  catch (error)
+  {
+    console.error('[TabActivityTracker] failed to query tabs for load:', error);
+  }
+}
+
+// Tells a worker restart (stored tab and window IDs are exact) from a browser restart or an
+// extension reload/update (stored IDs may now belong to other tabs) for the startup restore below
+const browserSessionMarker = new BrowserSessionMarker({
+  get: (key) => chrome.storage.session.get(key),
+  set: (values) => chrome.storage.session.set(values),
+}, 'tabRestoreSessionStarted');
+
+// Read once, before the startup restore rewrites the stored tab IDs. The marker is written only
+// after that restore, so the first worker of a new browser session still finds it missing.
+const sameBrowserSession = browserSessionMarker.isSameBrowserSession().then((same) =>
+{
+  if (import.meta.env.DEV)
+  {
+    console.log(same
+      ? '[BrowserSessionMarker] worker restart: stored tab records matched by tab ID and window'
+      : '[BrowserSessionMarker] new browser session or extension reload: tab ID matches also need the same site');
+  }
+  return same;
+});
+
 // 固定 Tab 关联必须在 manager 数据加载后恢复；Side Panel 会显式等待这一就绪点。
 const managerLoadPromise = Promise.all([
   spaceStateManager.load(),
@@ -285,16 +340,25 @@ const managerLoadPromise = Promise.all([
   historyManager.load(),
   lastAudibleTracker.load(),
   pinnedSitesManager.load(),
-  tabSpaceRegistry.load(),
-  newsVersionChecker.load()
+  sameBrowserSession.then((same) => tabSpaceRegistry.load(same)),
+  newsVersionChecker.load(),
+  loadTabActivity()
 ])
   .then(normalizeLoadedWindowSpaces)
   .then(assignUntrackedTabsToSpaces)
   .then(detachLegacySpaceGroups);
 
+// Restore the associations, then mark the browser session: the stored tab records now carry its
+// tab IDs, so later worker starts match by ID. A failed load or restore leaves the marker unset.
+async function restoreAssociationsAndMarkSession(): Promise<void>
+{
+  await restoreTabAssociationBackup(await sameBrowserSession);
+  await browserSessionMarker.mark();
+}
+
 const tabAssociationReadiness = new TabAssociationReadiness(
   () => managerLoadPromise,
-  restoreTabAssociationBackup,
+  restoreAssociationsAndMarkSession,
   (error) => console.error('[TabAssociationReadiness] initialization failed:', error)
 );
 
@@ -310,8 +374,6 @@ const bookmarkRecencyStore = new BookmarkRecencyStore({
   get: (key) => chrome.storage.local.get(key),
   set: (values) => chrome.storage.local.set(values),
 });
-
-const BOOKMARK_ITEM_KEY_PREFIX = 'bookmark-';
 
 // Record the activation if the tab is a bookmark's Arc-style tab
 function recordBookmarkActivation(windowId: number, tabId: number): void
@@ -363,6 +425,36 @@ chrome.bookmarks.onRemoved.addListener((id, removeInfo) =>
 });
 
 // =============================================================================
+// Tab auto-archive (feature 035) - closes tabs unused for the "Archive tabs
+// after" period, saving regular tabs to their Space's asd_Archive folder first.
+// Works with the sidebar closed: once at worker start and on an alarm.
+// =============================================================================
+
+const tabAutoArchiver = new TabAutoArchiver({
+  startupRestoreSucceeded: () => tabAssociationReadiness.wait(),
+  tracker: tabActivityTracker,
+  spaceRegistry: tabSpaceRegistry,
+  getSpaces: () => spaceManager.getSpaces(),
+  getPinnedSites: () => pinnedSitesManager.getPinnedSites(),
+});
+
+// Registered at top level so the alarm wakes the worker
+chrome.alarms.onAlarm.addListener((alarm) =>
+{
+  if (alarm.name === TabAutoArchiver.ALARM_NAME) void tabAutoArchiver.run();
+});
+
+// Switching the setting on starts every tab's clock and the alarm; switching it off stops the
+// alarm and drops the last-use records
+chrome.storage.onChanged.addListener((changes, areaName) =>
+{
+  const change = changes[AUTO_ARCHIVE_AFTER_KEY];
+  if (areaName === 'local' && change) void tabAutoArchiver.handleSettingChange(change);
+});
+
+void tabAutoArchiver.start();
+
+// =============================================================================
 // Event Listeners
 // =============================================================================
 
@@ -371,6 +463,11 @@ chrome.tabs.onActivated.addListener(async (activeInfo) =>
 {
   // Wait for state to load (handles service worker restart)
   await stateReady;
+
+  // Stamp the tab the user just left before any other await, so an auto-archive
+  // run queued behind this can't judge it by an older last-use time
+  tabActivityTracker.markActivated(activeInfo.windowId, activeInfo.tabId)
+    .catch((error) => console.error('[TabActivityTracker] failed to record activation:', error));
 
   // Check for news updates (throttled to once per week)
   await newsVersionChecker.checkIfDue();
@@ -446,7 +543,8 @@ chrome.tabs.onActivated.addListener(async (activeInfo) =>
 });
 
 // Refresh tab indices in local backup for all managed tabs in a window.
-// Called after any tab move or removal that may shift indices.
+// Called after any tab creation, move, removal, attach or detach that may shift indices,
+// so a browser restart can place the entries by index (index+domain restore pass).
 async function refreshBackupIndices(windowId: number): Promise<void>
 {
   const associations = await getTabAssociations(windowId);
@@ -513,6 +611,10 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) =>
 
   if (!removeInfo.isWindowClosing)
   {
+    // A closed window's records are dropped by the next auto-archive run instead
+    tabActivityTracker.forget(tabId)
+      .catch((error) => console.error('[TabActivityTracker] failed to forget closed tab:', error));
+
     const associations = await getTabAssociations(removeInfo.windowId);
     const itemKey = associations[tabId];
     if (itemKey)
@@ -565,10 +667,21 @@ const detachedTabSpaces = new Map<number, string>();
 chrome.tabs.onDetached.addListener(async (tabId, detachInfo) =>
 {
   await stateReady;
+
+  // Hand the tab's Space to onAttached before any other await: Chrome fires onAttached
+  // right after this event, and it reads detachedTabSpaces as soon as stateReady settles.
+  // An await here would let it register the tab to the new window's active Space instead.
   const spaceId = tabSpaceRegistry.getSpace(detachInfo.oldWindowId, tabId);
-  if (!spaceId) return;
-  detachedTabSpaces.set(tabId, spaceId);
-  await tabSpaceRegistry.unregister(detachInfo.oldWindowId, tabId);
+  if (spaceId)
+  {
+    detachedTabSpaces.set(tabId, spaceId);
+  }
+
+  await Promise.all([
+    spaceId ? tabSpaceRegistry.unregister(detachInfo.oldWindowId, tabId) : Promise.resolve(),
+    // The tabs right of the detached one move left
+    refreshBackupIndices(detachInfo.oldWindowId),
+  ]);
 });
 
 chrome.tabs.onAttached.addListener(async (tabId, attachInfo) =>
@@ -581,6 +694,9 @@ chrome.tabs.onAttached.addListener(async (tabId, attachInfo) =>
   {
     await tabSpaceRegistry.register(attachInfo.newWindowId, tabId, spaceId);
   }
+
+  // The tabs right of the attached one move right
+  await refreshBackupIndices(attachInfo.newWindowId);
 });
 
 // Favicon loading Scenario 5 — see docs/favicon-loading-strategy.md
@@ -691,6 +807,9 @@ chrome.tabs.onCreated.addListener(async (tab) =>
   {
     await tabSpaceRegistry.register(tab.windowId, tab.id, targetSpaceId);
   }
+
+  // A tab opened left of a bookmark or Favorite tab (a link opened next to its tab) moves it right
+  await refreshBackupIndices(tab.windowId);
 });
 
 // =============================================================================

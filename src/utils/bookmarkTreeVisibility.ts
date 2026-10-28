@@ -1,5 +1,8 @@
+import { isArchiveFolder } from './archiveFolder.ts';
+
 export interface BookmarkTreeNodeLike {
   id: string;
+  title?: string;
   url?: string;
   children?: BookmarkTreeNodeLike[];
 }
@@ -20,17 +23,54 @@ export type BookmarkRowKeyIntent =
 
 /**
  * Space 绑定的书签根文件夹只负责界定范围，不作为侧边栏中的可见行。
+ * The Space's archive folder (feature 035) is shown only by the Archive section.
  */
 export const getVisibleSpaceRootItems = <TNode extends BookmarkTreeNodeLike>(
   spaceRoot: TNode,
 ): TNode[] =>
-  spaceRoot.children ? [...spaceRoot.children] as TNode[] : [];
+  (spaceRoot.children ?? []).filter(node => !isArchiveFolder(node)) as TNode[];
+
+/**
+ * The open bookmarks among the nodes and everything inside them, in tree order:
+ * what a collapsed folder - or the collapsed Bookmarks section (feature 035) -
+ * still shows. Archive folders are skipped, with everything inside them.
+ */
+export const collectOpenBookmarks = <TNode extends BookmarkTreeNodeLike>(
+  nodes: readonly TNode[],
+  isOpen: (bookmarkId: string) => boolean,
+): TNode[] =>
+{
+  const open: TNode[] = [];
+
+  const visit = (level: readonly BookmarkTreeNodeLike[]) =>
+  {
+    // 深度优先遍历保持书签树原有顺序
+    for (const node of level)
+    {
+      if (isArchiveFolder(node)) continue;
+
+      if (node.url && isOpen(node.id))
+      {
+        open.push(node as TNode);
+      }
+
+      if (node.children?.length)
+      {
+        visit(node.children);
+      }
+    }
+  };
+
+  visit(nodes);
+  return open;
+};
 
 /**
  * 返回文件夹当前应渲染的子节点。
  *
  * 折叠时仍递归寻找所有已打开的固定 Tab：文件夹结构保持折叠，但用户能看到
  * 哪些页面开着、当前页面位于哪个文件夹。活跃项依旧由行本身的 active 样式标出。
+ * Archive folders (feature 035) are skipped in both modes, with everything inside them.
  */
 export const getVisibleBookmarkChildren = <TNode extends BookmarkTreeNodeLike>(
   folder: TNode,
@@ -38,40 +78,16 @@ export const getVisibleBookmarkChildren = <TNode extends BookmarkTreeNodeLike>(
   isOpen: (bookmarkId: string) => boolean,
 ): VisibleBookmarkChild<TNode>[] =>
 {
-  if (!folder.children?.length)
-  {
-    return [];
-  }
+  const children = (folder.children ?? []) as TNode[];
 
   if (isExpanded)
   {
-    return folder.children.map((node) => ({
-      node: node as TNode,
-      isPeek: false,
-    }));
+    return children
+      .filter((node) => !isArchiveFolder(node))
+      .map((node) => ({ node, isPeek: false }));
   }
 
-  const openDescendants: VisibleBookmarkChild<TNode>[] = [];
-
-  const collectOpenDescendants = (nodes: BookmarkTreeNodeLike[]) =>
-  {
-    // 深度优先遍历保持书签树原有顺序
-    for (const node of nodes)
-    {
-      if (node.url && isOpen(node.id))
-      {
-        openDescendants.push({ node: node as TNode, isPeek: true });
-      }
-
-      if (node.children?.length)
-      {
-        collectOpenDescendants(node.children);
-      }
-    }
-  };
-
-  collectOpenDescendants(folder.children);
-  return openDescendants;
+  return collectOpenBookmarks(children, isOpen).map((node) => ({ node, isPeek: true }));
 };
 
 /**

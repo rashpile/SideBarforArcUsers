@@ -1,6 +1,7 @@
 // Row selection for the collapsed-folder recent popover (feature 034).
 
 import { matchesFilter } from './searchParser.ts';
+import { isArchiveFolder } from './archiveFolder.ts';
 import type { BookmarkRecency } from '../stores/bookmarkRecencyStore.ts';
 
 export const RECENT_ROW_LIMIT = 10;
@@ -12,7 +13,11 @@ export interface FolderRecentItem
   lastActiveAt?: number;
 }
 
-/** All bookmark pages (not folders) under a folder, recursively, in tree order. */
+/**
+ * All bookmark pages (not folders) under a folder, recursively, in tree order.
+ * Archive folders below `folder` are skipped; `folder` itself may be an archive
+ * folder (the Archive section's popover lists its items).
+ */
 export function collectFolderBookmarks(
   folder: chrome.bookmarks.BookmarkTreeNode
 ): chrome.bookmarks.BookmarkTreeNode[]
@@ -25,7 +30,7 @@ export function collectFolderBookmarks(
     for (const child of node.children ?? [])
     {
       if (child.url) bookmarks.push(child);
-      else walk(child);
+      else if (!isArchiveFolder(child)) walk(child);
     }
   };
 

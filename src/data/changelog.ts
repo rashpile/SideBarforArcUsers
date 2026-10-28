@@ -2,6 +2,11 @@
 // Omit a version entirely if it contains only bug fixes or internal changes.
 // Entries are shown in the "What's New" dialog when the user upgrades past them.
 export const CHANGELOG: Record<string, string[]> = {
+  '1.0.352': [
+    'New: "Archive tabs after" setting (Settings > Behaviour, off by default) - unused tabs are saved to the space\'s Archive and closed; unused open bookmark pages close and keep their bookmark',
+    'New: Archive section between Bookmarks and Tabs - hover to search archived tabs, click one to reopen it',
+    'New: collapse the Bookmarks section from the space title - open bookmark pages stay visible',
+  ],
   '1.0.326': [
     'New: "Follow active tab" setting - choose whether switching tabs follows the sidebar to the tab\'s space, scrolls it into view, or does nothing',
     'New: "Show active tab" toolbar button - jump to the currently active tab on demand',

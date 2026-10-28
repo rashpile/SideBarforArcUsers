@@ -3,8 +3,11 @@
 // Background-side implementation of shared/tabSpaceRegistryApi.ts. Only
 // The sidebar reads and mutates assignments through proxies/tabSpaceRegistryProxy.ts.
 
-import { ManagerId, RoutedManager } from '../proxies/messageRouting';
-import { TAB_SPACE_ASSIGNMENTS_CHANGED, TabSpaceRegistryApi } from '../shared/tabSpaceRegistryApi';
+import { ManagerId } from '../proxies/messageRouting.ts';
+import type { RoutedManager } from '../proxies/messageRouting.ts';
+import { TAB_SPACE_ASSIGNMENTS_CHANGED } from '../shared/tabSpaceRegistryApi.ts';
+import type { TabSpaceRegistryApi } from '../shared/tabSpaceRegistryApi.ts';
+import { matchStoredTabs } from '../../utils/storedTabMatcher.ts';
 
 export class TabSpaceRegistry implements RoutedManager, TabSpaceRegistryApi
 {
@@ -110,7 +113,12 @@ export class TabSpaceRegistry implements RoutedManager, TabSpaceRegistryApi
     await this.save();
   }
 
-  async load(): Promise<void>
+  /**
+   * Re-attach the stored assignments to the live tabs at worker start.
+   * `sameBrowserSession` is true on a worker restart within the browser session
+   * that stored them (BrowserSessionMarker), when their tab IDs are exact.
+   */
+  async load(sameBrowserSession: boolean): Promise<void>
   {
     const [localResult, legacyResult] = await Promise.all([
       chrome.storage.local.get([TabSpaceRegistry.STORAGE_KEY]),
@@ -125,26 +133,17 @@ export class TabSpaceRegistry implements RoutedManager, TabSpaceRegistryApi
     const liveTabs = new Map<number, chrome.tabs.Tab>(
       tabs.flatMap(tab => tab.id === undefined ? [] : [[tab.id, tab] as const])
     );
-    const claimedTabIds = new Set<number>();
 
-    // 优先使用仍然指向同一真实 Tab 的记录；浏览器恢复导致 ID 改变时，再按 URL 和位置找回。
-    for (const item of data)
+    // Re-attach each stored assignment. On a worker restart a record keeps the tab with its ID in
+    // its window whatever page that tab shows now: the stored URL lags a navigation that happened
+    // while the worker slept. After a browser restart or an extension reload/update the ID counts
+    // only on the record's site, since Chrome hands out low IDs again. The rest are found by URL
+    // and position.
+    const idMatch = sameBrowserSession ? 'sameWindow' : 'sameWindowAndSite';
+    for (const { record, tab } of matchStoredTabs(data, tabs, { idMatch }))
     {
-      let tab = liveTabs.get(item.tabId);
-      if (!tab || tab.windowId !== item.windowId)
-      {
-        const candidates = tabs.filter(candidate =>
-          candidate.id !== undefined &&
-          !claimedTabIds.has(candidate.id) &&
-          candidate.url === item.url
-        );
-        candidates.sort((left, right) => Math.abs(left.index - item.index) - Math.abs(right.index - item.index));
-        tab = candidates[0];
-      }
-      if (!tab || tab.id === undefined || tab.windowId === undefined) continue;
-      claimedTabIds.add(tab.id);
       if (!this.#registry.has(tab.windowId)) this.#registry.set(tab.windowId, new Map());
-      this.#registry.get(tab.windowId)!.set(tab.id, item.spaceId);
+      this.#registry.get(tab.windowId)!.set(tab.id, record.spaceId);
       this.#tabMetadata.set(`${tab.windowId}:${tab.id}`, { url: tab.url ?? '', index: tab.index });
     }
 
