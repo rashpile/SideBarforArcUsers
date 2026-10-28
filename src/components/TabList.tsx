@@ -183,11 +183,10 @@ const TabRow = forwardRef<HTMLDivElement, DraggableTabProps>(({
     </div>
   );
 
-  // Speaker indicator - at absolute left edge
-  const leadingIndicator = tab.audible ? <Volume2 size={SPEAKER_ICON_SIZE} /> : undefined;
-
   const badges = (
     <div className="flex items-center gap-1">
+      {/* Speaker indicator - the row has no left slot for it, see hideChevronSlot */}
+      {tab.audible && <Volume2 size={SPEAKER_ICON_SIZE} />}
       {/* Pin indicator for Chrome pinned tabs */}
       {tab.pinned && (
         <span className="text-gray-400">
@@ -224,6 +223,7 @@ const TabRow = forwardRef<HTMLDivElement, DraggableTabProps>(({
               tooltip={tab.url ? `${tab.title}\n${tab.url}` : undefined}
               icon={icon}
               hasChildren={false}
+              hideChevronSlot
               isActive={tab.active}
               isSelected={isSelected && !groupColor}  // Don't show selection highlight for grouped tabs (they have their own color)
               isHighlighted={!groupColor && !isSelected && isOpen}
@@ -254,7 +254,6 @@ const TabRow = forwardRef<HTMLDivElement, DraggableTabProps>(({
                 }
               }}
               onContextMenu={() => onSelectionContextMenu?.()}
-              leadingIndicator={leadingIndicator}
               actions={actions}
               badges={badges}
               data-tab-id={tab.id}
@@ -513,6 +512,7 @@ const DroppableNewTabRow = forwardRef<HTMLDivElement, DroppableNewTabRowProps>(
             depth={0}
             icon={<Plus size={14} />}
             title="New Tab"
+            hideChevronSlot
             hasChildren={false}
             role="button"
             tabIndex={0}
@@ -1633,6 +1633,21 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     section: 'tabs',
     getItemsInRange: getTabItemsInRange
   });
+
+  // Switching tabs outside the list (shortcuts, tab-history buttons, Chrome's tab strip) leaves the
+  // last clicked row selected. Drop the selection when the new active tab isn't part of it; a plain
+  // click selects the row before activating it, so clicks keep their selection and Shift-click anchor
+  const activeTabId = tabs.find(t => t.active)?.id;
+  const prevActiveTabIdRef = useRef(activeTabId);
+  useEffect(() =>
+  {
+    if (activeTabId === prevActiveTabIdRef.current) return;
+    prevActiveTabIdRef.current = activeTabId;
+    if (activeTabId !== undefined && !isTabSelected(String(activeTabId)))
+    {
+      clearSelection();
+    }
+  }, [activeTabId, isTabSelected, clearSelection]);
 
   // Confirm dialog for closing all tabs in window (window will close, no undo possible)
   const [confirmCloseAllDialog, setConfirmCloseAllDialog] = useState<{
