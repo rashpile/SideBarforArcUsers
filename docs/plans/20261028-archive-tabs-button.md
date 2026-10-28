@@ -105,9 +105,9 @@ Three layers, each testable on its own:
 **Files:**
 - Modify: `src/utils/autoArchivePolicy.ts`
 
-- [ ] add `export function isEmptyPage(url: string): boolean` backed by `EMPTY_PAGE_URLS`
-- [ ] use it in the policy's close-only branch instead of `EMPTY_PAGE_URLS.has(...)` (existing policy tests cover it)
-- [ ] run `make test` - must pass before task 2
+- [x] add `export function isEmptyPage(url: string): boolean` backed by `EMPTY_PAGE_URLS`
+- [x] use it in the policy's close-only branch instead of `EMPTY_PAGE_URLS.has(...)` (existing policy tests cover it)
+- [x] run `make test` - must pass before task 2
 
 ### Task 2: Archive a batch of tabs into a Space folder
 

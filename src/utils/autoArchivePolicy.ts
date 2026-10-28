@@ -164,6 +164,12 @@ export function tabPageUrl(tab: { url?: string; pendingUrl?: string }): string
   return tab.url || tab.pendingUrl || '';
 }
 
+/** True for a page with nothing worth keeping (New Tab, blank, no URL): it closes without an archive bookmark. */
+export function isEmptyPage(url: string): boolean
+{
+  return EMPTY_PAGE_URLS.has(url);
+}
+
 /** How the sidebar shows a tab, judged by its association. */
 type TabKind = 'regular' | 'bookmark' | 'kept';
 
@@ -258,7 +264,7 @@ export function selectTabsToClose<T extends AutoArchiveTabLike>(query: TabsToClo
     const kind = tabKind(associationsByWindow.itemKey(tab.windowId, tab.id), pageUrl, savedPages);
     if (kind === 'kept' || !isOverdue(activity.lastUsedAt(tab.id), enabledAt, now, periodMs)) continue;
 
-    if (kind === 'bookmark' || EMPTY_PAGE_URLS.has(pageUrl))
+    if (kind === 'bookmark' || isEmptyPage(pageUrl))
     {
       selection.closeOnly.push(tab);
     }
