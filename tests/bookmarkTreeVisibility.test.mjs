@@ -91,6 +91,40 @@ test('展开文件夹时保持原有直接子节点，不额外提升活跃后�
   );
 });
 
+test('Space 的 asd_Archive 文件夹及其书签不在书签区显示，折叠时也不透出', () =>
+{
+  const nestedSpace = {
+    id: 'folder-work',
+    title: 'Work',
+    children: [
+      {
+        id: 'work-archive',
+        title: 'asd_Archive',
+        children: [{ id: 'work-archived', title: 'Old', url: 'https://old.example.com' }],
+      },
+    ],
+  };
+  const space = {
+    id: 'space-root',
+    title: 'Home',
+    children: [
+      { id: 'docs', title: 'Docs', url: 'https://docs.example.com' },
+      nestedSpace,
+      {
+        id: 'archive',
+        title: 'asd_Archive',
+        children: [{ id: 'archived', title: 'Archived', url: 'https://archived.example.com' }],
+      },
+    ],
+  };
+  const ids = (children) => children.map(({ node }) => node.id);
+
+  assert.deepEqual(getVisibleSpaceRootItems(space).map((node) => node.id), ['docs', 'folder-work']);
+  assert.deepEqual(ids(getVisibleBookmarkChildren(space, true, () => true)), ['docs', 'folder-work']);
+  assert.deepEqual(ids(getVisibleBookmarkChildren(nestedSpace, true, () => true)), []);
+  assert.deepEqual(ids(getVisibleBookmarkChildren(space, false, () => true)), ['docs']);
+});
+
 test('普通点击文件夹行会切换折叠状态，组合键点击仍只处理选择', () =>
 {
   assert.equal(resolveBookmarkRowClickIntent(true, false), 'toggle-folder');

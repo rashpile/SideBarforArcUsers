@@ -21,6 +21,7 @@ import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import { getRootFolderType } from '../utils/bookmarkFolderLookup';
 import * as ContextMenu from './menu/ContextMenu';
 import { TreeRow } from './TreeRow';
+import { BookmarkFavicon } from './BookmarkFavicon';
 import { useInView } from '../hooks/useInView';
 import { useChromeLocalStorage } from '../hooks/useChromeLocalStorage';
 import { BookmarkRecency, BookmarkRecencyRecord, BOOKMARK_RECENCY_KEY } from '../stores/bookmarkRecencyStore';
@@ -66,12 +67,14 @@ import { CreateBookmarkFolderAction } from '../actions/createBookmarkFolderActio
 import { resolveNewFolderParentId } from '../utils/newFolderSelection';
 import { resolveBookmarkRowVisualState } from '../utils/bookmarkRowVisualState';
 import {
+  collectOpenBookmarks,
   getVisibleBookmarkChildren,
   getVisibleSpaceRootItems,
   resolveBookmarkRowClickIntent,
   resolveBookmarkRowKeyIntent,
 } from '../utils/bookmarkTreeVisibility';
 import { resolveArcFolderIconState } from '../utils/folderIconState';
+import { isArchiveFolder } from '../utils/archiveFolder';
 
 // Storage key for persisting folder expand/collapse state across restarts (keyed by space only)
 const getExpandedStateKey = (spaceId: string) =>
@@ -444,29 +447,9 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
       state={resolveArcFolderIconState(!!expandedState[node.id], !!hasPeek)}
     />
   ) : node.url ? (
-    <img
-      src={getFaviconUrl(node.url)}
-      alt=""
-      className="w-4 h-4"
-      onError={(e) => {
-        e.currentTarget.style.display = 'none';
-        e.currentTarget.nextElementSibling?.classList.remove('hidden');
-      }}
-    />
+    <BookmarkFavicon url={node.url} />
   ) : (
     <Globe size={16} className="text-gray-500" />
-  );
-
-  // Hidden fallback globe
-  const fallbackIcon = !isFolder && node.url && (
-    <Globe size={16} className="hidden text-gray-500" />
-  );
-
-  const combinedIcon = (
-    <>
-      {icon}
-      {fallbackIcon}
-    </>
   );
 
   const actions = (
@@ -551,7 +534,7 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
                     .filter(Boolean)
                     .join('\n')
                 : undefined}
-              icon={combinedIcon}
+              icon={icon}
               hasChildren={isFolder}
               isExpanded={expandedState[node.id]}
               onToggle={() => toggleFolder(node.id, !expandedState[node.id])}
@@ -1031,9 +1014,10 @@ interface BookmarkTreeProps {
   useSpaces?: boolean;
   onAiRename?: (bookmark: chrome.bookmarks.BookmarkTreeNode, tabId?: number) => void;
   onBookmarkCreated?: (bookmark: chrome.bookmarks.BookmarkTreeNode, tabId?: number) => void;
+  isCollapsed?: boolean;  // Bookmarks section collapsed as shown (feature 035; expanded while the text filter is active)
 }
 
-export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false, externalDropTarget, bookmarkOpenMode = 'arc', arcSingleClickOpensTab = true, onResolverReady, filterLiveTabs = false, filterText = '', activeSpace, onShowToast, onPerformAction, useSpaces = true, onAiRename, onBookmarkCreated }: BookmarkTreeProps) => {
+export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false, externalDropTarget, bookmarkOpenMode = 'arc', arcSingleClickOpensTab = true, onResolverReady, filterLiveTabs = false, filterText = '', activeSpace, onShowToast, onPerformAction, useSpaces = true, onAiRename, onBookmarkCreated, isCollapsed = false }: BookmarkTreeProps) => {
   const { bookmarks, updateBookmark, createFolder, createBookmark, sortBookmarks, moveBookmark, duplicateBookmark, findFolderBySegments, getAllBookmarksInFolder, getBookmarkSegments, getBookmarkFolderLocation, getBookmark, error } = useBookmarks();
   const { openBookmarkTab, closeBookmarkTab, isBookmarkLoaded, isBookmarkAudible, isBookmarkMuted, isBookmarkActive, getBookmarkLiveTitle, deassociateBookmarkTab, getTabIdForBookmark, getItemKeyForTab, restoreItemAssociation, associateExistingTab } = useBookmarkTabsContext();
   const { spaces, updateSpace, updateSpaceFolderPaths, windowId } = useSpacesContext();
@@ -1159,6 +1143,12 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
     {
       const isFolder = !node.url;
 
+      // Archive folders (feature 035) never show up in filter results; the Archive section filters them
+      if (isArchiveFolder(node))
+      {
+        return acc;
+      }
+
       if (isFolder)
       {
         // For folders, recursively filter children
@@ -1199,6 +1189,16 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
   if (spaceFolder)
   {
     visibleBookmarks = getVisibleSpaceRootItems(spaceFolder);
+  }
+
+  // Collapsed Bookmarks section (feature 035): only the open pages stay, as in a collapsed folder.
+  // App passes it expanded while the text filter is active.
+  if (isCollapsed)
+  {
+    visibleBookmarks = collectOpenBookmarks(
+      visibleBookmarks,
+      (bookmarkId) => isBookmarkLoaded(bookmarkId) || isBookmarkActive(bookmarkId),
+    );
   }
 
   // Apply all filters in a single pass
@@ -2587,6 +2587,7 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
               key={node.id}
               node={node}
               depth={0}
+              isPeek={isCollapsed}
               bookmarkRecency={bookmarkRecency}
               expandedState={expandedState}
               toggleFolder={toggleFolder}

@@ -11,6 +11,7 @@ Chrome still owns the browser frame, address bar, native horizontal tab strip, a
 - **Focused Spaces:** View one Space at a time, with no aggregate "All" Space
 - **Persistent pages:** Pinned bookmark pages keep their position and reopen like Arc pinned tabs
 - **Persistent Space assignment:** Tabs belong to Spaces through extension-owned state, independently of Chrome's native tab groups
+- **Tab auto-archive:** Optionally close tabs left unused for a set time; regular tabs are saved to the Space's Archive and can be reopened from the sidebar
 - **Tab history:** Navigate back/forward through recently used tabs
 - **Arc-like menus:** Single- and multi-selection actions follow Arc where Chrome APIs permit
 - **Backup/Restore:** Export and import everything to JSON
@@ -50,7 +51,8 @@ The following differences describe this fork relative to the upstream version it
 | Spaces | Removes the visible `All` Space. The sidebar, swipe navigation, and Space Navigator show one real Space at a time. Legacy `all` state migrates to the first real Space. |
 | Space tab ownership | Space membership is stored independently from Chrome native tab groups. Native groups remain fully user-owned and can span tabs from different Spaces without changing their Space assignment. |
 | Pinned-page persistence | Bookmark/Favorite-to-tab associations use session state plus a local recovery backup, so closing and reopening the Side Panel does not duplicate pinned pages in the Tabs section. |
-| Arc-style tree behavior | Clicking a folder row expands or collapses it. A collapsed folder surfaces its open pinned descendants, with the active one as an inset card, and shows a recent-pages popover on hover. |
+| Arc-style tree behavior | Clicking a folder row expands or collapses it. A collapsed folder surfaces its open pinned descendants, with the active one as an inset card, and shows a recent-pages popover on hover. The whole Bookmarks section collapses from the Space title the same way. |
+| Tab auto-archive | Optional Arc-style auto-archive: unused tabs are saved as bookmarks in the Space's `asd_Archive` folder and closed, and an Archive section reopens them. |
 | Context menus | Pinned-page single and multi-selection menus follow Arc's supported actions, including `New Folder with N Items`, move, duplicate, mute, share, and remove-pin behavior. Unsupported Arc-only features such as Split View and Customize Page are deliberately omitted. |
 | Visual system | Adds Arc-oriented colors, translucency, row geometry, Favorites grid, active-page cards, folder icons, spacing, and bottom Space navigation. |
 | Startup performance | Shares bookmark/tab subscriptions, restores associations concurrently, lazy-loads secondary dialogs, and includes Performance Timeline marks for cold-start diagnosis. |
@@ -93,12 +95,40 @@ Navigate back and forward through your recently used tabs—like undo/redo for t
   - Pin to pinned bar
   - Move to New Window (when loaded)
   - Expand All (folders only, recursively expands all subfolders)
+- Collapse the whole section with the chevron on the Space title row (click the row; the `...` menu still opens the menu)
+  - Collapsed, it still shows the Space's open bookmark pages, the active one as a card
+  - Kept per Space and shared across windows
+  - While a text search is active the section is shown expanded
 - Drag-and-drop to organize bookmarks
 - Drag tabs from Tabs section to create bookmarks
 - Click: Open as Arc-style tab
 - Cmd/Ctrl+Click: Open in new background tab, Shift+Click: Open in new window
 - Audio indicator (speaker icon) for playing audio
 - Close tab via X button on hover
+
+### Archive
+
+Arc-style auto-archive for tabs you stopped using. Off by default; turn it on with **Archive tabs after** in Settings.
+
+- **Auto-archive** (runs in the background, also while the sidebar is closed):
+  - Regular tabs (the ones in the Tabs section) unused for the chosen time are saved as bookmarks in an `asd_Archive` folder inside the Space's bookmark folder, then closed
+  - Open bookmark pages unused for the chosen time are closed; the bookmark stays. A bookmark tab that moved on to another page is archived first, so that page is kept
+  - Empty pages (New Tab, `about:blank`) are closed without a bookmark
+  - Never closed: the active tab of each window and tabs shown next to it in a split view, tabs playing audio, Chrome-pinned tabs, Favorites (and any tab showing a Favorite's page), and incognito tabs
+  - Tabs with no Space, or whose Space has no bookmark folder, stay open
+  - With "Open bookmark" set to In new tab or In active tab, pages opened from bookmarks are regular tabs and are archived like any other
+  - "Unused" counts from the moment you switched away from the tab, including time while Chrome is closed or the computer sleeps; it survives browser restarts
+  - Switching from Never to a period starts every tab's clock at that moment, so nothing closes right away
+  - Archiving the same URL again replaces the older archive item
+- **Archive section** between Bookmarks and Tabs, showing the active Space's archive:
+  - Collapsed by default; hover the header to see the newest items and search the archive
+  - Click the header to expand it: all items, newest first, with the time each was archived
+  - Click an item to reopen it as a regular tab in the active Space; it is removed from the archive
+  - Right-click an item: Delete from Archive (can be undone; the item then comes back on top as newly archived)
+  - Hidden when the archive is empty or the live tabs filter is on; a text search shows matching items
+- The `asd_Archive` folder is hidden in the Bookmarks section, search, folder popovers, and folder pickers. Chrome's own bookmark bar and Bookmark Manager still show it.
+- Archived items are never deleted automatically
+- Pointing a Space at another bookmark folder starts a new, empty archive there; the old `asd_Archive` stays in the old folder
 
 ### Active Tabs
 
@@ -183,11 +213,11 @@ Organize your browsing by context with Arc-style Spaces—isolated workspaces th
 
 Toolbar at the top with filter options:
 
-- **Text search bar**: Search by title or URL across pinned sites, bookmarks, and tabs
+- **Text search bar**: Search by title or URL across pinned sites, bookmarks, tabs, and the active Space's archive
   - Dropdown shows saved and recent filters (last 5 used)
   - Save button to persist current filter
 - **Search bar toggle**: Show/hide the text search bar (hidden by default)
-- **Live tabs filter**: Show only bookmarks/pins that have an open tab
+- **Live tabs filter**: Show only bookmarks/pins that have an open tab (hides the Archive section)
 - **Audible filter**: Show only items playing audio/video
 - **Reset button**: Clears all active filters
 
@@ -203,6 +233,7 @@ Gear icon in the bottom-left corner:
   - In new tab: Opens bookmark in a new background tab
   - In active tab: Replaces the current tab with the bookmark
 - **Follow active tab**: Switch Space, switch and scroll, or keep the sidebar fixed
+- **Archive tabs after**: Never (default), 12 hours, 24 hours, 3 days, 7 days, or 30 days (debug builds also offer 1 minute). See [Archive](#archive)
 - **Space color**: Optionally tint the sidebar with the active Space color
 - **AI naming**: Configure an OpenAI-compatible endpoint, model, protocol, prompt, and automatic naming behavior
 
@@ -221,6 +252,7 @@ Gear icon in the bottom-left corner:
 - `storage`: Save your settings locally
 - `favicon`: Show website icons
 - `scripting`: Read page content only when requested for AI-assisted naming
+- `alarms`: Check for unused tabs every few minutes while "Archive tabs after" is on (no install warning)
 - Optional `http://*/*` and `https://*/*` host access: Requested explicitly for page reading or the configured AI endpoint
 
 ## Full Changelog
@@ -236,7 +268,7 @@ Built with the usual modern web stack:
 - [Tailwind CSS](https://tailwindcss.com/) for styling
 - [Lucide React](https://lucide.dev/) for icons
 - [@dnd-kit/core](https://dndkit.com/) for drag & drop
-- Chrome Manifest V3 APIs (`sidePanel`, `bookmarks`, `tabs`, `tabGroups`, `storage`, `favicon`)
+- Chrome Manifest V3 APIs (`sidePanel`, `bookmarks`, `tabs`, `tabGroups`, `storage`, `favicon`, `alarms`)
 
 ## Project Structure
 
@@ -255,6 +287,7 @@ Built with the usual modern web stack:
 
 - `docs/chrome-web-store-info.md` - Chrome Web Store listing (summary, description, key features, change logs)
 - `docs/features/` - Feature specs
+- `docs/plans/` - Implementation plans; finished ones move to `docs/plans/completed/`
 - `docs/state-reference.md` - Extension state reference
 
 

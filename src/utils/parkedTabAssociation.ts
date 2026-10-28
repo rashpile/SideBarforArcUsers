@@ -1,3 +1,5 @@
+import { isArchiveFolder } from './archiveFolder.ts';
+
 interface TabLike
 {
   id?: number;
@@ -8,6 +10,7 @@ interface TabLike
 interface BookmarkNodeLike
 {
   id: string;
+  title?: string;
   url?: string;
   children?: BookmarkNodeLike[];
 }
@@ -132,7 +135,10 @@ function recoverAssociations<TTab extends TabLike>(
   return recovered;
 }
 
-/** Favorite 在 Arc 中优先级更高，所以和书签 URL 重复时先保留 Favorite。 */
+/**
+ * Favorite 在 Arc 中优先级更高，所以和书签 URL 重复时先保留 Favorite。
+ * Archive folders (feature 035) are left out: a tab on an archived URL stays a regular tab.
+ */
 function buildPersistentItemUrlIndex(
   bookmarkRoots: readonly BookmarkNodeLike[],
   pinnedSites: readonly PinnedSiteLike[]
@@ -151,6 +157,8 @@ function buildPersistentItemUrlIndex(
     // 深度遍历 Chrome 书签树，保留第一个出现的书签，和现有 Space 解析假设一致。
     for (const node of nodes)
     {
+      if (isArchiveFolder(node)) continue;
+
       if (node.url)
       {
         const comparableUrl = normalizeComparableUrl(node.url);

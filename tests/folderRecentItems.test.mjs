@@ -33,6 +33,22 @@ test('collects bookmarks recursively in tree order, skipping folders', () =>
   assert.deepEqual(collectFolderBookmarks(folder).map(b => b.id), ['notion', 'sheets', 'gas', 'power']);
 });
 
+test('skips archive folders below the folder, but lists an archive folder passed itself', () =>
+{
+  const archive = {
+    id: 'archive',
+    title: 'asd_Archive',
+    children: [
+      { id: 'archived-new', title: 'New', url: 'https://new.example' },
+      { id: 'archived-old', title: 'Old', url: 'https://old.example' },
+    ],
+  };
+  const space = { id: 'space', title: 'Home', children: [...folder.children, archive] };
+
+  assert.deepEqual(collectFolderBookmarks(space).map(b => b.id), ['notion', 'sheets', 'gas', 'power']);
+  assert.deepEqual(collectFolderBookmarks(archive).map(b => b.id), ['archived-new', 'archived-old']);
+});
+
 test('without a query lists only previously active bookmarks, newest first', () =>
 {
   const recency = new BookmarkRecency({ power: 100, sheets: 300, gas: 200 });

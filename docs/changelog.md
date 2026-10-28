@@ -2,6 +2,12 @@
 
 ## Latest Version
 
+- New: "Archive tabs after" setting (Settings > Behaviour, off by default) - tabs unused for 12 hours to 30 days are saved to the Space's `asd_Archive` bookmark folder and closed; open bookmark pages close and keep their bookmark
+- New: Archive section between Bookmarks and Tabs - hover to see and search the newest archived tabs, expand to list them all, click one to reopen it
+- New: collapse the Bookmarks section with the chevron on the Space title; collapsed, it still shows the open bookmark pages
+- Changed: the extension now requests the `alarms` permission (no install warning), used only while "Archive tabs after" is on
+- Fixed: right-clicking the "Create a Space" placeholder header no longer opens an empty menu
+- Fixed: after a browser restart, a reused tab ID no longer gives a pinned page's identity or a Space assignment to an unrelated tab on another site
 - New: hovering a collapsed bookmark folder shows its recently used pages, newest first, with search
 - Improved: collapsed folders now keep all of their open pages visible, not only the active one
 - Changed: Spaces now use persistent extension-owned Tab assignments instead of creating Chrome native tab groups

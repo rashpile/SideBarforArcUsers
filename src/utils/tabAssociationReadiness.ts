@@ -6,7 +6,7 @@ type AsyncStep = () => Promise<unknown>;
  */
 export class TabAssociationReadiness
 {
-  #ready: Promise<void>;
+  #ready: Promise<boolean>;
 
   constructor(
     loadManagers: AsyncStep,
@@ -20,13 +20,20 @@ export class TabAssociationReadiness
       {
         await loadManagers();
         await restoreAssociations();
+        return true;
       }
       catch (error)
       {
         onError(error);
+        return false;
       }
     })();
   }
 
-  wait = (): Promise<void> => this.#ready;
+  /**
+   * Resolves when initialization ends: true if every step succeeded, false if
+   * one failed. Most callers only wait; auto-archive must not act on
+   * half-restored state and checks the result.
+   */
+  wait = (): Promise<boolean> => this.#ready;
 }
