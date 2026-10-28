@@ -1,61 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { ARCHIVE_FOLDER_TITLE } from '../src/utils/archiveFolder.ts';
 import { TabArchiveBatch } from '../src/utils/tabArchiveBatch.ts';
-
-// In-memory stand-in for chrome.bookmarks: children kept per parent, index = position
-class FakeBookmarks
-{
-  #children = new Map([['space', []]]);
-  #nextId = 1;
-  /** Creating a bookmark on one of these URLs throws. */
-  failUrls = new Set();
-
-  getChildren = async (id) =>
-    (this.#children.get(id) ?? []).map((node, index) => ({ ...node, index }));
-
-  create = async ({ parentId, title, url, index }) =>
-  {
-    if (url && this.failUrls.has(url)) throw new Error('create failed');
-
-    const node = { id: `n${this.#nextId++}`, parentId, title, url };
-    if (!url) this.#children.set(node.id, []);
-    const siblings = this.#children.get(parentId);
-    siblings.splice(index ?? siblings.length, 0, node);
-    return { ...node, index: siblings.indexOf(node) };
-  };
-
-  remove = async (id) =>
-  {
-    // Drop the node from whichever parent holds it
-    for (const siblings of this.#children.values())
-    {
-      const position = siblings.findIndex(node => node.id === id);
-      if (position >= 0) siblings.splice(position, 1);
-    }
-  };
-
-  /** Archive folders directly inside the Space folder. */
-  archiveFolders()
-  {
-    return this.#children.get('space').filter(node => !node.url && node.title === ARCHIVE_FOLDER_TITLE);
-  }
-
-  /** URLs in the Space's archive, top first (none without an archive folder). */
-  archivedUrls()
-  {
-    const [folder] = this.archiveFolders();
-    return folder ? this.#children.get(folder.id).map(node => node.url) : [];
-  }
-}
+import { FakeArchiveBookmarks } from './fakeArchiveBookmarks.mjs';
 
 const tab = (id, url, title = `Tab ${id}`) => ({ id, title, url });
 
 test('a tab whose archive item cannot be created stays open; the others archive', async (t) =>
 {
   t.mock.method(console, 'error', () => {});
-  const bookmarks = new FakeBookmarks();
+  const bookmarks = new FakeArchiveBookmarks();
   bookmarks.failUrls.add('https://b.test/');
 
   const result = await new TabArchiveBatch(bookmarks).archive('space', [
@@ -72,7 +26,7 @@ test('a tab whose archive item cannot be created stays open; the others archive'
 
 test('empty pages are closable without an archive item', async () =>
 {
-  const bookmarks = new FakeBookmarks();
+  const bookmarks = new FakeArchiveBookmarks();
 
   const result = await new TabArchiveBatch(bookmarks).archive('space', [
     tab(1, 'chrome://newtab/', 'New Tab'),
@@ -88,7 +42,7 @@ test('empty pages are closable without an archive item', async () =>
 
 test('a batch into a Space without an archive folder creates exactly one', async () =>
 {
-  const bookmarks = new FakeBookmarks();
+  const bookmarks = new FakeArchiveBookmarks();
 
   await new TabArchiveBatch(bookmarks).archive('space', [
     tab(1, 'https://a.test/'),

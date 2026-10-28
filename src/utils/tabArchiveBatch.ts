@@ -23,15 +23,20 @@ export class TabArchiveResult
   /** Tabs that may close: the archived ones and empty pages. */
   readonly closableTabIds: readonly number[];
   /** Tabs saved as archive items. */
-  readonly archivedCount: number;
+  readonly archivedTabIds: readonly number[];
   /** Tabs whose archive item could not be created: they stay open. */
   readonly keptOpenCount: number;
 
-  constructor(closableTabIds: readonly number[], archivedCount: number, keptOpenCount: number)
+  constructor(closableTabIds: readonly number[], archivedTabIds: readonly number[], keptOpenCount: number)
   {
     this.closableTabIds = closableTabIds;
-    this.archivedCount = archivedCount;
+    this.archivedTabIds = archivedTabIds;
     this.keptOpenCount = keptOpenCount;
+  }
+
+  get archivedCount(): number
+  {
+    return this.archivedTabIds.length;
   }
 }
 
@@ -54,7 +59,7 @@ export class TabArchiveBatch
   async archive(spaceFolderId: string, tabs: readonly ArchivableTab[]): Promise<TabArchiveResult>
   {
     const closableTabIds: number[] = [];
-    let archivedCount = 0;
+    const archivedTabIds: number[] = [];
     let keptOpenCount = 0;
 
     // One tab at a time: archives into a Space without an archive folder must not each create one
@@ -72,7 +77,7 @@ export class TabArchiveBatch
         const bookmark = await this.#spaceArchive.archive(spaceFolderId, { title: tab.title, url: getEffectiveTabUrl(pageUrl) });
         this.#createdBookmarkIds.push(bookmark.id);
         closableTabIds.push(tab.id);
-        archivedCount++;
+        archivedTabIds.push(tab.id);
       }
       catch (error)
       {
@@ -80,7 +85,7 @@ export class TabArchiveBatch
         keptOpenCount++;
       }
     }
-    return new TabArchiveResult(closableTabIds, archivedCount, keptOpenCount);
+    return new TabArchiveResult(closableTabIds, archivedTabIds, keptOpenCount);
   }
 
   /**

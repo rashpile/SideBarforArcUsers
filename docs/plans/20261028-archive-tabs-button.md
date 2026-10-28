@@ -74,6 +74,7 @@ Three layers, each testable on its own:
   - Tabs are processed **one at a time**: `SpaceArchive` creates `asd_Archive` on first use, so parallel calls could create several folders.
   - Per tab: `pageUrl = tabPageUrl(tab)`. Empty page → closable, nothing saved. Otherwise `spaceArchive.archive(folderId, { title, url: getEffectiveTabUrl(pageUrl) })`; success → closable + remember the created bookmark id; throw → kept open, `console.error`.
   - `TabArchiveResult` (class or readonly object, builder's choice per CLAUDE.md style): `closableTabIds`, `archivedCount`, `keptOpenCount`.
+  - ➕ also `archivedTabIds` (with `archivedCount` as its length), so the toast can name the one archived tab (Task 3).
 - `discard(): Promise<void>` removes every remembered bookmark id; a failed remove (e.g. the item was already replaced by a later tab with the same URL in the same batch, or the user deleted it) is ignored and logged, the rest continue.
 
 ### `ArchiveTabsAction implements UndoableAction`
@@ -83,6 +84,7 @@ Three layers, each testable on its own:
   2. If `result.closableTabIds` is empty: throw `Error('Could not archive tabs')` when anything was kept open, else do nothing.
   3. `closeAction = createCloseAction(result.closableTabIds)`; `await closeAction.do()`.
   4. `description`: one archived tab → `Archived "<truncated title>"`; otherwise `Archived N tabs`; append `, M kept open` when `keptOpenCount > 0`. Empty pages count as closed, not archived — builder may phrase N as tabs closed if that reads better.
+     - As built: N is the archived count (empty pages close silently alongside); only empty pages → `Closed N empty tabs`; no tabs at all → `No tabs to archive`.
 - `undo()`: `await closeAction?.undo()` first (tabs come back even if bookmark cleanup fails), then `await batch.discard()`.
 
 ### `TabList` wiring
@@ -125,9 +127,9 @@ Three layers, each testable on its own:
 - Create: `src/actions/archiveTabsAction.ts`
 - Create: `tests/archiveTabsAction.test.mjs`
 
-- [ ] write failing tests with a fake bookmarks API and a fake close-action factory: `do()` closes exactly the archived/empty tab ids; every archive failing → `do()` throws and nothing is closed; `undo()` reopens (close action's `undo()`) and then the created archive items are gone
-- [ ] implement `ArchiveTabsAction` (type-only imports, `.ts` extensions, no `import.meta.env`)
-- [ ] run `make test` - must pass before task 4
+- [x] write failing tests with a fake bookmarks API and a fake close-action factory: `do()` closes exactly the archived/empty tab ids; every archive failing → `do()` throws and nothing is closed; `undo()` reopens (close action's `undo()`) and then the created archive items are gone
+- [x] implement `ArchiveTabsAction` (type-only imports, `.ts` extensions, no `import.meta.env`)
+- [x] run `make test` - must pass before task 4
 
 ### Task 4: Archive button in the Tab list
 
