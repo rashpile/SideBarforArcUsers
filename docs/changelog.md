@@ -8,6 +8,7 @@
 - New: collapse the Bookmarks section with the chevron on the Space title; collapsed, it still shows the open bookmark pages
 - New: double-click a bookmark (Arc mode) or a Favorite whose tab has moved to another page to load the bookmarked page back in that tab
 - Fixed: double-clicking a bookmark or Favorite with no open tab no longer opens two tabs
+- Changed: Favorites tiles are a third lower and follow the "Pinned icon size" setting - a smaller icon gives lower tiles and more of them per row
 - Changed: the extension now requests the `alarms` permission (no install warning), used only while "Archive tabs after" is on
 - Fixed: right-clicking the "Create a Space" placeholder header no longer opens an empty menu
 - Fixed: after a browser restart, a reused tab ID no longer gives a pinned page's identity or a Space assignment to an unrelated tab on another site
