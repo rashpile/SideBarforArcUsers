@@ -10,16 +10,17 @@ export default defineConfig({
     rollupOptions: {
       input: {
         sidepanel: 'index.html',
-        navigator: resolve(__dirname, 'navigator.html'),
         background: resolve(__dirname, 'src/background.ts'),
+        switcherOverlay: resolve(__dirname, 'src/switcherOverlay.ts'),
       },
       output: {
         entryFileNames: (chunkInfo) =>
         {
-          // Output background.js at root level for service worker
-          if (chunkInfo.name === 'background')
+          // Output background.js at root level for service worker, and the
+          // switcher script at a fixed name for chrome.scripting and switcher.html
+          if (chunkInfo.name === 'background' || chunkInfo.name === 'switcherOverlay')
           {
-            return 'background.js';
+            return `${chunkInfo.name}.js`;
           }
           return 'assets/[name]-[hash].js';
         },

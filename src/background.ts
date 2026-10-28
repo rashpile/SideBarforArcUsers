@@ -1,6 +1,6 @@
 import { SpaceMessageAction } from './utils/spaceMessages';
 import { FOLLOW_ACTIVE_TAB_KEY, parseFollowActiveTabMode } from './utils/followActiveTab';
-import { getTabAssociations, storeTabAssociation, removeTabAssociation, saveTabAssociationBackup, removeTabAssociationBackup, updateTabAssociationBackupIndices, removeWindowAssociationBackup, restoreTabAssociationBackup, WAIT_FOR_TAB_ASSOCIATIONS_READY, BOOKMARK_ITEM_KEY_PREFIX } from './utils/tabAssociations';
+import { getTabAssociations, storeTabAssociation, removeTabAssociation, saveTabAssociationBackup, removeTabAssociationBackup, updateTabAssociationBackupIndices, removeWindowAssociationBackup, restoreTabAssociationBackup, WAIT_FOR_TAB_ASSOCIATIONS_READY, BOOKMARK_ITEM_KEY_PREFIX, FAVORITE_ITEM_KEY_PREFIX } from './utils/tabAssociations';
 import { fetchFaviconAsBase64, getFaviconUrl } from './utils/favicon';
 import { parseManagerActionId, RoutedManager } from './managers/proxies/messageRouting';
 import { SpaceWindowStateManager } from './managers/impl/spaceWindowStateManager';
@@ -17,6 +17,9 @@ import { BrowserSessionMarker } from './stores/browserSessionMarker';
 import { TabActivityTracker } from './stores/tabActivityTracker';
 import { queryOpenTabs, readAutoArchivePeriod, TabAutoArchiver } from './services/tabAutoArchiver';
 import { AUTO_ARCHIVE_AFTER_KEY } from './utils/autoArchive';
+import { KeyboardSwitcher, parseSwitcherCommand } from './services/keyboardSwitcher';
+import { buildSpaceCards, buildTabCards, findLastUsedTab, WindowSpaces } from './services/switcherLists';
+import { SwitcherMessageAction } from './utils/switcherMessages';
 
 // Set side panel to open when clicking the extension toolbar button
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
@@ -455,6 +458,56 @@ chrome.storage.onChanged.addListener((changes, areaName) =>
 void tabAutoArchiver.start();
 
 // =============================================================================
+// Keyboard switchers (spike) - Cmd+Tab-style lists of the current Space's tabs
+// and of the Spaces, by last use. See services/keyboardSwitcher.ts.
+// =============================================================================
+
+async function readWindowSpaces(windowId: number): Promise<WindowSpaces>
+{
+  const associations = await getTabAssociations(windowId);
+  return {
+    activeSpaceId: resolveActiveSpaceId(spaceManager.getSpaces(), spaceStateManager.getActiveSpace(windowId)) ?? undefined,
+    spaceOf: (tabId) => tabSpaceRegistry.getSpace(windowId, tabId),
+    isFavorite: (tabId) => associations[tabId]?.startsWith(FAVORITE_ITEM_KEY_PREFIX) ?? false,
+  };
+}
+
+const keyboardSwitcher = new KeyboardSwitcher({
+  buildCards: async (kind, win) =>
+  {
+    const windowSpaces = await readWindowSpaces(win.id!);
+    const tabs = win.tabs ?? [];
+    return kind === 'tabs'
+      ? buildTabCards(tabs, windowSpaces)
+      : buildSpaceCards(spaceManager.getSpaces(), tabs, windowSpaces);
+  },
+  pick: async (kind, windowId, cardId) =>
+  {
+    if (kind === 'tabs')
+    {
+      const tabId = Number(cardId);
+      // A Favorite belongs to every Space, so it only gets activated, as a
+      // sidebar click does: onActivated then applies "Follow active tab"
+      if ((await readWindowSpaces(windowId)).isFavorite(tabId))
+      {
+        await chrome.tabs.update(tabId, { active: true }).catch(() => { /* tab closed */ });
+      }
+      else await setActiveTabAndSpace(tabId);
+      return;
+    }
+
+    // A Space opens on its last used tab; one without tabs only switches the sidebar
+    const tabs = await chrome.tabs.query({ windowId });
+    const lastTabId = findLastUsedTab(tabs, cardId, await readWindowSpaces(windowId));
+    if (lastTabId !== undefined) await setActiveTabAndSpace(lastTabId);
+    else spaceStateManager.setActiveSpace(windowId, cardId);
+  },
+});
+
+chrome.windows.onRemoved.addListener((windowId) => keyboardSwitcher.handleWindowRemoved(windowId));
+chrome.tabs.onRemoved.addListener((tabId) => keyboardSwitcher.handleTabRemoved(tabId));
+
+// =============================================================================
 // Event Listeners
 // =============================================================================
 
@@ -847,6 +900,28 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) =>
     return true;
   }
 
+  if (message?.action === SwitcherMessageAction.READY)
+  {
+    sendResponse(keyboardSwitcher.handleWindowReady());
+    return;
+  }
+
+  if (message?.action === SwitcherMessageAction.COMMIT)
+  {
+    (async () =>
+    {
+      await stateReady;
+      await keyboardSwitcher.commit(message.id, message.reason);
+    })();
+    return;
+  }
+
+  if (message?.action === SwitcherMessageAction.CANCEL)
+  {
+    void keyboardSwitcher.cancel(message.reason);
+    return;
+  }
+
   // Manager-routed messages come first: anything shaped "<Manager>_msg_<method>"
   // belongs to exactly one manager and never falls through to the flat
   // orchestration handlers below.
@@ -920,6 +995,16 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) =>
 
 chrome.commands.onCommand.addListener((command) =>
 {
+  // Chained on stateReady (the lists read Space state) rather than awaited in
+  // the block below, so quick presses still reach the switcher in order
+  const switcherCommand = parseSwitcherCommand(command);
+  if (switcherCommand)
+  {
+    void stateReady.then(() =>
+      keyboardSwitcher.handleShortcut(switcherCommand.kind, switcherCommand.direction));
+    return;
+  }
+
   (async () =>
   {
     await stateReady;
@@ -931,49 +1016,6 @@ chrome.commands.onCommand.addListener((command) =>
         if (tabs.length === 0) return;
         const direction = command === "prev-used-tab" ? -1 : 1;
         historyManager.navigate(tabs[0].windowId, direction);
-      });
-    }
-
-    // Open Space Navigator as a focused popup window so it reliably receives keyboard input
-    if (command === "open-space-navigator")
-    {
-      chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) =>
-      {
-        if (tabs.length === 0) return;
-        const windowId = tabs[0].windowId;
-        const win = await chrome.windows.get(windowId);
-
-        // Size the popup to fit all spaces without scrolling (capped at 480px content height).
-        // Measured from SpaceNavigatorApp.tsx / SpaceList.tsx rendering (Tailwind defaults, 1rem = 16px):
-        //   headerHeight = 37   ("Navigate to Space" row: py-2 padding 16 + text-sm line-height 20 + border-b 1)
-        //   searchBoxHeight = 39 (search row: py-1.5 padding 12 + input py-1 padding 8
-        //                         + input text-xs line-height 16 + input border 2 + border-b 1)
-        //   listPadding = 8    (SpaceList's rows container: py-1 padding, top + bottom)
-        //   rowHeight = 28     (each space row: h-7)
-        const spaces = spaceManager.getSpaces();
-        const itemCount = spaces.length;
-        const popupWidth = 300;
-        const headerHeight = 37;
-        const searchBoxHeight = 39;
-        const listPadding = 8;
-        const rowHeight = 28;
-        const bottomPadding = 10;
-        const contentHeight = headerHeight + searchBoxHeight + listPadding + itemCount * rowHeight + bottomPadding;
-        const popupHeight = Math.min(contentHeight, 480) + 30; // +30 for OS title bar
-
-        // Center the popup within the browser window
-        const left = Math.round((win.left ?? 0) + ((win.width ?? 1200) - popupWidth) / 2);
-        const top = Math.round((win.top ?? 0) + ((win.height ?? 800) - popupHeight) / 2);
-
-        chrome.windows.create({
-          url: chrome.runtime.getURL(`navigator.html?windowId=${windowId}`),
-          type: 'popup',
-          focused: true,
-          width: popupWidth,
-          height: popupHeight,
-          left,
-          top,
-        });
       });
     }
   })();

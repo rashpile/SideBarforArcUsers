@@ -11,7 +11,8 @@
     "storage",
     "favicon",
     "scripting",
-    "alarms"
+    "alarms",
+    "activeTab"
   ],
   "optional_host_permissions": [
     "http://*/*",
@@ -58,12 +59,14 @@
       },
       "description": "Next Used Tab"
     },
-    "open-space-navigator": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+S",
-        "mac": "Command+Shift+S"
-      },
-      "description": "Open Space Navigator"
+    "tab-switcher-next": {
+      "description": "Tab Switcher: next tab"
+    },
+    "tab-switcher-prev": {
+      "description": "Tab Switcher: previous tab"
+    },
+    "space-switcher-next": {
+      "description": "Space Switcher: next Space"
     }
   }
 }

@@ -51,10 +51,7 @@ class SpaceManagerProxy implements Remote<SpaceManagerApi>
   /**
    * Subscribes to the manager's broadcasts and fills the store with the
    * current Space list. The mirror-and-subscribe entry point, the analogue
-   * of mirrorWindow() - called by the sidebar at mount. SpaceNavigatorApp
-   * does NOT call this - it's a short-lived popup that only calls
-   * getSpaces() and uses the return value directly, so it needs no mirror
-   * and pays for no listener.
+   * of mirrorWindow() - called by the sidebar at mount.
    *
    * Safe to call more than once: React StrictMode double-invokes the mount
    * effect in dev, and re-loading must not stack listeners.
@@ -73,8 +70,7 @@ class SpaceManagerProxy implements Remote<SpaceManagerApi>
    * module singleton that outlives every component that loads through it.
    *
    * Registered on first load() rather than at module scope so a context that
-   * never loads (SpaceNavigatorApp) doesn't wake up for broadcasts it would
-   * only discard.
+   * never loads doesn't wake up for broadcasts it would only discard.
    */
   #subscribeToBroadcasts(): void
   {
@@ -121,8 +117,8 @@ class SpaceManagerProxy implements Remote<SpaceManagerApi>
   }
 
   /**
-   * Plain read - does NOT touch the mirror. This is what SpaceNavigatorApp
-   * and DeleteSpaceAction use, since neither keeps one.
+   * Plain read - does NOT touch the mirror. This is what DeleteSpaceAction
+   * uses, since it doesn't keep one.
    */
   async getSpaces(): Promise<Space[]>
   {
