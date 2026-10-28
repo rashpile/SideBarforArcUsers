@@ -56,7 +56,8 @@ export class CloseTabAction implements UndoableAction
         const tab = await chrome.tabs.get(tabId);
         const snapshot: TabSnapshot = {
           tabId,
-          url: tab.url || 'chrome://newtab',
+          // A tab still loading its first page has only pendingUrl
+          url: tab.url || tab.pendingUrl || 'chrome://newtab',
           title: tab.title || '',
           index: tab.index,
           groupId: tab.groupId ?? -1,
