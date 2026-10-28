@@ -397,7 +397,7 @@ export const TestRunnerPanel = ({
   const spacesCtx = useSpacesContext();
   const bookmarkTabsCtx = useBookmarkTabsContext();
   const bookmarksCtx = useBookmarks();
-  const findSpaceForFolder = useFindSpaceForFolder(bookmarksCtx.getBookmarkSegments, spacesCtx.spaces);
+  const findSpaceForFolder = useFindSpaceForFolder(bookmarksCtx.getBookmarkFolderLocation, spacesCtx.spaces);
 
   const refsMapRef = useRef<Map<string, unknown>>(new Map());
   const ctxRef = useRef<TestContext | null>(null);

@@ -3,7 +3,7 @@ import { useSpacesContext } from '../contexts/SpacesContext';
 import { useBookmarkTabsContext } from '../contexts/BookmarkTabsContext';
 import { SpaceMessageAction } from '../utils/spaceMessages';
 import { FollowActiveTabMode } from '../utils/followActiveTab';
-import { scrollToBookmark, scrollToTab } from '../utils/scrollHelpers';
+import { flashBookmark, flashTab, scrollToBookmark, scrollToTab } from '../utils/scrollHelpers';
 
 // Shape of the TAB_ACTIVATED message broadcast by background.ts on tab
 // activation (see spaceMessages.ts). `explicit` marks activations the user
@@ -38,6 +38,26 @@ export function useScrollToTabItem(): (tabId: number) => void
   }, [getItemKeyForTab]);
 }
 
+// Returns a function that briefly highlights the sidebar row for a tab, routed
+// the same way as useScrollToTabItem
+function useFlashTabItem(): (tabId: number) => void
+{
+  const { getItemKeyForTab } = useBookmarkTabsContext();
+
+  return useCallback((tabId: number) =>
+  {
+    const itemKey = getItemKeyForTab(tabId);
+    if (itemKey && itemKey.startsWith('bookmark-'))
+    {
+      flashBookmark(itemKey.substring('bookmark-'.length));
+    }
+    else
+    {
+      flashTab(tabId);
+    }
+  }, [getItemKeyForTab]);
+}
+
 // Returns a function that scrolls the sidebar to the window's currently active
 // tab without changing the space. Used for the one-time scroll on sidebar open,
 // where switching space would override the space the user last chose.
@@ -65,10 +85,12 @@ export function useScrollToActiveTab(): () => void
 //
 // Sends the same background message the audio quick-jump and history navigation
 // use; the scroll then arrives as an explicit TAB_ACTIVATED broadcast, so this
-// does not scroll by hand.
+// does not scroll by hand. It then flashes the row, which is the only visible
+// feedback when the row was already on screen.
 export function useShowActiveTab(): () => void
 {
   const { windowId } = useSpacesContext();
+  const flashTabItem = useFlashTabItem();
 
   return useCallback(() =>
   {
@@ -78,12 +100,14 @@ export function useShowActiveTab(): () => void
       const tabId = tabs[0]?.id;
       if (tabId === undefined) return;
 
-      chrome.runtime.sendMessage({ action: 'set-active-tab-and-space', tabId }).catch(() =>
-      {
-        // Background may be restarting - nothing useful to do
-      });
+      chrome.runtime.sendMessage({ action: 'set-active-tab-and-space', tabId })
+        .then(() => flashTabItem(tabId))
+        .catch(() =>
+        {
+          // Background may be restarting - nothing useful to do
+        });
     });
-  }, [windowId]);
+  }, [windowId, flashTabItem]);
 }
 
 // Implements the "Follow active tab" setting, and owns all auto-scrolling.

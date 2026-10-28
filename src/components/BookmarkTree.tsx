@@ -17,6 +17,8 @@ import { ExternalDropTarget, ResolveBookmarkDropTarget } from './TabList';
 import { BookmarkOpenMode } from './SettingsDialog';
 import { BookmarkEditModal } from './BookmarkEditModal';
 import { BookmarkCreateFolderModal } from './BookmarkCreateFolderModal';
+import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
+import { getRootFolderType } from '../utils/bookmarkFolderLookup';
 import * as ContextMenu from './menu/ContextMenu';
 import { TreeRow } from './TreeRow';
 import { useInView } from '../hooks/useInView';
@@ -39,7 +41,6 @@ import {
   Minus,
   Volume2,
   ExternalLink,
-  SquareArrowOutUpRight,
   SquareStack,
   Link,
   Sparkles
@@ -72,17 +73,14 @@ import {
 } from '../utils/bookmarkTreeVisibility';
 import { resolveArcFolderIconState } from '../utils/folderIconState';
 
-// Standard Chrome bookmark folder IDs
-const BOOKMARKS_BAR_ID = '1';
-const OTHER_BOOKMARKS_ID = '2';
-const MOBILE_BOOKMARKS_ID = '3';
-
 // Storage key for persisting folder expand/collapse state across restarts (keyed by space only)
 const getExpandedStateKey = (spaceId: string) =>
   `bookmarkExpandedState_${spaceId}`;
 
-// Special folder IDs that cannot be edited/deleted
-const SPECIAL_FOLDER_IDS = [BOOKMARKS_BAR_ID, OTHER_BOOKMARKS_ID, MOBILE_BOOKMARKS_ID];
+// Chrome's permanent top-level folders (Bookmarks Bar, Other Bookmarks, ... - both the
+// device and the account copies) cannot be edited, deleted or moved. They are the
+// children of the invisible root '0'; the account copies don't have the legacy '1'/'2'/'3' IDs.
+const isPermanentRootFolder = (node: chrome.bookmarks.BookmarkTreeNode): boolean => node.parentId === '0';
 
 // Helper: Check if targetId is a descendant of nodeId
 const isDescendant = (
@@ -150,6 +148,7 @@ interface BookmarkRowProps {
   getLiveTitle?: (bookmarkId: string) => string | undefined;
   onOpenBookmark?: (bookmarkId: string, url: string) => void;
   onCloseBookmark?: (bookmarkId: string) => void;
+  onRequestDelete?: (bookmarkId: string) => void;  // asks for confirmation before deleting
   onOpenAsTabGroup?: (folderId: string, folderName: string) => void;
   onOpenAllTabs?: (folderId: string) => void;
   onOpenAllTabsInNewWindow?: (folderId: string) => void;
@@ -231,6 +230,7 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
   isSelected,
   onOpenBookmark,
   onCloseBookmark,
+  onRequestDelete,
   onOpenAsTabGroup,
   onOpenAllTabs,
   onOpenAllTabsInNewWindow,
@@ -271,7 +271,7 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
 }, ref) => {
   const isFolder = !node.url;
   const dndId = `bookmark-${node.id}`;
-  const isSpecialFolder = SPECIAL_FOLDER_IDS.includes(node.id);
+  const isSpecialFolder = isPermanentRootFolder(node);
 
   // Collapsed folders peek their recently used pages on hover, like Arc (feature 034)
   const folderPeek = useFolderPeek(
@@ -502,33 +502,16 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
           <Pin size={14} className="text-gray-700 dark:text-gray-200" />
         </button>
       )}
-      {/* Open button - visible on hover when bookmark is not loaded (Arc-style only) */}
-      {!isFolder && bookmarkOpenMode === 'arc' && !isLoaded && onOpenBookmark && node.url && (
+      {/* Delete button - visible on hover when bookmark is not loaded (Arc-style only); opening is a click on the row */}
+      {!isFolder && bookmarkOpenMode === 'arc' && !isLoaded && onRequestDelete && (
         <button
           onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (e.metaKey || e.ctrlKey)
-            {
-              // Cmd/Ctrl+click: open in new tab
-              chrome.tabs.create({ url: node.url!, active: true, windowId });
-            }
-            else if (e.shiftKey)
-            {
-              // Shift+click: open in new window
-              chrome.windows.create({ url: node.url! });
-            }
-            else
-            {
-              // Default: open via Arc-style handler
-              onOpenBookmark(node.id, node.url!);
-            }
-          }}
+          onClick={(e) => { e.stopPropagation(); onRequestDelete(node.id); }}
           className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded bg-white dark:bg-gray-900 opacity-0 group-hover:opacity-100"
-          title="Open tab"
-          aria-label="Open tab"
+          title="Delete bookmark"
+          aria-label="Delete bookmark"
         >
-          <SquareArrowOutUpRight size={14} className="text-gray-700 dark:text-gray-200" />
+          <X size={14} className="text-gray-700 dark:text-gray-200" />
         </button>
       )}
       {/* 活跃项常显减号，其他已打开项仅在 hover 时显示。 */}
@@ -831,7 +814,7 @@ BookmarkRow.displayName = 'BookmarkRow';
 
 // --- Draggable Wrapper ---
 const DraggableBookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>((props, ref) => {
-  const isSpecialFolder = SPECIAL_FOLDER_IDS.includes(props.node.id);
+  const isSpecialFolder = isPermanentRootFolder(props.node);
   const isFolder = !props.node.url;
   const bookmarkId = `bookmark-${props.node.id}`;
 
@@ -1051,10 +1034,10 @@ interface BookmarkTreeProps {
 }
 
 export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false, externalDropTarget, bookmarkOpenMode = 'arc', arcSingleClickOpensTab = true, onResolverReady, filterLiveTabs = false, filterText = '', activeSpace, onShowToast, onPerformAction, useSpaces = true, onAiRename, onBookmarkCreated }: BookmarkTreeProps) => {
-  const { bookmarks, updateBookmark, createFolder, createBookmark, sortBookmarks, moveBookmark, duplicateBookmark, findFolderBySegments, getAllBookmarksInFolder, getBookmarkSegments, getBookmark, error } = useBookmarks();
+  const { bookmarks, updateBookmark, createFolder, createBookmark, sortBookmarks, moveBookmark, duplicateBookmark, findFolderBySegments, getAllBookmarksInFolder, getBookmarkSegments, getBookmarkFolderLocation, getBookmark, error } = useBookmarks();
   const { openBookmarkTab, closeBookmarkTab, isBookmarkLoaded, isBookmarkAudible, isBookmarkMuted, isBookmarkActive, getBookmarkLiveTitle, deassociateBookmarkTab, getTabIdForBookmark, getItemKeyForTab, restoreItemAssociation, associateExistingTab } = useBookmarkTabsContext();
   const { spaces, updateSpace, updateSpaceFolderPaths, windowId } = useSpacesContext();
-  const findSpaceForFolder = useFindSpaceForFolder(getBookmarkSegments, spaces);
+  const findSpaceForFolder = useFindSpaceForFolder(getBookmarkFolderLocation, spaces);
 
   // Read-only: background.ts records last-active times (feature 034)
   const [bookmarkRecencyRecord] = useChromeLocalStorage<BookmarkRecencyRecord>(BOOKMARK_RECENCY_KEY, {});
@@ -1083,7 +1066,7 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
       const segments = space.bookmarkFolderSegments;
       if (segments && segments.length > 0)
       {
-        const folder = findFolderBySegments(segments);
+        const folder = findFolderBySegments(segments, space.bookmarkFolderInAccount);
         if (folder)
         {
           map.set(folder.id, space);
@@ -1200,15 +1183,15 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
     }, []);
   }, []);
 
-  // Filter out "Other Bookmarks" (id "2") if hidden
+  // Filter out "Other Bookmarks" (device and account copies) if hidden
   let visibleBookmarks = hideOtherBookmarks
-    ? bookmarks.filter(node => node.id !== '2')
+    ? bookmarks.filter(node => getRootFolderType(node) !== 'other')
     : bookmarks;
 
   // Space folder info - track if folder is found or missing
   const spaceHasFolder = activeSpace?.id !== 'all' && !!activeSpace?.bookmarkFolderPath;
   const spaceFolder = (spaceHasFolder && activeSpace?.bookmarkFolderSegments?.length)
-    ? findFolderBySegments(activeSpace.bookmarkFolderSegments)
+    ? findFolderBySegments(activeSpace.bookmarkFolderSegments, activeSpace.bookmarkFolderInAccount)
     : null;
   const isSpaceFolderMissing = spaceHasFolder && !spaceFolder;
 
@@ -1233,6 +1216,8 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
   const [expandedState, setExpandedState] = useState<Record<string, boolean>>({});
   const [expandedStateLoaded, setExpandedStateLoaded] = useState(false);
   const [editingNode, setEditingNode] = useState<chrome.bookmarks.BookmarkTreeNode | null>(null);
+  // Bookmark whose row "Delete" button was clicked, waiting for confirmation
+  const [pendingDeleteBookmarkId, setPendingDeleteBookmarkId] = useState<string | null>(null);
 
   // Wrap updateBookmark so folder renames also update any space bookmarkFolderPath + segments
   const handleSaveBookmark = useCallback(async (id: string, title: string, url?: string) =>
@@ -1240,18 +1225,14 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
     // Only folder renames (no url, title actually changed) need to update space paths
     if (url === undefined && editingNode && !editingNode.url && editingNode.title !== title)
     {
-      const oldSegments = await getBookmarkSegments(id);
+      // Find spaces whose folder is the renamed folder (resolved before the rename,
+      // so same-titled folders in the other storage don't match)
+      const renamedSpaces = spaces.filter(s =>
+        findFolderBySegments(s.bookmarkFolderSegments ?? [], s.bookmarkFolderInAccount)?.id === id
+      );
       updateBookmark(id, title, url);
       const newSegments = await getBookmarkSegments(id);
-      // Find spaces whose folder exactly matches the renamed folder
-      const pathUpdates = spaces
-        .filter(s =>
-        {
-          const segs = s.bookmarkFolderSegments;
-          return segs &&
-            segs.length === oldSegments.length &&
-            segs.every((seg, i) => seg === oldSegments[i]);
-        })
+      const pathUpdates = renamedSpaces
         .map(s => ({
           id: s.id,
           bookmarkFolderPath: newSegments.join('/'),
@@ -1263,7 +1244,7 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
     {
       updateBookmark(id, title, url);
     }
-  }, [updateBookmark, editingNode, spaces, getBookmarkSegments, updateSpaceFolderPaths]);
+  }, [updateBookmark, editingNode, spaces, findFolderBySegments, getBookmarkSegments, updateSpaceFolderPaths]);
 
   const [creatingFolderParentId, setCreatingFolderParentId] = useState<string | null>(null);
   const [folderSelectionToCreate, setFolderSelectionToCreate] = useState<{
@@ -1303,7 +1284,7 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
     const flattenNode = (node: chrome.bookmarks.BookmarkTreeNode, isExpanded: boolean) =>
     {
       const isFolder = !node.url;
-      const isSpecialFolder = SPECIAL_FOLDER_IDS.includes(node.id);
+      const isSpecialFolder = isPermanentRootFolder(node);
 
       // Add non-special items to the list
       if (!isSpecialFolder)
@@ -1628,9 +1609,13 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
     setShowSpaceFolderPicker(false);
     if (!activeSpace || activeSpace.id === 'all') return;
 
-    const segments = await getBookmarkSegments(folderId);
-    updateSpace(activeSpace.id, { bookmarkFolderPath: segments.join('/'), bookmarkFolderSegments: segments });
-  }, [activeSpace, getBookmarkSegments, updateSpace]);
+    const { segments, inAccount } = await getBookmarkFolderLocation(folderId);
+    updateSpace(activeSpace.id, {
+      bookmarkFolderPath: segments.join('/'),
+      bookmarkFolderSegments: segments,
+      bookmarkFolderInAccount: inAccount,
+    });
+  }, [activeSpace, getBookmarkFolderLocation, updateSpace]);
 
   // Open move to space dialog
   const openMoveToSpaceDialog = useCallback((bookmarkId: string, isFolder: boolean) =>
@@ -1696,6 +1681,22 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
       clearSelection();
     }
   }, [getSelectedItems, onPerformAction, clearSelection, getTabIdForBookmark]);
+
+  // Delete the single bookmark confirmed from its row "Delete" button (undoable)
+  const handleConfirmDeleteBookmark = useCallback(() =>
+  {
+    if (!pendingDeleteBookmarkId) return;
+
+    const action = new DeleteBookmarkAction([pendingDeleteBookmarkId], getTabIdForBookmark);
+    if (onPerformAction)
+    {
+      onPerformAction(action);
+    }
+    else
+    {
+      action.do();
+    }
+  }, [pendingDeleteBookmarkId, onPerformAction, getTabIdForBookmark]);
 
   // Pin selected bookmarks (or single if not multi-selected)
   const handlePinSelectedBookmarks = useCallback((
@@ -1857,7 +1858,7 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
       return `"${space?.name || 'Space'}" has no bookmark folder configured`;
     }
 
-    const folder = findFolderBySegments(space.bookmarkFolderSegments ?? []);
+    const folder = findFolderBySegments(space.bookmarkFolderSegments ?? [], space.bookmarkFolderInAccount);
     if (!folder)
     {
       return `Folder "${space.bookmarkFolderPath}" no longer exists`;
@@ -2223,8 +2224,8 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
             return;
           }
 
-          // Can't move special folders
-          if (SPECIAL_FOLDER_IDS.includes(sourceId))
+          // Can't move special folders (the top-level nodes of the tree)
+          if (bookmarks.some(root => root.id === sourceId))
           {
             return;
           }
@@ -2620,6 +2621,7 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
               getLiveTitle={getBookmarkLiveTitle}
               onOpenBookmark={(bookmarkId, url) => openBookmarkTab(bookmarkId, url, activeSpace?.id)}
               onCloseBookmark={handleCloseBookmarkTab}
+              onRequestDelete={setPendingDeleteBookmarkId}
               onOpenAsTabGroup={!useSpaces ? handleOpenAsTabGroup : undefined}
               onOpenAllTabs={handleOpenAllTabs}
               onOpenAllTabsInNewWindow={handleOpenAllTabsInNewWindow}
@@ -2710,6 +2712,14 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
           setEditingNode(null);
           setCreatingBookmarkParentId(null);
         }}
+      />
+
+      <ConfirmDeleteDialog
+        isOpen={pendingDeleteBookmarkId !== null}
+        itemCount={1}
+        itemType="bookmarks"
+        onConfirm={handleConfirmDeleteBookmark}
+        onClose={() => setPendingDeleteBookmarkId(null)}
       />
 
       <BookmarkCreateFolderModal

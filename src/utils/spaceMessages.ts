@@ -17,6 +17,7 @@ export interface Space
   color: string;                          // Chrome color name or hex (e.g. 'blue', '#FF5733')
   bookmarkFolderPath: string;             // e.g. "Bookmarks Bar/Work" (legacy, may contain '/')
   bookmarkFolderSegments?: string[];      // structured path e.g. ["Bookmarks Bar", "A/B"] - unambiguous
+  bookmarkFolderInAccount?: boolean;      // folder is in Google account storage, not device-only (undefined = unknown, first match wins)
 }
 
 // 仅用于读取旧 session 和“尚未创建 Space”的内部空状态，不再渲染为可见 Space。

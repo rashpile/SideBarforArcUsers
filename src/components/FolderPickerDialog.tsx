@@ -6,10 +6,17 @@ import { Dialog } from './Dialog';
 import { TreeRow } from './TreeRow';
 import { Folder, FolderPlus } from 'lucide-react';
 
-// Standard Chrome bookmark folder IDs
-const BOOKMARKS_BAR_ID = '1';
-const OTHER_BOOKMARKS_ID = '2';
-const MOBILE_BOOKMARKS_ID = '3';
+// Whether a folder with this id exists anywhere in the tree
+const containsFolder = (nodes: readonly chrome.bookmarks.BookmarkTreeNode[], folderId: string): boolean =>
+{
+  // Depth-first search over folders only
+  for (const node of nodes)
+  {
+    if (node.url) continue;
+    if (node.id === folderId || containsFolder(node.children ?? [], folderId)) return true;
+  }
+  return false;
+};
 
 interface FolderPickerDialogProps
 {
@@ -163,7 +170,7 @@ export const FolderPickerDialog = ({
   defaultFolderId
 }: FolderPickerDialogProps) =>
 {
-  const { bookmarks, createFolder, getBookmark, findFolderBySegments } = useBookmarks();
+  const { bookmarks, createFolder, getBookmark, findFolderBySegments, getRootFolder } = useBookmarks();
   const { spaces } = useSpacesContext();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -176,7 +183,7 @@ export const FolderPickerDialog = ({
       const segments = space.bookmarkFolderSegments;
       if (segments && segments.length > 0)
       {
-        const folder = findFolderBySegments(segments);
+        const folder = findFolderBySegments(segments, space.bookmarkFolderInAccount);
         if (folder)
         {
           map.set(folder.id, space);
@@ -192,13 +199,20 @@ export const FolderPickerDialog = ({
     return folderIdToSpace.get(folderId);
   }, [folderIdToSpace]);
 
-  // Default expand Bookmarks Bar and Other Bookmarks, select Other Bookmarks by default
-  const [expandedState, setExpandedState] = useState<Record<string, boolean>>({
-    [BOOKMARKS_BAR_ID]: true,
-    [OTHER_BOOKMARKS_ID]: true,
-    [MOBILE_BOOKMARKS_ID]: false
-  });
-  const [selectedFolderId, setSelectedFolderId] = useState<string>(OTHER_BOOKMARKS_ID);
+  // Bookmarks Bar and Other Bookmarks start expanded, Other Bookmarks selected. Looked
+  // up by type: with account bookmarks their IDs aren't the legacy '1'/'2'.
+  const bookmarksBarId = getRootFolder('bookmarks-bar')?.id;
+  const otherBookmarksId = getRootFolder('other')?.id ?? '';
+  const defaultExpandedState = useMemo(() =>
+  {
+    const state: Record<string, boolean> = {};
+    if (bookmarksBarId) state[bookmarksBarId] = true;
+    if (otherBookmarksId) state[otherBookmarksId] = true;
+    return state;
+  }, [bookmarksBarId, otherBookmarksId]);
+
+  const [expandedState, setExpandedState] = useState<Record<string, boolean>>(defaultExpandedState);
+  const [selectedFolderId, setSelectedFolderId] = useState<string>(otherBookmarksId);
 
   // Track folder to scroll to after tree expands
   const [pendingScrollFolderId, setPendingScrollFolderId] = useState<string | null>(null);
@@ -223,11 +237,7 @@ export const FolderPickerDialog = ({
         // Expand parent folders so the default folder is visible
         const expandParents = async () =>
         {
-          const newExpanded: Record<string, boolean> = {
-            [BOOKMARKS_BAR_ID]: true,
-            [OTHER_BOOKMARKS_ID]: true,
-            [MOBILE_BOOKMARKS_ID]: false
-          };
+          const newExpanded: Record<string, boolean> = { ...defaultExpandedState };
 
           // Walk up the tree to find all parent folders
           let currentId: string | undefined = defaultFolderId;
@@ -252,15 +262,11 @@ export const FolderPickerDialog = ({
       else
       {
         // Default behavior: expand standard folders, select Other Bookmarks
-        setExpandedState({
-          [BOOKMARKS_BAR_ID]: true,
-          [OTHER_BOOKMARKS_ID]: true,
-          [MOBILE_BOOKMARKS_ID]: false
-        });
-        setSelectedFolderId(OTHER_BOOKMARKS_ID);
+        setExpandedState(defaultExpandedState);
+        setSelectedFolderId(otherBookmarksId);
       }
     }
-  }, [isOpen, defaultFolderId, getBookmark]);
+  }, [isOpen, defaultFolderId, getBookmark, defaultExpandedState, otherBookmarksId]);
 
   // Scroll to the pending folder after tree has re-rendered
   useEffect(() =>
@@ -295,8 +301,16 @@ export const FolderPickerDialog = ({
     setSelectedFolderId(id);
   }, []);
 
+  // The selection can point at a folder that doesn't exist (deleted meanwhile, or no
+  // Other Bookmarks root) - New Folder / Select must not act on it
+  const selectedFolderExists = useMemo(
+    () => containsFolder(bookmarks, selectedFolderId),
+    [bookmarks, selectedFolderId]
+  );
+
   const handleNewFolderClick = useCallback(() =>
   {
+    if (!selectedFolderExists) return;
     // Create new folder inside the selected folder
     setCreatingInFolderId(selectedFolderId);
     setNewFolderName('');
@@ -305,7 +319,7 @@ export const FolderPickerDialog = ({
       ...prev,
       [selectedFolderId]: true
     }));
-  }, [selectedFolderId]);
+  }, [selectedFolderId, selectedFolderExists]);
 
   const handleNewFolderSubmit = useCallback(() =>
   {
@@ -328,8 +342,9 @@ export const FolderPickerDialog = ({
 
   const handleConfirm = useCallback(() =>
   {
+    if (!selectedFolderExists) return;
     onSelect(selectedFolderId);
-  }, [onSelect, selectedFolderId]);
+  }, [onSelect, selectedFolderId, selectedFolderExists]);
 
   // Filter root bookmarks to only folders (Bookmarks Bar, Other Bookmarks, Mobile Bookmarks)
   const rootFolders = bookmarks.filter(node => !node.url);
@@ -362,7 +377,7 @@ export const FolderPickerDialog = ({
         <div className="flex justify-between items-center p-3 border-t border-gray-200 dark:border-gray-700">
           <button
             onClick={handleNewFolderClick}
-            disabled={creatingInFolderId !== null}
+            disabled={creatingInFolderId !== null || !selectedFolderExists}
             className="flex items-center gap-1 px-2 py-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FolderPlus size={14} />
@@ -377,7 +392,7 @@ export const FolderPickerDialog = ({
             </button>
             <button
               onClick={handleConfirm}
-              disabled={creatingInFolderId !== null}
+              disabled={creatingInFolderId !== null || !selectedFolderExists}
               className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Select

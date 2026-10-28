@@ -65,12 +65,12 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
 
   const handleCreateFolder = useCallback(() =>
   {
-    const spaceRoot = findFolderBySegments(activeSpace.bookmarkFolderSegments ?? []);
+    const spaceRoot = findFolderBySegments(activeSpace.bookmarkFolderSegments ?? [], activeSpace.bookmarkFolderInAccount);
     if (spaceRoot)
     {
       setCreatingFolderParentId(spaceRoot.id);
     }
-  }, [activeSpace.bookmarkFolderSegments, findFolderBySegments]);
+  }, [activeSpace.bookmarkFolderSegments, activeSpace.bookmarkFolderInAccount, findFolderBySegments]);
 
   const handleSaveFolder = useCallback((parentId: string, title: string) =>
   {

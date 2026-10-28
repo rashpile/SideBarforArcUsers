@@ -78,7 +78,8 @@ interface SpacesContextValue
     icon: string,
     color: string,
     bookmarkFolderPath: string,
-    bookmarkFolderSegments: string[]
+    bookmarkFolderSegments: string[],
+    bookmarkFolderInAccount?: boolean
   ) => Space;
   updateSpace: (id: string, updates: Partial<Omit<Space, 'id'>>) => void;
   updateSpaceFolderPaths: (updates: { id: string; bookmarkFolderPath: string; bookmarkFolderSegments: string[] }[]) => void;
@@ -205,7 +206,8 @@ export const SpacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     icon: string,
     color: string,
     bookmarkFolderPath: string,
-    bookmarkFolderSegments: string[]
+    bookmarkFolderSegments: string[],
+    bookmarkFolderInAccount?: boolean
   ): Space =>
   {
     if (bookmarkFolderPath && bookmarkFolderSegments.length === 0)
@@ -220,6 +222,7 @@ export const SpacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       color,
       bookmarkFolderPath,
       bookmarkFolderSegments,
+      bookmarkFolderInAccount,
     };
 
     // Read the store snapshot at call time, not the render-captured `spaces`
@@ -458,7 +461,7 @@ export const SpacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     // 2. Also find live bookmark tabs for bookmarks in the space's folder
-    const spaceFolder = findFolderBySegments(space.bookmarkFolderSegments ?? []);
+    const spaceFolder = findFolderBySegments(space.bookmarkFolderSegments ?? [], space.bookmarkFolderInAccount);
     if (spaceFolder)
     {
       const bookmarksInFolder = await getAllBookmarksInFolder(spaceFolder.id);

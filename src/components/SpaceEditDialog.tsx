@@ -5,6 +5,7 @@ import { FolderPickerDialog } from './FolderPickerDialog';
 import { IconColorPicker } from './IconColorPicker';
 import type { ColorOption } from '../utils/iconPickerOptions';
 import { useBookmarks } from '../hooks/useBookmarks';
+import { isInAccountStorage } from '../utils/bookmarkFolderLookup';
 import { Space } from '../contexts/SpacesContext';
 import { GROUP_COLOR_OPTIONS } from '../utils/groupColors';
 import { getIconUrl } from '../utils/iconify';
@@ -23,6 +24,7 @@ interface SpaceEditDialogProps
     color: string;
     bookmarkFolderPath: string;
     bookmarkFolderSegments: string[];
+    bookmarkFolderInAccount?: boolean;
   }) => void | Promise<void>;
 }
 
@@ -42,7 +44,7 @@ export const SpaceEditDialog: React.FC<SpaceEditDialogProps> = ({
 }) =>
 {
   const isCreateMode = space === null;
-  const { createFolder, getBookmarkSegments, findFolderBySegments, getRootFolderTitle } = useBookmarks();
+  const { getBookmarkFolderLocation, findFolderBySegments, getRootFolder } = useBookmarks();
 
   // Form state
   const [name, setName] = useState('');
@@ -51,6 +53,7 @@ export const SpaceEditDialog: React.FC<SpaceEditDialogProps> = ({
   const [customHexInput, setCustomHexInput] = useState('');
   const [bookmarkFolderPath, setBookmarkFolderPath] = useState('');
   const [bookmarkFolderSegments, setBookmarkFolderSegments] = useState<string[]>([]);
+  const [bookmarkFolderInAccount, setBookmarkFolderInAccount] = useState<boolean | undefined>(undefined);
   const [useExistingFolder, setUseExistingFolder] = useState(false);
 
   // Folder picker dialog state
@@ -75,6 +78,7 @@ export const SpaceEditDialog: React.FC<SpaceEditDialogProps> = ({
         setCustomHexInput(space.color.startsWith('#') ? space.color : '');
         setBookmarkFolderPath(space.bookmarkFolderPath);
         setBookmarkFolderSegments(space.bookmarkFolderSegments ?? []);
+        setBookmarkFolderInAccount(space.bookmarkFolderInAccount);
         setUseExistingFolder(true);
       }
       else
@@ -85,6 +89,7 @@ export const SpaceEditDialog: React.FC<SpaceEditDialogProps> = ({
         setColor('blue');
         setBookmarkFolderPath('');
         setBookmarkFolderSegments([]);
+        setBookmarkFolderInAccount(undefined);
         setUseExistingFolder(false);
       }
       setNameError('');
@@ -154,8 +159,9 @@ export const SpaceEditDialog: React.FC<SpaceEditDialogProps> = ({
     setShowFolderPicker(false);
     try
     {
-      const segments = await getBookmarkSegments(folderId);
+      const { segments, inAccount } = await getBookmarkFolderLocation(folderId);
       setBookmarkFolderSegments(segments);
+      setBookmarkFolderInAccount(inAccount);
       setBookmarkFolderPath(segments.join('/'));
       setUseExistingFolder(true);
     }
@@ -163,7 +169,7 @@ export const SpaceEditDialog: React.FC<SpaceEditDialogProps> = ({
     {
       console.error('Failed to get folder path:', error);
     }
-  }, [getBookmarkSegments]);
+  }, [getBookmarkFolderLocation]);
 
   // Handle save
   const handleSave = useCallback(async () =>
@@ -172,47 +178,54 @@ export const SpaceEditDialog: React.FC<SpaceEditDialogProps> = ({
 
     let finalPath = bookmarkFolderPath;
     let finalSegments = bookmarkFolderSegments;
+    let finalInAccount = bookmarkFolderInAccount;
 
     // If creating new space without existing folder, find or create the folder
     if (isCreateMode && !useExistingFolder)
     {
       const folderName = name.trim();
-      const rootTitle = getRootFolderTitle('2'); // "Other Bookmarks" (actual title from Chrome)
+      const otherRoot = getRootFolder('other');
+      if (!otherRoot)
+      {
+        setNameError('"Other Bookmarks" folder not found - pick an existing folder');
+        return;
+      }
+      const rootInAccount = isInAccountStorage(otherRoot);
 
       // Check if folder already exists under Other Bookmarks
-      const targetSegments = [rootTitle, folderName];
-      const existingFolder = findFolderBySegments(targetSegments);
+      const targetSegments = [otherRoot.title, folderName];
+      const existingFolder = findFolderBySegments(targetSegments, rootInAccount);
       if (existingFolder)
       {
         finalSegments = targetSegments;
         finalPath = targetSegments.join('/');
+        finalInAccount = rootInAccount;
       }
       else
       {
-        // Create folder under Other Bookmarks, then get its segments
-        await new Promise<void>((resolve, reject) =>
+        // Create folder under Other Bookmarks, then get its segments. Calls the API
+        // directly because useBookmarks().createFolder never reports a failure.
+        try
         {
-          createFolder('2', folderName, async (newFolder) =>
-          {
-            if (newFolder)
-            {
-              finalSegments = await getBookmarkSegments(newFolder.id);
-              finalPath = finalSegments.join('/');
-              resolve();
-            }
-            else
-            {
-              reject(new Error('Failed to create folder'));
-            }
-          });
-        });
+          const newFolder = await chrome.bookmarks.create({ parentId: otherRoot.id, title: folderName });
+          const location = await getBookmarkFolderLocation(newFolder.id);
+          finalSegments = location.segments;
+          finalInAccount = location.inAccount;
+          finalPath = finalSegments.join('/');
+        }
+        catch (error)
+        {
+          console.error('Failed to create space folder:', error);
+          setNameError('Failed to create bookmark folder');
+          return;
+        }
       }
     }
 
     // In edit mode, check if the configured folder still exists
     if (!isCreateMode && bookmarkFolderSegments.length > 0)
     {
-      const folder = findFolderBySegments(bookmarkFolderSegments);
+      const folder = findFolderBySegments(bookmarkFolderSegments, bookmarkFolderInAccount);
       if (!folder)
       {
         setNameError('Selected folder no longer exists');
@@ -226,6 +239,7 @@ export const SpaceEditDialog: React.FC<SpaceEditDialogProps> = ({
       color,
       bookmarkFolderPath: finalPath,
       bookmarkFolderSegments: finalSegments,
+      bookmarkFolderInAccount: finalInAccount,
     });
     onClose();
   }, [
@@ -234,12 +248,13 @@ export const SpaceEditDialog: React.FC<SpaceEditDialogProps> = ({
     color,
     bookmarkFolderPath,
     bookmarkFolderSegments,
+    bookmarkFolderInAccount,
     isCreateMode,
     useExistingFolder,
     validateName,
-    createFolder,
+    getRootFolder,
     findFolderBySegments,
-    getBookmarkSegments,
+    getBookmarkFolderLocation,
     onSave,
     onClose
   ]);
@@ -251,7 +266,7 @@ export const SpaceEditDialog: React.FC<SpaceEditDialogProps> = ({
     {
       return bookmarkFolderPath;
     }
-    const otherBookmarksTitle = getRootFolderTitle('2') || 'Other Bookmarks';
+    const otherBookmarksTitle = getRootFolder('other')?.title || 'Other Bookmarks';
     if (name.trim())
     {
       return `${otherBookmarksTitle}/${name.trim()}`;

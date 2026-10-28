@@ -1,12 +1,13 @@
 import React from 'react';
 import * as ContextMenu from './menu/ContextMenu';
-import { Pencil, X, Trash2 } from 'lucide-react';
+import { Pencil, X, Trash2, FolderPlus } from 'lucide-react';
 
 interface SpaceContextMenuContentProps
 {
   onEdit?: () => void;
   onDelete?: () => void;
   onCloseAllTabs?: () => void;
+  onCreateFolder?: () => void;  // shown only when provided (space has a resolvable root folder)
   canDelete?: boolean;
 }
 
@@ -14,6 +15,7 @@ export const SpaceContextMenuContent: React.FC<SpaceContextMenuContentProps> = (
   onEdit,
   onDelete,
   onCloseAllTabs,
+  onCreateFolder,
   canDelete = true,
 }) =>
 {
@@ -22,6 +24,12 @@ export const SpaceContextMenuContent: React.FC<SpaceContextMenuContentProps> = (
       <ContextMenu.Item onSelect={onEdit}>
         <Pencil size={14} className="mr-2 flex-shrink-0" /> Edit
       </ContextMenu.Item>
+
+      {onCreateFolder && (
+        <ContextMenu.Item onSelect={onCreateFolder}>
+          <FolderPlus size={14} className="mr-2 flex-shrink-0" /> New Folder
+        </ContextMenu.Item>
+      )}
 
       <ContextMenu.Separator />
 

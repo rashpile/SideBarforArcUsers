@@ -835,17 +835,16 @@ interface TabListProps {
   onSpaceDropTargetChange?: (spaceId: string | null) => void;
   onPerformAction?: (action: UndoableAction) => Promise<void>;
   onBookmarkCreated?: (bookmark: chrome.bookmarks.BookmarkTreeNode, tabId?: number) => void;
-  pinnedSiteUrls?: readonly string[];
 }
 
-export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFirst', onTabGroupDisplayOrderChange, onExternalDropTargetChange: _onExternalDropTargetChange, resolveBookmarkDropTarget: _resolveBookmarkDropTarget, arcStyleEnabled = false, filterText = '', activeSpace: activeSpaceProp, useSpaces = true, onSpaceDropTargetChange: _onSpaceDropTargetChange, onPerformAction, onBookmarkCreated, pinnedSiteUrls = [] }: TabListProps) =>
+export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFirst', onTabGroupDisplayOrderChange, onExternalDropTargetChange: _onExternalDropTargetChange, resolveBookmarkDropTarget: _resolveBookmarkDropTarget, arcStyleEnabled = false, filterText = '', activeSpace: activeSpaceProp, useSpaces = true, onSpaceDropTargetChange: _onSpaceDropTargetChange, onPerformAction, onBookmarkCreated }: TabListProps) =>
 {
   const { spaces, activeSpace: activeSpaceFromContext, windowId } = useSpacesContext();
   const { tabs, closeTabs, activateTab, moveTab, groupTab, ungroupTab, createGroupWithTab, createTabInGroup, createTab, duplicateTab, sortTabs, sortGroupTabs, error } = useTabs(windowId ?? undefined);
   const { tabGroups, updateGroup, moveGroup } = useTabGroups();
   const tabSpaceAssignments = useTabSpaceAssignments(windowId);
   const { getManagedTabIds, associateExistingTab, getItemKeyForTab, restoreItemAssociation, deassociateBookmarkTab, getTabIdForBookmark, deassociatePinnedTab, getTabIdForPinned } = useBookmarkTabsContext();
-  const { bookmarks, findFolderInParent, findFolderBySegments, createFolder, createBookmark, createBookmarksBatch, getChildren, clearFolder, getBookmarkSegments } = useBookmarks();
+  const { findFolderInParent, findFolderBySegments, createFolder, createBookmark, createBookmarksBatch, getChildren, clearFolder, getBookmarkSegments, getBookmarkFolderLocation } = useBookmarks();
 
   // Use prop if provided, otherwise use context
   const activeSpace = activeSpaceProp ?? activeSpaceFromContext;
@@ -853,29 +852,11 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
   // Check if we're in a non-"all" space
   const isInSpace = activeSpace && activeSpace.id !== 'all';
 
-  const persistentItemUrls = useMemo(() =>
-  {
-    const urls = new Set(pinnedSiteUrls);
-
-    const collectBookmarkUrls = (nodes: readonly chrome.bookmarks.BookmarkTreeNode[]): void =>
-    {
-      // 普通 Tabs 的定义覆盖全部书签，所以需要遍历整棵树，而不只看当前 Space 展开的节点。
-      for (const node of nodes)
-      {
-        if (node.url) urls.add(node.url);
-        if (node.children) collectBookmarkUrls(node.children);
-      }
-    };
-
-    collectBookmarkUrls(bookmarks);
-    return urls;
-  }, [bookmarks, pinnedSiteUrls]);
-
   // 固定项先排除，普通 Tab 再按扩展内部 Space 关联过滤。
   const visibleTabs = useMemo(() =>
   {
     const managedTabIds = getManagedTabIds();
-    let filtered = filterUnmanagedTabs(tabs, managedTabIds, persistentItemUrls);
+    let filtered = filterUnmanagedTabs(tabs, managedTabIds);
 
     if (isInSpace && activeSpace)
     {
@@ -889,7 +870,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
       );
     }
     return filtered;
-  }, [tabs, getManagedTabIds, persistentItemUrls, filterText, isInSpace, activeSpace, tabSpaceAssignments]);
+  }, [tabs, getManagedTabIds, filterText, isInSpace, activeSpace, tabSpaceAssignments]);
 
   // 用户自己的原生标签组仍可在当前 Space 中展示，但它们不再决定 Space 归属。
   const visibleGroupIds = new Set(visibleTabs.map(tab => tab.groupId).filter(groupId => groupId !== -1));
@@ -1098,7 +1079,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
   }, []);
 
   // Bookmarks functions for export and tab-to-bookmark drops
-  const findSpaceForFolder = useFindSpaceForFolder(getBookmarkSegments, spaces);
+  const findSpaceForFolder = useFindSpaceForFolder(getBookmarkFolderLocation, spaces);
 
   // Persisted per-space last selected bookmark folder (spaceId → folderId)
   const [lastSelectedBookmarkFolderPerSpace, setLastSelectedBookmarkFolderPerSpace] = useChromeLocalStorage<Record<string, string>>(
@@ -1113,7 +1094,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     const remembered = lastSelectedBookmarkFolderPerSpace[activeSpace.id];
     if (remembered) return remembered;
     return (activeSpace.bookmarkFolderSegments?.length)
-      ? findFolderBySegments(activeSpace.bookmarkFolderSegments)?.id
+      ? findFolderBySegments(activeSpace.bookmarkFolderSegments, activeSpace.bookmarkFolderInAccount)?.id
       : undefined;
   }, [activeSpace, lastSelectedBookmarkFolderPerSpace, findFolderBySegments]);
 
@@ -1158,7 +1139,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     existingFolder: chrome.bookmarks.BookmarkTreeNode | null;
     tabsToExport: chrome.tabs.Tab[];
     parentFolderId: string;
-  }>({ isOpen: false, folderName: '', existingFolder: null, tabsToExport: [], parentFolderId: '2' });
+  }>({ isOpen: false, folderName: '', existingFolder: null, tabsToExport: [], parentFolderId: '' });
 
   const [folderPickerDialog, setFolderPickerDialog] = useState<{
     isOpen: boolean;
@@ -1285,7 +1266,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
 
   const closeExportConflictDialog = useCallback(() =>
   {
-    setExportConflictDialog({ isOpen: false, folderName: '', existingFolder: null, tabsToExport: [], parentFolderId: '2' });
+    setExportConflictDialog({ isOpen: false, folderName: '', existingFolder: null, tabsToExport: [], parentFolderId: '' });
   }, []);
 
   // Unified DnD context

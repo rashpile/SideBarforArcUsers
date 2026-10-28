@@ -26,7 +26,8 @@ html, body, #root {
 }
 
 .arc-neutral-background {
-  background: #efedf8;
+  --arc-sidebar-bg: #efedf8;
+  background: var(--arc-sidebar-bg);
 }
 
 .arc-theme [data-testid="sidebar-scroll-container"] {
@@ -111,7 +112,13 @@ html, body, #root {
   border-radius: 9px;
 }
 
+/*
+ * --arc-row-overlay is the row's translucent state colour over the sidebar
+ * base (--arc-sidebar-bg). Row hover actions repaint both so they hide the
+ * title underneath while matching the row exactly.
+ */
 .arc-tree-row {
+  --arc-row-overlay: transparent;
   min-height: 36px;
   margin-bottom: 1px;
   border-radius: 10px;
@@ -126,19 +133,22 @@ html, body, #root {
 }
 
 .arc-tree-row-hoverable:hover {
-  background: rgba(255, 255, 255, 0.22);
+  --arc-row-overlay: rgba(255, 255, 255, 0.22);
+  background: var(--arc-row-overlay);
 }
 
 .arc-tree-row-active,
 .arc-tree-row[data-active="true"] {
-  background: var(--arc-surface-active);
+  --arc-row-overlay: var(--arc-surface-active);
+  background: var(--arc-row-overlay);
   box-shadow: var(--arc-shadow);
   color: var(--arc-text);
 }
 
 .arc-tree-row-selected,
 .arc-tree-row[data-selected="true"] {
-  background: rgba(255, 255, 255, 0.76);
+  --arc-row-overlay: rgba(255, 255, 255, 0.76);
+  background: var(--arc-row-overlay);
   box-shadow: 0 0 0 2px rgba(92, 84, 160, 0.13), var(--arc-shadow);
   color: var(--arc-text);
 }
@@ -168,7 +178,8 @@ html, body, #root {
 }
 
 .arc-tree-row[data-is-folder="true"][data-expanded="true"] {
-  background: rgba(255, 255, 255, 0.22);
+  --arc-row-overlay: rgba(255, 255, 255, 0.22);
+  background: var(--arc-row-overlay);
 }
 
 .arc-folder-collapse-action {
@@ -198,11 +209,30 @@ html, body, #root {
 }
 
 .arc-tree-row[data-has-active-peek="true"] {
-  background: rgba(255, 255, 255, 0.18);
+  --arc-row-overlay: rgba(255, 255, 255, 0.18);
+  background: var(--arc-row-overlay);
 }
 
 .arc-tree-row [class*="group-hover:opacity-100"] {
   background: transparent;
+}
+
+/* Brief highlight for a row the user jumped to (e.g. "Show active tab") - set by scrollHelpers.flashDataElement */
+@keyframes arc-row-flash {
+  0%, 40% { box-shadow: 0 0 0 2px rgba(76, 79, 255, 0.65), var(--arc-shadow); }
+  100% { box-shadow: 0 0 0 2px rgba(76, 79, 255, 0), var(--arc-shadow); }
+}
+
+.arc-tree-row[data-flash="true"] {
+  animation: arc-row-flash 1200ms ease-out;
+}
+
+/* Hover actions sit over the right end of the title - paint them with the row's colour so the title doesn't show through */
+.arc-tree-row-actions button:not(:hover),
+.arc-tree-row-actions .arc-folder-collapse-action:not(:hover) {
+  background:
+    linear-gradient(var(--arc-row-overlay), var(--arc-row-overlay)),
+    var(--arc-sidebar-bg, transparent);
 }
 
 .arc-space-root-drop-target {
@@ -295,7 +325,7 @@ html, body, #root {
   }
 
   .arc-neutral-background {
-    background: #171821;
+    --arc-sidebar-bg: #171821;
   }
 
   .arc-toolbar,
@@ -308,7 +338,7 @@ html, body, #root {
   }
 
   .arc-tree-row-hoverable:hover {
-    background: rgba(255, 255, 255, 0.07);
+    --arc-row-overlay: rgba(255, 255, 255, 0.07);
   }
 }
 

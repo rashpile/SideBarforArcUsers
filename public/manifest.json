@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Side Bar for Arc Users — Arc Style",
-  "version": "1.0.349",
+  "version": "1.0.351",
   "description": "Arc-style pinned sites, bookmarks, spaces and active tabs in Chrome's side panel",
   "permissions": [
     "sidePanel",

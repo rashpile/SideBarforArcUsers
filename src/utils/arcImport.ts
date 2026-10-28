@@ -2,6 +2,7 @@ import { PinnedSite } from '../hooks/usePinnedSites';
 import { Space } from '../contexts/SpacesContext';
 import { importBookmarkNode, ImportResult } from './backupRestore';
 import { toChromeColor } from './groupColors';
+import { fetchRootFolder } from './bookmarkFolderLookup';
 
 // =============================================================================
 // Types
@@ -630,11 +631,13 @@ async function findBookmarkFolderByPath(path: string): Promise<string | null>
 // Create a bookmark folder under Other Bookmarks, return its ID and path
 async function createBookmarkFolder(name: string): Promise<{ id: string; path: string }>
 {
+  const otherRoot = await fetchRootFolder('other');
+  if (!otherRoot) throw new Error('"Other Bookmarks" folder not found');
   const folder = await chrome.bookmarks.create({
-    parentId: '2', // Other Bookmarks
+    parentId: otherRoot.id,
     title: name,
   });
-  return { id: folder.id, path: `Other Bookmarks/${name}` };
+  return { id: folder.id, path: `${otherRoot.title}/${name}` };
 }
 
 export interface ArcImportCallbacks

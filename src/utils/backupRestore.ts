@@ -1,6 +1,7 @@
 import { PinnedSite } from '../hooks/usePinnedSites';
 import { Space } from '../contexts/SpacesContext';
 import { isEmoji } from './emoji';
+import { fetchRootFolder, findRootFolder } from './bookmarkFolderLookup';
 
 // Convert PascalCase to kebab-case — used only for v1 backup migration
 function toKebabCase(name: string): string
@@ -280,37 +281,33 @@ export async function importFullBackup(
 
     const searchArray = rootNode?.children || backup.bookmarks;
 
-    // Match root folders by ID - stable across platforms and locales
-    // "1" = Bookmarks Bar, "2" = Other Bookmarks, "3" = Mobile Bookmarks
-    const bookmarkBar = searchArray.find(n => n.id === '1');
-    const otherBookmarks = searchArray.find(n => n.id === '2');
-    const mobileBookmarks = searchArray.find(n => n.id === '3');
+    // Match root folders by type (folderType, or the legacy '1'/'2'/'3' IDs in older
+    // backups) - stable across platforms and locales, and works for account bookmarks
+    const bookmarkBar = findRootFolder(searchArray, 'bookmarks-bar');
+    const otherBookmarks = findRootFolder(searchArray, 'other');
+    const mobileBookmarks = findRootFolder(searchArray, 'mobile');
 
     if (options.bookmarkMode === 'replace') {
-      // Clear and replace existing bookmarks
-      if (bookmarkBar?.children) {
-        await clearBookmarkFolder('1');
-        for (const child of bookmarkBar.children) {
-          result.bookmarksCount += await importBookmarkNode(child, '1');
-        }
-      }
-      if (otherBookmarks?.children) {
-        await clearBookmarkFolder('2');
-        for (const child of otherBookmarks.children) {
-          result.bookmarksCount += await importBookmarkNode(child, '2');
-        }
-      }
-      if (mobileBookmarks?.children) {
-        await clearBookmarkFolder('3');
-        for (const child of mobileBookmarks.children) {
-          result.bookmarksCount += await importBookmarkNode(child, '3');
+      // Clear and replace each existing root with the backup's matching root
+      const replacements = [
+        { source: bookmarkBar, target: await fetchRootFolder('bookmarks-bar') },
+        { source: otherBookmarks, target: await fetchRootFolder('other') },
+        { source: mobileBookmarks, target: await fetchRootFolder('mobile') },
+      ];
+      for (const { source, target } of replacements) {
+        if (!source?.children || !target) continue;
+        await clearBookmarkFolder(target.id);
+        for (const child of source.children) {
+          result.bookmarksCount += await importBookmarkNode(child, target.id);
         }
       }
     } else {
       // Create in "Other Bookmarks" as a subfolder
+      const otherRoot = await fetchRootFolder('other');
+      if (!otherRoot) throw new Error('"Other Bookmarks" folder not found');
       const dateStr = new Date().toLocaleDateString();
       const importFolder = await chrome.bookmarks.create({
-        parentId: '2', // Other Bookmarks
+        parentId: otherRoot.id,
         title: `Imported Bookmarks ${dateStr}`,
       });
 

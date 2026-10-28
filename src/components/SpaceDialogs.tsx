@@ -42,6 +42,7 @@ export const SpaceDialogs: React.FC<SpaceDialogsProps> = ({
     color: string;
     bookmarkFolderPath: string;
     bookmarkFolderSegments: string[];
+    bookmarkFolderInAccount?: boolean;
   }) =>
   {
     if (spaceToEdit)
@@ -57,7 +58,8 @@ export const SpaceDialogs: React.FC<SpaceDialogsProps> = ({
         spaceData.icon,
         spaceData.color,
         spaceData.bookmarkFolderPath,
-        spaceData.bookmarkFolderSegments
+        spaceData.bookmarkFolderSegments,
+        spaceData.bookmarkFolderInAccount
       );
       // Switch to the newly created space
       setActiveSpaceId(newSpace.id);

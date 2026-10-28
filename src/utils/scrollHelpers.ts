@@ -71,3 +71,55 @@ export function scrollToTab(tabId: string | number, delay: number = DEFAULT_DELA
 {
   scrollToDataElement('data-tab-id', String(tabId), delay);
 }
+
+// How long a flashed row keeps data-flash - matches the arc-row-flash animation in index.css
+const FLASH_DURATION_MS = 1200;
+
+// Pending data-flash removal per row, so a repeated flash restarts instead of being cut short
+const flashTimers = new WeakMap<Element, ReturnType<typeof setTimeout>>();
+
+// Briefly highlight a sidebar row so it is easy to spot even when it was already
+// on screen. Polls like scrollToDataElement because the row may still be rendering
+// (space switch, folders expanding). Uses a data attribute rather than a class
+// because React rewrites className on re-render.
+function flashDataElement(dataAttribute: string, id: string): void
+{
+  const startTime = Date.now();
+
+  const attempt = () =>
+  {
+    const element = document.querySelector(`.arc-tree-row[${dataAttribute}="${id}"]`);
+    if (!element)
+    {
+      if (Date.now() - startTime < MAX_WAIT_MS)
+      {
+        setTimeout(attempt, RETRY_INTERVAL_MS);
+      }
+      return;
+    }
+
+    // Restart the animation if the row is still flashing from a previous request
+    const pending = flashTimers.get(element);
+    if (pending) clearTimeout(pending);
+    element.removeAttribute('data-flash');
+    void (element as HTMLElement).offsetWidth;
+    element.setAttribute('data-flash', 'true');
+    flashTimers.set(element, setTimeout(() =>
+    {
+      element.removeAttribute('data-flash');
+      flashTimers.delete(element);
+    }, FLASH_DURATION_MS));
+  };
+
+  attempt();
+}
+
+export function flashBookmark(bookmarkId: string): void
+{
+  flashDataElement('data-bookmark-id', bookmarkId);
+}
+
+export function flashTab(tabId: string | number): void
+{
+  flashDataElement('data-tab-id', String(tabId));
+}

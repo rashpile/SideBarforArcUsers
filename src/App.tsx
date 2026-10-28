@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, Suspense } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, Suspense } from 'react';
 import { BookmarkTree } from './components/BookmarkTree';
 import { TabList, ExternalDropTarget, ResolveBookmarkDropTarget } from './components/TabList';
 import { PinnedBar } from './components/PinnedBar';
@@ -19,6 +19,7 @@ import { FontSizeContext } from './contexts/FontSizeContext';
 import { BookmarkTabsProvider, useBookmarkTabsContext } from './contexts/BookmarkTabsContext';
 import { CloseTabAction } from './actions/closeTabAction';
 import { ConfirmDeleteDialog } from './components/ConfirmDeleteDialog';
+import { BookmarkCreateFolderModal } from './components/BookmarkCreateFolderModal';
 import { SpacesProvider, Space, useSpacesContext } from './contexts/SpacesContext';
 import { SelectionProvider } from './contexts/SelectionContext';
 import { UnifiedDndProvider } from './contexts/UnifiedDndContext';
@@ -87,7 +88,6 @@ interface SidebarContentProps
   onSpaceDropTargetChange?: (spaceId: string | null) => void;
   onAiRenameBookmark?: (bookmark: chrome.bookmarks.BookmarkTreeNode, tabId?: number) => void;
   onBookmarkCreated?: (bookmark: chrome.bookmarks.BookmarkTreeNode, tabId?: number) => void;
-  pinnedSiteUrls: readonly string[];
 }
 
 // Storage key for scroll position per space per window
@@ -113,7 +113,6 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
   onSpaceDropTargetChange,
   onAiRenameBookmark,
   onBookmarkCreated,
-  pinnedSiteUrls,
 }) =>
 {
   const { spaces, activeSpace, activeSpaceId, windowId, getSpaceSwitchSource } = useSpacesContext();
@@ -235,7 +234,6 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
         onSpaceDropTargetChange={onSpaceDropTargetChange}
         onPerformAction={onPerformAction}
         onBookmarkCreated={onBookmarkCreated}
-        pinnedSiteUrls={pinnedSiteUrls}
       />
     </div>
   );
@@ -247,9 +245,10 @@ interface SpaceTitleProps
   onEditSpace: (space: Space) => void;
   onDeleteSpace: (space: Space) => void;
   onCloseAllTabs: (space: Space) => void;
+  onCreateFolder?: () => void;
 }
 
-const SpaceTitle: React.FC<SpaceTitleProps> = ({ onEditSpace, onDeleteSpace, onCloseAllTabs }) =>
+const SpaceTitle: React.FC<SpaceTitleProps> = ({ onEditSpace, onDeleteSpace, onCloseAllTabs, onCreateFolder }) =>
 {
   const { spaces, activeSpace } = useSpacesContext();
   const fontSize = useFontSize();
@@ -274,6 +273,7 @@ const SpaceTitle: React.FC<SpaceTitleProps> = ({ onEditSpace, onDeleteSpace, onC
       onEdit={() => onEditSpace(activeSpace)}
       onDelete={() => onDeleteSpace(activeSpace)}
       onCloseAllTabs={() => onCloseAllTabs(activeSpace)}
+      onCreateFolder={onCreateFolder}
       canDelete={spaces.length > 1}
     />
   );
@@ -301,12 +301,30 @@ interface SpaceTitleWrapperProps
 
 const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({ onEditSpace, onDeleteSpace, onPerformAction }) =>
 {
-  const { getTabIdsInSpace, windowId } = useSpacesContext();
+  const { activeSpace, getTabIdsInSpace, windowId } = useSpacesContext();
   const { getItemKeyForTab, restoreItemAssociation } = useBookmarkTabsContext();
+  const { findFolderBySegments, createFolder } = useBookmarks();
   const [confirmCloseAllDialog, setConfirmCloseAllDialog] = useState<{
     isOpen: boolean;
     tabIds: number[];
   }>({ isOpen: false, tabIds: [] });
+  const [creatingFolderParentId, setCreatingFolderParentId] = useState<string | null>(null);
+
+  // Root folder of the active space - target for "New Folder" in the space menu
+  const spaceRoot = findFolderBySegments(activeSpace.bookmarkFolderSegments ?? [], activeSpace.bookmarkFolderInAccount);
+
+  const handleCreateFolder = useCallback(() =>
+  {
+    if (spaceRoot)
+    {
+      setCreatingFolderParentId(spaceRoot.id);
+    }
+  }, [spaceRoot]);
+
+  const handleSaveFolder = useCallback((parentId: string, title: string) =>
+  {
+    createFolder(parentId, title);
+  }, [createFolder]);
 
   const handleCloseAllTabs = useCallback(async (space: Space) =>
   {
@@ -352,6 +370,13 @@ const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({ onEditSpace, onDe
         onEditSpace={onEditSpace}
         onDeleteSpace={onDeleteSpace}
         onCloseAllTabs={handleCloseAllTabs}
+        onCreateFolder={spaceRoot ? handleCreateFolder : undefined}
+      />
+      <BookmarkCreateFolderModal
+        isOpen={creatingFolderParentId !== null}
+        parentId={creatingFolderParentId}
+        onSave={handleSaveFolder}
+        onClose={() => setCreatingFolderParentId(null)}
       />
       <ConfirmDeleteDialog
         isOpen={confirmCloseAllDialog.isOpen}
@@ -531,8 +556,12 @@ const AppContainer: React.FC<AppContainerProps> = ({ useSpaceColor, spaceColorAl
   }, []);
 
   const applySpaceColor = useSpaceColor && activeSpace.id !== 'all';
-  const bgStyle = applySpaceColor
-    ? { backgroundColor: getSpaceBgColor(activeSpace.color, isDark, spaceColorAlpha / 100) }
+  const spaceBgColor = applySpaceColor
+    ? getSpaceBgColor(activeSpace.color, isDark, spaceColorAlpha / 100)
+    : null;
+  // --arc-sidebar-bg lets row hover actions repaint the sidebar colour (see index.css)
+  const bgStyle = spaceBgColor
+    ? { backgroundColor: spaceBgColor, '--arc-sidebar-bg': spaceBgColor } as React.CSSProperties
     : {};
   const bgClass = applySpaceColor ? '' : 'arc-neutral-background';
 
@@ -744,10 +773,6 @@ function App() {
     replacePinnedSites,
     appendPinnedSites,
   } = usePinnedSites();
-  const pinnedSiteUrls = useMemo(
-    () => pinnedSites.map(site => site.url),
-    [pinnedSites]
-  );
   const { tabs, refreshTabs } = useTabs();
   const { hasUnreadNews, markNewsRead, openNews } = useNewsCheck();
 
@@ -1455,7 +1480,6 @@ function App() {
         onSpaceDropTargetChange={setSpaceDropTargetId}
         onAiRenameBookmark={handleAiRenameBookmark}
         onBookmarkCreated={handleBookmarkCreated}
-        pinnedSiteUrls={pinnedSiteUrls}
       />
 
       {/* Space Dialogs */}

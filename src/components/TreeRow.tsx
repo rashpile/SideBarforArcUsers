@@ -156,7 +156,7 @@ export const TreeRow = forwardRef<HTMLDivElement, TreeRowProps>(({
 
       {/* Actions (Absolute positioned, overlays on right side) */}
       {actions && (
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center pl-2">
+        <div className="arc-tree-row-actions absolute right-2 top-1/2 -translate-y-1/2 flex items-center pl-2">
           {actions}
         </div>
       )}

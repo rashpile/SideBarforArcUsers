@@ -1,6 +1,13 @@
 import { useState, useCallback, useSyncExternalStore } from 'react';
 import { createChromeErrorHandler } from '../utils/chromeError';
 import { BookmarkTreeSource, SharedBookmarkStore } from '../stores/sharedBookmarkStore';
+import {
+  BookmarkFolderLocation,
+  RootFolderType,
+  findFolderBySegments as findFolderBySegmentsInTree,
+  findRootFolder,
+  isInAccountStorage,
+} from '../utils/bookmarkFolderLookup';
 
 export type SortOption = 'none' | 'name' | 'dateAdded';
 
@@ -386,6 +393,15 @@ export const useBookmarks = () => {
     return segments;
   }, [getBookmark]);
 
+  // Get the folder's title path plus its storage (device vs Google account), which
+  // together identify the folder when both storages have same-titled folders
+  const getBookmarkFolderLocation = useCallback(async (bookmarkId: string): Promise<BookmarkFolderLocation> =>
+  {
+    const node = await getBookmark(bookmarkId);
+    const segments = await getBookmarkSegments(bookmarkId);
+    return { segments, inAccount: node ? isInAccountStorage(node) : undefined };
+  }, [getBookmark, getBookmarkSegments]);
+
   // Duplicate a bookmark (not folder) right after the original
   const duplicateBookmark = useCallback(async (bookmarkId: string, liveUrl?: string, liveTitle?: string): Promise<void> =>
   {
@@ -398,42 +414,21 @@ export const useBookmarks = () => {
     await createBookmark(original.parentId, title, url, original.index + 1);
   }, [getBookmark, createBookmark]);
 
-  // Get the actual title of a root folder by its stable ID
-  // Root folder IDs are stable across platforms: '1'=Bookmarks Bar, '2'=Other Bookmarks, '3'=Mobile Bookmarks
-  const getRootFolderTitle = useCallback((id: '1' | '2' | '3'): string =>
+  // Get a permanent top-level folder ("Other Bookmarks" etc.) - by type, not by
+  // the legacy '1'/'2'/'3' IDs, which are missing when only account bookmarks exist
+  const getRootFolder = useCallback((type: RootFolderType): chrome.bookmarks.BookmarkTreeNode | undefined =>
   {
-    const folder = bookmarks.find(b => b.id === id);
-    return folder?.title || '';
+    return findRootFolder(bookmarks, type);
   }, [bookmarks]);
 
   // Find a folder by its segment array (e.g. ["Bookmarks Bar", "A/B"])
-  // Handles folder names containing '/' correctly since each segment is matched as a whole title
-  const findFolderBySegments = useCallback((segments: string[]): chrome.bookmarks.BookmarkTreeNode | null =>
+  // Pass inAccount (from the Space) to pick between same-titled device and account folders
+  const findFolderBySegments = useCallback((
+    segments: string[],
+    inAccount?: boolean
+  ): chrome.bookmarks.BookmarkTreeNode | null =>
   {
-    if (!segments || segments.length === 0) return null;
-
-    const walk = (
-      nodes: chrome.bookmarks.BookmarkTreeNode[],
-      remaining: string[],
-      isRoot: boolean
-    ): chrome.bookmarks.BookmarkTreeNode | null =>
-    {
-      const [head, ...tail] = remaining;
-      for (const node of nodes)
-      {
-        if (node.url) continue;
-        // Root-level matched case-insensitively for platform differences
-        const matches = isRoot
-          ? node.title.toLowerCase() === head.toLowerCase()
-          : node.title === head;
-        if (!matches) continue;
-        if (tail.length === 0) return node;
-        return walk(node.children || [], tail, false);
-      }
-      return null;
-    };
-
-    return walk(bookmarks, segments, true);
+    return findFolderBySegmentsInTree(bookmarks, segments, inAccount);
   }, [bookmarks]);
 
   // Get all bookmarks recursively from a folder (including nested subfolders)
@@ -472,13 +467,14 @@ export const useBookmarks = () => {
     moveBookmark,
     findFolderInParent,
     findFolderBySegments,
-    getRootFolderTitle,
+    getRootFolder,
     createBookmark,
     createBookmarksBatch,
     getBookmark,
     getChildren,
     clearFolder,
     getBookmarkSegments,
+    getBookmarkFolderLocation,
     duplicateBookmark,
     getAllBookmarksInFolder,
     error: error ?? bookmarkSnapshot.error
