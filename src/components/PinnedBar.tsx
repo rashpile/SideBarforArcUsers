@@ -211,6 +211,11 @@ export const PinnedBar = ({
   return (
     <div
       className="arc-pinned-bar flex flex-wrap gap-1.5 px-2 py-1.5 border-b border-gray-200 dark:border-gray-700"
+      // Tile size follows the "Pinned icon size" setting: smaller icons give lower tiles and more per row
+      style={{
+        '--arc-pinned-tile-min-width': `${iconSize + 32}px`,
+        '--arc-pinned-tile-height': `${Math.round((iconSize + 24) * 2 / 3)}px`,
+      } as React.CSSProperties}
       data-dnd-zone="pinnedBar"
     >
       {visiblePinnedSites.map((site, index) => (
