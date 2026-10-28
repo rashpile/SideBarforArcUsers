@@ -127,9 +127,10 @@ Added after the feature shipped (plan: `docs/plans/completed/20261028-archive-ta
 
 Code: `TabArchiveBatch` (`src/utils/tabArchiveBatch.ts`) saves the tabs through `SpaceArchive` and remembers the items it created; `ArchiveTabsAction` (`src/actions/archiveTabsAction.ts`) runs the batch, then closes the closable tabs through a `CloseTabAction` from an injected factory (keeps `chrome.*` out of the Node tests); `isEmptyPage` (`src/utils/autoArchivePolicy.ts`) is shared with auto-archive; wiring is in `src/components/TabList.tsx`. No new storage keys.
 
-Known limitations (rare, not fixed):
+Pressing Archive again while a press still runs does nothing (`runArchiveOnce` in `TabList`). Otherwise a double-click would archive the same tabs twice, the second run replacing the first run's items, and its Undo would delete them without reopening any tab.
 
-- Pressing Archive again while the first press still runs starts a second batch over the same tabs. Undo of the press that finished last can then remove archive items while reopening nothing, since the other press closed the tabs. Clear has no in-flight guard either.
+Known limitation (rare, not fixed):
+
 - If the background archiver and the button both find `asd_Archive` missing at the same moment, two archive folders can appear; only the first one's items show in the Archive section (see Sidebar notes below).
 
 ## Archive Section (sidebar)
@@ -165,7 +166,7 @@ Clicking an item (in the expanded list or the popover):
 
 Modifier clicks (Cmd/Ctrl, Shift) restore the same way. **(call)**
 
-Right-click menu on an item: **Delete from Archive**. **(call)**
+Right-click menu on an item: **Delete from Archive**. **(call)** The same delete is on an `x` button shown on hover over the item's archive time.
 
 ### Toolbar filters
 
@@ -298,7 +299,7 @@ What was built where it differs from or adds to the text above. Key names and sh
 - The Archive list and popover include pages in subfolders the user creates inside `asd_Archive`.
 - With several `asd_Archive` folders in one Space folder, only the first one's items show in the Archive section; the others are hidden from the Bookmarks section too and are reachable only in Chrome's Bookmark Manager.
 - "Delete from Archive" is undoable (toast with Undo); undo creates the bookmark again, so the item comes back on top with a new archive time. Restoring an item removes its bookmark without a toast.
-- "Delete from Archive" is available on expanded rows; the popover is a quick peek without a context menu.
+- "Delete from Archive" (context menu and the hover `x`) is available on expanded rows; the popover is a quick peek without a context menu or `x`.
 - The Archive section remounts on Space switch, which closes an open popover.
 
 ### Open question

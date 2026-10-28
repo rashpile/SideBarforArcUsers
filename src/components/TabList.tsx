@@ -2494,10 +2494,27 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
       (tabIds) => new CloseTabAction(tabIds, targetWindowId, getItemKeyForTab, restoreItemAssociation)
     ), [getItemKeyForTab, restoreItemAssociation]);
 
+  // One archive run at a time. A second press (double-click) would archive the same tabs again,
+  // replacing the first run's items, and its Undo would then delete them without reopening any tab
+  const archiveRunningRef = useRef(false);
+  const runArchiveOnce = useCallback(async (run: () => Promise<void>) =>
+  {
+    if (archiveRunningRef.current) return;
+    archiveRunningRef.current = true;
+    try
+    {
+      await run();
+    }
+    finally
+    {
+      archiveRunningRef.current = false;
+    }
+  }, []);
+
   // Archive button: archives and closes the tabs Clear would close (the visible ones, active and audible included)
   const handleArchiveAllTabs = useCallback(() =>
   {
-    if (!activeSpaceFolderId || !windowId) return;
+    if (!activeSpaceFolderId || !windowId || archiveRunningRef.current) return;
     const archiveTabs = visibleTabs.filter(isArchivableTab);
     if (archiveTabs.length === 0) return;
 
@@ -2509,16 +2526,11 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     }
 
     const action = createArchiveTabsAction(archiveTabs, activeSpaceFolderId, windowId);
-    if (onPerformAction)
-    {
-      onPerformAction(action);
-    }
-    else
-    {
-      action.do().catch(error => console.error('[TabList] Failed to archive tabs:', error));
-    }
+    runArchiveOnce(onPerformAction
+      ? () => onPerformAction(action)
+      : () => action.do().catch(error => console.error('[TabList] Failed to archive tabs:', error)));
     clearSelection();
-  }, [activeSpaceFolderId, windowId, visibleTabs, closesWholeWindow, createArchiveTabsAction, onPerformAction, clearSelection]);
+  }, [activeSpaceFolderId, windowId, visibleTabs, closesWholeWindow, createArchiveTabsAction, runArchiveOnce, onPerformAction, clearSelection]);
 
   // Archive after the close-all confirmation: runs without Undo, since the window closes.
   // Tabs whose archive item fails stay open, and then the window and the toast survive
@@ -2528,16 +2540,19 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     const closingSet = new Set(tabIds);
     const archiveTabs = tabs.filter(isArchivableTab).filter(tab => closingSet.has(tab.id));
     const action = createArchiveTabsAction(archiveTabs, activeSpaceFolderId, windowId);
-    try
+    await runArchiveOnce(async () =>
     {
-      await action.do();
-      showToast(action.description);
-    }
-    catch (error)
-    {
-      showToast(error instanceof Error ? error.message : 'Could not archive tabs');
-    }
-  }, [activeSpaceFolderId, windowId, tabs, createArchiveTabsAction, showToast]);
+      try
+      {
+        await action.do();
+        showToast(action.description);
+      }
+      catch (error)
+      {
+        showToast(error instanceof Error ? error.message : 'Could not archive tabs');
+      }
+    });
+  }, [activeSpaceFolderId, windowId, tabs, createArchiveTabsAction, runArchiveOnce, showToast]);
 
   // Confirm close all tabs in window (no undo — window will close)
   const handleConfirmCloseAll = useCallback(() =>

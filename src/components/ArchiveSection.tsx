@@ -6,7 +6,7 @@
  * Expanded: every item, newest first. Clicking an item reopens it as a regular tab.
  */
 import { useState, useCallback, useMemo } from 'react';
-import { Trash } from 'lucide-react';
+import { Trash, X } from 'lucide-react';
 import { useBookmarks } from '../hooks/useBookmarks';
 import { useInView } from '../hooks/useInView';
 import { Space, useSpacesContext } from '../contexts/SpacesContext';
@@ -45,7 +45,8 @@ const ArchiveItemRow = ({ page, now, onRestore, onDelete }: ArchiveItemRowProps)
   const title = page.title || url;
 
   const archivedAt = page.dateAdded !== undefined && (
-    <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
+    // Hidden under the hover "x" without changing the row's layout
+    <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap group-hover:invisible">
       {formatRelativeTime(page.dateAdded, now)}
     </span>
   );
@@ -54,6 +55,26 @@ const ArchiveItemRow = ({ page, now, onRestore, onDelete }: ArchiveItemRowProps)
   {
     return <TreeRow ref={ref} depth={0} title={title} badges={archivedAt} hideChevronSlot />;
   }
+
+  // Shown on hover over the archive time, like a tab's close button
+  const actions = (
+    <div className="flex items-center opacity-0 group-hover:opacity-100 rounded">
+      <button
+        type="button"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) =>
+        {
+          e.stopPropagation();
+          onDelete(page);
+        }}
+        className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 active:bg-gray-300 dark:active:bg-gray-500 rounded"
+        title="Delete from Archive"
+        aria-label="Delete from Archive"
+      >
+        <X size={14} className="text-gray-700 dark:text-gray-200" />
+      </button>
+    </div>
+  );
 
   return (
     <ContextMenu.Root>
@@ -67,6 +88,7 @@ const ArchiveItemRow = ({ page, now, onRestore, onDelete }: ArchiveItemRowProps)
               tooltip={[page.title, url].filter(Boolean).join('\n')}
               icon={<BookmarkFavicon url={url} />}
               badges={archivedAt}
+              actions={actions}
               hideChevronSlot
               role="button"
               tabIndex={0}
