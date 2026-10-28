@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect, forwardRef, useMemo } from 'react';
 import { useBookmarks, SortOption } from '../hooks/useBookmarks';
 import { Space, useSpacesContext } from '../contexts/SpacesContext';
-import { useBookmarkTabsContext } from '../contexts/BookmarkTabsContext';
+import { useBookmarkTabsContext, OpenItemTabOptions } from '../contexts/BookmarkTabsContext';
 import { SelectionItem } from '../contexts/SelectionContext';
 import { useSelection } from '../hooks/useSelection';
 import { FolderPickerDialog } from './FolderPickerDialog';
@@ -75,6 +75,7 @@ import {
 } from '../utils/bookmarkTreeVisibility';
 import { resolveArcFolderIconState } from '../utils/folderIconState';
 import { isArchiveFolder } from '../utils/archiveFolder';
+import { resolveItemDoubleClick } from '../utils/itemDoubleClick';
 
 // Storage key for persisting folder expand/collapse state across restarts (keyed by space only)
 const getExpandedStateKey = (spaceId: string) =>
@@ -149,7 +150,7 @@ interface BookmarkRowProps {
   checkIsMuted?: (bookmarkId: string) => boolean;
   checkIsActive?: (bookmarkId: string) => boolean;
   getLiveTitle?: (bookmarkId: string) => string | undefined;
-  onOpenBookmark?: (bookmarkId: string, url: string) => void;
+  onOpenBookmark?: (bookmarkId: string, url: string, options?: OpenItemTabOptions) => void;
   onCloseBookmark?: (bookmarkId: string) => void;
   onRequestDelete?: (bookmarkId: string) => void;  // asks for confirmation before deleting
   onOpenAsTabGroup?: (folderId: string, folderName: string) => void;
@@ -275,6 +276,8 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
   const isFolder = !node.url;
   const dndId = `bookmark-${node.id}`;
   const isSpecialFolder = isPermanentRootFolder(node);
+  // Whether the bookmark had a tab when a double-click's first press went down, before that click opened one
+  const hadTabOnPressRef = useRef(false);
 
   // Collapsed folders peek their recently used pages on hover, like Arc (feature 034)
   const folderPeek = useFolderPeek(
@@ -546,8 +549,21 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
               onKeyDown={handleRowKeyDown}
               onPointerEnter={folderPeek.rowHandlers.onPointerEnter}
               onPointerLeave={folderPeek.rowHandlers.onPointerLeave}
-              onDoubleClick={() => {
-                if (node.url && bookmarkOpenMode === 'arc' && onOpenBookmark) {
+              onMouseDown={(e) => {
+                if (e.detail === 1) hadTabOnPressRef.current = !!isLoaded;
+              }}
+              onDoubleClick={(e) => {
+                if (!node.url || bookmarkOpenMode !== 'arc' || !onOpenBookmark) return;
+                // Modifier clicks only change the selection
+                if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                const action = resolveItemDoubleClick({
+                  hadTabOnPress: hadTabOnPressRef.current,
+                  singleClickOpens: arcSingleClickOpensTab,
+                });
+                if (action === 'load-url') {
+                  onOpenBookmark(node.id, node.url, { loadUrl: true });
+                }
+                else if (action === 'open') {
                   onOpenBookmark(node.id, node.url);
                 }
               }}
@@ -2620,7 +2636,7 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
               checkIsMuted={isBookmarkMuted}
               checkIsActive={isBookmarkActive}
               getLiveTitle={getBookmarkLiveTitle}
-              onOpenBookmark={(bookmarkId, url) => openBookmarkTab(bookmarkId, url, activeSpace?.id)}
+              onOpenBookmark={(bookmarkId, url, options) => openBookmarkTab(bookmarkId, url, activeSpace?.id, options)}
               onCloseBookmark={handleCloseBookmarkTab}
               onRequestDelete={setPendingDeleteBookmarkId}
               onOpenAsTabGroup={!useSpaces ? handleOpenAsTabGroup : undefined}

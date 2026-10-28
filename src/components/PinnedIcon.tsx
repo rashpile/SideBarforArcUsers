@@ -8,6 +8,7 @@ import * as ContextMenu from './menu/ContextMenu';
 import { PINNED_SITE_COLORS, DEFAULT_ICON_COLOR } from '../utils/iconPickerOptions';
 import { iconToDataUrl } from '../utils/iconify';
 import { createPinDragData, DropData, DropPosition, DragFormat, acceptsFormats } from '../types/dragDrop';
+import { resolveItemDoubleClick } from '../utils/itemDoubleClick';
 
 const IconColorPicker = lazy(() =>
   import('./IconColorPicker').then(module => ({ default: module.IconColorPicker }))
@@ -68,6 +69,7 @@ interface PinnedIconProps
   onDuplicate: (id: string) => void;
   onAiRename?: () => void;
   onOpen: (site: PinnedSite) => void;
+  onLoadUrl?: (site: PinnedSite) => void;  // double-click: load the site's URL in its tab (Arc mode)
   onClose?: (id: string) => void;
   onMoveToNewWindow?: (id: string) => void;
   onMoveToTabs?: (id: string) => void;
@@ -89,6 +91,7 @@ export const PinnedIcon = ({
   onDuplicate,
   onAiRename,
   onOpen,
+  onLoadUrl,
   onClose,
   onMoveToNewWindow,
   onMoveToTabs,
@@ -160,6 +163,27 @@ export const PinnedIcon = ({
     {
       // Normal click: open as new pinned tab
       onOpen(site);
+    }
+  };
+
+  // Whether the site had a tab when a double-click's first press went down, before that click opened one
+  const hadTabOnPressRef = useRef(false);
+
+  const handleMouseDown = (e: React.MouseEvent) =>
+  {
+    if (e.detail === 1) hadTabOnPressRef.current = !!isLoaded;
+  };
+
+  const handleDoubleClick = (e: React.MouseEvent) =>
+  {
+    // Modifier clicks open a new tab or window instead
+    if (!onLoadUrl || e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return;
+
+    // A single click always opens the site, so a double-click only reloads a tab that was there before
+    const action = resolveItemDoubleClick({ hadTabOnPress: hadTabOnPressRef.current, singleClickOpens: true });
+    if (action === 'load-url')
+    {
+      onLoadUrl(site);
     }
   };
 
@@ -290,6 +314,8 @@ export const PinnedIcon = ({
               isDragging ? "cursor-grabbing opacity-50" : "cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700"
             )}
             onClick={handleClick}
+            onMouseDown={handleMouseDown}
+            onDoubleClick={handleDoubleClick}
           >
             {/* Drop indicator - before */}
             {showDropBefore && (
