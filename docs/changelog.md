@@ -6,6 +6,8 @@
 - New: Archive section between Bookmarks and Tabs - hover to see and search the newest archived tabs, expand to list them all, click one to reopen it
 - New: Archive button next to Clear on the "+ New Tab" row - saves the Tab list's tabs to the Space's Archive and closes them right away; Undo reopens them and removes the new archive items
 - New: collapse the Bookmarks section with the chevron on the Space title; collapsed, it still shows the open bookmark pages
+- New: double-click a bookmark (Arc mode) or a Favorite whose tab has moved to another page to load the bookmarked page back in that tab
+- Fixed: double-clicking a bookmark or Favorite with no open tab no longer opens two tabs
 - Changed: the extension now requests the `alarms` permission (no install warning), used only while "Archive tabs after" is on
 - Fixed: right-clicking the "Create a Space" placeholder header no longer opens an empty menu
 - Fixed: after a browser restart, a reused tab ID no longer gives a pinned page's identity or a Space assignment to an unrelated tab on another site

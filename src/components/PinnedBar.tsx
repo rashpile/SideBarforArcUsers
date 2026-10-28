@@ -232,6 +232,9 @@ export const PinnedBar = ({
                 ? (s) => chrome.tabs.update({ url: s.url })
                 : (s) => chrome.tabs.create({ url: s.url, active: true, windowId: windowId ?? undefined })
           }
+          onLoadUrl={bookmarkOpenMode === 'arc'
+            ? (s) => openPinnedTab(s.id, s.url, activeSpace.id, { loadUrl: true })
+            : undefined}
           onClose={bookmarkOpenMode === 'arc' ? closePinnedTab : undefined}
           onMoveToNewWindow={bookmarkOpenMode === 'arc' ? movePinnedToNewWindow : undefined}
           onMoveToTabs={bookmarkOpenMode === 'arc' ? deassociatePinnedTab : undefined}
