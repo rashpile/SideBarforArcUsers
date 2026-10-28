@@ -24,7 +24,7 @@ Items marked **(call)** were decided while writing this spec, not by the user. T
 
 ### Non-goals
 
-- Manually closed tabs (`x`, `Close Tabs`, `Close Tabs Before/After`) do not go to the archive. Only auto-close archives.
+- Manually closed tabs (`x`, `Close Tabs`, `Close Tabs Before/After`, Clear) do not go to the archive. Only auto-close archives, plus one exception added later: the Tab list's **Archive** button (see [Archive Button](#archive-button-tab-list)).
 - No automatic cleanup of the archive folder. It grows until the user deletes items. **(call)**
 - No drag & drop into or out of the Archive section.
 - No collapse for the Tabs section (for now).
@@ -108,6 +108,31 @@ For each selected **regular tab**:
 2. Otherwise create the archive bookmark. If creation fails, leave the tab open and log the error.
 3. Close the tab with `chrome.tabs.remove`. Existing `onRemoved` handling cleans the Space registry and history.
 
+## Archive Button (Tab list)
+
+Added after the feature shipped (plan: `docs/plans/completed/20261028-archive-tabs-button.md`). Clear throws tabs away and auto-archive keeps them only after a period; this button cleans the Tab list now without losing anything. It is the one manual close that archives.
+
+- Hovering "+ New Tab" shows **Archive** (lucide `Archive` icon) left of **Clear**, with the same look. **(call)**
+- It archives the tabs Clear would close, then closes them, right away. The "Archive tabs after" setting plays no part and can be `Never`.
+- Tab set: the same as Clear - every tab in the Tab list of the active Space, including the active tab and tabs playing audio (auto-archive's exemptions don't apply). With the text filter active, only the matching tabs.
+- Hidden when the Tab list is empty or the active Space has no bookmark folder (no Space, the "All" view, or a folder that is gone): there is nowhere to archive to. **(call)**
+- Items go into the active Space's `asd_Archive` and are made like auto-archive items: tab title, effective URL (a parked tab's original URL), inserted at the top, an older item with the same URL replaced. Two tabs on the same URL in one press leave one item.
+- Empty pages (`chrome://newtab/`, `about:blank`, empty URL) close without an archive item, as in auto-archive. **(call)**
+- Tabs are archived one at a time, so a missing `asd_Archive` is created once, not once per tab.
+- A tab whose archive item can't be created stays open; the others still archive and close. **(call)** If no tab could be archived, nothing closes and the toast shows "Could not archive tabs", with no Undo.
+- Toast: `Archived "<title>"` for one archived tab, `Archived N tabs` for several (empty pages close alongside and are not counted), `Closed N empty tabs` when the list held only empty pages. `, M kept open` is appended when some tab stayed open.
+- Undo (from the toast) reopens the tabs where they were - position, Chrome tab group, Space - as Clear's Undo does, then removes the archive items this press created. Tabs come back first, so a failed cleanup loses nothing. An older item with the same URL that the press replaced does not come back; only its archive time differed. **(call)**
+- When the tabs are every tab in the window, the existing "close all tabs" confirmation shows, with the details "They are archived first. This will close the window." Confirming archives and closes them without Undo, since the window closes - same as Clear. **(call)** If some tab stays open, the window survives and the Tab list shows the result in its own toast.
+- Runs in the sidebar as an `UndoableAction`, not in the background.
+
+Code: `TabArchiveBatch` (`src/utils/tabArchiveBatch.ts`) saves the tabs through `SpaceArchive` and remembers the items it created; `ArchiveTabsAction` (`src/actions/archiveTabsAction.ts`) runs the batch, then closes the closable tabs through a `CloseTabAction` from an injected factory (keeps `chrome.*` out of the Node tests); `isEmptyPage` (`src/utils/autoArchivePolicy.ts`) is shared with auto-archive; wiring is in `src/components/TabList.tsx`. No new storage keys.
+
+Pressing Archive again while a press still runs does nothing (`runArchiveOnce` in `TabList`). Otherwise a double-click would archive the same tabs twice, the second run replacing the first run's items, and its Undo would delete them without reopening any tab.
+
+Known limitation (rare, not fixed):
+
+- If the background archiver and the button both find `asd_Archive` missing at the same moment, two archive folders can appear; only the first one's items show in the Archive section (see Sidebar notes below).
+
 ## Archive Section (sidebar)
 
 Placed between the Bookmarks section and the Tabs section, inside the scroll container (`SwipeableContainer` in `src/App.tsx`). It shows the archive of the **active Space** only.
@@ -141,7 +166,7 @@ Clicking an item (in the expanded list or the popover):
 
 Modifier clicks (Cmd/Ctrl, Shift) restore the same way. **(call)**
 
-Right-click menu on an item: **Delete from Archive**. **(call)**
+Right-click menu on an item: **Delete from Archive**. **(call)** The same delete is on an `x` button shown on hover over the item's archive time.
 
 ### Toolbar filters
 
@@ -221,7 +246,7 @@ Update `docs/state-reference.md`.
 - Text filter shows every section expanded without changing the stored collapse state.
 - Collapsed Bookmarks still shows open pages.
 - Collapse state per Space in `chrome.storage.local`.
-- No archive cleanup; manual closes are not archived.
+- No archive cleanup; manual closes are not archived (except the Archive button, added later).
 
 ## Implementation Notes
 
@@ -274,7 +299,7 @@ What was built where it differs from or adds to the text above. Key names and sh
 - The Archive list and popover include pages in subfolders the user creates inside `asd_Archive`.
 - With several `asd_Archive` folders in one Space folder, only the first one's items show in the Archive section; the others are hidden from the Bookmarks section too and are reachable only in Chrome's Bookmark Manager.
 - "Delete from Archive" is undoable (toast with Undo); undo creates the bookmark again, so the item comes back on top with a new archive time. Restoring an item removes its bookmark without a toast.
-- "Delete from Archive" is available on expanded rows; the popover is a quick peek without a context menu.
+- "Delete from Archive" (context menu and the hover `x`) is available on expanded rows; the popover is a quick peek without a context menu or `x`.
 - The Archive section remounts on Space switch, which closes an open popover.
 
 ### Open question

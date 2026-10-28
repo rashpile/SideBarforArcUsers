@@ -84,7 +84,8 @@ export class DeleteSpaceAction implements UndoableAction
 
           const tabSnapshot: TabSnapshot = {
             tabId: tab.id,
-            url: tab.url || 'chrome://newtab',
+            // A tab still loading its first page has only pendingUrl
+            url: tab.url || tab.pendingUrl || 'chrome://newtab',
             title: tab.title || '',
             index: tab.index,
           };

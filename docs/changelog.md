@@ -4,6 +4,7 @@
 
 - New: "Archive tabs after" setting (Settings > Behaviour, off by default) - tabs unused for 12 hours to 30 days are saved to the Space's `asd_Archive` bookmark folder and closed; open bookmark pages close and keep their bookmark
 - New: Archive section between Bookmarks and Tabs - hover to see and search the newest archived tabs, expand to list them all, click one to reopen it
+- New: Archive button next to Clear on the "+ New Tab" row - saves the Tab list's tabs to the Space's Archive and closes them right away; Undo reopens them and removes the new archive items
 - New: collapse the Bookmarks section with the chevron on the Space title; collapsed, it still shows the open bookmark pages
 - Changed: the extension now requests the `alarms` permission (no install warning), used only while "Archive tabs after" is on
 - Fixed: right-clicking the "Create a Space" placeholder header no longer opens an empty menu
