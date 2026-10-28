@@ -39,9 +39,7 @@ class SpaceWindowStateProxy implements Remote<SpaceWindowStateApi>
   /**
    * Records which window this context mirrors, subscribes to the manager's
    * broadcasts, then fills the store with the window's current state. Called
-   * by the sidebar at mount. SpaceNavigatorApp does NOT call this - it's a
-   * short-lived page that only calls getState/setActiveSpace and uses the
-   * return values directly, so it needs no mirror and pays for no listener.
+   * by the sidebar at mount.
    *
    * Safe to call more than once: React StrictMode double-invokes the mount
    * effect in dev, and re-mirroring the same window must not stack listeners.
@@ -59,8 +57,8 @@ class SpaceWindowStateProxy implements Remote<SpaceWindowStateApi>
    * module singleton that outlives every component that mirrors through it.
    *
    * Registered on first mirrorWindow() rather than at module scope so a
-   * context that never mirrors (SpaceNavigatorApp) doesn't wake up for
-   * broadcasts it would only discard.
+   * context that never mirrors doesn't wake up for broadcasts it would only
+   * discard.
    */
   #subscribeToBroadcasts(): void
   {
@@ -108,9 +106,8 @@ class SpaceWindowStateProxy implements Remote<SpaceWindowStateApi>
    * switch may have superseded would only move the mirror backwards.
    *
    * The promise still resolves with the manager's reply, for callers that
-   * need the switch to have actually landed - SpaceNavigatorApp waits on it
-   * before closing itself. Callers that just want the UI updated can ignore
-   * it.
+   * need the switch to have actually landed. Callers that just want the UI
+   * updated can ignore it.
    */
   async setActiveSpace(windowId: number, spaceId: string): Promise<SpaceWindowState>
   {

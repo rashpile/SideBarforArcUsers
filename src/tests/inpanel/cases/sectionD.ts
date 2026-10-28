@@ -115,8 +115,8 @@ export const D2_DELETE_SPACE_WITH_TRACKED_TABS: TestCase = {
 
 /**
  * Reads background's OWN in-memory space list - the same
- * spaceManagerProxy.getSpaces() call SpaceNavigatorApp and
- * DeleteSpaceAction.undo() make, which round-trips a message to
+ * spaceManagerProxy.getSpaces() call DeleteSpaceAction.undo() makes,
+ * which round-trips a message to
  * SpaceManager.dispatch('getSpaces') in background.ts rather than reading
  * the sidebar's own (possibly stale) mirror. This is the actual Case 3
  * regression check from docs/decisions/2026-07-30-shared-storage-multiple-writers.md

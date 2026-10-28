@@ -48,7 +48,7 @@ The following differences describe this fork relative to the upstream version it
 | --- | --- |
 | Product direction | Arc fidelity is the primary goal for interaction, terminology, layout, and visual treatment. |
 | Extension identity | Uses the `Side Bar for Arc Users — Arc Style` name and is packaged as a separate extension. |
-| Spaces | Removes the visible `All` Space. The sidebar, swipe navigation, and Space Navigator show one real Space at a time. Legacy `all` state migrates to the first real Space. |
+| Spaces | Removes the visible `All` Space. The sidebar and swipe navigation show one real Space at a time, and the Space Switcher lists only real Spaces. Legacy `all` state migrates to the first real Space. |
 | Space tab ownership | Space membership is stored independently from Chrome native tab groups. Native groups remain fully user-owned and can span tabs from different Spaces without changing their Space assignment. |
 | Pinned-page persistence | Bookmark/Favorite-to-tab associations use session state plus a local recovery backup, so closing and reopening the Side Panel does not duplicate pinned pages in the Tabs section. |
 | Arc-style tree behavior | Clicking a folder row expands or collapses it. A collapsed folder surfaces its open pinned descendants, with the active one as an inset card, and shows a recent-pages popover on hover. The whole Bookmarks section collapses from the Space title the same way. |
@@ -243,6 +243,8 @@ Gear icon in the bottom-left corner:
 - Keyboard shortcuts:
   - `Cmd+Shift+E` (Mac) / `Ctrl+Shift+E` (Windows/Linux): Open the sidebar
   - `Cmd+Shift+<` / `Cmd+Shift+>`: Navigate tab history
+  - Tab Switcher (no default shortcut): hold the modifier and press the shortcut to list the current Space's tabs by last use, press it again to move down, and release the modifier to switch. "Tab Switcher: previous tab" moves up
+  - Space Switcher (no default shortcut): the same for Spaces; picking a Space opens its most recently used tab
   - `Alt+Shift+F`: Toggle saved filters dropdown
   - Customize shortcuts via `chrome://extensions/shortcuts`
 

@@ -9,6 +9,10 @@
 - New: double-click a bookmark (Arc mode) or a Favorite whose tab has moved to another page to load the bookmarked page back in that tab
 - Fixed: double-clicking a bookmark or Favorite with no open tab no longer opens two tabs
 - Changed: Favorites tiles are a third lower and follow the "Pinned icon size" setting - a smaller icon gives lower tiles and more of them per row
+- New: Tab Switcher - hold the modifier and press its shortcut to list the current Space's tabs and Favorites, most recently used first; press again to move, release to switch. Assign the shortcut in `chrome://extensions/shortcuts`
+- New: Space Switcher - the same for Spaces; picking a Space opens its most recently used tab
+- Removed: the Space Navigator window (Cmd+Shift+S) - the Space Switcher replaces it
+- Changed: the extension now requests the `activeTab` permission (no install warning), used to draw the switcher list over the current page
 - Changed: the extension now requests the `alarms` permission (no install warning), used only while "Archive tabs after" is on
 - Fixed: right-clicking the "Create a Space" placeholder header no longer opens an empty menu
 - Fixed: after a browser restart, a reused tab ID no longer gives a pinned page's identity or a Space assignment to an unrelated tab on another site

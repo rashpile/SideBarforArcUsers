@@ -19,6 +19,9 @@ const getStorageKey = (windowId: number) => `tabAssociations_${windowId}`;
 /** Item key of a bookmark's tab: `bookmark-{bookmarkId}` (a Favorite's is `pinned-{id}`). */
 export const BOOKMARK_ITEM_KEY_PREFIX = 'bookmark-';
 
+/** Item key prefix of a Favorite's tab: `pinned-{pinnedSiteId}`. */
+export const FAVORITE_ITEM_KEY_PREFIX = 'pinned-';
+
 const tabAssociationSessionStore = new TabAssociationSessionStore({
   get: (key) => chrome.storage.session.get(key),
   set: (values) => chrome.storage.session.set(values),
