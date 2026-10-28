@@ -243,7 +243,6 @@ html, body, #root {
   min-height: 40px;
   margin-top: 8px;
   padding-top: 4px;
-  border-top: 1px solid var(--arc-hairline);
   border-radius: 0;
   color: var(--arc-muted) !important;
   opacity: 0.68;
@@ -339,6 +338,11 @@ html, body, #root {
 
   .arc-tree-row-hoverable:hover {
     --arc-row-overlay: rgba(255, 255, 255, 0.07);
+  }
+
+  .arc-tree-row-selected,
+  .arc-tree-row[data-selected="true"] {
+    --arc-row-overlay: rgba(255, 255, 255, 0.20);
   }
 }
 
