@@ -155,10 +155,11 @@ Three layers, each testable on its own:
   - If background auto-archive and the button both find `asd_Archive` missing at the same moment, two archive folders can appear; `findArchiveFolder` then uses the one with the lowest index.
 
 ### Task 6: [Final] Update documentation
-- [ ] `docs/features/035-tab-auto-archive.md`: note the Archive button as the exception to "manually closed tabs do not go to the archive", with a short section on its rules
-- [ ] `docs/chrome-web-store-info.md`: mention the Archive button under Key Features if archive is listed there
-- [ ] update CLAUDE.md only if a new pattern came up
-- [ ] move this plan to `docs/plans/completed/`
+- [x] `docs/features/035-tab-auto-archive.md`: note the Archive button as the exception to "manually closed tabs do not go to the archive", with a short section on its rules
+- [x] `docs/chrome-web-store-info.md`: mention the Archive button under Key Features if archive is listed there
+  - ➕ also one line under "Latest Version" in `docs/changelog.md`, next to the other 035 entries
+- [x] update CLAUDE.md only if a new pattern came up (none: injecting the close-action factory is the existing "take chrome APIs as arguments" rule)
+- [x] move this plan to `docs/plans/completed/` (moved by orchestrator after completion)
 
 ## Post-Completion
 *Items requiring manual intervention or external systems - no checkboxes, informational only*
