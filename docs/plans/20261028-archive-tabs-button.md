@@ -115,9 +115,9 @@ Three layers, each testable on its own:
 - Create: `src/utils/tabArchiveBatch.ts`
 - Create: `tests/tabArchiveBatch.test.mjs`
 
-- [ ] write failing tests: a `create` that throws keeps that tab open while the others archive; an empty page is closable without an item; with no `asd_Archive`, a batch of several tabs creates exactly one
-- [ ] implement `TabArchiveBatch` and `TabArchiveResult`
-- [ ] run `make test` - must pass before task 3
+- [x] write failing tests: a `create` that throws keeps that tab open while the others archive; an empty page is closable without an item; with no `asd_Archive`, a batch of several tabs creates exactly one
+- [x] implement `TabArchiveBatch` and `TabArchiveResult`
+- [x] run `make test` - must pass before task 3
 
 ### Task 3: Undoable archive action
 
