@@ -196,6 +196,18 @@ export const getSpaceBgColor = (color: string, isDark: boolean, alpha: number = 
   }
 };
 
+// Returns the Space's accent as an "r, g, b" triplet for rgba(var(--x), a) in
+// CSS (the tab age highlight's Accent and Trail looks). Light mode takes the
+// stronger accent, dark mode the lighter one, like the group badges.
+export const getSpaceAccentRgb = (color: string, isDark: boolean): string =>
+{
+  const raw = RAW_COLORS[color];
+  const accentHex = raw
+    ? (isDark ? raw.accentDarkHex : raw.accentLightHex)
+    : (isValidHex(color) ? color : '#BDC1C6');
+  return hexToRgb(accentHex).join(', ');
+};
+
 // =============================================================================
 // Tailwind JIT safelist
 //

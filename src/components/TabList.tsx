@@ -59,6 +59,10 @@ import { moveSingleGroup, moveGroupAfter } from '../utils/groupMove';
 import { DropIndicators } from './DropIndicators';
 import * as ContextMenu from './menu/ContextMenu';
 import { useInView } from '../hooks/useInView';
+import { useTabLeftTimes } from '../hooks/useTabLeftTimes';
+import { useMinuteClock } from '../hooks/useMinuteClock';
+import { tabAgeGrade, tabLastUseForHighlight } from '../utils/tabAgeHighlight';
+import type { TabWithLastAccess } from '../services/switcherLists';
 import { useChromeLocalStorage } from '../hooks/useChromeLocalStorage';
 import {
   useDraggable,
@@ -84,6 +88,7 @@ interface DraggableTabProps {
   groupColor?: string;
   isLastInGroup?: boolean;
   isSelected?: boolean;
+  ageGrade?: number;  // Tab age highlight grade; not shown on the active or a selected row
   onClose: (id: number) => void;
   onActivate: (id: number) => void;
   onDuplicate?: (id: number) => void;
@@ -124,6 +129,7 @@ const TabRow = forwardRef<HTMLDivElement, DraggableTabProps>(({
   groupColor,
   isLastInGroup,
   isSelected,
+  ageGrade,
   onClose,
   onActivate,
   onDuplicate,
@@ -233,6 +239,7 @@ const TabRow = forwardRef<HTMLDivElement, DraggableTabProps>(({
               isHighlighted={!groupColor && !isSelected && isOpen}
               isDragging={isBeingDragged}
               disableHoverBorder={globalDragActive}
+              ageGrade={tab.active || isSelected ? undefined : ageGrade}
               dndAttributes={attributes}
               dndListeners={listeners}
               className={rowClassName}
@@ -872,9 +879,10 @@ interface TabListProps {
   onSpaceDropTargetChange?: (spaceId: string | null) => void;
   onPerformAction?: (action: UndoableAction) => Promise<void>;
   onBookmarkCreated?: (bookmark: chrome.bookmarks.BookmarkTreeNode, tabId?: number) => void;
+  highlightTabAge?: boolean;  // "Highlight tabs by last use" is on; the look is set on the .arc-theme root
 }
 
-export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFirst', onTabGroupDisplayOrderChange, onExternalDropTargetChange: _onExternalDropTargetChange, resolveBookmarkDropTarget: _resolveBookmarkDropTarget, arcStyleEnabled = false, filterText = '', activeSpace: activeSpaceProp, useSpaces = true, onSpaceDropTargetChange: _onSpaceDropTargetChange, onPerformAction, onBookmarkCreated }: TabListProps) =>
+export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFirst', onTabGroupDisplayOrderChange, onExternalDropTargetChange: _onExternalDropTargetChange, resolveBookmarkDropTarget: _resolveBookmarkDropTarget, arcStyleEnabled = false, filterText = '', activeSpace: activeSpaceProp, useSpaces = true, onSpaceDropTargetChange: _onSpaceDropTargetChange, onPerformAction, onBookmarkCreated, highlightTabAge = false }: TabListProps) =>
 {
   const { spaces, activeSpace: activeSpaceFromContext, windowId } = useSpacesContext();
   const { tabs, closeTabs, activateTab, moveTab, groupTab, ungroupTab, createGroupWithTab, createTabInGroup, createTab, duplicateTab, sortTabs, sortGroupTabs, error } = useTabs(windowId ?? undefined);
@@ -885,6 +893,16 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
 
   // Use prop if provided, otherwise use context
   const activeSpace = activeSpaceProp ?? activeSpaceFromContext;
+
+  // Tab age highlight: when the user last left each tab (background records),
+  // re-graded every minute
+  const tabLeftTimes = useTabLeftTimes(highlightTabAge);
+  const now = useMinuteClock(highlightTabAge);
+  const tabAgeGradeOf = useCallback((tab: TabWithLastAccess): number | undefined =>
+  {
+    if (!highlightTabAge || tab.id === undefined) return undefined;
+    return tabAgeGrade(tabLastUseForHighlight(tabLeftTimes.leftAt(tab.id), tab.lastAccessed), now);
+  }, [highlightTabAge, tabLeftTimes, now]);
 
   // Check if we're in a non-"all" space
   const isInSpace = activeSpace && activeSpace.id !== 'all';
@@ -2718,6 +2736,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
                   showDropBefore={(isTarget && dropPosition === 'before') || (isExternalTarget && externalUrlDropTarget?.position === 'before')}
                   showDropAfter={(isTarget && dropPosition === 'after') || (isExternalTarget && externalUrlDropTarget?.position === 'after')}
                   isSelected={isTabSelected(tabId)}
+                  ageGrade={tabAgeGradeOf(item.tab)}
                   onClose={handleCloseSelectedTabs}
                   onActivate={activateTab}
                   onDuplicate={duplicateTab}
@@ -2766,6 +2785,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
                           showDropBefore={(isTabTarget && dropPosition === 'before') || (isExternalTabTarget && externalUrlDropTarget?.position === 'before')}
                           showDropAfter={(isTabTarget && dropPosition === 'after') || (isExternalTabTarget && externalUrlDropTarget?.position === 'after')}
                           isSelected={isTabSelected(tabId)}
+                          ageGrade={tabAgeGradeOf(tab)}
                           onClose={handleCloseSelectedTabs}
                           onActivate={activateTab}
                           onDuplicate={duplicateTab}
@@ -2871,6 +2891,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
                         groupColor={item.group.color}
                         isLastInGroup={isLastTab}
                         isSelected={isTabSelected(tabId)}
+                        ageGrade={tabAgeGradeOf(tab)}
                         onClose={handleCloseSelectedTabs}
                         onActivate={activateTab}
                         onDuplicate={duplicateTab}

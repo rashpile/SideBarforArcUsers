@@ -19,6 +19,7 @@ export interface TreeRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>,
   isHighlighted?: boolean;  // Show ring highlight (e.g. during context menu)
   isDragging?: boolean;
   disableHoverBorder?: boolean; // Disable hover ring (e.g. during drag operations)
+  ageGrade?: number;            // Tab age highlight grade (0 = freshest); undefined = none. The look comes from CSS
   // Slots for extra content
   leadingIndicator?: React.ReactNode; // Fixed at absolute left edge, before indent (e.g. speaker icon)
   indicators?: React.ReactNode; // Content to the left of the title - CAREFUL: this will shift title
@@ -50,6 +51,7 @@ export const TreeRow = forwardRef<HTMLDivElement, TreeRowProps>(({
   isHighlighted,
   isDragging,
   disableHoverBorder,
+  ageGrade,
   leadingIndicator,
   indicators,
   actions,
@@ -73,6 +75,7 @@ export const TreeRow = forwardRef<HTMLDivElement, TreeRowProps>(({
       data-active={isActive || undefined}
       data-selected={isSelected || undefined}
       data-highlighted={isHighlighted || undefined}
+      data-tab-age={ageGrade}
       className={clsx(
         'arc-tree-row group flex items-center min-h-9 rounded-xl cursor-default select-none transition-colors relative pr-2 outline-none text-gray-700 dark:text-gray-200',
         isSelected && 'arc-tree-row-selected',

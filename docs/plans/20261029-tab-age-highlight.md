@@ -102,7 +102,7 @@ No e2e suite in the project; the UI is checked manually (Post-Completion).
 - Update the comments that say "nothing is recorded while Archive tabs after is Never" (tracker header, background ~228, `load` docs).
 
 ### Sidebar
-- `App.tsx`: `useChromeLocalStorage<TabAgeHighlightStyle>(TAB_AGE_HIGHLIGHT_KEY, DEFAULT_…, { parse: parseTabAgeHighlightStyle, serialize: v => v })`; pass to `SettingsDialog` and set `data-tab-age-style` on the `.arc-theme` root (omit when `'off'`). When `applySpaceColor`, also set `--arc-tab-age-accent` to the Space accent as an `r, g, b` triplet (`hexToRgb(GROUP_COLORS[color]?.accentDarkHex …)`).
+- `App.tsx`: `useChromeLocalStorage<TabAgeHighlightStyle>(TAB_AGE_HIGHLIGHT_KEY, DEFAULT_…, { parse: parseTabAgeHighlightStyle, serialize: v => v })`; pass to `SettingsDialog` and set `data-tab-age-style` on the `.arc-theme` root (omit when `'off'`). When `applySpaceColor`, also set `--arc-tab-age-accent` to the Space accent as an `r, g, b` triplet (`hexToRgb(GROUP_COLORS[color]?.accentDarkHex …)`). Implemented as `getSpaceAccentRgb(color, isDark)` in `groupColors.ts`: the light accent in light mode, the dark accent in dark mode, as prototype v2's Space look used a strong blue in light mode.
 - New hook (e.g. `src/hooks/useTabLeftTimes.ts`): `chrome.storage.local.get(TabActivityTracker.RECORDS_KEY)` + `chrome.storage.onChanged`, returns `TabLeftTimes`. Skip reading entirely when the style is `'off'`.
 - Minute clock: re-render every 60 s while the style isn't `'off'` (reuse an existing interval hook if there is one).
 - `TabList.tsx`: for each regular tab row (not active, not selected) compute `tabAgeGrade(tabLastUseForHighlight(leftTimes.leftAt(tab.id), tab.lastAccessed), now)`; pass `tabAgeGrade` to `TabRow`. `lastAccessed` via the `TabWithLastAccess` type from `switcherLists.ts`.
@@ -184,12 +184,14 @@ No e2e suite in the project; the UI is checked manually (Post-Completion).
 - Modify: `src/App.tsx`
 - Modify: `src/components/TabList.tsx`
 - Modify: `src/components/TreeRow.tsx`
+- ➕ Create: `src/hooks/useMinuteClock.ts` (no interval hook existed)
+- ➕ Modify: `src/utils/groupColors.ts` (`getSpaceAccentRgb`; `hexToRgb` is private there)
 
-- [ ] hook reading `tabLastUsedAt` + `onChanged`, returning `TabLeftTimes`; idle when style is `'off'`
-- [ ] minute clock while the style isn't `'off'`
-- [ ] `TabList` computes the grade per regular tab (skip active and selected rows) and passes it through `TabRow` to `TreeRow` (`data-tab-age`)
-- [ ] `App` sets `data-tab-age-style` on the `.arc-theme` root and `--arc-tab-age-accent` from the Space colour when it's applied
-- [ ] no new tests (wiring; grade logic tested in task 1); `make test` and build pass
+- [x] hook reading `tabLastUsedAt` + `onChanged`, returning `TabLeftTimes`; idle when style is `'off'`
+- [x] minute clock while the style isn't `'off'`
+- [x] `TabList` computes the grade per regular tab (skip active and selected rows) and passes it through `TabRow` to `TreeRow` (`data-tab-age`)
+- [x] `App` sets `data-tab-age-style` on the `.arc-theme` root and `--arc-tab-age-accent` from the Space colour when it's applied
+- [x] no new tests (wiring; grade logic tested in task 1); `make test` and build pass
 
 ### Task 6: The four looks in CSS
 
