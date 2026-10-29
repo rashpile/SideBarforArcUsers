@@ -235,6 +235,7 @@ Gear icon in the bottom-left corner:
 - **Follow active tab**: Switch Space, switch and scroll, or keep the sidebar fixed
 - **Archive tabs after**: Never (default), 12 hours, 24 hours, 3 days, 7 days, or 30 days (debug builds also offer 1 minute). See [Archive](#archive)
 - **Space color**: Optionally tint the sidebar with the active Space color
+- **Highlight tabs by last use**: Off, White (default), Accent, Cooling, or Trail. Tabs in the Tabs section get a stronger background the more recently you left them; tabs unused for more than 24 hours, the active tab, and selected tabs look as usual. Accent and Trail use the Space color when it tints the sidebar
 - **AI naming**: Configure an OpenAI-compatible endpoint, model, protocol, prompt, and automatic naming behavior
 
 ### General

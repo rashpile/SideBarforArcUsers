@@ -111,15 +111,15 @@ Folder expand/collapse state (Record: folderId → boolean)
 - Instances: 1 per window
 
 ### `tabActivityActiveTabs`
-Active tab of each window, as last seen by the background (feature 035, auto-archive)
+Active tab of each window, as last seen by the background (feature 035 auto-archive, feature 036 tab age highlight)
 ```typescript
 Record<windowId, tabId>
 ```
 - Owner: `src/stores/tabActivityTracker.ts` (`TabActivityTracker`, background, the only writer)
-- Consumers: `TabActivityTracker.markActivated` - on `chrome.tabs.onActivated` it stamps the tab stored for the window as last used in `tabLastUsedAt`, then stores the new one
+- Consumers: `TabActivityTracker.markActivated` - on `chrome.tabs.onActivated` it stamps the tab stored for the window as last used and left (`lastUsedAt`, `leftAt`) in `tabLastUsedAt`, then stores the new one
 - Why session storage: the service worker often wakes up on the `onActivated` event itself, when neither memory nor a fresh query shows which tab was active before
-- Seeding: at worker start (`load`) and when auto-archive is switched on, windows with no entry take their active tab from the live tabs; known windows keep their entry
-- Not written while `autoArchiveAfter` is `'never'`; removed when it changes to `'never'`. Entries of closed windows stay until the browser session ends
+- Seeding: at worker start (`load`) and whenever `autoArchiveAfter` or `tabAgeHighlight` changes, windows with no entry take their active tab from the live tabs; known windows keep their entry
+- Not written while `autoArchiveAfter` is `'never'` and `tabAgeHighlight` is `'off'`; removed when the second of them is switched off. Entries of closed windows stay until the browser session ends
 - Instances: 1 per extension (one map for all windows)
 
 ### `tabActivitySessionStarted`
@@ -224,7 +224,7 @@ string  // JSON of Record<bookmarkId, epochMillis>
 'never' | '12h' | '24h' | '3d' | '7d' | '30d'  // raw string, not JSON; default 'never'. DEV builds also accept '1m'
 ```
 - Owner: `src/App.tsx` (via `useChromeLocalStorage` with `serialize: v => v`), set from `src/components/SettingsDialog.tsx`
-- Consumers: `src/services/tabAutoArchiver.ts` (reads it on every run; `chrome.storage.onChanged` → `handleSettingChange`), `src/components/SettingsDialog.tsx`
+- Consumers: `src/services/tabAutoArchiver.ts` (reads it on every run and in `readTabActivityRecording`, the tracker's recording condition together with `tabAgeHighlight`; `chrome.storage.onChanged` → `handleSettingChange`), `src/components/SettingsDialog.tsx`
 - Parsing: `parseAutoArchivePeriod` (`src/utils/autoArchive.ts`); absent or unknown values read as `'never'`, and `'1m'` reads as `'never'` in release builds
 - Alarm: while the value is not `'never'`, the background keeps a `chrome.alarms` alarm named `auto-archive` (every 5 minutes, 1 minute in DEV builds)
 - Instances: 1 per extension (shared across windows)
@@ -239,23 +239,35 @@ number  // epoch millis
 - Consumers: `src/services/tabAutoArchiver.ts` → `selectTabsToClose` (effective last use = `max(lastUsedAt, autoArchiveEnabledAt)`)
 - Instances: 1 per extension
 
+### `tabAgeHighlight`
+"Highlight tabs by last use" setting (feature 036): which look the Tab list's age highlight uses, or off
+```typescript
+'off' | 'white' | 'accent' | 'cooling' | 'trail'  // raw string, not JSON; default 'white'
+```
+- Owner: `src/App.tsx` (via `useChromeLocalStorage` with `serialize: v => v`), set from `src/components/SettingsDialog.tsx` (Appearance tab)
+- Consumers: `src/App.tsx` (sets `data-tab-age-style` on the `.arc-theme` root, left off for `'off'`; `TabList` grades rows only when not `'off'`), `src/services/tabAutoArchiver.ts` → `readTabActivityRecording` (the tracker's `isRecording`), `src/background.ts` (`chrome.storage.onChanged` → `TabActivityTracker.load`, which keeps or drops `tabLastUsedAt`), `src/components/SettingsDialog.tsx`
+- Parsing: `parseTabAgeHighlightStyle` (`src/utils/tabAgeHighlight.ts`); absent or unknown values read as `'white'`
+- Instances: 1 per extension (shared across windows)
+
 ### `tabLastUsedAt`
-Last-use time of each open tab (feature 035, auto-archive). Last use is the moment the tab stopped being active
+Last-use times of each open tab (feature 035 auto-archive, feature 036 tab age highlight). Last use is the moment the tab stopped being active
 ```typescript
 Record<tabId, {
   windowId: number,
   url: string,
   index: number,
-  lastUsedAt: number  // epoch millis
+  lastUsedAt: number,  // epoch millis; what auto-archive judges by
+  leftAt?: number      // epoch millis; set only when the user leaves the tab, left out until then
 }>
 ```
 - Owner: `src/stores/tabActivityTracker.ts` (`TabActivityTracker`, background, the only writer; writes serialized)
-- Consumers: `src/services/tabAutoArchiver.ts` (via `TabActivityTracker.refresh`)
-- Lifecycle: exists only while `autoArchiveAfter` is a period. Removed when it changes to `'never'`, and at a worker start that finds it `'never'`; nothing is written in between
-- Updates: `onActivated` stamps the window's previously active tab (from `tabActivityActiveTabs`) and moves its record to the page and position it shows now, creating the record if the tab had none (a closed tab gets none); each archiver run drops closed tabs, updates `url` and `index`, and stamps first-seen tabs and tabs in use (active, in a split view with the active tab, audible, Chrome-pinned) with now; `onRemoved` drops the tab (not when its window closes - the next run cleans those up); worker start (`load`) rewrites the key with the records still matched to open tabs
-- Recovery: within a browser session records follow their tab by ID only; after a browser restart (no `tabActivitySessionStarted`) they are re-matched by URL plus nearest tab index (`matchStoredTabs`), and every tab on a URL gets the newest `lastUsedAt` among the records with that URL
+- Consumers: `src/services/tabAutoArchiver.ts` (via `TabActivityTracker.refresh`, reads `lastUsedAt`); `src/hooks/useTabLeftTimes.ts` (sidebar, read-only through `TabLeftTimes`, follows `chrome.storage.onChanged`, idle while `tabAgeHighlight` is `'off'`) → `src/components/TabList.tsx`, which grades a row by `max(leftAt, tab.lastAccessed)`
+- Lifecycle: exists while `autoArchiveAfter` is a period or `tabAgeHighlight` is not `'off'` (`isTabActivityRecording`). Removed when the second of them is switched off, and at a worker start that finds both off; nothing is written in between
+- Updates: `onActivated` stamps `lastUsedAt` and `leftAt` of the window's previously active tab (from `tabActivityActiveTabs`) and moves its record to the page and position it shows now, creating the record if the tab had none (a closed tab gets none); each archiver run (only while auto-archive is on) drops closed tabs, updates `url` and `index`, and stamps `lastUsedAt` of first-seen tabs and tabs in use (active, in a split view with the active tab, audible, Chrome-pinned) with now, carrying `leftAt` unchanged; `onRemoved` drops the tab (not when its window closes - the next archiver run or worker start cleans those up); worker start and every change to `autoArchiveAfter` or `tabAgeHighlight` (`load`) rewrite the key with the records still matched to open tabs
+- Recovery: within a browser session records follow their tab by ID only; after a browser restart (no `tabActivitySessionStarted`) they are re-matched by URL plus nearest tab index (`matchStoredTabs`), and every tab on a URL gets the newest `lastUsedAt` and the newest `leftAt` among the records with that URL
+- Records written before feature 036 have no `leftAt` and load as they are; the highlight then uses Chrome's `lastAccessed`
 - Incognito tabs and tabs in popup/app windows are never recorded
-- Unreadable value: logged, ignored (the tracker starts empty) and overwritten on the next load
+- Unreadable value: the tracker logs it, ignores it (starts empty) and overwrites it on the next load; the sidebar shows no `leftAt` times (logged in DEV builds) and grades rows by `lastAccessed`
 - Instances: 1 per extension
 
 ### `sectionCollapsedState`
@@ -341,6 +353,7 @@ Lost on page reload or service worker restart.
 │  ├─ tabSpaceAssignments             (real Tab → Space)          │
 │  ├─ autoArchiveAfter                (auto-archive setting)      │
 │  ├─ autoArchiveEnabledAt            (auto-archive switch-on)    │
+│  ├─ tabAgeHighlight                 (tab age highlight look)    │
 │  ├─ tabLastUsedAt                   (tab last-use times)        │
 │  └─ sectionCollapsedState           (per Space)                 │
 ├─────────────────────────────────────────────────────────────────┤

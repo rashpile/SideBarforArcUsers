@@ -207,17 +207,18 @@ No e2e suite in the project; the UI is checked manually (Post-Completion).
 - [x] no tests (CSS); build passes
 
 ### Task 7: Verify acceptance criteria
-- [ ] every item under "Decided with the user" works; grouped, selected, active, hover cases look right
-- [ ] auto-archive unchanged: Never → period still gives a full period of grace; period → Never with the highlight on keeps the records; both off drops them
-- [ ] run full test suite: `make test`
-- [ ] run the build (`npm run build`)
+- [x] every item under "Decided with the user" works; grouped, selected, active, hover cases look right (checked against the branch code and the built CSS in headless Chrome, light and dark; the look on the real sidebar is not automatable and stays in Post-Completion)
+- [x] auto-archive unchanged: Never → period still gives a full period of grace; period → Never with the highlight on keeps the records; both off drops them
+- [x] run full test suite: `make test`
+- [x] run the build (`npm run build`)
 
 ### Task 8: [Final] Update documentation
-- [ ] `docs/features/036-tab-age-highlight.md` — feature spec from this plan's Overview (use the `new-feature-doc` skill; bumps `docs/features/next-id.txt` to `037`)
-- [ ] `PRIVACY.md` — records are kept while auto-archive or the tab highlight is on (on by default); turning both off deletes them
-- [ ] `docs/state-reference.md` — `tabLastUsedAt.leftAt`, new key `tabAgeHighlight`, recording condition, new consumer (sidebar)
-- [ ] `src/data/changelog.ts` (`1.0.352`) and `docs/chrome-web-store-info.md` — new setting, on by default
-- [ ] move this plan to `docs/plans/completed/`
+- [x] `docs/features/036-tab-age-highlight.md` — feature spec from this plan's Overview (use the `new-feature-doc` skill; bumps `docs/features/next-id.txt` to `037`)
+- [x] `PRIVACY.md` — records are kept while auto-archive or the tab highlight is on (on by default); turning both off deletes them
+- [x] `docs/state-reference.md` — `tabLastUsedAt.leftAt`, new key `tabAgeHighlight`, recording condition, new consumer (sidebar)
+- [x] `src/data/changelog.ts` (`1.0.352`) and `docs/chrome-web-store-info.md` — new setting, on by default
+- [x] ➕ `docs/changelog.md` (Latest Version) and `README.md` (Settings) — same entry, as earlier features did
+- [x] move this plan to `docs/plans/completed/` (done by the orchestrator after reviews)
 
 ## Post-Completion
 *Manual checks in Chrome — no checkboxes*
