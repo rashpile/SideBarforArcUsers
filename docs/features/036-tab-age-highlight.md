@@ -81,7 +81,7 @@ Details:
 
 - Accent and Trail use the active Space's accent colour when the Space colour is applied to the sidebar, otherwise the theme violet (`106, 90, 205` light, `165, 155, 255` dark). **(call)**
 - The Space accent is the light accent (`accentLightHex`) in light mode and the dark accent (`accentDarkHex`) in dark mode, from `getSpaceAccentRgb`. The plan had the dark accent in both, but prototype v2's Space look used a strong blue in light mode. **(call, made while building)**
-- The dark theme uses lower alphas than the light one, so highlighted rows don't outshine the plain ones and White's grade 0 stays below the active row's 0.14. The user had them halved after the first look on the real sidebar.
+- The dark theme uses lower alphas than the light one, so highlighted rows don't outshine the plain ones and White's grade 0 stays below the active row. The user had them halved after the first look on the real sidebar, and also had the dark active row (tabs and bookmarks) lowered from 0.14 to 0.10 and the dark expanded-folder and active-peek washes lowered to 0.05 and 0.06.
 - The highlight is a `background-image`. A tab group's colour is a Tailwind `background-color`, so it stays underneath. **(call)**
 - Hover stays visible over the highlight. On a highlighted row the hover overlay is an inset `box-shadow`, and the row's own background colour drops out so the overlay doesn't apply twice. **(call)**
 - White on the light theme: the usual white hover is lost in the white wash of the fresh grades, so a hovered White row darkens a little instead (`rgba(41, 35, 76, 0.035)`). The dark theme keeps the usual hover. **(call, made in review)**

@@ -439,18 +439,35 @@ html, body, #root {
     --arc-row-overlay: rgba(255, 255, 255, 0.07);
   }
 
+  /* Active tab and bookmark rows stay softer than the shared active surface on the dark
+     base. Before the selected rule, so a selected active row still looks selected. */
+  .arc-tree-row-active,
+  .arc-tree-row[data-active="true"] {
+    --arc-row-overlay: rgba(255, 255, 255, 0.10);
+  }
+
   .arc-tree-row-selected,
   .arc-tree-row[data-selected="true"] {
     --arc-row-overlay: rgba(255, 255, 255, 0.20);
   }
 
+  /* Expanded folders and the folder showing the active bookmark: the light-theme washes
+     (0.22, 0.18) would outshine the active row here */
+  .arc-tree-row[data-is-folder="true"][data-expanded="true"] {
+    --arc-row-overlay: rgba(255, 255, 255, 0.05);
+  }
+
+  .arc-tree-row[data-has-active-peek="true"] {
+    --arc-row-overlay: rgba(255, 255, 255, 0.06);
+  }
+
   /* Tab age looks on the dark base: kept subtle so highlighted rows don't outshine the
-     plain ones, and White's grade 0 stays below the active row's 0.14 */
+     plain ones, and White's grade 0 stays below the active row's 0.10 */
   .arc-theme[data-tab-age-style="white"] {
-    --arc-tab-age-0: rgba(255, 255, 255, 0.085);
-    --arc-tab-age-1: rgba(255, 255, 255, 0.06);
-    --arc-tab-age-2: rgba(255, 255, 255, 0.04);
-    --arc-tab-age-3: rgba(255, 255, 255, 0.022);
+    --arc-tab-age-0: rgba(255, 255, 255, 0.07);
+    --arc-tab-age-1: rgba(255, 255, 255, 0.05);
+    --arc-tab-age-2: rgba(255, 255, 255, 0.033);
+    --arc-tab-age-3: rgba(255, 255, 255, 0.018);
   }
 
   .arc-theme[data-tab-age-style="accent"] {

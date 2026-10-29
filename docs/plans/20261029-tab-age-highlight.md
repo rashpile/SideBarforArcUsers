@@ -118,7 +118,7 @@ No e2e suite in the project; the UI is checked manually (Post-Completion).
 
 ### CSS — `src/index.css` (grades 0..3)
 Values for the four grades (`--arc-tab-age-0..3`). The seven-grade version used prototype v2's values, with the dark ones halved after the first look on the real sidebar (too bright).
-- White, light: `rgba(255,255,255, .62 .40 .24 .12)`; dark: `.085 .06 .04 .022`.
+- White, light: `rgba(255,255,255, .62 .40 .24 .12)`; dark: `.07 .05 .033 .018` (lowered with the dark active row, now 0.10 for tabs and bookmarks).
 - Accent, light: `rgba(var(--arc-tab-age-accent), .36 .24 .14 .07)`; dark: `.29 .20 .12 .06`. Default accent `106, 90, 205` light, `165, 155, 255` dark.
 - Cooling, hue/sat/light `24/95/55 50/92/48 160/55/42 220/60/58`; alpha light `.36 .27 .19 .11`, dark `.31 .23 .16 .09`.
 - Trail: `linear-gradient(90deg, rgba(accent, a) 0%, rgba(accent, 0) L%)`, L `100 70 45 20`; a light `.38 .32 .26 .20`, dark `.33 .27 .22 .17`.
