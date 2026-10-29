@@ -82,6 +82,21 @@ export const SpaceMessageAction = {
    * Payload: { windowId: number, tabId: number }
    */
   DEASSOCIATE_TAB: 'deassociate-tab',
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Sidebar → Background
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * SpacesContext.tsx (switchToSpace) → background.ts
+   *
+   * The user switched Space from the Space bar or by swiping. The background
+   * brings the Space's most recently used tab forward, or opens a new tab in a
+   * Space with no tabs of its own - as the Space Switcher does.
+   *
+   * Payload: { windowId: number, spaceId: string }
+   */
+  OPEN_SPACE: 'open-space',
 } as const;
 
 // Type for the action values
