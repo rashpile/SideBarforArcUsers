@@ -62,7 +62,6 @@ import { useInView } from '../hooks/useInView';
 import { useTabLeftTimes } from '../hooks/useTabLeftTimes';
 import { useMinuteClock } from '../hooks/useMinuteClock';
 import { tabAgeGrade, tabLastUseForHighlight } from '../utils/tabAgeHighlight';
-import type { TabWithLastAccess } from '../services/switcherLists';
 import { useChromeLocalStorage } from '../hooks/useChromeLocalStorage';
 import {
   useDraggable,
@@ -239,7 +238,7 @@ const TabRow = forwardRef<HTMLDivElement, DraggableTabProps>(({
               isHighlighted={!groupColor && !isSelected && isOpen}
               isDragging={isBeingDragged}
               disableHoverBorder={globalDragActive}
-              ageGrade={tab.active || isSelected ? undefined : ageGrade}
+              data-tab-age={tab.active || isSelected ? undefined : ageGrade}
               dndAttributes={attributes}
               dndListeners={listeners}
               className={rowClassName}
@@ -894,15 +893,18 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
   // Use prop if provided, otherwise use context
   const activeSpace = activeSpaceProp ?? activeSpaceFromContext;
 
-  // Tab age highlight: when the user last left each tab (background records),
-  // re-graded every minute
-  const tabLeftTimes = useTabLeftTimes(highlightTabAge);
+  const activeTabId = tabs.find(t => t.active)?.id;
+
+  // Tab age highlight: when the user last left each tab (background records, plus the leave
+  // this list just saw), re-graded every minute. No grades until the records are read
+  const [tabLeftTimes, tabLeftTimesLoaded] = useTabLeftTimes(highlightTabAge, activeTabId);
   const now = useMinuteClock(highlightTabAge);
-  const tabAgeGradeOf = useCallback((tab: TabWithLastAccess): number | undefined =>
+  // lastAccessed (Chrome 121+) is missing from @types/chrome, so the tab is typed by the fields read
+  const tabAgeGradeOf = (tab: { id?: number; lastAccessed?: number }): number | undefined =>
   {
-    if (!highlightTabAge || tab.id === undefined) return undefined;
+    if (!highlightTabAge || !tabLeftTimesLoaded || tab.id === undefined) return undefined;
     return tabAgeGrade(tabLastUseForHighlight(tabLeftTimes.leftAt(tab.id), tab.lastAccessed), now);
-  }, [highlightTabAge, tabLeftTimes, now]);
+  };
 
   // Check if we're in a non-"all" space
   const isInSpace = activeSpace && activeSpace.id !== 'all';
@@ -1701,7 +1703,6 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
   // Switching tabs outside the list (shortcuts, tab-history buttons, Chrome's tab strip) leaves the
   // last clicked row selected. Drop the selection when the new active tab isn't part of it; a plain
   // click selects the row before activating it, so clicks keep their selection and Shift-click anchor
-  const activeTabId = tabs.find(t => t.active)?.id;
   const prevActiveTabIdRef = useRef(activeTabId);
   useEffect(() =>
   {

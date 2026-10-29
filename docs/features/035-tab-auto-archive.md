@@ -196,7 +196,7 @@ New keys, both `chrome.storage.local` (CLAUDE.md: new state uses `chrome.storage
 | `autoArchiveAfter` | Settings dialog | background (archiver), Settings dialog |
 | `sectionCollapsedState` | sidebar | sidebar |
 
-Plus background-only state, key names and layout up to the builder: the last-use records (see "Last-use time") and the moment auto-archive was switched on from `Never` (for the grace rule in Settings).
+Plus background-only state, key names and layout up to the builder: the last-use records (see "Last-use time") and the moment auto-archive was switched on from `Never` (for the grace rule in Settings). Changed by feature 036: the sidebar also reads the last-use records, read-only, for the tab age highlight.
 
 Update `docs/state-reference.md`.
 
@@ -269,12 +269,12 @@ What was built where it differs from or adds to the text above. Key names and sh
 
 ### Storage and scheduling
 
-- Background-only keys: `autoArchiveEnabledAt` and `tabLastUsedAt` (`chrome.storage.local`), `tabActivityActiveTabs`, `tabActivitySessionStarted` and `tabRestoreSessionStarted` (`chrome.storage.session`). Both session markers go through `BrowserSessionMarker`, each under its own key.
+- Background-only keys: `autoArchiveEnabledAt` and `tabLastUsedAt` (`chrome.storage.local`), `tabActivityActiveTabs`, `tabActivitySessionStarted` and `tabRestoreSessionStarted` (`chrome.storage.session`). Both session markers go through `BrowserSessionMarker`, each under its own key. Changed by feature 036: the background is still the only writer of `tabLastUsedAt`, but the sidebar reads it (`useTabLeftTimes`, through `TabLeftTimes`).
 - Code: `TabActivityTracker` is in `src/stores/tabActivityTracker.ts` and `TabAutoArchiver` in `src/services/tabAutoArchiver.ts`, since `src/managers/impl/` holds only `RoutedManager` classes with proxies. The Archive section's item list is `ArchiveItems` (`src/utils/archiveItems.ts`).
 - `sectionCollapsedState` is stored as a JSON string of the shape above (`useChromeLocalStorage` serializer), not as a raw object.
 - Alarm `auto-archive` runs every 5 minutes (1 in DEV builds) and exists only while the setting is not `Never`; it is created only when missing or set to another interval.
 - The worker-start run is skipped when a run started less than one alarm period ago (`autoArchiveLastRunAt` in `chrome.storage.session`), since tab events wake the worker often; an alarm run is skipped within half a period of the last run, so an alarm that wakes the worker doesn't run twice.
-- Switching to `Never` removes `autoArchiveEnabledAt`, the last-use records and the active-tab map; nothing is recorded while the setting is `Never`, and a worker start with `Never` drops leftover records. Switching on sets `autoArchiveEnabledAt` to now and lets the tracker learn the open tabs. A run that finds a period set but `autoArchiveEnabledAt` missing (the write at switch-on was lost) sets it to now and closes nothing.
+- Switching to `Never` removes `autoArchiveEnabledAt`, the last-use records and the active-tab map; nothing is recorded while the setting is `Never`, and a worker start with `Never` drops leftover records. Changed by feature 036: the records and the active-tab map are dropped only when "Highlight tabs by last use" is `Off` too (`isTabActivityRecording`), and switching to `Never` calls `TabActivityTracker.load` (`clear()` is gone). Switching on sets `autoArchiveEnabledAt` to now and lets the tracker learn the open tabs. A run that finds a period set but `autoArchiveEnabledAt` missing (the write at switch-on was lost) sets it to now and closes nothing.
 - DEV builds offer a `1 minute` period for testing; a stored `'1m'` reads as `Never` in release builds.
 
 ### Archiving

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MINUTE_MS } from '../utils/autoArchive';
+import { MINUTE_MS } from '../utils/time';
 
 /**
  * The current time, refreshed once a minute so the caller re-renders. Stops

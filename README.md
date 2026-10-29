@@ -12,6 +12,7 @@ Chrome still owns the browser frame, address bar, native horizontal tab strip, a
 - **Persistent pages:** Pinned bookmark pages keep their position and reopen like Arc pinned tabs
 - **Persistent Space assignment:** Tabs belong to Spaces through extension-owned state, independently of Chrome's native tab groups
 - **Tab auto-archive:** Optionally close tabs left unused for a set time; regular tabs are saved to the Space's Archive and can be reopened from the sidebar
+- **Tab age highlight:** Tabs you left recently stand out in the Tabs section
 - **Tab history:** Navigate back/forward through recently used tabs
 - **Arc-like menus:** Single- and multi-selection actions follow Arc where Chrome APIs permit
 - **Backup/Restore:** Export and import everything to JSON
@@ -134,6 +135,7 @@ Arc-style auto-archive for tabs you stopped using. Off by default; turn it on wi
 
 - Display unpinned tabs that belong to the current Space
 - Audio indicator (speaker icon) for tabs playing audio
+- Recently left tabs get a stronger background that fades over 24 hours (White, Accent, Cooling or Trail; on by default, see **Highlight tabs by last use** in [Settings](#settings))
 - Follow Chrome's active tab and switch Spaces according to the configured follow mode
 - Reorder tabs via drag-and-drop
 - Click to switch to tab

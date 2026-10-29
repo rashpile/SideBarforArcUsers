@@ -15,9 +15,9 @@ import {
   AUTO_ARCHIVE_ENABLED_AT_KEY,
   autoArchivePeriodMs,
   autoArchiveSwitch,
-  MINUTE_MS,
   parseAutoArchivePeriod,
 } from '../utils/autoArchive';
+import { MINUTE_MS } from '../utils/time';
 import type { AutoArchivePeriod } from '../utils/autoArchive';
 import { isTabActivityRecording, parseTabAgeHighlightStyle, TAB_AGE_HIGHLIGHT_KEY } from '../utils/tabAgeHighlight';
 import {

@@ -238,11 +238,11 @@ html, body, #root {
 }
 
 /*
- * Tab age highlight (Settings: "Highlight tabs by last use"). TabList gives a
- * regular tab row data-tab-age, 0 (left within 5 min) to 6 (within 24 h); older
- * tabs, the active row and selected rows get none. data-tab-age-style on the
- * theme root picks the look, which fills a table per grade: --arc-tab-age-0..6
- * (colour) and, for Trail, --arc-tab-age-length-0..6.
+ * Tab age highlight (feature 036, Settings: "Highlight tabs by last use").
+ * TabList gives a regular tab row data-tab-age, 0 (left within 5 min) to 6
+ * (within 24 h); older tabs, the active row and selected rows get none.
+ * data-tab-age-style on the theme root picks the look, which fills a colour
+ * table per grade, --arc-tab-age-0..6; the grade rules set the Trail's length.
  * The highlight is a background-image, so a tab group's colour (a Tailwind
  * background-color) stays underneath.
  */
@@ -289,48 +289,42 @@ html, body, #root {
   --arc-tab-age-4: rgba(var(--arc-tab-age-accent), 0.22);
   --arc-tab-age-5: rgba(var(--arc-tab-age-accent), 0.19);
   --arc-tab-age-6: rgba(var(--arc-tab-age-accent), 0.16);
-  --arc-tab-age-length-0: 100%;
-  --arc-tab-age-length-1: 80%;
-  --arc-tab-age-length-2: 62%;
-  --arc-tab-age-length-3: 48%;
-  --arc-tab-age-length-4: 36%;
-  --arc-tab-age-length-5: 26%;
-  --arc-tab-age-length-6: 16%;
 }
 
+/* Each grade picks its colour; --arc-tab-age-length is the Trail's length, the same in every theme */
 .arc-tree-row[data-tab-age="0"] {
   --arc-tab-age-color: var(--arc-tab-age-0);
-  --arc-tab-age-length: var(--arc-tab-age-length-0);
+  --arc-tab-age-length: 100%;
 }
 
 .arc-tree-row[data-tab-age="1"] {
   --arc-tab-age-color: var(--arc-tab-age-1);
-  --arc-tab-age-length: var(--arc-tab-age-length-1);
+  --arc-tab-age-length: 80%;
 }
 
 .arc-tree-row[data-tab-age="2"] {
   --arc-tab-age-color: var(--arc-tab-age-2);
-  --arc-tab-age-length: var(--arc-tab-age-length-2);
+  --arc-tab-age-length: 62%;
 }
 
 .arc-tree-row[data-tab-age="3"] {
   --arc-tab-age-color: var(--arc-tab-age-3);
-  --arc-tab-age-length: var(--arc-tab-age-length-3);
+  --arc-tab-age-length: 48%;
 }
 
 .arc-tree-row[data-tab-age="4"] {
   --arc-tab-age-color: var(--arc-tab-age-4);
-  --arc-tab-age-length: var(--arc-tab-age-length-4);
+  --arc-tab-age-length: 36%;
 }
 
 .arc-tree-row[data-tab-age="5"] {
   --arc-tab-age-color: var(--arc-tab-age-5);
-  --arc-tab-age-length: var(--arc-tab-age-length-5);
+  --arc-tab-age-length: 26%;
 }
 
 .arc-tree-row[data-tab-age="6"] {
   --arc-tab-age-color: var(--arc-tab-age-6);
-  --arc-tab-age-length: var(--arc-tab-age-length-6);
+  --arc-tab-age-length: 16%;
 }
 
 /* Out-ranks hover's background shorthand, which would reset background-image */
@@ -345,10 +339,16 @@ html, body, #root {
 /*
  * Hover lies over the highlight as an inset overlay. Its colour drops out of the
  * background, which would show through the highlight and double the overlay.
+ * The 100px spread is more than half of any row's height, so it fills the row.
  */
 .arc-theme[data-tab-age-style] .arc-tree-row-hoverable[data-tab-age]:hover {
   background-color: transparent;
   box-shadow: inset 0 0 0 100px var(--arc-row-overlay);
+}
+
+/* White on the light base: a white hover would vanish into the wash, so it darkens the row a little */
+.arc-theme[data-tab-age-style="white"] .arc-tree-row-hoverable[data-tab-age]:hover {
+  --arc-row-overlay: rgba(41, 35, 76, 0.035);
 }
 
 /* Hover actions repaint the highlight too; Trail has faded out at the right end, where they sit */
@@ -510,6 +510,12 @@ html, body, #root {
     --arc-tab-age-4: rgba(var(--arc-tab-age-accent), 0.36);
     --arc-tab-age-5: rgba(var(--arc-tab-age-accent), 0.31);
     --arc-tab-age-6: rgba(var(--arc-tab-age-accent), 0.26);
+  }
+
+  /* The dark White wash is faint enough for the usual light hover: keep this equal to the
+     dark .arc-tree-row-hoverable:hover overlay above */
+  .arc-theme[data-tab-age-style="white"] .arc-tree-row-hoverable[data-tab-age]:hover {
+    --arc-row-overlay: rgba(255, 255, 255, 0.07);
   }
 }
 

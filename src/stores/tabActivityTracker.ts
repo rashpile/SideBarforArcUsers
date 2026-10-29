@@ -1,5 +1,5 @@
 // TabActivityTracker - last-use time of every tab, for auto-archive (feature 035)
-// and the Tab list's age highlight.
+// and the Tab list's age highlight (feature 036).
 //
 // "Last use" is the moment a tab stopped being active. Chrome's tab.lastAccessed
 // holds the moment it became active, so the background records deactivations
@@ -107,9 +107,8 @@ class NewestTimeByUrl
 {
   #byUrl = new Map<string, number>();
 
-  add(url: string, time: number | undefined): void
+  add(url: string, time: number): void
   {
-    if (time === undefined) return;
     this.#byUrl.set(url, Math.max(time, this.#byUrl.get(url) ?? time));
   }
 
@@ -228,26 +227,25 @@ class TabUseRecords implements TabLastUseTimes
    * Records sharing a URL (the page open in several windows, or a window closed
    * just before the restart) may land on each other's tabs, so every tab on such
    * a URL gets the newest last-use time among them: it closes later, never earlier.
-   * The same goes for leftAt.
+   * leftAt stays with its own record: the highlight has no such safety to keep,
+   * and the newest one would show every copy of a page (several New Tab pages) as fresh.
    */
   rematchedByUrl(liveTabs: readonly TrackedTabLike[]): TabUseRecords
   {
     const records = Array.from(this.#byTabId.values()).filter(record => record.url !== '');
     const newestLastUse = new NewestTimeByUrl();
-    const newestLeftAt = new NewestTimeByUrl();
     const rematched = new TabUseRecords();
 
-    // Newest last-use and left time per URL
-    for (const { url, lastUsedAt, leftAt } of records)
+    // Newest last-use time per URL
+    for (const { url, lastUsedAt } of records)
     {
       newestLastUse.add(url, lastUsedAt);
-      newestLeftAt.add(url, leftAt);
     }
 
     // Re-key each matched record to its tab's new ID
     for (const { record, tab } of matchStoredTabs(records, trackableTabs(liveTabs), { idMatch: 'off' }))
     {
-      rematched.#put(tab, newestLastUse.newest(record.url) ?? record.lastUsedAt, newestLeftAt.newest(record.url));
+      rematched.#put(tab, newestLastUse.newest(record.url) ?? record.lastUsedAt, record.leftAt);
     }
     return rematched;
   }
@@ -260,24 +258,17 @@ class TabUseRecords implements TabLastUseTimes
 
 /**
  * Read-only view of the stored records for the sidebar: when the user last
- * left each tab. Unreadable data gives no times - the highlight is cosmetic.
+ * left each tab. An empty view (no times) when constructed directly.
  */
 export class TabLeftTimes
 {
   #records = new TabUseRecords();
 
-  /** Parse the value stored under TabActivityTracker.RECORDS_KEY; `onError` hears why it was unreadable. */
-  static fromStored(value: unknown, onError: (error: unknown) => void = () => {}): TabLeftTimes
+  /** Parse the value stored under TabActivityTracker.RECORDS_KEY; throws when it (or any entry) is malformed. */
+  static fromStored(value: unknown): TabLeftTimes
   {
     const times = new TabLeftTimes();
-    try
-    {
-      times.#records = TabUseRecords.fromStored(value);
-    }
-    catch (error)
-    {
-      onError(error);
-    }
+    times.#records = TabUseRecords.fromStored(value);
     return times;
   }
 

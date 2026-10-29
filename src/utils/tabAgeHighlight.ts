@@ -1,10 +1,10 @@
-// "Highlight tabs by last use" setting: rows in the Tab list get a background
-// that is stronger the more recently the user left the tab. Tabs not used for
-// more than 24 hours get none. The style picks one of four looks or turns the
-// highlight off.
+// "Highlight tabs by last use" setting (feature 036): rows in the Tab list get a
+// background that is stronger the more recently the user left the tab. Tabs not
+// used for more than 24 hours get none. The style picks one of four looks or
+// turns the highlight off.
 
 import type { AutoArchivePeriod } from './autoArchive.ts';
-import { MINUTE_MS } from './autoArchive.ts';
+import { HOUR_MS, MINUTE_MS, newerTime } from './time.ts';
 
 export type TabAgeHighlightStyle = 'off' | 'white' | 'accent' | 'cooling' | 'trail';
 
@@ -17,8 +17,6 @@ export const TAB_AGE_HIGHLIGHT_KEY = 'tabAgeHighlight';
 export const DEFAULT_TAB_AGE_HIGHLIGHT_STYLE: TabAgeHighlightStyle = 'white';
 
 const TAB_AGE_HIGHLIGHT_STYLES: readonly TabAgeHighlightStyle[] = ['off', 'white', 'accent', 'cooling', 'trail'];
-
-const HOUR_MS = 60 * MINUTE_MS;
 
 // Inclusive upper bound of each grade's age; the index is the grade (0 = freshest).
 // A tab older than the last bound has no grade.
@@ -54,7 +52,7 @@ export function isTabActivityRecording(period: AutoArchivePeriod, style: TabAgeH
  */
 export function tabAgeGrade(lastUsedAt: number | undefined, now: number): number | undefined
 {
-  if (lastUsedAt === undefined || !Number.isFinite(lastUsedAt)) return undefined;
+  if (lastUsedAt === undefined) return undefined;
   const age = Math.max(0, now - lastUsedAt);
   const grade = GRADE_UPPER_BOUNDS_MS.findIndex(bound => age <= bound);
   return grade === -1 ? undefined : grade;
@@ -69,7 +67,5 @@ export function tabAgeGrade(lastUsedAt: number | undefined, now: number): number
  */
 export function tabLastUseForHighlight(leftAt?: number, lastAccessed?: number): number | undefined
 {
-  if (leftAt === undefined) return lastAccessed;
-  if (lastAccessed === undefined) return leftAt;
-  return Math.max(leftAt, lastAccessed);
+  return newerTime(leftAt, lastAccessed);
 }

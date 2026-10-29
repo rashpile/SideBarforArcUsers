@@ -226,8 +226,8 @@ const bookmarkSpaceResolver = new BookmarkSpaceResolver(
   () => spaceManager.getSpaces(),
 );
 const newsVersionChecker = new NewsVersionChecker();
-// Last-use time of every tab, for auto-archive (feature 035) and the Tab list's age highlight.
-// Background is the only writer; nothing is recorded while both are off.
+// Last-use time of every tab, for auto-archive (feature 035) and the Tab list's age highlight
+// (feature 036). Background is the only writer; nothing is recorded while both are off.
 const tabActivityTracker = new TabActivityTracker({
   local: {
     get: (key) => chrome.storage.local.get(key),
@@ -347,7 +347,7 @@ async function loadTabActivity(): Promise<void>
   }
 }
 
-// Switching the tab age highlight on or off starts recording, or drops the records when
+// Switching the tab age highlight (feature 036) on or off starts recording, or drops the records when
 // auto-archive doesn't need them either. A change between two looks reloads harmlessly.
 chrome.storage.onChanged.addListener((changes, areaName) =>
 {
@@ -717,7 +717,7 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) =>
 
   if (!removeInfo.isWindowClosing)
   {
-    // A closed window's records are dropped by the next auto-archive run instead
+    // A closed window's records are dropped by the next auto-archive run or worker start instead
     tabActivityTracker.forget(tabId)
       .catch((error) => console.error('[TabActivityTracker] failed to forget closed tab:', error));
 

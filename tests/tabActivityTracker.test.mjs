@@ -337,7 +337,7 @@ test('only leaving a tab sets leftAt; refresh keeps it, also for a tab in use ag
   assert.deepEqual(browser.storedRecord(4), { windowId: 1, url: 'https://d.test/', index: 3, lastUsedAt: 9000 });
 });
 
-test('after a browser restart records stored without leftAt still load, and tabs on a shared URL get its newest leftAt', async () =>
+test('after a browser restart records stored without leftAt still load, and tabs on a shared URL keep their own leftAt', async () =>
 {
   const browser = new Browser();
   // home.test stored before leftAt existed; mail.test open in two windows, left at different times
@@ -356,19 +356,21 @@ test('after a browser restart records stored without leftAt still load, and tabs
     tab(9, 11, 'https://mail.test/', 1, true),
   ]);
 
+  // Auto-archive judges both copies by the newest last use; the highlight keeps each copy's own leave
   assert.deepEqual(browser.storedRecord(7), { windowId: 10, url: 'https://home.test/', index: 0, lastUsedAt: 100 });
   assert.equal(browser.storedLastUsedAt(8), 500);
+  assert.equal(browser.storedLastUsedAt(9), 500);
   assert.equal(browser.storedLeftAt(8), 300);
-  assert.equal(browser.storedLeftAt(9), 300);
+  assert.equal(browser.storedLeftAt(9), 200);
 
   const leftTimes = TabLeftTimes.fromStored(browser.local.data[RECORDS_KEY]);
   assert.equal(leftTimes.leftAt(8), 300);
   assert.equal(leftTimes.leftAt(7), undefined);
 });
 
-test('TabLeftTimes gives no times for unreadable records and reports why', () =>
+test('TabLeftTimes refuses unreadable records, as the tracker does', () =>
 {
-  // One entry whose leftAt is not a number spoils the valid one next to it, as in the tracker
+  // One entry whose leftAt is not a number spoils the valid one next to it
   const unreadableValues = [
     {
       1: { windowId: 1, url: 'https://a.test/', index: 0, lastUsedAt: 1, leftAt: 1 },
@@ -379,10 +381,7 @@ test('TabLeftTimes gives no times for unreadable records and reports why', () =>
   ];
   for (const stored of unreadableValues)
   {
-    const errors = [];
-    const leftTimes = TabLeftTimes.fromStored(stored, error => errors.push(error));
-    assert.equal(leftTimes.leftAt(1), undefined);
-    assert.equal(errors.length, 1);
+    assert.throws(() => TabLeftTimes.fromStored(stored));
   }
   assert.equal(TabLeftTimes.fromStored(undefined).leftAt(1), undefined);
 });
@@ -423,6 +422,12 @@ test('records are kept while auto-archive or the highlight is on; with both off 
   browser.clock = 2000;
   await tracker.markActivated(1, 2);
   assert.equal(browser.storedLeftAt(1), 2000);
+
+  // A look change (or a worker restart) reloads: leftAt stays as it is and none is invented
+  browser.tabAgeHighlight = 'accent';
+  await tracker.load(tabs);
+  assert.equal(browser.storedLeftAt(1), 2000);
+  assert.equal(browser.storedLeftAt(2), undefined);
 
   // The highlight switched off too: the background reloads, everything is dropped
   browser.tabAgeHighlight = 'off';

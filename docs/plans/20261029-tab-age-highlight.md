@@ -28,6 +28,9 @@
 - Right after a browser restart, before the background has re-matched the records to the new tab IDs, the sidebar may briefly show grades from old IDs. Cosmetic, fixes itself on the next records write.
 - Trail: the row's hover buttons (Pin, Close) don't repaint the trail under them. Only the freshest grade (100% long) still has a faint tint at the right end, so hovering it leaves a slightly untinted patch behind the buttons.
 - A hovered grouped tab loses its group colour under the highlight, as hovered grouped tabs already do without it (hover's `background` shorthand replaces the Tailwind colour).
+- While a highlighted row is hovered, the inset hover overlay replaces its focus-visible / context-menu ring (both are box-shadows). Rare: keyboard focus plus the pointer on the same row, or the pointer back on the row while its menu is open.
+- Incognito tabs are never recorded, so with the extension allowed in incognito their rows are graded by `lastAccessed` alone (a tab just left shows the grade of when it became active), except the tab the open sidebar sees the user leave.
+- After a browser restart, copies of a page at the same position in different windows may swap their `leftAt`, and a tab may take the older `leftAt` of a copy whose window closed just before the restart (re-match by URL and position only). Cosmetic, fixed on the next leave.
 
 ## Context (from discovery)
 - `src/stores/tabActivityTracker.ts` — `TabActivityTracker` (background is the only writer). `TabUseRecords` keyed by tab ID, stored under `tabLastUsedAt` as `{ [tabId]: { windowId, url, index, lastUsedAt } }`. `markActivated` stamps the tab the user left; `refresh` (`refreshedForLiveTabs`) stamps first-seen and in-use tabs with now; `keptForLiveTabs` / `rematchedByUrl` carry records across worker / browser restarts; `load` drops everything when `isRecording()` is false; `clear()` drops everything. All record writes go through `#put(tab, lastUsedAt)`.
@@ -59,7 +62,7 @@ Decisions worth a test (they would show wrong tabs as fresh, or lose / keep reco
 - last use = `max(leftAt, lastAccessed)`, with either missing;
 - setting parse (absent or unknown → `'white'`);
 - recording condition (records dropped only when auto-archive is Never **and** highlight is Off);
-- tracker: `leftAt` set by `markActivated` only; `refresh` keeps `leftAt` and never invents it; `rematchedByUrl` carries the newest `leftAt` per URL; records stored before this change (no `leftAt`) still load.
+- tracker: `leftAt` set by `markActivated` only; `refresh` keeps `leftAt` and never invents it; `rematchedByUrl` keeps each record's own `leftAt` (review: was the newest per URL); records stored before this change (no `leftAt`) still load.
 
 No e2e suite in the project; the UI is checked manually (Post-Completion).
 
@@ -92,7 +95,7 @@ No e2e suite in the project; the UI is checked manually (Post-Completion).
 - Stored entry: `{ windowId, url, index, lastUsedAt, leftAt? }`. `isStoredTabUse` accepts a missing `leftAt` or a finite number.
 - `markActivated`: the left tab gets `lastUsedAt = now` **and** `leftAt = now`.
 - `refreshedForLiveTabs`, `keptForLiveTabs`: carry `leftAt` unchanged; first-seen tabs get no `leftAt`.
-- `rematchedByUrl`: newest `leftAt` per URL, like `lastUsedAt`.
+- `rematchedByUrl`: newest `leftAt` per URL, like `lastUsedAt`. Changed in review: each matched record keeps its own `leftAt`; only `lastUsedAt` takes the newest per URL (auto-archive safety), as the newest `leftAt` showed every copy of a page (several New Tab pages) as fresh.
 - `#put(tab, lastUsedAt, leftAt?)`.
 - Read side for the sidebar: export a small read-only view, e.g. `TabLeftTimes.fromStored(value)` with `leftAt(tabId)`; malformed data → empty (cosmetic feature, log in DEV only).
 - Remove `clear()` once the archiver no longer calls it (and its tests).
@@ -108,7 +111,9 @@ No e2e suite in the project; the UI is checked manually (Post-Completion).
 - New hook (e.g. `src/hooks/useTabLeftTimes.ts`): `chrome.storage.local.get(TabActivityTracker.RECORDS_KEY)` + `chrome.storage.onChanged`, returns `TabLeftTimes`. Skip reading entirely when the style is `'off'`.
 - Minute clock: re-render every 60 s while the style isn't `'off'` (reuse an existing interval hook if there is one).
 - `TabList.tsx`: for each regular tab row (not active, not selected) compute `tabAgeGrade(tabLastUseForHighlight(leftTimes.leftAt(tab.id), tab.lastAccessed), now)`; pass `tabAgeGrade` to `TabRow`. `lastAccessed` via the `TabWithLastAccess` type from `switcherLists.ts`.
-- `TreeRow.tsx`: optional `ageGrade?: number` prop → `data-tab-age={ageGrade}`.
+- Added in review: `useTabLeftTimes(enabled, activeTabId)` counts the tab the sidebar sees stop being active as left right then (`TabLeftTimes.withLeave`, newer of that and the stored `leftAt`), so the tab just left doesn't show its `lastAccessed` grade until the background's write arrives; it returns `undefined` (no grades) until the records are read. `App` treats the setting as `'off'` until `useChromeLocalStorage` has loaded it. White on the light theme darkens a hovered row (`rgba(41, 35, 76, 0.035)`), as the white hover vanished into the fresh grades.
+- Changed in the code smells review: the seen leave moved out of `TabLeftTimes` (now a pure view of the stored records) into the hook's `SidebarTabLeftTimes`; the hook returns `[leftTimes, isLoaded]` like `useChromeLocalStorage` instead of `undefined` while loading; `tabAgeGradeOf` types the tab by the fields it reads, not `TabWithLastAccess`; `MINUTE_MS` / `HOUR_MS` and `newerTime` live in `src/utils/time.ts`.
+- `TreeRow.tsx`: optional `ageGrade?: number` prop → `data-tab-age={ageGrade}`. Changed in review: `TabRow` passes `data-tab-age` to `TreeRow`, which spreads it on the row; no prop.
 
 ### CSS — `src/index.css` (values from prototype v2, grades 0..6)
 - White, light: `rgba(255,255,255, .62 .46 .34 .25 .18 .12 .07)`; dark: `.17 .13 .10 .075 .055 .038 .022`.
@@ -151,7 +156,7 @@ No e2e suite in the project; the UI is checked manually (Post-Completion).
 - [x] stamp `leftAt` in `markActivated`; carry it in `refreshedForLiveTabs`, `keptForLiveTabs`; newest per URL in `rematchedByUrl`
 - [x] export the read-only `TabLeftTimes` view for the sidebar
 - [x] write tests: `markActivated` sets `leftAt`; `refresh` keeps an existing `leftAt` and gives first-seen / in-use tabs none
-- [x] write tests: browser-restart rematch carries the newest `leftAt` per URL; stored records without `leftAt` load; `TabLeftTimes` on malformed data → empty
+- [x] write tests: browser-restart rematch carries the newest `leftAt` per URL (review: each tab now keeps its own record's `leftAt`); stored records without `leftAt` load; `TabLeftTimes` on malformed data → empty
 - [x] run `make test` — must pass before task 3
 
 ### Task 3: Record while either setting is on

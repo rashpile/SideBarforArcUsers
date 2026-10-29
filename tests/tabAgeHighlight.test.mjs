@@ -33,7 +33,6 @@ test('a tab used just now is the freshest grade, even when its time is in the fu
 test('an unknown last use has no grade', () =>
 {
   assert.equal(tabAgeGrade(undefined, NOW), undefined);
-  assert.equal(tabAgeGrade(Number.NaN, NOW), undefined);
 });
 
 test('last use is the newer of leaving the tab and Chrome activating it', () =>

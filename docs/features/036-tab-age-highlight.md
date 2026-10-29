@@ -52,7 +52,7 @@ Eight grades by time since last use. Each upper bound is inclusive: a tab left e
 | none | older |
 
 - The first two grades stand out. The rest fade quickly.
-- A last use in the future (clock skew) is grade 0. An unknown or non-finite time gets no highlight. **(call)**
+- A last use in the future (clock skew) is grade 0. An unknown time gets no highlight. **(call)**
 - The sidebar recomputes the grades once a minute while the highlight is on, and whenever the records change. **(call)**
 
 ## Last Use
@@ -60,13 +60,14 @@ Eight grades by time since last use. Each upper bound is inclusive: a tab left e
 - Last use is the moment the tab **stopped** being active, as auto-archive counts it (feature 035). Chrome's `tab.lastAccessed` is the moment the tab became active, so it can't be the source on its own.
 - The auto-archive tracker (`TabActivityTracker`, key `tabLastUsedAt`) holds the times. It was extended rather than adding a second store.
 - Each record gets its own `leftAt` field. Only `chrome.tabs.onActivated` stamps it, on the window's previously active tab, when the user leaves that tab. **(call)** Auto-archive keeps judging by `lastUsedAt`. Archiver runs set `lastUsedAt` to "now" for first-seen tabs and tabs in use (audible, Chrome-pinned, in a split view with the active tab). Using it for the highlight would make those tabs glow as fresh forever.
-- The highlight takes `max(leftAt, tab.lastAccessed)`. **(call)** A tab with no `leftAt` (open before the update and not left since) falls back to `lastAccessed`, so the first day after the update doesn't light up every tab. A tab opened in the background counts as fresh from its creation, because Chrome sets `lastAccessed` when it creates the tab.
-- `leftAt` survives worker and browser restarts the same way `lastUsedAt` does. After a browser restart every tab matched on a URL gets the newest `leftAt` among the records with that URL.
+- The highlight takes `max(leftAt, tab.lastAccessed)`. **(call)** A tab with no `leftAt` (open before the update and not left since) falls back to `lastAccessed`, so the first day after the update doesn't light up every tab. A tab opened in the background should count as fresh from its creation, as Chrome is expected to set `lastAccessed` when it creates the tab (not yet verified, see Implementation Notes).
+- `leftAt` survives worker and browser restarts the same way `lastUsedAt` does. After a browser restart (or an extension reload or update) records are re-matched by URL and position; each matched tab keeps its own record's `leftAt`. `lastUsedAt` takes the newest time among the records with that URL instead, for auto-archive's safety (close later, never earlier). The highlight has no such reason, and the newest `leftAt` would show every copy of a page, such as several New Tab pages, as fresh. **(call, changed in review)**
+- The sidebar learns about a tab switch before the background's record of it arrives (the background stamps `leftAt` after a few storage round trips, more when its worker has to start). Until then the tab just left would be graded by `lastAccessed`, the moment it became active, and then jump to grade 0. So the sidebar counts the tab it sees stop being active as left at that moment, and takes the newer of that and the stored `leftAt`. **(call, made in review)**
 
 ## Recording
 
 - The tracker records while auto-archive **or** the highlight is on, and drops its records only when both are off (`isTabActivityRecording`). The highlight is on by default, so the tracker now runs for everyone. `PRIVACY.md` says so. **(call)**
-- Changing either setting calls `TabActivityTracker.load` with the open tabs. `load` attaches the stored records while recording and drops them otherwise. It replaces the `tracker.clear()` the archiver used to call when switched to `Never`.
+- Switching auto-archive between `Never` and a period, and every change to the highlight, calls `TabActivityTracker.load` with the open tabs. A change between two periods doesn't. `load` attaches the stored records while recording and drops them otherwise. It replaces the `tracker.clear()` the archiver used to call when switched to `Never`.
 - Auto-archive's grace still holds: no tab closes earlier than one period after switching on from `Never`. The archiver already judges by `max(lastUsedAt, autoArchiveEnabledAt)`, so records kept while auto-archive was off can't close a tab early. **(call)**
 
 ## Looks
@@ -85,8 +86,9 @@ Details:
 - The dark theme uses stronger tints than the light one. On the dark base the light-theme values blur together.
 - The highlight is a `background-image`. A tab group's colour is a Tailwind `background-color`, so it stays underneath. **(call)**
 - Hover stays visible over the highlight. On a highlighted row the hover overlay is an inset `box-shadow`, and the row's own background colour drops out so the overlay doesn't apply twice. **(call)**
+- White on the light theme: the usual white hover is lost in the white wash of the fresh grades, so a hovered White row darkens a little instead (`rgba(41, 35, 76, 0.035)`). The dark theme keeps the usual hover. **(call, made in review)**
 - The row's hover buttons (Pin, Close) repaint the age colour under them for White, Accent and Cooling. Without it a darker box would show behind them. Trail keeps the old paint, see Known Limitations. **(call)**
-- All values are CSS custom properties in `src/index.css`: one table per look (and per theme) on the theme root, `--arc-tab-age-0` to `-6` plus `--arc-tab-age-length-0` to `-6` for Trail, and one rule per grade that picks its entry. They are the prototype v2 values, not yet tuned on the real sidebar.
+- All colours are CSS custom properties in `src/index.css`: one table per look (and per theme) on the theme root, `--arc-tab-age-0` to `-6`, and one rule per grade that picks its entry and sets the Trail's length (the same in every theme). They are the prototype v2 values, not yet tuned on the real sidebar.
 
 ## State
 
@@ -103,10 +105,11 @@ Both are in `chrome.storage.local`. Records stored before this feature have no `
 - `src/stores/tabActivityTracker.ts`: `leftAt` in the records, and `TabLeftTimes`, the sidebar's read-only view of them.
 - `src/services/tabAutoArchiver.ts`: `readTabActivityRecording` (the tracker's `isRecording`). `handleSettingChange` calls `tracker.load`.
 - `src/background.ts`: `chrome.storage.onChanged` for `tabAgeHighlight` calls `loadTabActivity()`.
-- `src/hooks/useTabLeftTimes.ts` and `src/hooks/useMinuteClock.ts`: the records and a minute clock for the sidebar. Both are idle while the setting is `Off`.
-- `src/components/TabList.tsx`: the grade of each regular tab at its three row render sites. `TabRow` drops it on the active and selected rows. `src/components/TreeRow.tsx` sets `data-tab-age`.
-- `src/App.tsx`: the setting, plus `data-tab-age-style` and `--arc-tab-age-accent` on the `.arc-theme` root. `src/components/SettingsDialog.tsx`: the option.
+- `src/hooks/useTabLeftTimes.ts` and `src/hooks/useMinuteClock.ts`: the records and a minute clock for the sidebar. Both are idle while the setting is `Off`. `useTabLeftTimes` also counts the tab the sidebar sees stop being active as left right then (its `SidebarTabLeftTimes`, the newer of that and the stored `leftAt`), and returns `[leftTimes, isLoaded]` like `useChromeLocalStorage`; TabList grades no row until `isLoaded`, so no row is graded on `lastAccessed` alone for a frame.
+- `src/components/TabList.tsx`: the grade of each regular tab at its three row render sites. `TabRow` drops it on the active and selected rows and passes `data-tab-age` to its `TreeRow`, which spreads it on the row.
+- `src/App.tsx`: the setting, plus `data-tab-age-style` and `--arc-tab-age-accent` on the `.arc-theme` root. The setting counts as `Off` until it has loaded, so opening the sidebar doesn't flash the default look. `src/components/SettingsDialog.tsx`: the option.
 - `src/utils/groupColors.ts`: `getSpaceAccentRgb`.
+- `src/utils/time.ts`: `MINUTE_MS` / `HOUR_MS` (shared with auto-archive) and `newerTime`, the newer-of-two-times rule behind `tabLastUseForHighlight` and the seen leave.
 - `src/index.css`: the looks.
 - Tests: `tests/tabAgeHighlight.test.mjs` covers the grade bounds, the last-use max, parsing and the recording condition. `tests/tabActivityTracker.test.mjs` covers `leftAt` stamping and carrying, the browser-restart rematch, records without `leftAt`, and recording with either setting on.
 
@@ -137,17 +140,24 @@ While building:
 
 - The Space accent is the light accent in light mode and the dark accent in dark mode.
 - The option is the last one in the Appearance tab.
-- A time in the future is grade 0. A missing or non-finite time gets no grade.
+- A time in the future is grade 0. A missing time gets no grade.
 - Hover on a highlighted row is an inset box-shadow, and the row's background colour drops out.
 - Hover buttons repaint the age colour, except for Trail.
 - The prototype v2 values are kept as they are.
+
+In review:
+
+- After a browser restart each tab keeps its own record's `leftAt`, not the newest on its URL.
+- The sidebar counts the tab it sees stop being active as left at that moment.
+- White on the light theme darkens a hovered row instead of the usual white hover.
+- The setting counts as `Off` until it has loaded, and rows get no grade until the records are read.
 
 ## Implementation Notes
 
 - A stored record has no `leftAt` until the user has left its tab, so a record without it looks exactly as before this feature.
 - `TabActivityTracker.clear()` is gone. When auto-archive switches to `Never`, the archiver now calls `load`, which drops the records only if the highlight is off too. `readAutoArchivePeriod` became `readTabActivityRecording`, which reads both keys in one `chrome.storage.local.get`.
 - Every change to `tabAgeHighlight` reloads the tracker, also a change between two looks. `load` does nothing harmful within a session.
-- While auto-archive is `Never` no archiver run updates the records. They change when the user leaves a tab, when a tab closes, and at each worker start or setting change. Records of tabs closed together with their window stay until the next worker start, which drops records whose tab is gone.
+- While auto-archive is `Never` no archiver run updates the records. They change when the user leaves a tab, when a tab closes, at each worker start, and when either setting changes (auto-archive only between `Never` and a period). Records of tabs closed together with their window stay until the next worker start, which drops records whose tab is gone.
 - If the sidebar can't read the records, it gets no `leftAt` times (logged in DEV builds only), and every row falls back to `lastAccessed`.
 - `TabList` only gets an on/off flag. The look is all CSS.
 - Unit tests cover the logic. The CSS cascade was checked in headless Chrome against the built CSS, in light and dark mode. The look on the real sidebar and the manual checks in the plan's Post-Completion list are still to do, for example that a tab opened in the background shows as fresh.
@@ -158,3 +168,5 @@ While building:
 - Trail: the row's hover buttons (Pin, Close) don't repaint the trail under them. Only the freshest grade (full width) still has a faint tint at the right end, so hovering such a row leaves a slightly untinted patch behind the buttons.
 - A hovered grouped tab loses its group colour under the highlight. Hovered grouped tabs already do this without the highlight, because hover's `background` shorthand replaces the Tailwind colour.
 - While a highlighted row is hovered, the hover overlay replaces its keyboard-focus or context-menu ring, since both are box-shadows. Rare: it needs keyboard focus and the pointer on the same row, or the pointer back on the row while its menu is open.
+- Incognito tabs are never recorded (their URLs must not reach storage), so when the extension is allowed in incognito their rows are graded by Chrome's `lastAccessed` alone. A tab read for a while and then left shows the grade of the moment it became active. While the sidebar stays open, the tab it sees the user leave still counts as just left.
+- After a browser restart, copies of a page at the same position in different windows may swap their `leftAt`, and a tab may take the older `leftAt` of a copy whose window was closed just before the restart, because the re-match goes by URL and position only. Cosmetic, and fixed the next time the tab is left.

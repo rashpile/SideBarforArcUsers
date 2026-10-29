@@ -2,6 +2,8 @@
 // before the background closes it. Regular tabs are saved to the Space's
 // archive folder first; open bookmark pages are closed without archiving.
 
+import { DAY_MS, HOUR_MS, MINUTE_MS } from './time.ts';
+
 /** Stored setting values. '1m' exists only for manual testing in DEV builds. */
 export type AutoArchivePeriod = 'never' | '1m' | '12h' | '24h' | '3d' | '7d' | '30d';
 
@@ -22,10 +24,6 @@ const DEV_AUTO_ARCHIVE_PERIOD: AutoArchivePeriod = '1m';
 
 // Values every build accepts.
 const AUTO_ARCHIVE_PERIODS: readonly AutoArchivePeriod[] = ['never', '12h', '24h', '3d', '7d', '30d'];
-
-export const MINUTE_MS = 60 * 1000;
-const HOUR_MS = 60 * MINUTE_MS;
-const DAY_MS = 24 * HOUR_MS;
 
 /**
  * Parse a stored value, falling back to 'never' for absent/unknown values.

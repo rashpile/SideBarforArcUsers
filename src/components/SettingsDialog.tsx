@@ -309,7 +309,7 @@ export function SettingsDialog({
 
             {/* Highlight tabs by last use */}
             <div>
-              <label className="block text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block font-medium mb-1 text-gray-700 dark:text-gray-300">
                 Highlight tabs by last use
               </label>
               <select
@@ -323,7 +323,7 @@ export function SettingsDialog({
                 <option value="cooling">Cooling</option>
                 <option value="trail">Trail</option>
               </select>
-              <p className="mt-0.5 text-gray-500 dark:text-gray-400 ml-5">
+              <p className="mt-1 text-gray-500 dark:text-gray-400">
                 Recently used tabs in the Tab list get a stronger background
               </p>
             </div>

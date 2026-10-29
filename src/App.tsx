@@ -716,11 +716,13 @@ function App() {
     { parse: (v) => parseAutoArchivePeriod(v, import.meta.env.DEV), serialize: (v) => v }
   );
   // Raw string, not JSON: background.ts reads it to decide whether to record tab last-use times
-  const [tabAgeHighlight, setTabAgeHighlight] = useChromeLocalStorage<TabAgeHighlightStyle>(
+  const [tabAgeHighlight, setTabAgeHighlight, tabAgeHighlightLoaded] = useChromeLocalStorage<TabAgeHighlightStyle>(
     TAB_AGE_HIGHLIGHT_KEY,
     DEFAULT_TAB_AGE_HIGHLIGHT_STYLE,
     { parse: parseTabAgeHighlightStyle, serialize: (v) => v }
   );
+  // Off until the stored look is known, so a sidebar opening doesn't flash the default look
+  const shownTabAgeHighlight: TabAgeHighlightStyle = tabAgeHighlightLoaded ? tabAgeHighlight : 'off';
   const [aiSettings, setAiSettings] = useChromeLocalStorage<AiRenameSettings>(
     AI_SETTINGS_STORAGE_KEY,
     DEFAULT_AI_RENAME_SETTINGS,
@@ -1255,7 +1257,7 @@ function App() {
       <SpacesProvider>
       <SelectionProvider>
       <UnifiedDndProvider>
-      <AppContainer useSpaceColor={useSpaceColor} spaceColorAlpha={spaceColorAlpha} fontSize={fontSize} followActiveTab={followActiveTab} tabAgeHighlight={tabAgeHighlight}>
+      <AppContainer useSpaceColor={useSpaceColor} spaceColorAlpha={spaceColorAlpha} fontSize={fontSize} followActiveTab={followActiveTab} tabAgeHighlight={shownTabAgeHighlight}>
       <Suspense fallback={null}>
         {showSettings && (
           <SettingsDialog
@@ -1566,7 +1568,7 @@ function App() {
         onBookmarkCreated={handleBookmarkCreated}
         sectionCollapseState={sectionCollapseState}
         onToggleSection={toggleShownSection}
-        highlightTabAge={tabAgeHighlight !== 'off'}
+        highlightTabAge={shownTabAgeHighlight !== 'off'}
       />
 
       {/* Space Dialogs */}
