@@ -19,7 +19,8 @@ import {
 } from '../utils/autoArchive';
 import { MINUTE_MS } from '../utils/time';
 import type { AutoArchivePeriod } from '../utils/autoArchive';
-import { isTabActivityRecording, parseTabAgeHighlightStyle, TAB_AGE_HIGHLIGHT_KEY } from '../utils/tabAgeHighlight';
+import { parseTabAgeHighlightStyle, TAB_AGE_HIGHLIGHT_KEY } from '../utils/tabAgeHighlight';
+import { isTabActivityRecording } from '../utils/tabActivityRecording';
 import { parseUnvisitedTabMarker, UNVISITED_TAB_MARKER_KEY } from '../utils/unvisitedTabMarker';
 import {
   SavedPages,

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { TabActivityTracker, TabActivityView } from '../src/stores/tabActivityTracker.ts';
-import { isTabActivityRecording } from '../src/utils/tabAgeHighlight.ts';
+import { isTabActivityRecording } from '../src/utils/tabActivityRecording.ts';
 
 const RECORDS_KEY = TabActivityTracker.RECORDS_KEY;
 const ACTIVE_TABS_KEY = TabActivityTracker.ACTIVE_TABS_KEY;
@@ -408,7 +408,15 @@ test('incognito tabs are never recorded', async () =>
   assert.ok(!JSON.stringify(browser.local.data).includes('secret.test'));
 });
 
-test('records are kept while auto-archive or the highlight is on; with all three settings off they are dropped and nothing is recorded until one is on again', async () =>
+test('records are kept while any of auto-archive, the highlight or the unvisited marker is on', () =>
+{
+  assert.equal(isTabActivityRecording('never', 'off', 'off'), false);
+  assert.equal(isTabActivityRecording('12h', 'off', 'off'), true);
+  assert.equal(isTabActivityRecording('never', 'white', 'off'), true);
+  assert.equal(isTabActivityRecording('never', 'off', 'on'), true);
+});
+
+test('records are kept while any of the three settings is on; with all three off they are dropped and nothing is recorded until one is on again', async () =>
 {
   const browser = new Browser();
   browser.tabAgeHighlight = 'off';
@@ -577,7 +585,7 @@ test('a tab opened in the background gets an unvisited record with no leftAt; no
   const unloaded = fresh.tracker();
   await unloaded.markOpenedUnvisited(tab(5, 1, 'https://new.test/', 0));
   await unloaded.followUrl(tab(5, 1, 'https://new.test/', 0));
-  await unloaded.markReopened([5]);
+  await unloaded.markReopened(5);
   assert.deepEqual(fresh.storedRecord(5), oldRecord);
 });
 
@@ -589,7 +597,9 @@ test('tabs re-created by Undo lose the mark onCreated gave them; other unvisited
   await tracker.markOpenedUnvisited(tab(3, 1, 'https://c.test/', 2));
   await tracker.markOpenedUnvisited(tab(4, 1, 'https://d.test/', 3));
 
-  await tracker.markReopened([2, 3, 99]);
+  await tracker.markReopened(2);
+  await tracker.markReopened(3);
+  await tracker.markReopened(99);
 
   const view = TabActivityView.fromStored(browser.local.data[RECORDS_KEY]);
   assert.ok(!view.isUnvisited(2));

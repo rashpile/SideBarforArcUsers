@@ -84,6 +84,9 @@ interface TabUseRecord extends StoredTabRecord
   unvisited?: boolean;
 }
 
+/** What a record says about the tab's use, apart from where the tab is; carried as one piece when a record moves. */
+type TabUseState = Pick<TabUseRecord, 'lastUsedAt' | 'leftAt' | 'unvisited'>;
+
 /** Stored form of a record; the tab ID is the key it is stored under. */
 type StoredTabUse = Omit<TabUseRecord, 'tabId'>;
 
@@ -202,7 +205,7 @@ class TabUseRecords implements TabLastUseTimes
    */
   markLeft(tab: TrackableTab, time: number): void
   {
-    this.#put(tab, time, time);
+    this.#put(tab, { lastUsedAt: time, leftAt: time });
   }
 
   /**
@@ -211,7 +214,7 @@ class TabUseRecords implements TabLastUseTimes
    */
   markOpenedUnvisited(tab: TrackableTab, now: number): void
   {
-    this.#put(tab, now, undefined, true);
+    this.#put(tab, { lastUsedAt: now, unvisited: true });
   }
 
   /** The tab was activated: it is no longer unvisited. Returns whether that changed anything. */
@@ -235,7 +238,7 @@ class TabUseRecords implements TabLastUseTimes
     const url = urlOf(tab);
     if (!record?.unvisited || url === '') return false;
     if (record.url === url && record.index === tab.index && record.windowId === tab.windowId) return false;
-    this.#put(tab, record.lastUsedAt, record.leftAt, true);
+    this.#put(tab, record);
     return true;
   }
 
@@ -253,7 +256,7 @@ class TabUseRecords implements TabLastUseTimes
     for (const tab of trackableTabs(liveTabs))
     {
       const record = this.#byTabId.get(tab.id);
-      if (record) kept.#put(tab, record.lastUsedAt, record.leftAt, record.unvisited);
+      if (record) kept.#put(tab, record);
     }
     return kept;
   }
@@ -276,7 +279,7 @@ class TabUseRecords implements TabLastUseTimes
     {
       const record = this.#byTabId.get(tab.id);
       const inUse = tab.active || tab.audible === true || tab.pinned === true || splitViewsOnScreen.shows(tab);
-      refreshed.#put(tab, inUse || !record ? now : record.lastUsedAt, record?.leftAt, record?.unvisited);
+      refreshed.#put(tab, { ...record, lastUsedAt: inUse || !record ? now : record.lastUsedAt });
     }
     return refreshed;
   }
@@ -309,12 +312,13 @@ class TabUseRecords implements TabLastUseTimes
     // Re-key each matched record to its tab's new ID
     for (const { record, tab } of matchStoredTabs(records, trackableTabs(liveTabs), { idMatch: 'off' }))
     {
-      rematched.#put(tab, newestLastUse.newest(record.url) ?? record.lastUsedAt, record.leftAt, record.unvisited);
+      rematched.#put(tab, { ...record, lastUsedAt: newestLastUse.newest(record.url) ?? record.lastUsedAt });
     }
     return rematched;
   }
 
-  #put(tab: TrackableTab, lastUsedAt: number, leftAt?: number, unvisited?: boolean): void
+  // The record takes the tab's current page and position; only the use state comes from the caller
+  #put(tab: TrackableTab, { lastUsedAt, leftAt, unvisited }: TabUseState): void
   {
     this.#byTabId.set(tab.id, { tabId: tab.id, windowId: tab.windowId, url: urlOf(tab), index: tab.index, lastUsedAt, leftAt, unvisited });
   }
@@ -567,22 +571,17 @@ export class TabActivityTracker
   }
 
   /**
-   * The sidebar's Undo re-created these tabs (closed tabs, a deleted Space): they
-   * were open before, so they lose the unvisited mark onCreated gave them. The
-   * background enqueues this after those marks (see its tabs-reopened-by-undo handler).
+   * The sidebar's Undo re-created this tab (a closed tab, a deleted Space's tab):
+   * it was open before, so it loses the unvisited mark onCreated gave it. The
+   * background enqueues this after that mark (see its tab-reopened-by-undo handler).
    */
-  markReopened(tabIds: readonly number[]): Promise<void>
+  markReopened(tabId: number): Promise<void>
   {
     return this.#enqueue(async () =>
     {
       if (!this.#attached) return;
       const records = await this.#readRecords();
-      let changed = false;
-      for (const tabId of tabIds)
-      {
-        if (records.markVisited(tabId)) changed = true;
-      }
-      if (changed) await this.#writeRecords(records);
+      if (records.markVisited(tabId)) await this.#writeRecords(records);
     });
   }
 

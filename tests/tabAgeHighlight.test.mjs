@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  isTabActivityRecording,
   parseTabAgeHighlightStyle,
   tabAgeGrade,
   tabLastUseForHighlight,
@@ -60,12 +59,4 @@ test('the setting reads as White when absent or unknown', () =>
   assert.equal(parseTabAgeHighlightStyle(undefined), 'white');
   assert.equal(parseTabAgeHighlightStyle('rainbow'), 'white');
   assert.equal(parseTabAgeHighlightStyle(1), 'white');
-});
-
-test('records are kept while any of auto-archive, the highlight or the unvisited marker is on', () =>
-{
-  assert.equal(isTabActivityRecording('never', 'off', 'off'), false);
-  assert.equal(isTabActivityRecording('12h', 'off', 'off'), true);
-  assert.equal(isTabActivityRecording('never', 'white', 'off'), true);
-  assert.equal(isTabActivityRecording('never', 'off', 'on'), true);
 });

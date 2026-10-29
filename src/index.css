@@ -19,7 +19,7 @@ html, body, #root {
   --arc-surface-hover: rgba(255, 255, 255, 0.34);
   --arc-surface-active: rgba(255, 255, 255, 0.72);
   --arc-shadow: 0 1px 2px rgba(41, 35, 76, 0.07), 0 3px 10px rgba(41, 35, 76, 0.07);
-  /* r, g, b of the tab age Accent and Trail looks; App sets the Space accent when the Space colour is applied */
+  /* r, g, b of the tab age Accent and Trail looks and of the unvisited tab dot; App sets the Space accent when the Space colour is applied */
   --arc-tab-age-accent: 106, 90, 205;
   color: var(--arc-text);
   -webkit-font-smoothing: antialiased;

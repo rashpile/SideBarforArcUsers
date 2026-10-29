@@ -602,7 +602,7 @@ const AppContainer: React.FC<AppContainerProps> = ({ useSpaceColor, spaceColorAl
     ? getSpaceBgColor(activeSpace.color, isDark, spaceColorAlpha / 100)
     : null;
   // --arc-sidebar-bg lets row hover actions repaint the sidebar colour (see index.css);
-  // --arc-tab-age-accent tints the Accent and Trail tab age looks (theme violet otherwise)
+  // --arc-tab-age-accent tints the Accent and Trail tab age looks and the unvisited tab dot (theme violet otherwise)
   const bgStyle = spaceBgColor
     ? {
         backgroundColor: spaceBgColor,

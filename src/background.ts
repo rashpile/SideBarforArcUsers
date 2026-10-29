@@ -18,7 +18,8 @@ import { TabActivityTracker } from './stores/tabActivityTracker';
 import { queryOpenTabs, readTabActivityRecording, TabAutoArchiver } from './services/tabAutoArchiver';
 import { AUTO_ARCHIVE_AFTER_KEY } from './utils/autoArchive';
 import { TAB_AGE_HIGHLIGHT_KEY } from './utils/tabAgeHighlight';
-import { isOpenedUnvisited, RecentWindows, TABS_REOPENED_BY_UNDO_ACTION, UNVISITED_TAB_MARKER_KEY } from './utils/unvisitedTabMarker';
+import { isOpenedUnvisited, RecentWindows, UNVISITED_TAB_MARKER_KEY } from './utils/unvisitedTabMarker';
+import { TAB_REOPENED_BY_UNDO_ACTION } from './utils/tabReopenedByUndo';
 import { KeyboardSwitcher, parseSwitcherCommand } from './services/keyboardSwitcher';
 import { buildSpaceCards, buildTabCards, findLastUsedTab, WindowSpaces } from './services/switcherLists';
 import { SwitcherMessageAction } from './utils/switcherMessages';
@@ -947,16 +948,16 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) =>
     return true;
   }
 
-  // The sidebar sends this after chrome.tabs.create returned, so tabs.onCreated for these tabs
+  // The sidebar sends this after chrome.tabs.create returned, so tabs.onCreated for the tab
   // was dispatched first and its handler is already waiting on stateReady. Chained on the same
   // promise, this runs after it and enqueues the clear after onCreated's markOpenedUnvisited.
-  if (message?.action === TABS_REOPENED_BY_UNDO_ACTION)
+  if (message?.action === TAB_REOPENED_BY_UNDO_ACTION)
   {
-    if (Array.isArray(message.tabIds))
+    if (Number.isInteger(message.tabId))
     {
       void stateReady
-        .then(() => tabActivityTracker.markReopened(message.tabIds))
-        .catch((error) => console.error('[TabActivityTracker] failed to unmark tabs reopened by Undo:', error));
+        .then(() => tabActivityTracker.markReopened(message.tabId))
+        .catch((error) => console.error('[TabActivityTracker] failed to unmark a tab reopened by Undo:', error));
     }
     return;
   }

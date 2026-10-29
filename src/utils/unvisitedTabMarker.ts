@@ -15,11 +15,6 @@ export const UNVISITED_TAB_MARKER_KEY = 'markUnvisitedTabs';
 
 export const DEFAULT_UNVISITED_TAB_MARKER: UnvisitedTabMarkerSetting = 'on';
 
-// Message from the sidebar's Undo (closed tabs, deleted Space) to the background:
-// { action, tabIds } - tabs it re-created, inactive in an existing window. They
-// were open before, so they must not keep the unvisited mark onCreated gave them.
-export const TABS_REOPENED_BY_UNDO_ACTION = 'tabs-reopened-by-undo';
-
 // Chrome has no "restored" flag and doesn't restore lastAccessed, but it
 // dispatches windows.onCreated a few ms before a restored window's tabs. Inactive
 // tabs this close to their window's creation are taken as restored, not new.
