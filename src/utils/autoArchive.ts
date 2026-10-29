@@ -59,7 +59,8 @@ export function autoArchivePeriodMs(period: AutoArchivePeriod): number | null
 
 /**
  * What a change of the stored setting means for the background:
- * - 'off': the new value is Never - drop the start time and the last-use records;
+ * - 'off': the new value is Never - drop the start time (and the last-use
+ *   records, unless the tab age highlight is on);
  * - 'on': Never to a period - every tab's clock starts now (grace);
  * - 'unchanged': one period to another - the start time is kept, no grace.
  * Values are parsed like everywhere else, so a '1m' left over from a DEV build

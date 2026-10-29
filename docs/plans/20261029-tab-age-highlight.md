@@ -160,12 +160,12 @@ No e2e suite in the project; the UI is checked manually (Post-Completion).
 - Modify: `src/stores/tabActivityTracker.ts`
 - Modify: `tests/tabActivityTracker.test.mjs`
 
-- [ ] `isRecording` reads both settings and uses `isTabActivityRecording`
-- [ ] `storage.onChanged` for `TAB_AGE_HIGHLIGHT_KEY` → `tracker.load(queryOpenTabs())`
-- [ ] archiver 'off' calls `tracker.load(...)` instead of `tracker.clear()`; remove `clear()` and its tests if nothing else uses it
-- [ ] update the "nothing recorded while Never" comments in tracker, background, archiver
-- [ ] write tests: `load` keeps records when `isRecording` is true (highlight on, archive Never) and drops them when false (existing test may already cover the false case — extend, don't duplicate)
-- [ ] run `make test` — must pass before task 4
+- [x] `isRecording` reads both settings and uses `isTabActivityRecording`
+- [x] `storage.onChanged` for `TAB_AGE_HIGHLIGHT_KEY` → `tracker.load(queryOpenTabs())`
+- [x] archiver 'off' calls `tracker.load(...)` instead of `tracker.clear()`; remove `clear()` and its tests if nothing else uses it
+- [x] update the "nothing recorded while Never" comments in tracker, background, archiver
+- [x] write tests: `load` keeps records when `isRecording` is true (highlight on, archive Never) and drops them when false (existing test may already cover the false case — extend, don't duplicate)
+- [x] run `make test` — must pass before task 4
 
 ### Task 4: Setting in the Settings dialog
 

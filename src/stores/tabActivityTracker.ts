@@ -17,8 +17,9 @@
 // restarts, cleared with the browser session); the last-use records are kept in
 // chrome.storage.local so they survive browser restarts too.
 //
-// Nothing is recorded while "Archive tabs after" is Never: switching it off drops
-// every record, and a worker start with the setting off drops leftovers.
+// Records are kept while auto-archive or the tab age highlight is on
+// (isTabActivityRecording). With both off nothing is recorded: switching the
+// second one off drops every record, and so does a worker start with both off.
 //
 // background.ts is the only writer. Every change is a read-modify-write of the
 // stored data, serialized so concurrent events don't drop entries. Incognito
@@ -57,7 +58,7 @@ export interface TabActivityTrackerOptions
 {
   local: TabActivityStorageArea;
   session: TabActivityStorageArea;
-  /** True while "Archive tabs after" is set to a period; nothing is recorded otherwise. */
+  /** True while auto-archive or the tab age highlight is on; nothing is recorded otherwise. */
   isRecording: () => Promise<boolean>;
   /** The tab as it is now; undefined once it is closed. */
   getTab: (tabId: number) => Promise<TrackedTabLike | undefined>;
@@ -369,10 +370,11 @@ export class TabActivityTracker
   }
 
   /**
-   * Worker start, or auto-archive switched on: attach the stored records to the
-   * live tabs and learn the active tab of windows not known yet. With the
-   * setting off, drop whatever is stored instead. Never throws - unreadable data
-   * is logged and the tracker starts empty (clocks start later, never earlier).
+   * Worker start, or auto-archive or the tab age highlight switched on or off:
+   * attach the stored records to the live tabs and learn the active tab of
+   * windows not known yet. While not recording (both off), drop whatever is
+   * stored instead. Never throws - unreadable data is logged and the tracker
+   * starts empty (clocks start later, never earlier).
    */
   load(liveTabs: readonly TrackedTabLike[]): Promise<void>
   {
@@ -380,7 +382,7 @@ export class TabActivityTracker
     {
       try
       {
-        // Nothing is kept while auto-archive is off, also records left from an earlier session
+        // Nothing is kept while not recording, also records left from an earlier session
         if (!await this.#isRecording())
         {
           await this.#removeEverything();
@@ -413,23 +415,10 @@ export class TabActivityTracker
   }
 
   /**
-   * Auto-archive was switched to Never: drop every record and the active-tab
-   * map. Switching on again starts from load.
-   */
-  clear(): Promise<void>
-  {
-    return this.#enqueue(async () =>
-    {
-      await this.#removeEverything();
-      this.#attached = true;  // No record left that could land on a wrong tab
-    });
-  }
-
-  /**
    * The tab became active in its window: the tab active there before stops
    * being used now. Its record is created if it has none and follows the page
    * it shows, so after a browser restart a recently used page is matched with
-   * a recent time. Does nothing while auto-archive is off.
+   * a recent time. Does nothing while not recording.
    */
   markActivated(windowId: number, tabId: number): Promise<void>
   {

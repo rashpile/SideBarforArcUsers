@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { TabActivityTracker, TabLeftTimes } from '../src/stores/tabActivityTracker.ts';
+import { isTabActivityRecording } from '../src/utils/tabAgeHighlight.ts';
 
 const RECORDS_KEY = TabActivityTracker.RECORDS_KEY;
 const ACTIVE_TABS_KEY = TabActivityTracker.ACTIVE_TABS_KEY;
@@ -34,7 +35,9 @@ class Browser
   local = new MemoryStorage();
   session = new MemoryStorage();
   clock = 1000;
-  recording = true;
+  // The two settings the background records for
+  autoArchivePeriod = '12h';
+  tabAgeHighlight = 'white';
   #openTabs = new Map();
 
   // A fresh tracker instance, as after a service-worker restart
@@ -43,7 +46,7 @@ class Browser
     return new TabActivityTracker({
       local: this.local,
       session: this.session,
-      isRecording: async () => this.recording,
+      isRecording: async () => isTabActivityRecording(this.autoArchivePeriod, this.tabAgeHighlight),
       getTab: async (tabId) => this.#openTabs.get(tabId),
       now: () => this.clock,
     });
@@ -401,29 +404,41 @@ test('incognito tabs are never recorded', async () =>
   assert.ok(!JSON.stringify(browser.local.data).includes('secret.test'));
 });
 
-test('switching to Never drops every record and records nothing until switched on again', async () =>
+test('records are kept while auto-archive or the highlight is on; with both off they are dropped and nothing is recorded until one is on again', async () =>
 {
   const browser = new Browser();
+  browser.tabAgeHighlight = 'off';
   const tracker = browser.tracker();
   const tabs = browser.open([tab(1, 1, 'https://a.test/', 0, true), tab(2, 1, 'https://b.test/', 1)]);
   await tracker.load(tabs);
   await tracker.refresh(tabs);
   assert.equal(browser.storedLastUsedAt(2), 1000);
 
-  browser.recording = false;
-  await tracker.clear();
+  // Auto-archive switched to Never with the highlight on: the archiver reloads, the records stay
+  // and leaving a tab is still recorded
+  browser.autoArchivePeriod = 'never';
+  browser.tabAgeHighlight = 'white';
+  await tracker.load(tabs);
+  assert.equal(browser.storedLastUsedAt(2), 1000);
+  browser.clock = 2000;
   await tracker.markActivated(1, 2);
+  assert.equal(browser.storedLeftAt(1), 2000);
+
+  // The highlight switched off too: the background reloads, everything is dropped
+  browser.tabAgeHighlight = 'off';
+  await tracker.load(tabs);
+  await tracker.markActivated(1, 1);
   assert.ok(!(RECORDS_KEY in browser.local.data));
   assert.ok(!(ACTIVE_TABS_KEY in browser.session.data));
 
-  // A worker start while off drops records left from before
+  // A worker start while both are off drops records left from before
   browser.local.data[RECORDS_KEY] = { 2: { windowId: 1, url: 'https://b.test/', index: 1, lastUsedAt: 1 } };
   const restarted = browser.tracker();
   await restarted.load(tabs);
   assert.ok(!(RECORDS_KEY in browser.local.data));
 
-  // Switched on again: the archiver loads the open tabs, every clock starts now
-  browser.recording = true;
+  // Auto-archive switched on again: the archiver loads the open tabs, every clock starts now
+  browser.autoArchivePeriod = '12h';
   browser.clock = 5000;
   await restarted.load(tabs);
   const activity = await restarted.refresh(tabs);
