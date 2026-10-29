@@ -22,6 +22,7 @@ import { KeyboardSwitcher, parseSwitcherCommand } from './services/keyboardSwitc
 import { buildSpaceCards, buildTabCards, findLastUsedTab, WindowSpaces } from './services/switcherLists';
 import { SwitcherMessageAction } from './utils/switcherMessages';
 import { BookmarkSpaceResolver } from './utils/bookmarkSpaceResolver';
+import { tabListTopIndexForLinkTab } from './utils/linkTabPlacement';
 
 // Set side panel to open when clicking the extension toolbar button
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
@@ -900,6 +901,27 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) =>
   }
 });
 
+// A tab opened from a link in a bookmark's or Favorite's tab goes to the top of the Tab list.
+// Chrome puts it next to its opener, which the Tab list doesn't show, so it would land at a
+// random spot in the list (see utils/linkTabPlacement.ts).
+async function moveLinkTabToTabListTop(tabId: number, windowId: number, openerTabId: number, spaceId: string | null): Promise<void>
+{
+  const associations = await getTabAssociations(windowId);
+  const openerItemKey = associations[openerTabId];
+  if (!openerItemKey) return;  // A regular opener: the tab stays next to it
+
+  const windowTabs = await chrome.tabs.query({ windowId });
+  const newTab = windowTabs.find(t => t.id === tabId);
+  if (!newTab) return;
+
+  // The tabs the Tab list shows: no bookmark or Favorite association, in the tab's Space
+  const tabListTabs = windowTabs.filter(t => t.id !== undefined
+    && !associations[t.id]
+    && (!spaceId || tabSpaceRegistry.getSpace(windowId, t.id) === spaceId));
+  const index = tabListTopIndexForLinkTab({ id: tabId, index: newTab.index }, openerItemKey, tabListTabs);
+  if (index !== undefined) await chrome.tabs.move(tabId, { index });
+}
+
 // 新 Tab 直接登记到当前 Space；Chrome 原生 groupId 不参与 Space 生命周期。
 chrome.tabs.onCreated.addListener(async (tab) =>
 {
@@ -912,6 +934,12 @@ chrome.tabs.onCreated.addListener(async (tab) =>
   if (targetSpaceId)
   {
     await tabSpaceRegistry.register(tab.windowId, tab.id, targetSpaceId);
+  }
+
+  if (tab.openerTabId !== undefined)
+  {
+    await moveLinkTabToTabListTop(tab.id, tab.windowId, tab.openerTabId, targetSpaceId)
+      .catch((error) => console.error('[LinkTabPlacement] failed to move a link tab to the Tab list top:', error));
   }
 
   // A tab opened left of a bookmark or Favorite tab (a link opened next to its tab) moves it right
