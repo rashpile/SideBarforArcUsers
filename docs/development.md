@@ -22,7 +22,7 @@ Load `dist/` in Chrome: `chrome://extensions` → Developer mode → Load unpack
 | `make build` | `tsc` + production build into `dist/` |
 | `make build-debug` | Same with `--mode development`: `import.meta.env.DEV` is true, debug logging and the DEV menu items are on |
 | `make test` | Unit tests (`node --test tests/*.test.mjs`) |
-| `make lint` | ESLint. Broken for now: the repo has no ESLint config |
+| `make lint` | ESLint. Broken for now: the repo has no ESLint config ([#17](https://github.com/rashpile/SideBarforArcUsers/issues/17)) |
 | `make chrome` | Chrome with a fresh test profile (`tools/start-test-chrome.sh`) |
 | `make version` | Bump the version in `package.json` and `manifest.json` |
 | `make release` | Build and zip into `releases/` |
