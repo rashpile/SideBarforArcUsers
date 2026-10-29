@@ -132,12 +132,12 @@ No e2e suite in the project; the UI is checked manually (Post-Completion).
 - Create: `src/utils/tabAgeHighlight.ts`
 - Create: `tests/tabAgeHighlight.test.mjs`
 
-- [ ] add `TabAgeHighlightStyle`, `TAB_AGE_HIGHLIGHT_KEY`, default `'white'`, `parseTabAgeHighlightStyle`
-- [ ] add `isTabActivityRecording(period, style)`
-- [ ] add `tabAgeGrade(lastUsedAt, now)` with the seven inclusive bounds and `tabLastUseForHighlight(leftAt, lastAccessed)`
-- [ ] write tests: grade boundaries (exactly 5 min → 0, 5 min + 1 ms → 1, exactly 24 h → 6, above 24 h → none, undefined → none, future → 0)
-- [ ] write tests: `tabLastUseForHighlight` with both / one / none; parse (absent, unknown, each value); recording condition (all four combinations)
-- [ ] run `make test` — must pass before task 2
+- [x] add `TabAgeHighlightStyle`, `TAB_AGE_HIGHLIGHT_KEY`, default `'white'`, `parseTabAgeHighlightStyle`
+- [x] add `isTabActivityRecording(period, style)`
+- [x] add `tabAgeGrade(lastUsedAt, now)` with the seven inclusive bounds and `tabLastUseForHighlight(leftAt, lastAccessed)`
+- [x] write tests: grade boundaries (exactly 5 min → 0, 5 min + 1 ms → 1, exactly 24 h → 6, above 24 h → none, undefined → none, future → 0)
+- [x] write tests: `tabLastUseForHighlight` with both / one / none; parse (absent, unknown, each value); recording condition (all four combinations)
+- [x] run `make test` — must pass before task 2
 
 ### Task 2: `leftAt` in the tab activity records
 
