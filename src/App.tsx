@@ -38,6 +38,7 @@ import { useFollowActiveTab } from './hooks/useFollowActiveTab';
 import { FollowActiveTabMode, FOLLOW_ACTIVE_TAB_KEY, DEFAULT_FOLLOW_ACTIVE_TAB_MODE, parseFollowActiveTabMode } from './utils/followActiveTab';
 import { AutoArchivePeriod, AUTO_ARCHIVE_AFTER_KEY, DEFAULT_AUTO_ARCHIVE_PERIOD, parseAutoArchivePeriod } from './utils/autoArchive';
 import { TabAgeHighlightStyle, TAB_AGE_HIGHLIGHT_KEY, DEFAULT_TAB_AGE_HIGHLIGHT_STYLE, parseTabAgeHighlightStyle } from './utils/tabAgeHighlight';
+import { UnvisitedTabMarkerSetting, UNVISITED_TAB_MARKER_KEY, DEFAULT_UNVISITED_TAB_MARKER, parseUnvisitedTabMarker } from './utils/unvisitedTabMarker';
 import * as DropdownMenu from './components/menu/DropdownMenu';
 import {
   AI_SETTINGS_STORAGE_KEY,
@@ -709,6 +710,12 @@ function App() {
   );
   // Off until the stored look is known, so a sidebar opening doesn't flash the default look
   const shownTabAgeHighlight: TabAgeHighlightStyle = tabAgeHighlightLoaded ? tabAgeHighlight : 'off';
+  // Raw string, not JSON: background.ts reads it to decide whether to mark tabs opened in the background
+  const [markUnvisitedTabs, setMarkUnvisitedTabs] = useChromeLocalStorage<UnvisitedTabMarkerSetting>(
+    UNVISITED_TAB_MARKER_KEY,
+    DEFAULT_UNVISITED_TAB_MARKER,
+    { parse: parseUnvisitedTabMarker, serialize: (v) => v }
+  );
   const [aiSettings, setAiSettings] = useChromeLocalStorage<AiRenameSettings>(
     AI_SETTINGS_STORAGE_KEY,
     DEFAULT_AI_RENAME_SETTINGS,
@@ -843,6 +850,7 @@ function App() {
     setFollowActiveTab(newSettings.followActiveTab);
     setAutoArchiveAfter(newSettings.autoArchiveAfter);
     setTabAgeHighlight(newSettings.tabAgeHighlight);
+    setMarkUnvisitedTabs(newSettings.markUnvisitedTabs);
     setAiSettings(newSettings.aiSettings);
     setShowSettings(false);
   };
@@ -1251,6 +1259,7 @@ function App() {
               followActiveTab,
               autoArchiveAfter,
               tabAgeHighlight,
+              markUnvisitedTabs,
               aiSettings,
             }}
             onApply={handleApplySettings}

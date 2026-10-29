@@ -174,9 +174,9 @@ No e2e suite in the project; the UI is checked manually (Post-Completion).
 - Modify: `src/App.tsx`
 - Modify: `src/components/SettingsDialog.tsx`
 
-- [ ] `useChromeLocalStorage` for `markUnvisitedTabs` (raw string), into the settings object and save handler
-- [ ] Appearance tab toggle with label and description
-- [ ] no tests (settings plumbing); `make test` and the build pass
+- [x] `useChromeLocalStorage` for `markUnvisitedTabs` (raw string), into the settings object and save handler
+- [x] Appearance tab toggle with label and description
+- [x] no tests (settings plumbing); `make test` and the build pass
 
 ### Task 6: Dot on Tab list rows
 
