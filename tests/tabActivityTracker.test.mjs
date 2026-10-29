@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { TabActivityTracker, TabLeftTimes } from '../src/stores/tabActivityTracker.ts';
+import { TabActivityTracker, TabActivityView } from '../src/stores/tabActivityTracker.ts';
 import { isTabActivityRecording } from '../src/utils/tabAgeHighlight.ts';
 
 const RECORDS_KEY = TabActivityTracker.RECORDS_KEY;
@@ -35,9 +35,10 @@ class Browser
   local = new MemoryStorage();
   session = new MemoryStorage();
   clock = 1000;
-  // The two settings the background records for
+  // The three settings the background records for
   autoArchivePeriod = '12h';
   tabAgeHighlight = 'white';
+  unvisitedTabMarker = 'off';
   #openTabs = new Map();
 
   // A fresh tracker instance, as after a service-worker restart
@@ -46,7 +47,7 @@ class Browser
     return new TabActivityTracker({
       local: this.local,
       session: this.session,
-      isRecording: async () => isTabActivityRecording(this.autoArchivePeriod, this.tabAgeHighlight),
+      isRecording: async () => isTabActivityRecording(this.autoArchivePeriod, this.tabAgeHighlight, this.unvisitedTabMarker),
       getTab: async (tabId) => this.#openTabs.get(tabId),
       now: () => this.clock,
     });
@@ -363,12 +364,14 @@ test('after a browser restart records stored without leftAt still load, and tabs
   assert.equal(browser.storedLeftAt(8), 300);
   assert.equal(browser.storedLeftAt(9), 200);
 
-  const leftTimes = TabLeftTimes.fromStored(browser.local.data[RECORDS_KEY]);
-  assert.equal(leftTimes.leftAt(8), 300);
-  assert.equal(leftTimes.leftAt(7), undefined);
+  const view = TabActivityView.fromStored(browser.local.data[RECORDS_KEY]);
+  assert.equal(view.leftAt(8), 300);
+  assert.equal(view.leftAt(7), undefined);
+  assert.equal(view.isUnvisited(7), false);
+  assert.ok(!('unvisited' in browser.storedRecord(7)));
 });
 
-test('TabLeftTimes refuses unreadable records, as the tracker does', () =>
+test('TabActivityView refuses unreadable records, as the tracker does', () =>
 {
   // One entry whose leftAt is not a number spoils the valid one next to it
   const unreadableValues = [
@@ -376,14 +379,16 @@ test('TabLeftTimes refuses unreadable records, as the tracker does', () =>
       1: { windowId: 1, url: 'https://a.test/', index: 0, lastUsedAt: 1, leftAt: 1 },
       2: { windowId: 1, url: 'https://b.test/', index: 1, lastUsedAt: 1, leftAt: 'yesterday' },
     },
+    // unvisited is true or absent
+    { 1: { windowId: 1, url: 'https://a.test/', index: 0, lastUsedAt: 1, unvisited: false } },
     '{not json',
     null,
   ];
   for (const stored of unreadableValues)
   {
-    assert.throws(() => TabLeftTimes.fromStored(stored));
+    assert.throws(() => TabActivityView.fromStored(stored));
   }
-  assert.equal(TabLeftTimes.fromStored(undefined).leftAt(1), undefined);
+  assert.equal(TabActivityView.fromStored(undefined).leftAt(1), undefined);
 });
 
 test('incognito tabs are never recorded', async () =>
@@ -403,7 +408,7 @@ test('incognito tabs are never recorded', async () =>
   assert.ok(!JSON.stringify(browser.local.data).includes('secret.test'));
 });
 
-test('records are kept while auto-archive or the highlight is on; with both off they are dropped and nothing is recorded until one is on again', async () =>
+test('records are kept while auto-archive or the highlight is on; with all three settings off they are dropped and nothing is recorded until one is on again', async () =>
 {
   const browser = new Browser();
   browser.tabAgeHighlight = 'off';
@@ -533,4 +538,141 @@ test('events arriving together are applied one after another', async () =>
   assert.equal(browser.storedLastUsedAt(1), 5000);
   assert.equal(browser.storedLastUsedAt(3), 5000);
   assert.deepEqual(browser.session.data[ACTIVE_TABS_KEY], { 1: 2, 2: 4 });
+});
+
+// A Browser recording only for the unvisited marker, with its tracker loaded on these tabs
+async function markerOnly(tabs)
+{
+  const browser = new Browser();
+  browser.autoArchivePeriod = 'never';
+  browser.tabAgeHighlight = 'off';
+  browser.unvisitedTabMarker = 'on';
+  const tracker = browser.tracker();
+  await tracker.load(browser.open(tabs));
+  return { browser, tracker };
+}
+
+test('a tab opened in the background gets an unvisited record with no leftAt; nothing is written while not recording, before load or for incognito', async () =>
+{
+  const { browser, tracker } = await markerOnly([tab(1, 1, 'https://a.test/', 0, true)]);
+  browser.clock = 3000;
+  await tracker.markOpenedUnvisited(tab(2, 1, 'https://b.test/', 1));
+  await tracker.markOpenedUnvisited(tab(3, 1, 'https://secret.test/', 2, false, { incognito: true }));
+
+  assert.deepEqual(browser.storedRecord(2), { windowId: 1, url: 'https://b.test/', index: 1, lastUsedAt: 3000, unvisited: true });
+  assert.equal(browser.storedRecord(3), undefined);
+  assert.ok(TabActivityView.fromStored(browser.local.data[RECORDS_KEY]).isUnvisited(2));
+
+  // All three settings off: the reload drops the records and nothing new is written
+  browser.unvisitedTabMarker = 'off';
+  await tracker.load(browser.open([tab(1, 1, 'https://a.test/', 0, true)]));
+  await tracker.markOpenedUnvisited(tab(4, 1, 'https://c.test/', 1));
+  await tracker.followUrl(tab(4, 1, 'https://c2.test/', 1));
+  assert.ok(!(RECORDS_KEY in browser.local.data));
+
+  // A worker whose load never ran (or failed) may hold records of a previous browser session
+  const fresh = new Browser();
+  fresh.unvisitedTabMarker = 'on';
+  fresh.local.data[RECORDS_KEY] = { 5: { windowId: 1, url: 'https://old.test/', index: 0, lastUsedAt: 1 } };
+  await fresh.tracker().markOpenedUnvisited(tab(5, 1, 'https://new.test/', 0));
+  assert.deepEqual(fresh.storedRecord(5), { windowId: 1, url: 'https://old.test/', index: 0, lastUsedAt: 1 });
+});
+
+test('activating an unvisited tab clears its mark, whether the tab left behind is known, unknown or closed', async () =>
+{
+  const { browser, tracker } = await markerOnly([tab(1, 1, 'https://a.test/', 0, true)]);
+  for (const id of [2, 3, 4, 5])
+  {
+    await tracker.markOpenedUnvisited(tab(id, 1, `https://t${id}.test/`, id - 1));
+  }
+
+  // Known previous tab: tab 1 is stamped as left, tab 2 loses its mark
+  browser.open([tab(1, 1, 'https://a.test/', 0), tab(2, 1, 'https://t2.test/', 1, true)]);
+  browser.clock = 2000;
+  await tracker.markActivated(1, 2);
+  assert.equal(browser.storedLeftAt(1), 2000);
+  assert.equal(browser.storedRecord(2).unvisited, undefined);
+  assert.equal(browser.storedRecord(3).unvisited, true);
+
+  // Closed previous tab: the active tab (2) was closed, its neighbour 3 becomes active
+  browser.open([tab(1, 1, 'https://a.test/', 0), tab(3, 1, 'https://t3.test/', 1, true)]);
+  await tracker.forget(2);
+  await tracker.markActivated(1, 3);
+  assert.equal(browser.storedRecord(3).unvisited, undefined);
+
+  // Unknown previous tab: the tab moved to a window whose active tab the background never saw
+  await tracker.markActivated(7, 4);
+  assert.equal(browser.storedRecord(4).unvisited, undefined);
+  assert.equal(browser.storedRecord(5).unvisited, true);
+});
+
+test('leaving a tab clears its unvisited mark', async () =>
+{
+  const { browser, tracker } = await markerOnly([tab(1, 1, 'https://a.test/', 0, true), tab(2, 1, 'https://b.test/', 1)]);
+
+  // The mark landed on the tab the user is on (its activation was handled before the mark)
+  await tracker.markOpenedUnvisited(tab(1, 1, 'https://a.test/', 0, true));
+  browser.clock = 2000;
+  await tracker.markActivated(1, 2);
+
+  assert.deepEqual(browser.storedRecord(1), { windowId: 1, url: 'https://a.test/', index: 0, lastUsedAt: 2000, leftAt: 2000 });
+});
+
+test('refresh, a worker restart and a browser restart keep the unvisited mark on its own tab', async () =>
+{
+  const { browser, tracker } = await markerOnly([tab(1, 1, 'https://a.test/', 0, true)]);
+  await tracker.markOpenedUnvisited(tab(2, 1, 'https://b.test/', 1));
+  await tracker.markOpenedUnvisited(tab(3, 1, 'https://c.test/', 2));
+
+  // Tab 3 moved to the front; tab 4 is seen for the first time
+  const moved = browser.open([
+    tab(3, 1, 'https://c.test/', 0),
+    tab(1, 1, 'https://a.test/', 1, true),
+    tab(2, 1, 'https://b.test/', 2),
+    tab(4, 1, 'https://d.test/', 3),
+  ]);
+  await tracker.refresh(moved);
+  assert.equal(browser.storedRecord(3).unvisited, true);
+  assert.equal(browser.storedRecord(3).index, 0);
+  assert.equal(browser.storedRecord(4).unvisited, undefined);
+
+  // Worker restart: same tab IDs
+  const restartedWorker = browser.tracker();
+  await restartedWorker.load(moved);
+  assert.equal(browser.storedRecord(2).unvisited, true);
+  assert.equal(browser.storedRecord(3).unvisited, true);
+  assert.equal(browser.storedRecord(1).unvisited, undefined);
+
+  // Browser restart: new IDs, the marks follow their URL
+  browser.restart();
+  const restartedBrowser = browser.tracker();
+  await restartedBrowser.load(browser.open([
+    tab(10, 5, 'https://c.test/', 0),
+    tab(11, 5, 'https://a.test/', 1, true),
+    tab(12, 5, 'https://b.test/', 2),
+    tab(13, 5, 'https://d.test/', 3),
+  ]));
+  const view = TabActivityView.fromStored(browser.local.data[RECORDS_KEY]);
+  assert.ok(view.isUnvisited(10));
+  assert.ok(view.isUnvisited(12));
+  assert.ok(!view.isUnvisited(11));
+  assert.ok(!view.isUnvisited(13));
+});
+
+test('an unvisited tab\'s record follows its URL from pending URL through redirects; a visited tab\'s record does not', async () =>
+{
+  const { browser, tracker } = await markerOnly([tab(1, 1, 'https://a.test/', 0, true), tab(2, 1, 'https://b.test/', 1)]);
+  await tracker.refresh([tab(1, 1, 'https://a.test/', 0, true), tab(2, 1, 'https://b.test/', 1)]);
+
+  // A new tab has no committed URL yet: its record keeps the pending one, also through a refresh
+  const pending = tab(3, 1, '', 2, false, { pendingUrl: 'https://go.test/?q=x' });
+  await tracker.markOpenedUnvisited(pending);
+  await tracker.refresh([tab(1, 1, 'https://a.test/', 0, true), tab(2, 1, 'https://b.test/', 1), pending]);
+  assert.equal(browser.storedRecord(3).url, 'https://go.test/?q=x');
+
+  // The redirect lands; the visited tab 2 navigates too
+  await tracker.followUrl(tab(3, 1, 'https://result.test/', 2));
+  await tracker.followUrl(tab(2, 1, 'https://b2.test/', 1));
+  assert.deepEqual(browser.storedRecord(3), { windowId: 1, url: 'https://result.test/', index: 2, lastUsedAt: 1000, unvisited: true });
+  assert.equal(browser.storedRecord(2).url, 'https://b.test/');
 });

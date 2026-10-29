@@ -148,14 +148,14 @@ No e2e suite in the project; the UI is checked manually (Post-Completion).
 - Modify: `src/stores/tabActivityTracker.ts`
 - Modify: `tests/tabActivityTracker.test.mjs`
 
-- [ ] add `unvisited` to the stored entry, validation, `toStored`/`fromStored`, `#put`; `pendingUrl` fallback in `#put`; carry `unvisited` in `keptForLiveTabs`, `refreshedForLiveTabs`, `rematchedByUrl`
-- [ ] add `markOpenedUnvisited`, `markVisited`, `followUrl` on the records and the queued tracker methods (no-op while not recording or not attached)
-- [ ] `markActivated` clears the activated tab's `unvisited` outside the previous-tab branch
-- [ ] rename `TabLeftTimes` → `TabActivityView` with `isUnvisited`; update the header comment
-- [ ] write tests: open unvisited → record with `unvisited`, no `leftAt`; not recording / not attached → nothing written
-- [ ] write tests: activation clears it with a known, unknown and closed previous tab; `markLeft` clears it
-- [ ] write tests: `refresh`, worker-restart keep and browser-restart rematch carry it; `followUrl` changes only unvisited records; `pendingUrl` kept as URL; old records without the field load
-- [ ] run `make test` — must pass before task 4
+- [x] add `unvisited` to the stored entry, validation, `toStored`/`fromStored`, `#put`; `pendingUrl` fallback in `#put`; carry `unvisited` in `keptForLiveTabs`, `refreshedForLiveTabs`, `rematchedByUrl`
+- [x] add `markOpenedUnvisited`, `markVisited`, `followUrl` on the records and the queued tracker methods (no-op while not recording or not attached)
+- [x] `markActivated` clears the activated tab's `unvisited` outside the previous-tab branch
+- [x] rename `TabLeftTimes` → `TabActivityView` with `isUnvisited`; update the header comment
+- [x] write tests: open unvisited → record with `unvisited`, no `leftAt`; not recording / not attached → nothing written
+- [x] write tests: activation clears it with a known, unknown and closed previous tab; `markLeft` clears it
+- [x] write tests: `refresh`, worker-restart keep and browser-restart rematch carry it; `followUrl` changes only unvisited records; `pendingUrl` kept as URL; old records without the field load
+- [x] run `make test` — must pass before task 4
 
 ### Task 4: Background events
 

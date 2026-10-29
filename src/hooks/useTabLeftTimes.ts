@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { TabActivityTracker, TabLeftTimes } from '../stores/tabActivityTracker';
+import { TabActivityTracker, TabActivityView } from '../stores/tabActivityTracker';
 import { newerTime } from '../utils/time';
 
 // The stored records as left times; unreadable records give none (the highlight is cosmetic)
-function readLeftTimes(stored: unknown): TabLeftTimes
+function readLeftTimes(stored: unknown): TabActivityView
 {
   try
   {
-    return TabLeftTimes.fromStored(stored);
+    return TabActivityView.fromStored(stored);
   }
   catch (error)
   {
@@ -15,7 +15,7 @@ function readLeftTimes(stored: unknown): TabLeftTimes
     {
       console.warn('[useTabLeftTimes] Unreadable tab activity records:', error);
     }
-    return new TabLeftTimes();
+    return new TabActivityView();
   }
 }
 
@@ -33,10 +33,10 @@ interface TabLeave
  */
 class SidebarTabLeftTimes
 {
-  #stored: TabLeftTimes;
+  #stored: TabActivityView;
   #seenLeave: TabLeave | undefined;
 
-  constructor(stored: TabLeftTimes, seenLeave: TabLeave | undefined)
+  constructor(stored: TabActivityView, seenLeave: TabLeave | undefined)
   {
     this.#stored = stored;
     this.#seenLeave = seenLeave;
@@ -68,7 +68,7 @@ interface SeenActivation
  */
 export function useTabLeftTimes(enabled: boolean, activeTabId: number | undefined): [SidebarTabLeftTimes, boolean]
 {
-  const [stored, setStored] = useState<TabLeftTimes | undefined>(undefined);
+  const [stored, setStored] = useState<TabActivityView | undefined>(undefined);
 
   // Set while rendering, not in an effect, so the first render that shows the left tab as
   // inactive already grades it as just left. A pass without an active tab keeps the last leave
@@ -105,7 +105,7 @@ export function useTabLeftTimes(enabled: boolean, activeTabId: number | undefine
         console.error('[useTabLeftTimes] Failed to read tab activity records:', error);
       }
       // Grade by Chrome's lastAccessed alone rather than not at all
-      if (mounted) setStored(current => current ?? new TabLeftTimes());
+      if (mounted) setStored(current => current ?? new TabActivityView());
     });
 
     return () =>
@@ -119,7 +119,7 @@ export function useTabLeftTimes(enabled: boolean, activeTabId: number | undefine
 
   const { leave } = seen;
   const leftTimes = useMemo(
-    () => new SidebarTabLeftTimes(stored ?? new TabLeftTimes(), leave),
+    () => new SidebarTabLeftTimes(stored ?? new TabActivityView(), leave),
     [stored, leave]
   );
   return [leftTimes, stored !== undefined];
