@@ -36,7 +36,20 @@ export interface SelectedPageContent
 
 export const AI_SETTINGS_STORAGE_KEY = 'sidebar-ai-rename-settings';
 
-export const DEFAULT_AI_PROMPT = `根据提供的网页内容，为这个固定 Tab 或书签生成一个简短、易于扫读的名称。
+export const DEFAULT_AI_PROMPT = `Write a short, easy-to-scan name for this pinned tab or bookmark, based on the page content provided.
+
+Rules:
+- Use the main language of the page content.
+- A Chinese name is usually 4 to 12 characters; an English name is usually 2 to 8 words.
+- Keep the details needed to tell this page apart.
+- Remove repeated site names, marketing copy and meaningless suffixes.
+- No quotes, emoji or trailing punctuation.
+- Don't add words that carry no information, such as "web page", "page" or "website".
+- Return only the name, with no explanation.`;
+
+// The default prompt before it was translated. Saving the AI settings stores the prompt, so
+// profiles that never edited it still hold this text; it is swapped for the current default.
+const LEGACY_DEFAULT_AI_PROMPT = `根据提供的网页内容，为这个固定 Tab 或书签生成一个简短、易于扫读的名称。
 
 要求：
 - 使用网页内容的主要语言。
@@ -87,6 +100,9 @@ export function parseAiRenameSettings(value: string): AiRenameSettings
     protocol,
     reasoningEffort,
     autoRename: parsed.autoRename === true,
+    prompt: parsed.prompt === undefined || parsed.prompt === LEGACY_DEFAULT_AI_PROMPT
+      ? DEFAULT_AI_PROMPT
+      : parsed.prompt,
   };
 }
 
