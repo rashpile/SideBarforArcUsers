@@ -15,10 +15,11 @@ import {
   AUTO_ARCHIVE_ENABLED_AT_KEY,
   autoArchivePeriodMs,
   autoArchiveSwitch,
-  MINUTE_MS,
   parseAutoArchivePeriod,
 } from '../utils/autoArchive';
+import { MINUTE_MS } from '../utils/time';
 import type { AutoArchivePeriod } from '../utils/autoArchive';
+import { isTabActivityRecording, parseTabAgeHighlightStyle, TAB_AGE_HIGHLIGHT_KEY } from '../utils/tabAgeHighlight';
 import {
   SavedPages,
   selectTabsToClose,
@@ -69,11 +70,14 @@ function parseStoredPeriod(value: unknown): AutoArchivePeriod
   return parseAutoArchivePeriod(value, import.meta.env.DEV);
 }
 
-/** The "Archive tabs after" setting as stored. */
-export async function readAutoArchivePeriod(): Promise<AutoArchivePeriod>
+/** Whether the tab activity tracker records last-use times: while auto-archive or the tab age highlight is on. */
+export async function readTabActivityRecording(): Promise<boolean>
 {
-  const result = await chrome.storage.local.get(AUTO_ARCHIVE_AFTER_KEY);
-  return parseStoredPeriod(result[AUTO_ARCHIVE_AFTER_KEY]);
+  const result = await chrome.storage.local.get([AUTO_ARCHIVE_AFTER_KEY, TAB_AGE_HIGHLIGHT_KEY]);
+  return isTabActivityRecording(
+    parseStoredPeriod(result[AUTO_ARCHIVE_AFTER_KEY]),
+    parseTabAgeHighlightStyle(result[TAB_AGE_HIGHLIGHT_KEY])
+  );
 }
 
 /** The tabs auto-archive works on: those of normal windows (popup and app windows never show in the Tab list). */
@@ -162,8 +166,9 @@ export class TabAutoArchiver
 
   /**
    * chrome.storage.onChanged for `autoArchiveAfter`. Switching on from 'never'
-   * starts every tab's clock now; switching to 'never' drops the start time, the
-   * last-use records and the alarm. A change between two periods keeps the start time.
+   * starts every tab's clock now; switching to 'never' drops the start time and
+   * the alarm, and the last-use records unless the tab age highlight still needs
+   * them. A change between two periods keeps the start time.
    */
   handleSettingChange(change: chrome.storage.StorageChange): Promise<void>
   {
@@ -171,18 +176,19 @@ export class TabAutoArchiver
     {
       const switched = autoArchiveSwitch(change, import.meta.env.DEV);
 
-      // Off: forget everything recorded for auto-archive
+      // Off: forget the start time. On: start the clock (grace for records kept for the highlight)
       if (switched === 'off')
       {
         await chrome.storage.local.remove(AUTO_ARCHIVE_ENABLED_AT_KEY);
-        await this.#deps.tracker.clear();
       }
-      // On: start the clock, and let the tracker learn the open tabs and active tab of each window
       else if (switched === 'on')
       {
         await chrome.storage.local.set({ [AUTO_ARCHIVE_ENABLED_AT_KEY]: Date.now() });
-        await this.#deps.tracker.load(await queryOpenTabs());
       }
+
+      // The tracker keeps or drops its records to match both settings, and learns the open
+      // tabs and the active tab of each window when it records
+      if (switched !== 'unchanged') await this.#deps.tracker.load(await queryOpenTabs());
       await this.#syncAlarm(parseStoredPeriod(change.newValue));
     });
   }

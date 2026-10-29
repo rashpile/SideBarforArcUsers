@@ -15,8 +15,9 @@ import { findParkedReplacementTab, getEffectiveTabUrl, parseParkedTabUrl } from 
 import { BookmarkRecencyStore } from './stores/bookmarkRecencyStore';
 import { BrowserSessionMarker } from './stores/browserSessionMarker';
 import { TabActivityTracker } from './stores/tabActivityTracker';
-import { queryOpenTabs, readAutoArchivePeriod, TabAutoArchiver } from './services/tabAutoArchiver';
+import { queryOpenTabs, readTabActivityRecording, TabAutoArchiver } from './services/tabAutoArchiver';
 import { AUTO_ARCHIVE_AFTER_KEY } from './utils/autoArchive';
+import { TAB_AGE_HIGHLIGHT_KEY } from './utils/tabAgeHighlight';
 import { KeyboardSwitcher, parseSwitcherCommand } from './services/keyboardSwitcher';
 import { buildSpaceCards, buildTabCards, findLastUsedTab, WindowSpaces } from './services/switcherLists';
 import { SwitcherMessageAction } from './utils/switcherMessages';
@@ -225,8 +226,8 @@ const bookmarkSpaceResolver = new BookmarkSpaceResolver(
   () => spaceManager.getSpaces(),
 );
 const newsVersionChecker = new NewsVersionChecker();
-// Last-use time of every tab, for auto-archive (feature 035). Background is the only writer;
-// nothing is recorded while "Archive tabs after" is Never.
+// Last-use time of every tab, for auto-archive (feature 035) and the Tab list's age highlight
+// (feature 036). Background is the only writer; nothing is recorded while both are off.
 const tabActivityTracker = new TabActivityTracker({
   local: {
     get: (key) => chrome.storage.local.get(key),
@@ -238,7 +239,7 @@ const tabActivityTracker = new TabActivityTracker({
     set: (values) => chrome.storage.session.set(values),
     remove: (key) => chrome.storage.session.remove(key),
   },
-  isRecording: async () => await readAutoArchivePeriod() !== 'never',
+  isRecording: readTabActivityRecording,
   getTab: (tabId) => chrome.tabs.get(tabId).catch(() => undefined),
 });
 
@@ -331,9 +332,9 @@ async function detachLegacySpaceGroups(): Promise<void>
   ]);
 }
 
-// Attach the stored last-use records to the open tabs (or drop them while auto-archive is off).
-// A failure here doesn't hold up the other managers: the tracker then refuses to refresh,
-// and no tab is auto-archived.
+// Attach the stored last-use records to the open tabs (or drop them while auto-archive and the
+// tab age highlight are both off). A failure here doesn't hold up the other managers: the
+// tracker then refuses to refresh, and no tab is auto-archived.
 async function loadTabActivity(): Promise<void>
 {
   try
@@ -345,6 +346,13 @@ async function loadTabActivity(): Promise<void>
     console.error('[TabActivityTracker] failed to query tabs for load:', error);
   }
 }
+
+// Switching the tab age highlight (feature 036) on or off starts recording, or drops the records when
+// auto-archive doesn't need them either. A change between two looks reloads harmlessly.
+chrome.storage.onChanged.addListener((changes, areaName) =>
+{
+  if (areaName === 'local' && changes[TAB_AGE_HIGHLIGHT_KEY]) void loadTabActivity();
+});
 
 // Tells a worker restart (stored tab and window IDs are exact) from a browser restart or an
 // extension reload/update (stored IDs may now belong to other tabs) for the startup restore below
@@ -478,7 +486,7 @@ chrome.alarms.onAlarm.addListener((alarm) =>
 });
 
 // Switching the setting on starts every tab's clock and the alarm; switching it off stops the
-// alarm and drops the last-use records
+// alarm and drops the last-use records unless the tab age highlight still needs them
 chrome.storage.onChanged.addListener((changes, areaName) =>
 {
   const change = changes[AUTO_ARCHIVE_AFTER_KEY];
@@ -709,7 +717,7 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) =>
 
   if (!removeInfo.isWindowClosing)
   {
-    // A closed window's records are dropped by the next auto-archive run instead
+    // A closed window's records are dropped by the next auto-archive run or worker start instead
     tabActivityTracker.forget(tabId)
       .catch((error) => console.error('[TabActivityTracker] failed to forget closed tab:', error));
 

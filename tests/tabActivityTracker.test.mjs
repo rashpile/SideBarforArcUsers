@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { TabActivityTracker } from '../src/stores/tabActivityTracker.ts';
+import { TabActivityTracker, TabLeftTimes } from '../src/stores/tabActivityTracker.ts';
+import { isTabActivityRecording } from '../src/utils/tabAgeHighlight.ts';
 
 const RECORDS_KEY = TabActivityTracker.RECORDS_KEY;
 const ACTIVE_TABS_KEY = TabActivityTracker.ACTIVE_TABS_KEY;
@@ -34,7 +35,9 @@ class Browser
   local = new MemoryStorage();
   session = new MemoryStorage();
   clock = 1000;
-  recording = true;
+  // The two settings the background records for
+  autoArchivePeriod = '12h';
+  tabAgeHighlight = 'white';
   #openTabs = new Map();
 
   // A fresh tracker instance, as after a service-worker restart
@@ -43,7 +46,7 @@ class Browser
     return new TabActivityTracker({
       local: this.local,
       session: this.session,
-      isRecording: async () => this.recording,
+      isRecording: async () => isTabActivityRecording(this.autoArchivePeriod, this.tabAgeHighlight),
       getTab: async (tabId) => this.#openTabs.get(tabId),
       now: () => this.clock,
     });
@@ -69,6 +72,11 @@ class Browser
   storedLastUsedAt(tabId)
   {
     return this.storedRecord(tabId)?.lastUsedAt;
+  }
+
+  storedLeftAt(tabId)
+  {
+    return this.storedRecord(tabId)?.leftAt;
   }
 }
 
@@ -223,7 +231,7 @@ test('leaving a tab records its current page, also for a tab without a record; a
   browser.clock = 4000;
   await tracker.markActivated(1, 2);
 
-  assert.deepEqual(browser.storedRecord(1), { windowId: 1, url: 'https://a2.test/', index: 0, lastUsedAt: 3000 });
+  assert.deepEqual(browser.storedRecord(1), { windowId: 1, url: 'https://a2.test/', index: 0, lastUsedAt: 3000, leftAt: 3000 });
   assert.equal(browser.storedLastUsedAt(3), 4000);
 
   // Tab 2 closed before its activation event was handled
@@ -297,6 +305,87 @@ test('after a browser restart tabs on a URL shared by several records get the ne
   assert.equal(activity.lastUsedAt(4), 5000);
 });
 
+test('only leaving a tab sets leftAt; refresh keeps it, also for a tab in use again, and never invents one', async () =>
+{
+  const browser = new Browser();
+  const tracker = browser.tracker();
+  const tabs = browser.open([
+    tab(1, 1, 'https://a.test/', 0, true),
+    tab(2, 1, 'https://b.test/', 1),
+    tab(3, 1, 'https://music.test/', 2, false, { audible: true }),
+  ]);
+  await tracker.load(tabs);
+  await tracker.refresh(tabs);
+
+  browser.clock = 5000;
+  await tracker.markActivated(1, 2);
+  assert.equal(browser.storedLeftAt(1), 5000);
+  assert.equal(browser.storedLeftAt(2), undefined);
+
+  // Tab 1 now plays audio (its auto-archive clock restarts); tab 4 is seen for the first time
+  browser.clock = 9000;
+  await tracker.refresh([
+    tab(1, 1, 'https://a.test/', 0, false, { audible: true }),
+    tab(2, 1, 'https://b.test/', 1, true),
+    tab(3, 1, 'https://music.test/', 2, false, { audible: true }),
+    tab(4, 1, 'https://d.test/', 3),
+  ]);
+  assert.equal(browser.storedLastUsedAt(1), 9000);
+  assert.equal(browser.storedLeftAt(1), 5000);
+  assert.equal(browser.storedLeftAt(2), undefined);
+  assert.equal(browser.storedLeftAt(3), undefined);
+  assert.deepEqual(browser.storedRecord(4), { windowId: 1, url: 'https://d.test/', index: 3, lastUsedAt: 9000 });
+});
+
+test('after a browser restart records stored without leftAt still load, and tabs on a shared URL keep their own leftAt', async () =>
+{
+  const browser = new Browser();
+  // home.test stored before leftAt existed; mail.test open in two windows, left at different times
+  browser.local.data[RECORDS_KEY] = {
+    1: { windowId: 1, url: 'https://home.test/', index: 0, lastUsedAt: 100 },
+    2: { windowId: 1, url: 'https://mail.test/', index: 1, lastUsedAt: 300, leftAt: 300 },
+    3: { windowId: 2, url: 'https://mail.test/', index: 1, lastUsedAt: 500, leftAt: 200 },
+  };
+
+  // No session marker: a new browser session, the tabs came back with new IDs
+  browser.clock = 9000;
+  const tracker = browser.tracker();
+  await tracker.load([
+    tab(7, 10, 'https://home.test/', 0, true),
+    tab(8, 10, 'https://mail.test/', 1),
+    tab(9, 11, 'https://mail.test/', 1, true),
+  ]);
+
+  // Auto-archive judges both copies by the newest last use; the highlight keeps each copy's own leave
+  assert.deepEqual(browser.storedRecord(7), { windowId: 10, url: 'https://home.test/', index: 0, lastUsedAt: 100 });
+  assert.equal(browser.storedLastUsedAt(8), 500);
+  assert.equal(browser.storedLastUsedAt(9), 500);
+  assert.equal(browser.storedLeftAt(8), 300);
+  assert.equal(browser.storedLeftAt(9), 200);
+
+  const leftTimes = TabLeftTimes.fromStored(browser.local.data[RECORDS_KEY]);
+  assert.equal(leftTimes.leftAt(8), 300);
+  assert.equal(leftTimes.leftAt(7), undefined);
+});
+
+test('TabLeftTimes refuses unreadable records, as the tracker does', () =>
+{
+  // One entry whose leftAt is not a number spoils the valid one next to it
+  const unreadableValues = [
+    {
+      1: { windowId: 1, url: 'https://a.test/', index: 0, lastUsedAt: 1, leftAt: 1 },
+      2: { windowId: 1, url: 'https://b.test/', index: 1, lastUsedAt: 1, leftAt: 'yesterday' },
+    },
+    '{not json',
+    null,
+  ];
+  for (const stored of unreadableValues)
+  {
+    assert.throws(() => TabLeftTimes.fromStored(stored));
+  }
+  assert.equal(TabLeftTimes.fromStored(undefined).leftAt(1), undefined);
+});
+
 test('incognito tabs are never recorded', async () =>
 {
   const browser = new Browser();
@@ -314,29 +403,47 @@ test('incognito tabs are never recorded', async () =>
   assert.ok(!JSON.stringify(browser.local.data).includes('secret.test'));
 });
 
-test('switching to Never drops every record and records nothing until switched on again', async () =>
+test('records are kept while auto-archive or the highlight is on; with both off they are dropped and nothing is recorded until one is on again', async () =>
 {
   const browser = new Browser();
+  browser.tabAgeHighlight = 'off';
   const tracker = browser.tracker();
   const tabs = browser.open([tab(1, 1, 'https://a.test/', 0, true), tab(2, 1, 'https://b.test/', 1)]);
   await tracker.load(tabs);
   await tracker.refresh(tabs);
   assert.equal(browser.storedLastUsedAt(2), 1000);
 
-  browser.recording = false;
-  await tracker.clear();
+  // Auto-archive switched to Never with the highlight on: the archiver reloads, the records stay
+  // and leaving a tab is still recorded
+  browser.autoArchivePeriod = 'never';
+  browser.tabAgeHighlight = 'white';
+  await tracker.load(tabs);
+  assert.equal(browser.storedLastUsedAt(2), 1000);
+  browser.clock = 2000;
   await tracker.markActivated(1, 2);
+  assert.equal(browser.storedLeftAt(1), 2000);
+
+  // A look change (or a worker restart) reloads: leftAt stays as it is and none is invented
+  browser.tabAgeHighlight = 'accent';
+  await tracker.load(tabs);
+  assert.equal(browser.storedLeftAt(1), 2000);
+  assert.equal(browser.storedLeftAt(2), undefined);
+
+  // The highlight switched off too: the background reloads, everything is dropped
+  browser.tabAgeHighlight = 'off';
+  await tracker.load(tabs);
+  await tracker.markActivated(1, 1);
   assert.ok(!(RECORDS_KEY in browser.local.data));
   assert.ok(!(ACTIVE_TABS_KEY in browser.session.data));
 
-  // A worker start while off drops records left from before
+  // A worker start while both are off drops records left from before
   browser.local.data[RECORDS_KEY] = { 2: { windowId: 1, url: 'https://b.test/', index: 1, lastUsedAt: 1 } };
   const restarted = browser.tracker();
   await restarted.load(tabs);
   assert.ok(!(RECORDS_KEY in browser.local.data));
 
-  // Switched on again: the archiver loads the open tabs, every clock starts now
-  browser.recording = true;
+  // Auto-archive switched on again: the archiver loads the open tabs, every clock starts now
+  browser.autoArchivePeriod = '12h';
   browser.clock = 5000;
   await restarted.load(tabs);
   const activity = await restarted.refresh(tabs);

@@ -65,7 +65,7 @@ const RAW_COLORS: Record<string, RawColor> = {
 };
 
 // Build a GROUP_COLORS entry from raw color data.
-// bgLightHex and accentDarkHex are exposed for programmatic use by getSpaceBgColor.
+// bgLightHex and accentDarkHex are exposed for programmatic color math.
 const buildGroupColor = (c: RawColor) => ({
   bg:         `bg-[${c.bgHex}] dark:bg-[${c.bgDarkTintHex}]/${c.bgDarkOpacity}`,
   bgStrong:   `bg-[${c.bgStrongHex}] dark:bg-[${c.bgDarkTintHex}]/${c.bgDarkOpacity + 10}`,
@@ -173,14 +173,23 @@ export const getHexColorStyle = (hex: string): HexColorStyle =>
 // Space background color
 // =============================================================================
 
+// The Space's accent hex: dark mode's lighter accent or light mode's stronger
+// one for a Chrome color name, the colour itself for a hex, grey otherwise.
+const spaceAccentHex = (color: string, isDark: boolean): string =>
+{
+  const raw = RAW_COLORS[color];
+  if (!raw) return isValidHex(color) ? color : RAW_COLORS.grey.accentDarkHex;
+  return isDark ? raw.accentDarkHex : raw.accentLightHex;
+};
+
 // Returns a CSS color for the sidebar background.
 // alpha: 0-1, where 1.0 = full intensity (user-facing 100%).
 //
 // Arc 的 Space 背景只保留轻微色相。这里限制最大混合比例，避免用户把强度
 // 调到 100% 后出现大面积高饱和色，同时继续尊重原有的强度设置。
 export const getSpaceBgColor = (color: string, isDark: boolean, alpha: number = 1): string => {
-  const accentHex = GROUP_COLORS[color]?.accentDarkHex ?? (isValidHex(color) ? color : '#BDC1C6');
-  const [aR, aG, aB] = hexToRgb(accentHex);
+  // The lighter (dark mode) accent in both modes: it is blended into the background
+  const [aR, aG, aB] = hexToRgb(spaceAccentHex(color, true));
 
   if (isDark) {
     const blend = 0.18 * alpha;
@@ -195,6 +204,12 @@ export const getSpaceBgColor = (color: string, isDark: boolean, alpha: number = 
     return `rgb(${Math.round(255 + (aR - 255) * blend)}, ${Math.round(255 + (aG - 255) * blend)}, ${Math.round(255 + (aB - 255) * blend)})`;
   }
 };
+
+// Returns the Space's accent as an "r, g, b" triplet for rgba(var(--x), a) in
+// CSS (the tab age highlight's Accent and Trail looks). Light mode takes the
+// stronger accent, dark mode the lighter one, like the group badges.
+export const getSpaceAccentRgb = (color: string, isDark: boolean): string =>
+  hexToRgb(spaceAccentHex(color, isDark)).join(', ');
 
 // =============================================================================
 // Tailwind JIT safelist

@@ -29,7 +29,7 @@ import { UnifiedDndProvider } from './contexts/UnifiedDndContext';
 import { UnifiedDragOverlay } from './components/UnifiedDragOverlay';
 import { SpaceDialogs } from './components/SpaceDialogs';
 import { useFontSize } from './contexts/FontSizeContext';
-import { getSpaceBgColor } from './utils/groupColors';
+import { getSpaceBgColor, getSpaceAccentRgb } from './utils/groupColors';
 import { Settings, Info, Upload, Download, RefreshCw, Undo2, Sparkles, Newspaper, Mail, Heart } from 'lucide-react';
 import { SectionHeader } from './components/SectionHeader';
 import { SpaceContextMenuContent } from './components/SpaceContextMenuContent';
@@ -38,6 +38,7 @@ import { lastAudibleTrackerProxy } from './managers/proxies/lastAudibleTrackerPr
 import { useFollowActiveTab } from './hooks/useFollowActiveTab';
 import { FollowActiveTabMode, FOLLOW_ACTIVE_TAB_KEY, DEFAULT_FOLLOW_ACTIVE_TAB_MODE, parseFollowActiveTabMode } from './utils/followActiveTab';
 import { AutoArchivePeriod, AUTO_ARCHIVE_AFTER_KEY, DEFAULT_AUTO_ARCHIVE_PERIOD, parseAutoArchivePeriod } from './utils/autoArchive';
+import { TabAgeHighlightStyle, TAB_AGE_HIGHLIGHT_KEY, DEFAULT_TAB_AGE_HIGHLIGHT_STYLE, parseTabAgeHighlightStyle } from './utils/tabAgeHighlight';
 import * as DropdownMenu from './components/menu/DropdownMenu';
 import {
   AI_SETTINGS_STORAGE_KEY,
@@ -96,6 +97,7 @@ interface SidebarContentProps
   sectionCollapseState: SectionCollapseState;
   // Toggle for section headers rendered in the scroll area (the Archive section); undefined while filtering
   onToggleSection?: ToggleSection;
+  highlightTabAge: boolean;  // "Highlight tabs by last use" is on (any look)
 }
 
 // Storage key for scroll position per space per window
@@ -123,6 +125,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
   onBookmarkCreated,
   sectionCollapseState,
   onToggleSection,
+  highlightTabAge,
 }) =>
 {
   const { spaces, activeSpace, activeSpaceId, windowId, getSpaceSwitchSource } = useSpacesContext();
@@ -255,6 +258,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
         onSpaceDropTargetChange={onSpaceDropTargetChange}
         onPerformAction={onPerformAction}
         onBookmarkCreated={onBookmarkCreated}
+        highlightTabAge={highlightTabAge}
       />
     </div>
   );
@@ -563,10 +567,11 @@ interface AppContainerProps
   spaceColorAlpha: number;  // 1-100 percent
   fontSize: number;
   followActiveTab: FollowActiveTabMode;
+  tabAgeHighlight: TabAgeHighlightStyle;
   children: React.ReactNode;
 }
 
-const AppContainer: React.FC<AppContainerProps> = ({ useSpaceColor, spaceColorAlpha, fontSize, followActiveTab, children }) =>
+const AppContainer: React.FC<AppContainerProps> = ({ useSpaceColor, spaceColorAlpha, fontSize, followActiveTab, tabAgeHighlight, children }) =>
 {
   const { activeSpace } = useSpacesContext();
   useFollowActiveTab(followActiveTab);
@@ -606,9 +611,14 @@ const AppContainer: React.FC<AppContainerProps> = ({ useSpaceColor, spaceColorAl
   const spaceBgColor = applySpaceColor
     ? getSpaceBgColor(activeSpace.color, isDark, spaceColorAlpha / 100)
     : null;
-  // --arc-sidebar-bg lets row hover actions repaint the sidebar colour (see index.css)
+  // --arc-sidebar-bg lets row hover actions repaint the sidebar colour (see index.css);
+  // --arc-tab-age-accent tints the Accent and Trail tab age looks (theme violet otherwise)
   const bgStyle = spaceBgColor
-    ? { backgroundColor: spaceBgColor, '--arc-sidebar-bg': spaceBgColor } as React.CSSProperties
+    ? {
+        backgroundColor: spaceBgColor,
+        '--arc-sidebar-bg': spaceBgColor,
+        '--arc-tab-age-accent': getSpaceAccentRgb(activeSpace.color, isDark),
+      } as React.CSSProperties
     : {};
   const bgClass = applySpaceColor ? '' : 'arc-neutral-background';
 
@@ -616,6 +626,7 @@ const AppContainer: React.FC<AppContainerProps> = ({ useSpaceColor, spaceColorAl
     <div
       className={`arc-theme relative flex flex-col h-screen ${bgClass} text-gray-900 dark:text-gray-100 overflow-hidden`}
       style={{ fontSize: `${fontSize}px`, ...bgStyle }}
+      data-tab-age-style={tabAgeHighlight === 'off' ? undefined : tabAgeHighlight}
     >
       {children}
     </div>
@@ -704,6 +715,14 @@ function App() {
     DEFAULT_AUTO_ARCHIVE_PERIOD,
     { parse: (v) => parseAutoArchivePeriod(v, import.meta.env.DEV), serialize: (v) => v }
   );
+  // Raw string, not JSON: background.ts reads it to decide whether to record tab last-use times
+  const [tabAgeHighlight, setTabAgeHighlight, tabAgeHighlightLoaded] = useChromeLocalStorage<TabAgeHighlightStyle>(
+    TAB_AGE_HIGHLIGHT_KEY,
+    DEFAULT_TAB_AGE_HIGHLIGHT_STYLE,
+    { parse: parseTabAgeHighlightStyle, serialize: (v) => v }
+  );
+  // Off until the stored look is known, so a sidebar opening doesn't flash the default look
+  const shownTabAgeHighlight: TabAgeHighlightStyle = tabAgeHighlightLoaded ? tabAgeHighlight : 'off';
   const [aiSettings, setAiSettings] = useChromeLocalStorage<AiRenameSettings>(
     AI_SETTINGS_STORAGE_KEY,
     DEFAULT_AI_RENAME_SETTINGS,
@@ -849,6 +868,7 @@ function App() {
     setSpaceColorAlpha(newSettings.spaceColorAlpha);
     setFollowActiveTab(newSettings.followActiveTab);
     setAutoArchiveAfter(newSettings.autoArchiveAfter);
+    setTabAgeHighlight(newSettings.tabAgeHighlight);
     setAiSettings(newSettings.aiSettings);
     setShowSettings(false);
   };
@@ -1237,7 +1257,7 @@ function App() {
       <SpacesProvider>
       <SelectionProvider>
       <UnifiedDndProvider>
-      <AppContainer useSpaceColor={useSpaceColor} spaceColorAlpha={spaceColorAlpha} fontSize={fontSize} followActiveTab={followActiveTab}>
+      <AppContainer useSpaceColor={useSpaceColor} spaceColorAlpha={spaceColorAlpha} fontSize={fontSize} followActiveTab={followActiveTab} tabAgeHighlight={shownTabAgeHighlight}>
       <Suspense fallback={null}>
         {showSettings && (
           <SettingsDialog
@@ -1255,6 +1275,7 @@ function App() {
               spaceColorAlpha,
               followActiveTab,
               autoArchiveAfter,
+              tabAgeHighlight,
               aiSettings,
             }}
             onApply={handleApplySettings}
@@ -1547,6 +1568,7 @@ function App() {
         onBookmarkCreated={handleBookmarkCreated}
         sectionCollapseState={sectionCollapseState}
         onToggleSection={toggleShownSection}
+        highlightTabAge={shownTabAgeHighlight !== 'off'}
       />
 
       {/* Space Dialogs */}

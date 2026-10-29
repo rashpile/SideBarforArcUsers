@@ -20,6 +20,8 @@ html, body, #root {
   --arc-surface-hover: rgba(255, 255, 255, 0.34);
   --arc-surface-active: rgba(255, 255, 255, 0.72);
   --arc-shadow: 0 1px 2px rgba(41, 35, 76, 0.07), 0 3px 10px rgba(41, 35, 76, 0.07);
+  /* r, g, b of the tab age Accent and Trail looks; App sets the Space accent when the Space colour is applied */
+  --arc-tab-age-accent: 106, 90, 205;
   color: var(--arc-text);
   -webkit-font-smoothing: antialiased;
   text-rendering: geometricPrecision;
@@ -235,6 +237,101 @@ html, body, #root {
     var(--arc-sidebar-bg, transparent);
 }
 
+/*
+ * Tab age highlight (feature 036, Settings: "Highlight tabs by last use").
+ * TabList gives a regular tab row data-tab-age, 0 (left within 1 min) to 3
+ * (within 3 h); older tabs, the active row and selected rows get none.
+ * data-tab-age-style on the theme root picks the look, which fills a colour
+ * table per grade, --arc-tab-age-0..3; the grade rules set the Trail's length.
+ * The highlight is a background-image, so a tab group's colour (a Tailwind
+ * background-color) stays underneath.
+ */
+
+/* White: a white wash, like a fainter active row */
+.arc-theme[data-tab-age-style="white"] {
+  --arc-tab-age-0: rgba(255, 255, 255, 0.62);
+  --arc-tab-age-1: rgba(255, 255, 255, 0.40);
+  --arc-tab-age-2: rgba(255, 255, 255, 0.24);
+  --arc-tab-age-3: rgba(255, 255, 255, 0.12);
+}
+
+/* Accent: one colour, fading */
+.arc-theme[data-tab-age-style="accent"] {
+  --arc-tab-age-0: rgba(var(--arc-tab-age-accent), 0.36);
+  --arc-tab-age-1: rgba(var(--arc-tab-age-accent), 0.24);
+  --arc-tab-age-2: rgba(var(--arc-tab-age-accent), 0.14);
+  --arc-tab-age-3: rgba(var(--arc-tab-age-accent), 0.07);
+}
+
+/* Cooling: orange, yellow, green, blue */
+.arc-theme[data-tab-age-style="cooling"] {
+  --arc-tab-age-0: hsla(24, 95%, 55%, 0.36);
+  --arc-tab-age-1: hsla(50, 92%, 48%, 0.27);
+  --arc-tab-age-2: hsla(160, 55%, 42%, 0.19);
+  --arc-tab-age-3: hsla(220, 60%, 58%, 0.11);
+}
+
+/* Trail: a left gradient whose strength and length show freshness */
+.arc-theme[data-tab-age-style="trail"] {
+  --arc-tab-age-0: rgba(var(--arc-tab-age-accent), 0.38);
+  --arc-tab-age-1: rgba(var(--arc-tab-age-accent), 0.32);
+  --arc-tab-age-2: rgba(var(--arc-tab-age-accent), 0.26);
+  --arc-tab-age-3: rgba(var(--arc-tab-age-accent), 0.20);
+}
+
+/* Each grade picks its colour; --arc-tab-age-length is the Trail's length, the same in every theme */
+.arc-tree-row[data-tab-age="0"] {
+  --arc-tab-age-color: var(--arc-tab-age-0);
+  --arc-tab-age-length: 100%;
+}
+
+.arc-tree-row[data-tab-age="1"] {
+  --arc-tab-age-color: var(--arc-tab-age-1);
+  --arc-tab-age-length: 70%;
+}
+
+.arc-tree-row[data-tab-age="2"] {
+  --arc-tab-age-color: var(--arc-tab-age-2);
+  --arc-tab-age-length: 45%;
+}
+
+.arc-tree-row[data-tab-age="3"] {
+  --arc-tab-age-color: var(--arc-tab-age-3);
+  --arc-tab-age-length: 20%;
+}
+
+/* Out-ranks hover's background shorthand, which would reset background-image */
+.arc-theme[data-tab-age-style] .arc-tree-row[data-tab-age] {
+  background-image: linear-gradient(var(--arc-tab-age-color), var(--arc-tab-age-color));
+}
+
+.arc-theme[data-tab-age-style="trail"] .arc-tree-row[data-tab-age] {
+  background-image: linear-gradient(90deg, var(--arc-tab-age-color) 0%, rgba(var(--arc-tab-age-accent), 0) var(--arc-tab-age-length));
+}
+
+/*
+ * Hover lies over the highlight as an inset overlay. Its colour drops out of the
+ * background, which would show through the highlight and double the overlay.
+ * The 100px spread is more than half of any row's height, so it fills the row.
+ */
+.arc-theme[data-tab-age-style] .arc-tree-row-hoverable[data-tab-age]:hover {
+  background-color: transparent;
+  box-shadow: inset 0 0 0 100px var(--arc-row-overlay);
+}
+
+/* White on the light base: a white hover would vanish into the wash, so it darkens the row a little */
+.arc-theme[data-tab-age-style="white"] .arc-tree-row-hoverable[data-tab-age]:hover {
+  --arc-row-overlay: rgba(41, 35, 76, 0.035);
+}
+
+/* Hover actions repaint the highlight too; Trail has faded out at the right end, where they sit */
+.arc-theme[data-tab-age-style]:not([data-tab-age-style="trail"]) .arc-tree-row[data-tab-age] .arc-tree-row-actions button:not(:hover) {
+  background:
+    linear-gradient(var(--arc-row-overlay), var(--arc-row-overlay)),
+    linear-gradient(var(--arc-tab-age-color), var(--arc-tab-age-color)),
+    var(--arc-sidebar-bg, transparent);
+}
+
 .arc-space-root-drop-target {
   min-height: 10px;
 }
@@ -322,6 +419,7 @@ html, body, #root {
     --arc-surface-hover: rgba(255, 255, 255, 0.10);
     --arc-surface-active: rgba(255, 255, 255, 0.14);
     --arc-shadow: 0 1px 2px rgba(0, 0, 0, 0.24), 0 6px 18px rgba(0, 0, 0, 0.20);
+    --arc-tab-age-accent: 165, 155, 255;
   }
 
   .arc-neutral-background {
@@ -341,9 +439,62 @@ html, body, #root {
     --arc-row-overlay: rgba(255, 255, 255, 0.07);
   }
 
+  /* Active tab and bookmark rows stay softer than the shared active surface on the dark
+     base. Before the selected rule, so a selected active row still looks selected. */
+  .arc-tree-row-active,
+  .arc-tree-row[data-active="true"] {
+    --arc-row-overlay: rgba(255, 255, 255, 0.10);
+  }
+
   .arc-tree-row-selected,
   .arc-tree-row[data-selected="true"] {
     --arc-row-overlay: rgba(255, 255, 255, 0.20);
+  }
+
+  /* Expanded folders and the folder showing the active bookmark: the light-theme washes
+     (0.22, 0.18) would outshine the active row here */
+  .arc-tree-row[data-is-folder="true"][data-expanded="true"] {
+    --arc-row-overlay: rgba(255, 255, 255, 0.05);
+  }
+
+  .arc-tree-row[data-has-active-peek="true"] {
+    --arc-row-overlay: rgba(255, 255, 255, 0.06);
+  }
+
+  /* Tab age looks on the dark base: kept subtle so highlighted rows don't outshine the
+     plain ones, and White's grade 0 stays below the active row's 0.10 */
+  .arc-theme[data-tab-age-style="white"] {
+    --arc-tab-age-0: rgba(255, 255, 255, 0.07);
+    --arc-tab-age-1: rgba(255, 255, 255, 0.05);
+    --arc-tab-age-2: rgba(255, 255, 255, 0.033);
+    --arc-tab-age-3: rgba(255, 255, 255, 0.018);
+  }
+
+  .arc-theme[data-tab-age-style="accent"] {
+    --arc-tab-age-0: rgba(var(--arc-tab-age-accent), 0.29);
+    --arc-tab-age-1: rgba(var(--arc-tab-age-accent), 0.20);
+    --arc-tab-age-2: rgba(var(--arc-tab-age-accent), 0.12);
+    --arc-tab-age-3: rgba(var(--arc-tab-age-accent), 0.06);
+  }
+
+  .arc-theme[data-tab-age-style="cooling"] {
+    --arc-tab-age-0: hsla(24, 95%, 55%, 0.31);
+    --arc-tab-age-1: hsla(50, 92%, 48%, 0.23);
+    --arc-tab-age-2: hsla(160, 55%, 42%, 0.16);
+    --arc-tab-age-3: hsla(220, 60%, 58%, 0.09);
+  }
+
+  .arc-theme[data-tab-age-style="trail"] {
+    --arc-tab-age-0: rgba(var(--arc-tab-age-accent), 0.33);
+    --arc-tab-age-1: rgba(var(--arc-tab-age-accent), 0.27);
+    --arc-tab-age-2: rgba(var(--arc-tab-age-accent), 0.22);
+    --arc-tab-age-3: rgba(var(--arc-tab-age-accent), 0.17);
+  }
+
+  /* The dark White wash is faint enough for the usual light hover: keep this equal to the
+     dark .arc-tree-row-hoverable:hover overlay above */
+  .arc-theme[data-tab-age-style="white"] .arc-tree-row-hoverable[data-tab-age]:hover {
+    --arc-row-overlay: rgba(255, 255, 255, 0.07);
   }
 }
 

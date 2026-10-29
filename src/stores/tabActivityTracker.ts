@@ -1,8 +1,15 @@
-// TabActivityTracker - last-use time of every tab, for auto-archive (feature 035).
+// TabActivityTracker - last-use time of every tab, for auto-archive (feature 035)
+// and the Tab list's age highlight (feature 036).
 //
 // "Last use" is the moment a tab stopped being active. Chrome's tab.lastAccessed
 // holds the moment it became active, so the background records deactivations
 // itself: onActivated -> markActivated stamps the window's previously active tab.
+//
+// Each record holds two times. lastUsedAt is what auto-archive judges by: refresh
+// also starts it for first-seen tabs and tabs in use. leftAt is stamped only when
+// the user leaves the tab, so the highlight never shows a tab as fresh just
+// because the tracker first saw it or it plays audio; the sidebar reads it
+// through TabLeftTimes.
 //
 // The service worker usually wakes up *on* the onActivated event, when neither
 // memory nor a fresh query can tell which tab was active before. The active tab
@@ -10,8 +17,9 @@
 // restarts, cleared with the browser session); the last-use records are kept in
 // chrome.storage.local so they survive browser restarts too.
 //
-// Nothing is recorded while "Archive tabs after" is Never: switching it off drops
-// every record, and a worker start with the setting off drops leftovers.
+// Records are kept while auto-archive or the tab age highlight is on
+// (isTabActivityRecording). With both off nothing is recorded: switching the
+// second one off drops every record, and so does a worker start with both off.
 //
 // background.ts is the only writer. Every change is a read-modify-write of the
 // stored data, serialized so concurrent events don't drop entries. Incognito
@@ -50,7 +58,7 @@ export interface TabActivityTrackerOptions
 {
   local: TabActivityStorageArea;
   session: TabActivityStorageArea;
-  /** True while "Archive tabs after" is set to a period; nothing is recorded otherwise. */
+  /** True while auto-archive or the tab age highlight is on; nothing is recorded otherwise. */
   isRecording: () => Promise<boolean>;
   /** The tab as it is now; undefined once it is closed. */
   getTab: (tabId: number) => Promise<TrackedTabLike | undefined>;
@@ -61,6 +69,8 @@ export interface TabActivityTrackerOptions
 interface TabUseRecord extends StoredTabRecord
 {
   lastUsedAt: number;
+  /** When the user last left the tab; undefined until the tracker sees that happen. */
+  leftAt?: number;
 }
 
 /** Stored form of a record; the tab ID is the key it is stored under. */
@@ -88,7 +98,24 @@ function isStoredTabUse(value: unknown): value is StoredTabUse
     && Number.isFinite(value.windowId)
     && typeof value.url === 'string'
     && Number.isFinite(value.index)
-    && Number.isFinite(value.lastUsedAt);
+    && Number.isFinite(value.lastUsedAt)
+    && (value.leftAt === undefined || Number.isFinite(value.leftAt));
+}
+
+/** The newest of the times seen per URL. */
+class NewestTimeByUrl
+{
+  #byUrl = new Map<string, number>();
+
+  add(url: string, time: number): void
+  {
+    this.#byUrl.set(url, Math.max(time, this.#byUrl.get(url) ?? time));
+  }
+
+  newest(url: string): number | undefined
+  {
+    return this.#byUrl.get(url);
+  }
 }
 
 /** Last-use records keyed by tab ID. */
@@ -111,8 +138,8 @@ class TabUseRecords implements TabLastUseTimes
       {
         throw new Error(`malformed record for tab "${key}"`);
       }
-      const { windowId, url, index, lastUsedAt } = entry;
-      records.#byTabId.set(tabId, { tabId, windowId, url, index, lastUsedAt });
+      const { windowId, url, index, lastUsedAt, leftAt } = entry;
+      records.#byTabId.set(tabId, { tabId, windowId, url, index, lastUsedAt, leftAt });
     }
     return records;
   }
@@ -121,10 +148,12 @@ class TabUseRecords implements TabLastUseTimes
   {
     const stored: Record<string, StoredTabUse> = {};
 
-    // Key each record by its tab ID
-    for (const { tabId, windowId, url, index, lastUsedAt } of this.#byTabId.values())
+    // Key each record by its tab ID; leftAt only once the user has left the tab
+    for (const { tabId, windowId, url, index, lastUsedAt, leftAt } of this.#byTabId.values())
     {
-      stored[tabId] = { windowId, url, index, lastUsedAt };
+      stored[tabId] = leftAt === undefined
+        ? { windowId, url, index, lastUsedAt }
+        : { windowId, url, index, lastUsedAt, leftAt };
     }
     return stored;
   }
@@ -135,10 +164,16 @@ class TabUseRecords implements TabLastUseTimes
     return this.#byTabId.get(tabId)?.lastUsedAt;
   }
 
-  /** The tab was in use until this time; its record follows it to its current page and position. */
-  markUsed(tab: TrackableTab, time: number): void
+  /** Epoch millis the user last left the tab; undefined if unknown. */
+  leftAt(tabId: number): number | undefined
   {
-    this.#put(tab, time);
+    return this.#byTabId.get(tabId)?.leftAt;
+  }
+
+  /** The user left the tab at this time; its record follows it to its current page and position. */
+  markLeft(tab: TrackableTab, time: number): void
+  {
+    this.#put(tab, time, time);
   }
 
   remove(tabId: number): boolean
@@ -155,7 +190,7 @@ class TabUseRecords implements TabLastUseTimes
     for (const tab of trackableTabs(liveTabs))
     {
       const record = this.#byTabId.get(tab.id);
-      if (record) kept.#put(tab, record.lastUsedAt);
+      if (record) kept.#put(tab, record.lastUsedAt, record.leftAt);
     }
     return kept;
   }
@@ -165,7 +200,8 @@ class TabUseRecords implements TabLastUseTimes
    * the first time start their clock now, and so do tabs in use - active (a
    * safety net for a missed deactivation), sharing a split view with their
    * window's active tab, playing audio or pinned in Chrome - so a tab leaving
-   * one of these exemptions gets a full period.
+   * one of these exemptions gets a full period. leftAt is carried as it is:
+   * none of these is the user leaving the tab.
    */
   refreshedForLiveTabs(liveTabs: readonly TrackedTabLike[], now: number): TabUseRecords
   {
@@ -177,7 +213,7 @@ class TabUseRecords implements TabLastUseTimes
     {
       const record = this.#byTabId.get(tab.id);
       const inUse = tab.active || tab.audible === true || tab.pinned === true || splitViewsOnScreen.shows(tab);
-      refreshed.#put(tab, inUse || !record ? now : record.lastUsedAt);
+      refreshed.#put(tab, inUse || !record ? now : record.lastUsedAt, record?.leftAt);
     }
     return refreshed;
   }
@@ -191,30 +227,55 @@ class TabUseRecords implements TabLastUseTimes
    * Records sharing a URL (the page open in several windows, or a window closed
    * just before the restart) may land on each other's tabs, so every tab on such
    * a URL gets the newest last-use time among them: it closes later, never earlier.
+   * leftAt stays with its own record: the highlight has no such safety to keep,
+   * and the newest one would show every copy of a page (several New Tab pages) as fresh.
    */
   rematchedByUrl(liveTabs: readonly TrackedTabLike[]): TabUseRecords
   {
     const records = Array.from(this.#byTabId.values()).filter(record => record.url !== '');
-    const newestLastUseByUrl = new Map<string, number>();
+    const newestLastUse = new NewestTimeByUrl();
     const rematched = new TabUseRecords();
 
     // Newest last-use time per URL
     for (const { url, lastUsedAt } of records)
     {
-      newestLastUseByUrl.set(url, Math.max(lastUsedAt, newestLastUseByUrl.get(url) ?? lastUsedAt));
+      newestLastUse.add(url, lastUsedAt);
     }
 
     // Re-key each matched record to its tab's new ID
     for (const { record, tab } of matchStoredTabs(records, trackableTabs(liveTabs), { idMatch: 'off' }))
     {
-      rematched.#put(tab, newestLastUseByUrl.get(record.url) ?? record.lastUsedAt);
+      rematched.#put(tab, newestLastUse.newest(record.url) ?? record.lastUsedAt, record.leftAt);
     }
     return rematched;
   }
 
-  #put(tab: TrackableTab, lastUsedAt: number): void
+  #put(tab: TrackableTab, lastUsedAt: number, leftAt?: number): void
   {
-    this.#byTabId.set(tab.id, { tabId: tab.id, windowId: tab.windowId, url: tab.url ?? '', index: tab.index, lastUsedAt });
+    this.#byTabId.set(tab.id, { tabId: tab.id, windowId: tab.windowId, url: tab.url ?? '', index: tab.index, lastUsedAt, leftAt });
+  }
+}
+
+/**
+ * Read-only view of the stored records for the sidebar: when the user last
+ * left each tab. An empty view (no times) when constructed directly.
+ */
+export class TabLeftTimes
+{
+  #records = new TabUseRecords();
+
+  /** Parse the value stored under TabActivityTracker.RECORDS_KEY; throws when it (or any entry) is malformed. */
+  static fromStored(value: unknown): TabLeftTimes
+  {
+    const times = new TabLeftTimes();
+    times.#records = TabUseRecords.fromStored(value);
+    return times;
+  }
+
+  /** Epoch millis the user last left the tab; undefined if unknown. */
+  leftAt(tabId: number): number | undefined
+  {
+    return this.#records.leftAt(tabId);
   }
 }
 
@@ -271,7 +332,7 @@ class ActiveTabsByWindow
 
 export class TabActivityTracker
 {
-  /** chrome.storage.local: last-use records, { [tabId]: { windowId, url, index, lastUsedAt } }. */
+  /** chrome.storage.local: last-use records, { [tabId]: { windowId, url, index, lastUsedAt, leftAt? } }. */
   static RECORDS_KEY = 'tabLastUsedAt';
   /** chrome.storage.session: active tab per window, { [windowId]: tabId }. */
   static ACTIVE_TABS_KEY = 'tabActivityActiveTabs';
@@ -300,10 +361,11 @@ export class TabActivityTracker
   }
 
   /**
-   * Worker start, or auto-archive switched on: attach the stored records to the
-   * live tabs and learn the active tab of windows not known yet. With the
-   * setting off, drop whatever is stored instead. Never throws - unreadable data
-   * is logged and the tracker starts empty (clocks start later, never earlier).
+   * Worker start, or auto-archive or the tab age highlight switched on or off:
+   * attach the stored records to the live tabs and learn the active tab of
+   * windows not known yet. While not recording (both off), drop whatever is
+   * stored instead. Never throws - unreadable data is logged and the tracker
+   * starts empty (clocks start later, never earlier).
    */
   load(liveTabs: readonly TrackedTabLike[]): Promise<void>
   {
@@ -311,7 +373,7 @@ export class TabActivityTracker
     {
       try
       {
-        // Nothing is kept while auto-archive is off, also records left from an earlier session
+        // Nothing is kept while not recording, also records left from an earlier session
         if (!await this.#isRecording())
         {
           await this.#removeEverything();
@@ -344,23 +406,10 @@ export class TabActivityTracker
   }
 
   /**
-   * Auto-archive was switched to Never: drop every record and the active-tab
-   * map. Switching on again starts from load.
-   */
-  clear(): Promise<void>
-  {
-    return this.#enqueue(async () =>
-    {
-      await this.#removeEverything();
-      this.#attached = true;  // No record left that could land on a wrong tab
-    });
-  }
-
-  /**
    * The tab became active in its window: the tab active there before stops
    * being used now. Its record is created if it has none and follows the page
    * it shows, so after a browser restart a recently used page is matched with
-   * a recent time. Does nothing while auto-archive is off.
+   * a recent time. Does nothing while not recording.
    */
   markActivated(windowId: number, tabId: number): Promise<void>
   {
@@ -378,7 +427,7 @@ export class TabActivityTracker
         if (left && isTrackable(left))
         {
           const records = await this.#readRecords();
-          records.markUsed(left, this.#now());
+          records.markLeft(left, this.#now());
           await this.#writeRecords(records);
         }
       }
