@@ -16,6 +16,12 @@ Items marked **(call)** were decided while planning or building, not by the user
 
 Plan: `docs/plans/completed/20261029-tab-age-highlight.md`.
 
+The four looks with fake tabs, rendered with the built CSS (dark, then light):
+
+![Tab age highlight, dark theme](images/036-tab-age-highlight-dark.png)
+
+![Tab age highlight, light theme](images/036-tab-age-highlight-light.png)
+
 ## Scope
 
 - **Highlighted:** regular tabs in the Tab list (the Tabs section), in every Space. Tabs in Chrome tab groups too, over the group colour. **(call)**
