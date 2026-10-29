@@ -162,11 +162,11 @@ No e2e suite in the project; the UI is checked manually (Post-Completion).
 **Files:**
 - Modify: `src/background.ts`
 
-- [ ] `tabs.onCreated`: decide before the first await, enqueue right after `await stateReady`
-- [ ] `tabs.onUpdated` URL change on an inactive tab → `followUrl`
-- [ ] `storage.onChanged` for the new key → `loadTabActivity()`; update the tracker comment near its construction
-- [ ] `windows.onCreated` → `RecentWindows`
-- [ ] no new tests (wiring; decisions tested in tasks 2–3); `make test` and the build pass
+- [x] `tabs.onCreated`: decide before the first await, enqueue right after `await stateReady`
+- [x] `tabs.onUpdated` URL change on an inactive tab → `followUrl`
+- [x] `storage.onChanged` for the new key → `loadTabActivity()`; update the tracker comment near its construction
+- [x] `windows.onCreated` → `RecentWindows`
+- [x] no new tests (wiring; decisions tested in tasks 2–3); `make test` and the build pass
 
 ### Task 5: Setting in the Settings dialog
 
