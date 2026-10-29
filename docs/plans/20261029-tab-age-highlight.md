@@ -145,12 +145,12 @@ No e2e suite in the project; the UI is checked manually (Post-Completion).
 - Modify: `src/stores/tabActivityTracker.ts`
 - Modify: `tests/tabActivityTracker.test.mjs`
 
-- [ ] add optional `leftAt` to the stored entry, `TabUseRecord`, validation, `toStored`/`fromStored`, `#put`
-- [ ] stamp `leftAt` in `markActivated`; carry it in `refreshedForLiveTabs`, `keptForLiveTabs`; newest per URL in `rematchedByUrl`
-- [ ] export the read-only `TabLeftTimes` view for the sidebar
-- [ ] write tests: `markActivated` sets `leftAt`; `refresh` keeps an existing `leftAt` and gives first-seen / in-use tabs none
-- [ ] write tests: browser-restart rematch carries the newest `leftAt` per URL; stored records without `leftAt` load; `TabLeftTimes` on malformed data → empty
-- [ ] run `make test` — must pass before task 3
+- [x] add optional `leftAt` to the stored entry, `TabUseRecord`, validation, `toStored`/`fromStored`, `#put`
+- [x] stamp `leftAt` in `markActivated`; carry it in `refreshedForLiveTabs`, `keptForLiveTabs`; newest per URL in `rematchedByUrl`
+- [x] export the read-only `TabLeftTimes` view for the sidebar
+- [x] write tests: `markActivated` sets `leftAt`; `refresh` keeps an existing `leftAt` and gives first-seen / in-use tabs none
+- [x] write tests: browser-restart rematch carries the newest `leftAt` per URL; stored records without `leftAt` load; `TabLeftTimes` on malformed data → empty
+- [x] run `make test` — must pass before task 3
 
 ### Task 3: Record while either setting is on
 

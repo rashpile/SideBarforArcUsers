@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { TabActivityTracker } from '../src/stores/tabActivityTracker.ts';
+import { TabActivityTracker, TabLeftTimes } from '../src/stores/tabActivityTracker.ts';
 
 const RECORDS_KEY = TabActivityTracker.RECORDS_KEY;
 const ACTIVE_TABS_KEY = TabActivityTracker.ACTIVE_TABS_KEY;
@@ -69,6 +69,11 @@ class Browser
   storedLastUsedAt(tabId)
   {
     return this.storedRecord(tabId)?.lastUsedAt;
+  }
+
+  storedLeftAt(tabId)
+  {
+    return this.storedRecord(tabId)?.leftAt;
   }
 }
 
@@ -223,7 +228,7 @@ test('leaving a tab records its current page, also for a tab without a record; a
   browser.clock = 4000;
   await tracker.markActivated(1, 2);
 
-  assert.deepEqual(browser.storedRecord(1), { windowId: 1, url: 'https://a2.test/', index: 0, lastUsedAt: 3000 });
+  assert.deepEqual(browser.storedRecord(1), { windowId: 1, url: 'https://a2.test/', index: 0, lastUsedAt: 3000, leftAt: 3000 });
   assert.equal(browser.storedLastUsedAt(3), 4000);
 
   // Tab 2 closed before its activation event was handled
@@ -295,6 +300,88 @@ test('after a browser restart tabs on a URL shared by several records get the ne
 
   assert.equal(activity.lastUsedAt(2), 5000);
   assert.equal(activity.lastUsedAt(4), 5000);
+});
+
+test('only leaving a tab sets leftAt; refresh keeps it, also for a tab in use again, and never invents one', async () =>
+{
+  const browser = new Browser();
+  const tracker = browser.tracker();
+  const tabs = browser.open([
+    tab(1, 1, 'https://a.test/', 0, true),
+    tab(2, 1, 'https://b.test/', 1),
+    tab(3, 1, 'https://music.test/', 2, false, { audible: true }),
+  ]);
+  await tracker.load(tabs);
+  await tracker.refresh(tabs);
+
+  browser.clock = 5000;
+  await tracker.markActivated(1, 2);
+  assert.equal(browser.storedLeftAt(1), 5000);
+  assert.equal(browser.storedLeftAt(2), undefined);
+
+  // Tab 1 now plays audio (its auto-archive clock restarts); tab 4 is seen for the first time
+  browser.clock = 9000;
+  await tracker.refresh([
+    tab(1, 1, 'https://a.test/', 0, false, { audible: true }),
+    tab(2, 1, 'https://b.test/', 1, true),
+    tab(3, 1, 'https://music.test/', 2, false, { audible: true }),
+    tab(4, 1, 'https://d.test/', 3),
+  ]);
+  assert.equal(browser.storedLastUsedAt(1), 9000);
+  assert.equal(browser.storedLeftAt(1), 5000);
+  assert.equal(browser.storedLeftAt(2), undefined);
+  assert.equal(browser.storedLeftAt(3), undefined);
+  assert.deepEqual(browser.storedRecord(4), { windowId: 1, url: 'https://d.test/', index: 3, lastUsedAt: 9000 });
+});
+
+test('after a browser restart records stored without leftAt still load, and tabs on a shared URL get its newest leftAt', async () =>
+{
+  const browser = new Browser();
+  // home.test stored before leftAt existed; mail.test open in two windows, left at different times
+  browser.local.data[RECORDS_KEY] = {
+    1: { windowId: 1, url: 'https://home.test/', index: 0, lastUsedAt: 100 },
+    2: { windowId: 1, url: 'https://mail.test/', index: 1, lastUsedAt: 300, leftAt: 300 },
+    3: { windowId: 2, url: 'https://mail.test/', index: 1, lastUsedAt: 500, leftAt: 200 },
+  };
+
+  // No session marker: a new browser session, the tabs came back with new IDs
+  browser.clock = 9000;
+  const tracker = browser.tracker();
+  await tracker.load([
+    tab(7, 10, 'https://home.test/', 0, true),
+    tab(8, 10, 'https://mail.test/', 1),
+    tab(9, 11, 'https://mail.test/', 1, true),
+  ]);
+
+  assert.deepEqual(browser.storedRecord(7), { windowId: 10, url: 'https://home.test/', index: 0, lastUsedAt: 100 });
+  assert.equal(browser.storedLastUsedAt(8), 500);
+  assert.equal(browser.storedLeftAt(8), 300);
+  assert.equal(browser.storedLeftAt(9), 300);
+
+  const leftTimes = TabLeftTimes.fromStored(browser.local.data[RECORDS_KEY]);
+  assert.equal(leftTimes.leftAt(8), 300);
+  assert.equal(leftTimes.leftAt(7), undefined);
+});
+
+test('TabLeftTimes gives no times for unreadable records and reports why', () =>
+{
+  // One entry whose leftAt is not a number spoils the valid one next to it, as in the tracker
+  const unreadableValues = [
+    {
+      1: { windowId: 1, url: 'https://a.test/', index: 0, lastUsedAt: 1, leftAt: 1 },
+      2: { windowId: 1, url: 'https://b.test/', index: 1, lastUsedAt: 1, leftAt: 'yesterday' },
+    },
+    '{not json',
+    null,
+  ];
+  for (const stored of unreadableValues)
+  {
+    const errors = [];
+    const leftTimes = TabLeftTimes.fromStored(stored, error => errors.push(error));
+    assert.equal(leftTimes.leftAt(1), undefined);
+    assert.equal(errors.length, 1);
+  }
+  assert.equal(TabLeftTimes.fromStored(undefined).leftAt(1), undefined);
 });
 
 test('incognito tabs are never recorded', async () =>
