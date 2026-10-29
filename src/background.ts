@@ -27,8 +27,7 @@ import { tabListTopIndexForLinkTab } from './utils/linkTabPlacement';
 // Set side panel to open when clicking the extension toolbar button
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 
-// Forward declaration - will be initialized below
-let tabSpaceRegistry: TabSpaceRegistry;
+const tabSpaceRegistry = new TabSpaceRegistry();
 
 // Space membership comes only from the extension's TabSpaceRegistry;
 // Chrome's native groupId belongs to the user.
@@ -153,7 +152,6 @@ const historyManager = new TabHistoryManager({
 const pinnedSitesManager = new PinnedSitesManager();
 // Reads the history manager's activation order, so it has to come after it.
 const lastAudibleTracker = new LastAudibleTracker(historyManager);
-tabSpaceRegistry = new TabSpaceRegistry();
 // The Space of a bookmark's tab, from the bookmark's folder (getSpaceForActivatedTab)
 const bookmarkSpaceResolver = new BookmarkSpaceResolver(
   (id) => chrome.bookmarks.get(id).then(([node]) => node, () => undefined),

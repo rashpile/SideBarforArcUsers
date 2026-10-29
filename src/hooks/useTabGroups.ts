@@ -36,7 +36,7 @@ export const useTabGroups = () =>
   {
     fetchTabGroups();
 
-    const listeners = [
+    const listeners: Array<chrome.events.Event<() => void> | undefined> = [
       chrome.tabGroups?.onCreated,
       chrome.tabGroups?.onUpdated,
       chrome.tabGroups?.onRemoved,
@@ -45,26 +45,11 @@ export const useTabGroups = () =>
 
     const handleUpdate = () => fetchTabGroups();
 
-    listeners.forEach((listener: any) => listener?.addListener(handleUpdate));
-
-    // ISSUE_52949_WORKAROUND: patch local state directly since query() returns stale data
-    const onMessage = (msg: any) =>
-    {
-      if (msg.type === 'TAB_GROUP_TITLE_SET')
-      {
-        setTabGroups(prev => prev.map(g =>
-          g.id === msg.groupId
-            ? { ...g, title: msg.title, color: msg.color }
-            : g
-        ));
-      }
-    };
-    chrome.runtime?.onMessage?.addListener(onMessage);
+    listeners.forEach((listener) => listener?.addListener(handleUpdate));
 
     return () =>
     {
-      listeners.forEach((listener: any) => listener?.removeListener(handleUpdate));
-      chrome.runtime?.onMessage?.removeListener(onMessage);
+      listeners.forEach((listener) => listener?.removeListener(handleUpdate));
     };
   }, [fetchTabGroups]);
 

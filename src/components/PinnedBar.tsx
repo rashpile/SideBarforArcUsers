@@ -147,6 +147,7 @@ export const PinnedBar = ({
         break;
 
       case DragFormat.URL:
+      {
         // Create new pins from URLs at the drop position
         const urlItems = getItemsByFormat(dragData, DragFormat.URL);
         if (urlItems.length > 0)
@@ -173,6 +174,7 @@ export const PinnedBar = ({
           }
         }
         break;
+      }
     }
   }, [movePin, addPin, pinnedSites]);
 

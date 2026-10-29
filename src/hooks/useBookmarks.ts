@@ -1,4 +1,4 @@
-import { useState, useCallback, useSyncExternalStore } from 'react';
+import { useState, useCallback, useMemo, useSyncExternalStore } from 'react';
 import { createChromeErrorHandler } from '../utils/chromeError';
 import { BookmarkTreeSource, SharedBookmarkStore } from '../stores/sharedBookmarkStore';
 import {
@@ -86,10 +86,7 @@ export const useBookmarks = () => {
   const bookmarks = bookmarkSnapshot.bookmarks;
   const [error, setError] = useState<string | null>(null);
 
-  const handleError = useCallback(
-    createChromeErrorHandler('Bookmark', setError),
-    []
-  );
+  const handleError = useMemo(() => createChromeErrorHandler('Bookmark', setError), []);
 
   // const removeBookmark = useCallback((id: string) => {
   //   chrome.bookmarks.removeTree(id, () => {

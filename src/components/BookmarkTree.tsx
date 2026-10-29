@@ -1392,6 +1392,8 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
       // No saved state - auto-expand
       return { ...prev, [spaceFolder.id]: true };
     });
+    // Keyed on the folder id: spaceFolder is a new object whenever the bookmark tree reloads
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spaceFolder?.id, expandedStateLoaded]);
 
   // Expand ancestor folders of a bookmark so its row exists in the DOM.

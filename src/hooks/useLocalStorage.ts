@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
 type Parser<T> = (value: string) => T;
 type Serializer<T> = (value: T) => string;
@@ -14,6 +14,9 @@ export function useLocalStorage<T>(
 {
   const parse = options?.parse ?? ((v: string) => JSON.parse(v) as T);
   const serialize = options?.serialize ?? ((v: T) => JSON.stringify(v));
+  // Callers pass serialize inline, so a ref keeps the setter stable across renders
+  const serializeRef = useRef(serialize);
+  serializeRef.current = serialize;
 
   const [value, setValue] = useState<T>(() =>
   {
@@ -32,8 +35,8 @@ export function useLocalStorage<T>(
   const setStoredValue = useCallback((newValue: T) =>
   {
     setValue(newValue);
-    localStorage.setItem(key, serialize(newValue));
-  }, [key, serialize]);
+    localStorage.setItem(key, serializeRef.current(newValue));
+  }, [key]);
 
   return [value, setStoredValue];
 }

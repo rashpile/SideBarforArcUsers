@@ -144,10 +144,7 @@ export const ArchiveSection = ({
   const { activeId: dragActiveId } = useUnifiedDnd();
   const fontSize = useFontSize();
   const [error, setError] = useState<string | null>(null);
-  const handleError = useCallback(
-    createChromeErrorHandler('Archive', setError),
-    []
-  );
+  const handleError = useMemo(() => createChromeErrorHandler('Archive', setError), []);
 
   // The active Space's archive: the first asd_Archive child of its bookmark folder (items in
   // further copies, e.g. made by a bookmark sync, show only in Chrome's Bookmark Manager)

@@ -1481,7 +1481,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     {
       console.error('[TabList] Failed to create tab from dropped URL:', err);
     }
-  }, [visibleTabs, showToast]);
+  }, [visibleTabs, showToast, windowId]);
 
   // Set up external URL drop handling (web page links)
   useExternalUrlDropForTabs({
@@ -2129,7 +2129,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     {
       console.error('TabList drop operation failed:', error);
     }
-  }, [visibleTabs, getSelectedItems, moveTab, groupTab, ungroupTab, moveGroup, clearSelection, setWasValidDrop, windowId, createTabsFromDragUrls, deassociateBookmarkTab, getTabIdForBookmark, deassociatePinnedTab, getTabIdForPinned, getItemKeyForTab]);
+  }, [visibleTabs, getSelectedItems, moveTab, groupTab, ungroupTab, moveGroup, clearSelection, setWasValidDrop, windowId, createTabsFromDragUrls, deassociateBookmarkTab, getTabIdForBookmark, deassociatePinnedTab, getTabIdForPinned, getItemKeyForTab, isInSpace]);
 
   // Register drop handler for tabList zone
   useEffect(() =>
@@ -2597,16 +2597,11 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
   const handleSaveGroupsToBookmarksFolder = useCallback(async (folderId: string) =>
   {
     const { selectedGroups } = getTabSelectionInfo();
-    let savedCount = 0;
     for (const group of selectedGroups)
     {
       const groupTabs = visibleTabs.filter(t => t.groupId === group.id);
       const folderName = group.title || 'Unnamed Group';
-      const result = await saveTabGroupAsBookmarkFolder(folderId, folderName, groupTabs);
-      if (result.success)
-      {
-        savedCount++;
-      }
+      await saveTabGroupAsBookmarkFolder(folderId, folderName, groupTabs);
     }
     saveLastSelectedBookmarkFolder(folderId);
     clearSelection();

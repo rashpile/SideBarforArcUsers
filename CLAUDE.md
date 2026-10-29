@@ -38,7 +38,7 @@ Code that breaks one of these breaks user data or acts on the wrong items.
 
   ```typescript
   const [error, setError] = useState<string | null>(null);
-  const handleError = useCallback(createChromeErrorHandler('YourContext', setError), []);
+  const handleError = useMemo(() => createChromeErrorHandler('YourContext', setError), []);
   ```
 
 - **Debug logging only in debug builds:**
