@@ -196,7 +196,7 @@ export const FolderRecentPopover = ({
     // No room below: prefer above the row, otherwise pin to the panel's bottom edge
     if (fitsBelow) setTop(below);
     else setTop(above >= VIEWPORT_MARGIN ? above : pinnedToBottom);
-  }, [anchorRect, items.length]);
+  }, [anchorRect, items.length, popoverRef]);
 
   const left = Math.max(VIEWPORT_MARGIN, anchorRect.left);
   const width = Math.min(MAX_WIDTH, window.innerWidth - left - VIEWPORT_MARGIN);

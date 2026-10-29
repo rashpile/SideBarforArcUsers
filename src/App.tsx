@@ -778,6 +778,8 @@ function App() {
       setWhatsNewDialogVersion(currentVersion);
       setShowWhatsNew(true);
     }
+    // Runs once when the version change is detected; lastSeenVersion changes when the dialog closes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasVersionChanged]);
   const [showMenu, setShowMenu] = useState(false);
   const [filterLiveTabs, setFilterLiveTabs] = useState(false);
@@ -881,7 +883,7 @@ function App() {
     const filtered = recentFilters.filter((f) => f !== trimmed && f !== existingEntry);
     // Add new text at the top, max 5
     setRecentFilters([trimmed, ...filtered].slice(0, 5));
-  }, [recentFilters]);
+  }, [recentFilters, setRecentFilters]);
 
   // Undoable action state
   const [lastAction, setLastAction] = useState<UndoableAction | null>(null);

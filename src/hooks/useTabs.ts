@@ -1,4 +1,4 @@
-import { useState, useCallback, useSyncExternalStore } from 'react';
+import { useState, useCallback, useMemo, useSyncExternalStore } from 'react';
 import { createChromeErrorHandler } from '../utils/chromeError';
 import type { TabGroupDisplayOrder } from '../components/SettingsDialog';
 import { SharedTabStore, TabSource } from '../stores/sharedTabStore';
@@ -87,10 +87,7 @@ export const useTabs = (windowId?: number) => {
   const tabs = tabSnapshot.tabs;
   const [error, setError] = useState<string | null>(null);
 
-  const handleError = useCallback(
-    createChromeErrorHandler('Tab', setError),
-    []
-  );
+  const handleError = useMemo(() => createChromeErrorHandler('Tab', setError), []);
 
   const fetchTabs = sharedTabStore.refresh;
 

@@ -18,6 +18,18 @@ function assert(condition: boolean, message: string): void
   }
 }
 
+// Every field of every node type, so a test can read the fields of the type it just asserted
+interface NodeFields
+{
+  type: string;
+  value: string;
+  left: NodeFields;
+  right: NodeFields;
+  operand: NodeFields;
+}
+
+const fields = (ast: ASTNode | null) => ast as unknown as NodeFields;
+
 function assertASTType(ast: ASTNode | null, type: string): void
 {
   assert(ast !== null, `Expected AST node, got null`);
@@ -33,7 +45,7 @@ const tests: Array<{ name: string; fn: () => void }> = [
     {
       const ast = parseSearchQuery('youtube');
       assertASTType(ast, 'TERM');
-      assert((ast as any).value === 'youtube', 'Term value should be "youtube"');
+      assert(fields(ast).value === 'youtube', 'Term value should be "youtube"');
     }
   },
   {
@@ -60,8 +72,8 @@ const tests: Array<{ name: string; fn: () => void }> = [
     {
       const ast = parseSearchQuery('youtube && canada');
       assertASTType(ast, 'AND');
-      assert((ast as any).left.type === 'TERM', 'Left should be TERM');
-      assert((ast as any).right.type === 'TERM', 'Right should be TERM');
+      assert(fields(ast).left.type === 'TERM', 'Left should be TERM');
+      assert(fields(ast).right.type === 'TERM', 'Right should be TERM');
     }
   },
   {
@@ -70,8 +82,8 @@ const tests: Array<{ name: string; fn: () => void }> = [
     {
       const ast = parseSearchQuery('youtube canada');
       assertASTType(ast, 'AND');
-      assert((ast as any).left.value === 'youtube', 'Left should be "youtube"');
-      assert((ast as any).right.value === 'canada', 'Right should be "canada"');
+      assert(fields(ast).left.value === 'youtube', 'Left should be "youtube"');
+      assert(fields(ast).right.value === 'canada', 'Right should be "canada"');
     }
   },
   {
@@ -81,8 +93,8 @@ const tests: Array<{ name: string; fn: () => void }> = [
       const ast = parseSearchQuery('a b c');
       assertASTType(ast, 'AND');
       // Should be ((a AND b) AND c)
-      assert((ast as any).left.type === 'AND', 'Left should be AND');
-      assert((ast as any).right.value === 'c', 'Right should be "c"');
+      assert(fields(ast).left.type === 'AND', 'Left should be AND');
+      assert(fields(ast).right.value === 'c', 'Right should be "c"');
     }
   },
 
@@ -93,8 +105,8 @@ const tests: Array<{ name: string; fn: () => void }> = [
     {
       const ast = parseSearchQuery('youtube || instagram');
       assertASTType(ast, 'OR');
-      assert((ast as any).left.value === 'youtube', 'Left should be "youtube"');
-      assert((ast as any).right.value === 'instagram', 'Right should be "instagram"');
+      assert(fields(ast).left.value === 'youtube', 'Left should be "youtube"');
+      assert(fields(ast).right.value === 'instagram', 'Right should be "instagram"');
     }
   },
 
@@ -105,7 +117,7 @@ const tests: Array<{ name: string; fn: () => void }> = [
     {
       const ast = parseSearchQuery('!tutorial');
       assertASTType(ast, 'NOT');
-      assert((ast as any).operand.value === 'tutorial', 'Operand should be "tutorial"');
+      assert(fields(ast).operand.value === 'tutorial', 'Operand should be "tutorial"');
     }
   },
   {
@@ -114,7 +126,7 @@ const tests: Array<{ name: string; fn: () => void }> = [
     {
       const ast = parseSearchQuery('!!term');
       assertASTType(ast, 'NOT');
-      assert((ast as any).operand.type === 'NOT', 'Operand should be NOT');
+      assert(fields(ast).operand.type === 'NOT', 'Operand should be NOT');
     }
   },
 
@@ -125,8 +137,8 @@ const tests: Array<{ name: string; fn: () => void }> = [
     {
       const ast = parseSearchQuery('(youtube || instagram) && news');
       assertASTType(ast, 'AND');
-      assert((ast as any).left.type === 'OR', 'Left should be OR');
-      assert((ast as any).right.value === 'news', 'Right should be "news"');
+      assert(fields(ast).left.type === 'OR', 'Left should be OR');
+      assert(fields(ast).right.value === 'news', 'Right should be "news"');
     }
   },
   {
@@ -145,7 +157,7 @@ const tests: Array<{ name: string; fn: () => void }> = [
     {
       const ast = parseSearchQuery('"react hooks"');
       assertASTType(ast, 'TERM');
-      assert((ast as any).value === 'react hooks', 'Value should be "react hooks"');
+      assert(fields(ast).value === 'react hooks', 'Value should be "react hooks"');
     }
   },
   {
@@ -154,7 +166,7 @@ const tests: Array<{ name: string; fn: () => void }> = [
     {
       const ast = parseSearchQuery("'react hooks'");
       assertASTType(ast, 'TERM');
-      assert((ast as any).value === 'react hooks', 'Value should be "react hooks"');
+      assert(fields(ast).value === 'react hooks', 'Value should be "react hooks"');
     }
   },
   {
@@ -163,7 +175,7 @@ const tests: Array<{ name: string; fn: () => void }> = [
     {
       const ast = parseSearchQuery('""say "hello"""');
       assertASTType(ast, 'TERM');
-      assert((ast as any).value === 'say "hello"', 'Value should contain quotes');
+      assert(fields(ast).value === 'say "hello"', 'Value should contain quotes');
     }
   },
 
@@ -174,7 +186,7 @@ const tests: Array<{ name: string; fn: () => void }> = [
     {
       const ast = parseSearchQuery('"foo && bar"');
       assertASTType(ast, 'TERM');
-      assert((ast as any).value === 'foo && bar', 'Value should be literal "foo && bar"');
+      assert(fields(ast).value === 'foo && bar', 'Value should be literal "foo && bar"');
     }
   },
   {
@@ -183,7 +195,7 @@ const tests: Array<{ name: string; fn: () => void }> = [
     {
       const ast = parseSearchQuery('"foo || bar"');
       assertASTType(ast, 'TERM');
-      assert((ast as any).value === 'foo || bar', 'Value should be literal "foo || bar"');
+      assert(fields(ast).value === 'foo || bar', 'Value should be literal "foo || bar"');
     }
   },
   {
@@ -192,7 +204,7 @@ const tests: Array<{ name: string; fn: () => void }> = [
     {
       const ast = parseSearchQuery('"(hello world)"');
       assertASTType(ast, 'TERM');
-      assert((ast as any).value === '(hello world)', 'Value should be literal "(hello world)"');
+      assert(fields(ast).value === '(hello world)', 'Value should be literal "(hello world)"');
     }
   },
   {
@@ -201,7 +213,7 @@ const tests: Array<{ name: string; fn: () => void }> = [
     {
       const ast = parseSearchQuery('"!important"');
       assertASTType(ast, 'TERM');
-      assert((ast as any).value === '!important', 'Value should be literal "!important"');
+      assert(fields(ast).value === '!important', 'Value should be literal "!important"');
     }
   },
   {
@@ -210,7 +222,7 @@ const tests: Array<{ name: string; fn: () => void }> = [
     {
       const ast = parseSearchQuery('"(a || b) && !c"');
       assertASTType(ast, 'TERM');
-      assert((ast as any).value === '(a || b) && !c', 'Value should be literal expression');
+      assert(fields(ast).value === '(a || b) && !c', 'Value should be literal expression');
     }
   },
 
@@ -242,8 +254,8 @@ const tests: Array<{ name: string; fn: () => void }> = [
       const ast = parseSearchQuery('a || b && c');
       // Should be: a OR (b AND c)
       assertASTType(ast, 'OR');
-      assert((ast as any).left.value === 'a', 'Left should be "a"');
-      assert((ast as any).right.type === 'AND', 'Right should be AND');
+      assert(fields(ast).left.value === 'a', 'Left should be "a"');
+      assert(fields(ast).right.type === 'AND', 'Right should be AND');
     }
   },
 

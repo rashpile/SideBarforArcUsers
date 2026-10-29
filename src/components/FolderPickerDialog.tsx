@@ -61,20 +61,7 @@ const FolderItem = ({
 {
   const inputRef = useRef<HTMLInputElement>(null);
   const isFolder = !node.url;
-  if (!isFolder) return null;
-
-  // Filter children to only folders; Space archive folders are not offered
-  const folderChildren = node.children?.filter(child => !child.url && !isArchiveFolder(child)) || [];
-  const hasChildren = folderChildren.length > 0;
-  const isExpanded = expandedState[node.id];
-  const isSelected = selectedFolderId === node.id;
   const isCreatingHere = creatingInFolderId === node.id;
-
-  // Check if this folder is linked to a space
-  const matchingSpace = getMatchingSpace(node.id);
-
-  // Folder icon with optional space overlay
-  const folderIcon = <SpaceFolderIcon space={matchingSpace} />;
 
   // Focus input when creating folder here
   useEffect(() =>
@@ -84,6 +71,20 @@ const FolderItem = ({
       inputRef.current.focus();
     }
   }, [isCreatingHere]);
+
+  if (!isFolder) return null;
+
+  // Filter children to only folders; Space archive folders are not offered
+  const folderChildren = node.children?.filter(child => !child.url && !isArchiveFolder(child)) || [];
+  const hasChildren = folderChildren.length > 0;
+  const isExpanded = expandedState[node.id];
+  const isSelected = selectedFolderId === node.id;
+
+  // Check if this folder is linked to a space
+  const matchingSpace = getMatchingSpace(node.id);
+
+  // Folder icon with optional space overlay
+  const folderIcon = <SpaceFolderIcon space={matchingSpace} />;
 
   return (
     <>

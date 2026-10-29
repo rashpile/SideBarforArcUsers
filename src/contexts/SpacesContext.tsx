@@ -261,7 +261,7 @@ export const SpacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       s.id === id ? { ...s, ...updates } : s
     );
     await writeSpaces(updatedSpaces);
-  }, [getSpaceById, windowId]);
+  }, [getSpaceById]);
 
   // Batch-update folder path + segments for multiple spaces at once (e.g. after a folder rename)
   const updateSpaceFolderPaths = useCallback((updates: { id: string; bookmarkFolderPath: string; bookmarkFolderSegments: string[] }[]) =>

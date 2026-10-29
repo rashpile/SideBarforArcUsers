@@ -112,10 +112,7 @@ export const BookmarkTabsProvider = ({ children }: BookmarkTabsProviderProps) =>
     });
   }, []);
 
-  const handleError = useCallback(
-    createChromeErrorHandler('BookmarkTabs', setError),
-    []
-  );
+  const handleError = useMemo(() => createChromeErrorHandler('BookmarkTabs', setError), []);
 
   // Rebuild associations from storage on init
   // Just validates that stored tabIds still exist - no URL matching
