@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useChromeLocalStorage } from './useChromeLocalStorage';
 import { SectionCollapseState, ToggleSection } from '../utils/sectionCollapseState';
 
-// chrome.storage.local key of the Bookmarks / Archive collapse state (feature 035), a JSON string
+// chrome.storage.local key of the Bookmarks / Archive collapse state, a JSON string
 const SECTION_COLLAPSED_STATE_KEY = 'sectionCollapsedState';
 
 /**

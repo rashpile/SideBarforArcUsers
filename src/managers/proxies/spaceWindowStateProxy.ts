@@ -2,8 +2,7 @@
 //
 // Unlike TabSpaceRegistry (step 1), the sidebar both reads AND is broadcast
 // to for this manager, so this is the first proxy with a real mirror store:
-// see docs/decisions/2026-07-30-shared-storage-multiple-writers.md, section 5
-// ("The mirror is a plain store, not React state").
+// see "Mirror store" in docs/development.md.
 
 import { ManagerId, callManager, CONTEXT_ID, Remote } from './messageRouting';
 import { SpaceWindowStateApi, SPACE_WINDOW_STATE_CHANGED } from '../shared/spaceWindowStateApi';

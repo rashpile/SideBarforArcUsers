@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { resolveNewFolderParentId } from '../src/utils/newFolderSelection.ts';
 
-test('同一父文件夹的选中项在原父文件夹中组成新文件夹', () =>
+test('selected items under one parent form the new folder in that parent', () =>
 {
   const nodes = [
     { id: 'a', parentId: 'same-parent' },
@@ -13,7 +13,7 @@ test('同一父文件夹的选中项在原父文件夹中组成新文件夹', ()
   assert.equal(resolveNewFolderParentId(nodes, 'space-root'), 'same-parent');
 });
 
-test('跨父文件夹的选中项移动到当前 Space 根目录', () =>
+test('selected items from different parents move to the current Space root', () =>
 {
   const nodes = [
     { id: 'a', parentId: 'parent-a' },
@@ -23,7 +23,7 @@ test('跨父文件夹的选中项移动到当前 Space 根目录', () =>
   assert.equal(resolveNewFolderParentId(nodes, 'space-root'), 'space-root');
 });
 
-test('Space 文件夹配置缺失时回退到第一个选中项的父文件夹', () =>
+test('without a Space folder setting, the parent of the first selected item is used', () =>
 {
   const nodes = [
     { id: 'a', parentId: 'parent-a' },

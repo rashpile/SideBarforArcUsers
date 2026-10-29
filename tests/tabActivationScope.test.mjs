@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { isActivationForWindow } from '../src/utils/tabActivationScope.ts';
 
-test('只接受当前 Side Panel 所属窗口的原生标签激活事件', () =>
+test('only native tab activations in the Side Panel window are accepted', () =>
 {
   assert.equal(isActivationForWindow(9, { windowId: 9 }), true);
   assert.equal(isActivationForWindow(9, { windowId: 10 }), false);

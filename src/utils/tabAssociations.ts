@@ -40,7 +40,6 @@ interface StorageChangeEvent
   removeListener: (listener: StorageChangeListener) => void;
 }
 
-/** 订阅当前窗口的 session 关联变化，并返回对应的清理函数。 */
 export function subscribeToTabAssociationChanges(
   windowId: number,
   onChange: () => void,
@@ -677,7 +676,7 @@ export function matchBackupWindows(
   return ctx.result;
 }
 
-/** 用当前真实 Tab 信息重建可持久化 backup，顺便修复旧 tabId 和 index。 */
+/** Rebuilding from the live tabs also corrects stale tab IDs and indexes. */
 function buildBackupFromAssociations(
   associations: Record<number, string>,
   tabs: chrome.tabs.Tab[]
@@ -686,7 +685,6 @@ function buildBackupFromAssociations(
   const tabsById = new Map(tabs.map(tab => [tab.id, tab]));
   const backup: WindowAssociationBackup = {};
 
-  // 只保留具备 URL、id 和 index 的真实 Tab。
   for (const [tabIdText, itemKey] of Object.entries(associations))
   {
     const tabId = Number(tabIdText);

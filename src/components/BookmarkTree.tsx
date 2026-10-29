@@ -200,7 +200,7 @@ interface BookmarkRowProps {
   listeners?: SyntheticListenerMap;
   // Window ID for tab creation
   windowId?: number;
-  // Last-active times for the collapsed-folder recent popover (feature 034)
+  // Last-active times for the collapsed-folder recent popover
   bookmarkRecency?: BookmarkRecency;
 }
 
@@ -279,7 +279,7 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
   // Whether the bookmark had a tab when a double-click's first press went down, before that click opened one
   const hadTabOnPressRef = useRef(false);
 
-  // Collapsed folders peek their recently used pages on hover, like Arc (feature 034)
+  // Collapsed folders peek their recently used pages on hover, like Arc
   const folderPeek = useFolderPeek(
     isFolder
     && !isSpecialFolder
@@ -361,14 +361,13 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
       e.metaKey || e.ctrlKey || e.shiftKey,
     );
 
-    // 组合键点击文件夹或书签时，只更新多选状态，不触发折叠或打开页面。
     if (clickIntent === 'select-only')
     {
       onSelectionClick?.(e);
       return;
     }
 
-    // Arc 的文件夹整行都是折叠入口，普通点击不把文件夹加入选择。
+    // As in Arc, the whole folder row toggles it; a plain click doesn't select the folder.
     if (clickIntent === 'toggle-folder')
     {
       toggleFolder(node.id, !expandedState[node.id]);
@@ -500,7 +499,6 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
           <X size={14} className="text-gray-700 dark:text-gray-200" />
         </button>
       )}
-      {/* 活跃项常显减号，其他已打开项仅在 hover 时显示。 */}
       {!isFolder && bookmarkOpenMode === 'arc' && isLoaded && onCloseBookmark && (
         <button
           onPointerDown={(e) => e.stopPropagation()}
@@ -884,7 +882,7 @@ const DraggableBookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>((props
 DraggableBookmarkRow.displayName = 'DraggableBookmarkRow';
 
 /**
- * Space 根文件夹不渲染成可见行，但仍保留一个根级拖拽落点。
+ * The Space root folder has no visible row, but keeps a root-level drop target.
  */
 const SpaceRootDropTarget = ({ node }: { node: chrome.bookmarks.BookmarkTreeNode }) =>
 {
@@ -1030,7 +1028,7 @@ interface BookmarkTreeProps {
   useSpaces?: boolean;
   onAiRename?: (bookmark: chrome.bookmarks.BookmarkTreeNode, tabId?: number) => void;
   onBookmarkCreated?: (bookmark: chrome.bookmarks.BookmarkTreeNode, tabId?: number) => void;
-  isCollapsed?: boolean;  // Bookmarks section collapsed as shown (feature 035; expanded while the text filter is active)
+  isCollapsed?: boolean;  // Bookmarks section collapsed as shown (expanded while the text filter is active)
 }
 
 export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false, externalDropTarget, bookmarkOpenMode = 'arc', arcSingleClickOpensTab = true, onResolverReady, filterLiveTabs = false, filterText = '', activeSpace, onShowToast, onPerformAction, useSpaces = true, onAiRename, onBookmarkCreated, isCollapsed = false }: BookmarkTreeProps) => {
@@ -1039,16 +1037,14 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
   const { spaces, updateSpace, updateSpaceFolderPaths, windowId } = useSpacesContext();
   const findSpaceForFolder = useFindSpaceForFolder(getBookmarkFolderLocation, spaces);
 
-  // Read-only: background.ts records last-active times (feature 034)
+  // Read-only: background.ts records last-active times
   const [bookmarkRecencyRecord] = useChromeLocalStorage<BookmarkRecencyRecord>(BOOKMARK_RECENCY_KEY, {});
   const bookmarkRecency = useMemo(() => new BookmarkRecency(bookmarkRecencyRecord), [bookmarkRecencyRecord]);
 
   // Re-group a bookmark's associated live tab (if any) to match its new folder's
   // Space - mirrors associateExistingTab, keeps "a bookmark tab always lives in
   // its bookmark's Space" true regardless of how the bookmark got there (created,
-  // dragged in, or moved afterward). Shared with src/tests/inpanel/actions.ts so
-  // the in-panel test runner exercises this exact implementation rather than a
-  // separate copy that could silently drift from it.
+  // dragged in, or moved afterward).
   const regroupAssociatedTab = useCallback(
     (bookmarkId: string, targetFolderId: string) =>
       regroupAssociatedTabUtil(bookmarkId, targetFolderId, getTabIdForBookmark, windowId, findSpaceForFolder),
@@ -1159,7 +1155,7 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
     {
       const isFolder = !node.url;
 
-      // Archive folders (feature 035) never show up in filter results; the Archive section filters them
+      // Archive folders never show up in filter results; the Archive section filters them
       if (isArchiveFolder(node))
       {
         return acc;
@@ -1201,13 +1197,13 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
     : null;
   const isSpaceFolderMissing = spaceHasFolder && !spaceFolder;
 
-  // Space 根文件夹只界定内容范围，Arc 侧边栏直接展示它的子项。
+  // The Space root folder only scopes the content; Arc's sidebar shows its children directly.
   if (spaceFolder)
   {
     visibleBookmarks = getVisibleSpaceRootItems(spaceFolder);
   }
 
-  // Collapsed Bookmarks section (feature 035): only the open pages stay, as in a collapsed folder.
+  // Collapsed Bookmarks section: only the open pages stay, as in a collapsed folder.
   // App passes it expanded while the text filter is active.
   if (isCollapsed)
   {
@@ -1320,7 +1316,6 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
           (bookmarkId) => isBookmarkLoaded(bookmarkId) || isBookmarkActive(bookmarkId),
         );
 
-        // 折叠文件夹只加入已打开的后代；展开文件夹仍按原树结构递归加入直接子节点。
         for (const { node: child } of visibleChildren)
         {
           flattenNode(child, !!expandedState[child.id]);
@@ -1961,7 +1956,6 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
     }
   }, [getTabIdForBookmark, duplicateBookmark]);
 
-  /** 返回按侧边栏顺序排列的已选固定 Tab。 */
   const getSelectedBookmarkItems = useCallback((): SelectionItem[] =>
   {
     return getSelectedItems()
@@ -1988,7 +1982,6 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
     return bookmarkIds.length > 0 && bookmarkIds.every(isBookmarkMuted);
   }, [getSelectedLiveBookmarkIds, isBookmarkMuted]);
 
-  /** 优先使用系统分享面板；当前平台不支持时退化为复制链接。 */
   const shareLinks = useCallback(async (
     title: string,
     urls: string[],
@@ -2059,7 +2052,7 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
     clearSelection();
   }, [getSelectedBookmarkItems, handleDuplicateBookmark, clearSelection]);
 
-  /** 删除固定项但保留已经打开的页面，使 Remove Pin 与 Arc 的行为一致。 */
+  /** Keeps the open pages, so Remove Pin behaves as in Arc. */
   const removePins = useCallback(async (bookmarkIds: string[]) =>
   {
     for (const bookmarkId of bookmarkIds)

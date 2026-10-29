@@ -11,8 +11,8 @@ export interface RestoredTabAssociations
 type GetTab = (tabId: number) => Promise<chrome.tabs.Tab | null>;
 
 /**
- * 合并当前 session 与本地 backup 恢复结果。
- * 当前 session 优先；backup 只补充缺失且仍存在的 Tab，并保持 itemKey 一对一。
+ * The session wins; the backup only fills in missing tabs that still exist, and each itemKey
+ * stays on one tab.
  */
 export function mergeRestoredTabAssociations(
   sessionAssociations: Record<number, string>,
@@ -23,7 +23,6 @@ export function mergeRestoredTabAssociations(
   const merged: Record<number, string> = {};
   const claimedItemKeys = new Set<string>();
 
-  // 先保留当前 session 中仍然存在的真实 Tab 关联。
   for (const [tabIdText, itemKey] of Object.entries(sessionAssociations))
   {
     const tabId = Number(tabIdText);
@@ -32,7 +31,6 @@ export function mergeRestoredTabAssociations(
     claimedItemKeys.add(itemKey);
   }
 
-  // backup 只补充 session 缺失的 tabId 和 itemKey。
   for (const [tabIdText, itemKey] of Object.entries(backupAssociations))
   {
     const tabId = Number(tabIdText);
@@ -45,8 +43,8 @@ export function mergeRestoredTabAssociations(
 }
 
 /**
- * 并发验证一个窗口中持久化的固定 Tab 关联，并构造 Provider 所需快照。
- * Chrome API 调用彼此独立，批量并发可以避免关联数量线性增加启动等待时间。
+ * The Chrome API calls are independent, so running them concurrently keeps the startup wait from
+ * growing linearly with the number of associations.
  */
 export async function restoreTabAssociations(
   associations: Record<number, string>,
@@ -73,7 +71,6 @@ export async function restoreTabAssociations(
     mutedTabs: new Set(),
   };
 
-  // 只保留仍然存在的 Tab，并一次构造全部派生索引。
   for (const { tabId, itemKey, tab } of validated)
   {
     if (!tab) continue;

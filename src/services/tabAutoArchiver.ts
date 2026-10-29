@@ -1,5 +1,5 @@
-// TabAutoArchiver - closes tabs left unused for the "Archive tabs after" period
-// (feature 035). Regular tabs are saved to their Space's `asd_Archive` folder
+// TabAutoArchiver - closes tabs left unused for the "Archive tabs after" period.
+// Regular tabs are saved to their Space's `asd_Archive` folder
 // first; open bookmark pages and empty pages are closed without a bookmark.
 //
 // Runs in the background, so it works with the sidebar closed: at worker start

@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { Dialog } from './Dialog';
-import { NEWS_URL } from '../constants/urls';
 
 const ABOUT = {
-  author: 'monehsieh',
-  github: 'https://github.com/monemone-org/ChromeSideBar',
-  chromeWebStore: 'https://chromewebstore.google.com/detail/Sidebar%20for%20Arc%20Users/jmmgjadgeeicdbagekohgmaipoekgcbn',
+  github: 'https://github.com/rashpile/SideBarforArcUsers',
+  upstream: 'https://github.com/monemone-org/ChromeSideBar',
 };
 
 interface AboutDialogProps {
@@ -31,12 +29,21 @@ export function AboutDialog({ isOpen, onClose, onShowWelcome }: AboutDialogProps
     <Dialog isOpen={isOpen} onClose={onClose} title="About" maxWidth="max-w-xs">
       <div className="p-3 space-y-3">
         <div className="text-gray-700 dark:text-gray-300">
-          <p className="font-medium">Sidebar for Arc Users</p>
+          <p className="font-medium">Side Bar for Arc Users — Arc Style</p>
           <p className="text-gray-500 dark:text-gray-400 mt-1">
             Version {version}
           </p>
           <p className="text-gray-500 dark:text-gray-400">
-            by {ABOUT.author}
+            Fork of{' '}
+            <a
+              href={ABOUT.upstream}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              ChromeSideBar
+            </a>
+            {' '}by monehsieh
           </p>
         </div>
 
@@ -54,28 +61,12 @@ export function AboutDialog({ isOpen, onClose, onShowWelcome }: AboutDialogProps
             </button>
           )}
           <a
-            href={NEWS_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline"
-          >
-            News <ExternalLink size={12} />
-          </a>
-          <a
             href={ABOUT.github}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline"
           >
             GitHub <ExternalLink size={12} />
-          </a>
-          <a
-            href={ABOUT.chromeWebStore}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline"
-          >
-            Chrome Web Store <ExternalLink size={12} />
           </a>
         </div>
 

@@ -38,16 +38,7 @@ Run `./tools/update-version.sh` to update the extension version in `package.json
 - Flag any hardcoded version references that need updating
 
 
-### 7. Compile `docs/public/` documents (only if news changed)
-- Only needed when `docs/news/news.md` has been updated
-- `docs/public/` is served in Github Pages
-- run `npm run build:public-docs` to compile
-  - `docs/news/news.md` -> `docs/public/news.html`
-    - check in `news.md` changes. It's required for `./tools/update-news-version.sh` to update the news version number.
-- run `./tools/update-news-version.sh` to update `docs/public/latest.version`
-
-
-### 8. Present summary
+### 7. Present summary
 
 Show the user:
 - The new version number
@@ -57,4 +48,4 @@ Show the user:
 - Remind the user to:
   1. Review and check in the changes
   2. Run `tools/build-release.sh` to build the release
-  3. Submit to the Chrome Web Store
+  3. Submit to the Chrome Web Store, once the fork has a listing

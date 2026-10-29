@@ -6,7 +6,7 @@ export interface TabAssociationSessionStorage
 
 const storageKey = (windowId: number) => `tabAssociations_${windowId}`;
 
-/** 串行管理当前会话中的 tabId → 固定项关联，避免并发 read-modify-write 丢项。 */
+/** Serialized writes to the session tabId → pinned item map, so concurrent updates lose nothing. */
 export class TabAssociationSessionStore
 {
   #storage: TabAssociationSessionStorage;

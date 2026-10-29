@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { getArcTabSectionItems } from '../src/utils/arcTabSection.ts';
 
-test('Arc 标签区先显示 New Tab，再显示普通标签页', () =>
+test('the Arc tab section shows New Tab first, then the regular tabs', () =>
 {
   const tabs = [{ id: 1 }, { id: 2 }];
 

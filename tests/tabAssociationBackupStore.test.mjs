@@ -25,7 +25,7 @@ class MemoryStorage
   }
 }
 
-test('并发保存多个固定 Tab 不会互相覆盖', async () =>
+test('concurrent saves of several pinned tabs do not overwrite each other', async () =>
 {
   const storage = new MemoryStorage();
   const store = new TabAssociationBackupStore(storage);

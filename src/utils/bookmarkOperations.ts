@@ -145,7 +145,7 @@ export async function getAllBookmarkItemsInFolder(
 
   const children = await chrome.bookmarks.getChildren(folderId);
 
-  // Collect bookmarks, walking into subfolders; a Space's archive folder (feature 035) is left out
+  // Collect bookmarks, walking into subfolders; a Space's archive folder is left out
   for (const child of children)
   {
     if (child.url)

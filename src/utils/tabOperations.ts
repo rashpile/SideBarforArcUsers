@@ -23,7 +23,7 @@ export async function moveTabToSpace(
 {
   try
   {
-    // 遗留的 All 操作只清除内部归属，不修改原生标签组。
+    // Legacy All action: only clears the internal Space record and leaves native tab groups alone.
     if (spaceId === 'all')
     {
       await tabSpaceRegistryProxy.unregister(windowId, tabId);

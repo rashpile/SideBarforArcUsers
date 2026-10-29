@@ -23,7 +23,7 @@ const nestedTree = {
   ],
 };
 
-test('Space 根文件夹只作为容器，侧边栏直接展示它的子项', () =>
+test('the Space root folder is only a container; the sidebar shows its children directly', () =>
 {
   assert.deepEqual(
     getVisibleSpaceRootItems(nestedTree),
@@ -31,7 +31,7 @@ test('Space 根文件夹只作为容器，侧边栏直接展示它的子项', ()
   );
 });
 
-test('折叠文件夹时透出子树里的已打开固定 Tab', () =>
+test('a collapsed folder shows the open pinned tabs in its subtree', () =>
 {
   const visibleChildren = getVisibleBookmarkChildren(
     nestedTree,
@@ -47,7 +47,7 @@ test('折叠文件夹时透出子树里的已打开固定 Tab', () =>
   ]);
 });
 
-test('折叠文件夹透出所有已打开的后代，保持树顺序', () =>
+test('a collapsed folder shows all open descendants in tree order', () =>
 {
   const tree = {
     id: 'folder-home',
@@ -75,7 +75,7 @@ test('折叠文件夹透出所有已打开的后代，保持树顺序', () =>
   );
 });
 
-test('折叠文件夹没有活跃固定 Tab 时不展示后代', () =>
+test('a collapsed folder with no active pinned tab shows no descendants', () =>
 {
   assert.deepEqual(
     getVisibleBookmarkChildren(nestedTree, false, () => false),
@@ -83,7 +83,7 @@ test('折叠文件夹没有活跃固定 Tab 时不展示后代', () =>
   );
 });
 
-test('展开文件夹时保持原有直接子节点，不额外提升活跃后代', () =>
+test('an expanded folder keeps its direct children and does not lift active descendants', () =>
 {
   assert.deepEqual(
     getVisibleBookmarkChildren(nestedTree, true, () => true),
@@ -91,7 +91,7 @@ test('展开文件夹时保持原有直接子节点，不额外提升活跃后�
   );
 });
 
-test('Space 的 asd_Archive 文件夹及其书签不在书签区显示，折叠时也不透出', () =>
+test('a Space asd_Archive folder and its bookmarks stay out of the bookmark section, also when collapsed', () =>
 {
   const nestedSpace = {
     id: 'folder-work',
@@ -125,14 +125,14 @@ test('Space 的 asd_Archive 文件夹及其书签不在书签区显示，折叠�
   assert.deepEqual(ids(getVisibleBookmarkChildren(space, false, () => true)), ['docs']);
 });
 
-test('普通点击文件夹行会切换折叠状态，组合键点击仍只处理选择', () =>
+test('a plain click on a folder row toggles it; a modifier click still only selects', () =>
 {
   assert.equal(resolveBookmarkRowClickIntent(true, false), 'toggle-folder');
   assert.equal(resolveBookmarkRowClickIntent(true, true), 'select-only');
   assert.equal(resolveBookmarkRowClickIntent(false, false), 'open-bookmark');
 });
 
-test('文件夹和固定页面支持 Arc 式键盘操作', () =>
+test('folders and pinned pages support Arc-style keyboard actions', () =>
 {
   assert.equal(resolveBookmarkRowKeyIntent(true, false, 'Enter', false), 'toggle-folder');
   assert.equal(resolveBookmarkRowKeyIntent(true, false, 'ArrowRight', false), 'expand-folder');

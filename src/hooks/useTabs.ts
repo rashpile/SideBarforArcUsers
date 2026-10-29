@@ -29,7 +29,6 @@ const compareDomainTitle = (a: chrome.tabs.Tab, b: chrome.tabs.Tab): number =>
 // Module-level Set tracking windowIds with active batch operations
 const batchOperationWindows = new Set<number>();
 
-/** 为共享 Store 提供当前窗口 Tab 查询和七类 Chrome 事件监听器。 */
 const createChromeTabSource = (): TabSource | undefined =>
 {
   if (typeof chrome === 'undefined' || !chrome.tabs) return undefined;

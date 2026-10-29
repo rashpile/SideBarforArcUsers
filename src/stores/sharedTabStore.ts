@@ -10,7 +10,6 @@ export interface TabStoreSnapshot
   error: string | null;
 }
 
-/** 在所有 useTabs 调用方之间共享当前窗口的标签快照和事件监听器。 */
 export class SharedTabStore
 {
   #sourceFactory: () => TabSource | undefined;

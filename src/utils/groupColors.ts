@@ -185,8 +185,8 @@ const spaceAccentHex = (color: string, isDark: boolean): string =>
 // Returns a CSS color for the sidebar background.
 // alpha: 0-1, where 1.0 = full intensity (user-facing 100%).
 //
-// Arc 的 Space 背景只保留轻微色相。这里限制最大混合比例，避免用户把强度
-// 调到 100% 后出现大面积高饱和色，同时继续尊重原有的强度设置。
+// Arc's Space background keeps only a slight tint. The blend ratio is capped, so an intensity of
+// 100% doesn't flood the panel with saturated color; the intensity setting still applies.
 export const getSpaceBgColor = (color: string, isDark: boolean, alpha: number = 1): string => {
   // The lighter (dark mode) accent in both modes: it is blended into the background
   const [aR, aG, aB] = hexToRgb(spaceAccentHex(color, true));

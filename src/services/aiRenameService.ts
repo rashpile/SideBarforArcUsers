@@ -52,7 +52,7 @@ class AiHttpError extends Error
 }
 
 /**
- * 读取网页中可用于命名的内容。注入脚本只读取 DOM，不接触 API Key 或模型配置。
+ * The injected script only reads the DOM; it never sees the API key or model settings.
  */
 export class PageContentReader
 {
@@ -99,7 +99,7 @@ export class PageContentReader
       text: await this.#fetchText(llmsUrl).catch(() => undefined),
     })));
 
-    // Promise 并行降低等待时间，但仍按候选原顺序选择最具体的成功结果。
+    // Parallel to cut the wait; the most specific success is still picked in candidate order.
     const llmsResult = llmsResults.find(result => result.text);
     if (llmsResult?.text)
     {
@@ -125,7 +125,7 @@ export class PageContentReader
   }
 
   /**
-   * 从已加载 Tab 读取渲染后的正文；受限页面失败时由调用方回退到直接请求 URL。
+   * Restricted pages fail here; the caller then falls back to fetching the URL directly.
    */
   async #readLiveTab(tabId: number): Promise<DocumentSnapshot>
   {
@@ -136,7 +136,7 @@ export class PageContentReader
         const preferredRoot = document.querySelector('article, main, [role="main"]') || document.body;
         const description = document.querySelector('meta[name="description"]')?.getAttribute('content') || '';
         const markdownLink = document.querySelector<HTMLLinkElement>('link[rel~="alternate"][type="text/markdown"]');
-        // live DOM 使用 innerText，只读取实际呈现的文字，避免把隐藏节点内容发送给模型。
+        // innerText reads only the rendered text, so hidden node content never reaches the model.
         const cleanedPage = (
           preferredRoot instanceof HTMLElement ? preferredRoot.innerText : preferredRoot?.textContent || ''
         )
@@ -159,7 +159,7 @@ export class PageContentReader
   }
 
   /**
-   * 书签没有 live tab 时直接读取 HTML，不为获取内容而打开可见 Tab。
+   * Reads the HTML directly for a bookmark without a live tab, instead of opening a visible tab.
    */
   async #readUrl(url: string): Promise<DocumentSnapshot>
   {
@@ -183,7 +183,7 @@ export class PageContentReader
   }
 
   /**
-   * llms.txt 可能包含多个文档链接，只选择路径与当前页面明显对应的 Markdown。
+   * llms.txt can list many documents; only a Markdown path that clearly matches the page is used.
    */
   #findMatchingPageLink(llmsText: string, pageUrl: string, llmsUrl: string): string | undefined
   {
@@ -205,7 +205,7 @@ export class PageContentReader
       }
       catch
       {
-        // 忽略 llms.txt 中单个无效链接，继续检查其他候选。
+        // Skip an invalid link in llms.txt and keep checking the other candidates.
       }
     }
     return undefined;
@@ -233,7 +233,7 @@ export class PageContentReader
 }
 
 /**
- * 调用 OpenAI 风格接口。协议差异封装在这里，React 层只处理设置、Toast 和落库。
+ * Protocol differences stay in here; the React layer only handles settings, toasts and saving.
  */
 export class OpenAiCompatibleClient
 {

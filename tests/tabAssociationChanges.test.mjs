@@ -28,7 +28,7 @@ class FakeStorageChangeEvent
   }
 }
 
-test('只在当前窗口的 session 关联变化时通知 Side Panel', () =>
+test('the Side Panel is notified only when the session associations of its window change', () =>
 {
   const event = new FakeStorageChangeEvent();
   let refreshCount = 0;

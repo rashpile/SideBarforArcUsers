@@ -27,9 +27,9 @@ I missed Arc's sidebar after switching to Chrome in how Arc puts favorites, book
 
 - Arc Browser Import - Migrate from Arc by importing your pinned sites, spaces, and bookmarks from Arc's `StorableSidebar.json`.
 
-Open source on GitHub: https://github.com/lizeyan/SideBarforArcUsers
+Open source on GitHub: https://github.com/rashpile/SideBarforArcUsers
 
-Full Changelog: https://github.com/lizeyan/SideBarforArcUsers/blob/main/docs/changelog.md
+Full Changelog: https://github.com/rashpile/SideBarforArcUsers/blob/main/docs/changelog.md
 
 ## Permission Justification
 
@@ -39,5 +39,6 @@ For the Privacy practices tab of the Chrome Web Store dashboard. Not part of the
 - `storage` - Save settings and sidebar state locally
 - `favicon` - Show website icons
 - `scripting` - Read page content only when requested for AI-assisted naming
+- `activeTab` - Draw the Tab Switcher and Space Switcher list over the current page when the user presses their shortcut
 - `alarms` - Wake the extension every few minutes while "Archive tabs after" is on, to close tabs left unused longer than the chosen period. Not used while the setting is Never
 - Optional host permissions `http://*/*` and `https://*/*` - Requested at use time, only for reading a page's content for AI-assisted naming and for calling the AI endpoint the user configured

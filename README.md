@@ -1,328 +1,161 @@
 # Side Bar for Arc Users — Arc Style
 
-An independently maintained Chrome extension with one primary goal: make tab management in Chrome feel as close to Arc as the Chrome extension platform allows.
+Arc's sidebar in Chrome's Side Panel. Favorites, pinned pages, folders and tabs sit in one vertical list, grouped into Spaces, and behave the way they do in Arc wherever Chrome's extension APIs allow it.
 
-Arc is the product and interaction reference for this fork. Visual density, Favorites, pinned pages, Spaces, active-tab treatment, menus, persistence, and tab-group behavior are intentionally evaluated against Arc rather than treated as loosely inspired features.
+Chrome still draws its own tab strip, address bar and Side Panel header. An extension can't replace those, so the work goes into everything inside the panel.
 
-Chrome still owns the browser frame, address bar, native horizontal tab strip, and Side Panel title bar, so an extension cannot reproduce those surfaces. Everything rendered inside the extension's Side Panel is designed to minimize the remaining difference.
+## Install
 
-**What it does:**
-- **Arc-style sidebar:** Favorites, pinned pages, folders, and unpinned tabs in one vertical panel
-- **Focused Spaces:** View one Space at a time, with no aggregate "All" Space
-- **Persistent pages:** Pinned bookmark pages keep their position and reopen like Arc pinned tabs
-- **Persistent Space assignment:** Tabs belong to Spaces through extension-owned state, independently of Chrome's native tab groups
-- **Tab auto-archive:** Optionally close tabs left unused for a set time; regular tabs are saved to the Space's Archive and can be reopened from the sidebar
-- **Tab age highlight:** Tabs you left recently stand out in the Tabs section
-- **Tab history:** Navigate back/forward through recently used tabs
-- **Arc-like menus:** Single- and multi-selection actions follow Arc where Chrome APIs permit
-- **Backup/Restore:** Export and import everything to JSON
-- **Drag & drop:** Reorganize bookmarks, folders, tabs, and groups easily
-- **Filter & search:** Find items by text, filter by live tabs or playing audio
-- **Optional AI naming:** Rename Favorites and pinned bookmark pages through an OpenAI-compatible API
+The extension is not in the Chrome Web Store. The "Sidebar for Arc Users" listing there is the upstream project, not this fork.
 
-## Background
+Build it from source (Node.js 18+):
 
-I've been using Arc Browser for a while. When Arc paused development, I started looking at Chrome and other Chromium-based browsers. The one thing I really missed was Arc's sidebar—how it puts favorite sites, pinned pages, and tabs all in one vertical list.
+```bash
+git clone https://github.com/rashpile/SideBarforArcUsers.git
+cd SideBarforArcUsers
+make install
+make build
+```
 
-This fork continues that idea as a separate extension, with Arc parity as an explicit product direction rather than an occasional styling goal.
+Then open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and pick the `dist/` folder. Open the sidebar with the extension icon or `Cmd+Shift+E` (`Ctrl+Shift+E` on Windows and Linux).
 
-## Core Goal: Stay as Close to Arc as Possible
+To update, run `git pull && make build` and press reload on the extension's card in `chrome://extensions`.
 
-When a behavior can be implemented safely with Chrome APIs, this fork prefers Arc's behavior and terminology:
+Coming from Arc? **Import from Arc Browser...** in the sidebar menu reads Arc's `StorableSidebar.json` and brings over your Favorites, Spaces and pinned pages.
 
-- Favorites remain available across Spaces.
-- Pinned pages are backed by bookmarks so their position survives closing the live tab.
-- Unpinned tabs belong to the current Space through a persistent internal assignment that survives extension reloads and browser restoration.
-- Only one Space is visible at a time; the upstream aggregate `All` view is intentionally removed.
-- Collapsed folders still expose their open pinned pages (the active one as a card), matching Arc's location cue. Hovering a collapsed folder shows its recently used pages with search.
-- Active rows, spacing, translucency, typography, icons, bottom Space navigation, and context menus are tuned against Arc screenshots.
+## How it fits together
 
-Platform limitations are documented rather than hidden. Features that require control over Chrome's native window chrome—such as replacing the horizontal tab strip or styling the Side Panel host header—are outside an extension's control.
+- **Favorites** are the icon grid at the top. They stay the same in every Space.
+- **Spaces** each link one bookmark folder with their own set of tabs, plus a name, icon and color. You see one Space at a time and switch from the bar at the bottom.
+- **Pinned pages** are the bookmarks in the Space's folder. Click one and it opens as its tab. Close the tab and the bookmark stays in place, like a pinned tab in Arc.
+- **Tabs** below the bookmarks are the Space's other open tabs.
+- **Archive** keeps tabs you stopped using, if you turn auto-archive on.
 
-## Differences from Upstream
-
-This repository is a standalone fork of [monemone-org/ChromeSideBar](https://github.com/monemone-org/ChromeSideBar). It is maintained independently and is not intended to be merged back upstream.
-
-The following differences describe this fork relative to the upstream version it was based on:
-
-| Area | This fork |
-| --- | --- |
-| Product direction | Arc fidelity is the primary goal for interaction, terminology, layout, and visual treatment. |
-| Extension identity | Uses the `Side Bar for Arc Users — Arc Style` name and is packaged as a separate extension. |
-| Spaces | Removes the visible `All` Space. The sidebar and swipe navigation show one real Space at a time, and the Space Switcher lists only real Spaces. Legacy `all` state migrates to the first real Space. |
-| Space tab ownership | Space membership is stored independently from Chrome native tab groups. Native groups remain fully user-owned and can span tabs from different Spaces without changing their Space assignment. |
-| Pinned-page persistence | Bookmark/Favorite-to-tab associations use session state plus a local recovery backup, so closing and reopening the Side Panel does not duplicate pinned pages in the Tabs section. |
-| Arc-style tree behavior | Clicking a folder row expands or collapses it. A collapsed folder surfaces its open pinned descendants, with the active one as an inset card, and shows a recent-pages popover on hover. The whole Bookmarks section collapses from the Space title the same way. |
-| Tab auto-archive | Optional Arc-style auto-archive: unused tabs are saved as bookmarks in the Space's `asd_Archive` folder and closed, and an Archive section reopens them. |
-| Context menus | Pinned-page single and multi-selection menus follow Arc's supported actions, including `New Folder with N Items`, move, duplicate, mute, share, and remove-pin behavior. Unsupported Arc-only features such as Split View and Customize Page are deliberately omitted. |
-| Visual system | Adds Arc-oriented colors, translucency, row geometry, Favorites grid, active-page cards, folder icons, spacing, and bottom Space navigation. |
-| Startup performance | Shares bookmark/tab subscriptions, restores associations concurrently, lazy-loads secondary dialogs, and includes Performance Timeline marks for cold-start diagnosis. |
-| AI naming | Adds optional manual or automatic naming for Favorites and bookmark-backed pinned pages through configurable OpenAI-compatible Responses or Chat Completions APIs. |
-
-The upstream remote is retained for reference and attribution, but releases from this repository are made from this fork's own `main` branch.
+Everything is stored in Chrome: bookmarks for Spaces, pinned pages and the archive, and the extension's local storage for settings and Favorites. Nothing goes to a server. See [PRIVACY.md](PRIVACY.md).
 
 ## Features
 
-### Tab History Navigation
+### Favorites
 
-Navigate back and forward through your recently used tabs—like undo/redo for tab switching.
+- Icon grid at the top of the panel. Tile height follows the **Pinned icon size** setting (12-48px)
+- Pin a bookmark or a tab, drag to reorder
+- Custom icon, emoji and color per Favorite
+- Click opens it as an Arc-style tab. `Cmd/Ctrl+Click` opens a background tab, `Shift+Click` a new window
+- A dot marks an open Favorite, a triangle one that plays audio
+- Double-click a Favorite whose tab moved on to another page to load the Favorite's page back in that tab
+- Right-click: Edit (title, URL, icon, color), Duplicate, Reset favicon, Unpin, Move to New Window
 
-- `Cmd+Shift+<` (Mac) / `Ctrl+Shift+<` (Windows/Linux): Go back to previous tab
-- `Cmd+Shift+>` (Mac) / `Ctrl+Shift+>` (Windows/Linux): Go forward
-- Each window maintains its own history stack
-- Closed tabs are automatically removed from history
+### Bookmarks and pinned pages
 
-### Pinned Sites
+- The Space's bookmark folder as a tree
+- Click a folder row to expand or collapse it. A collapsed folder still shows its open pages, the active one as a card
+- Hover a collapsed folder to see its recently used pages, newest first, with search
+- Collapse the whole section with the chevron on the Space title. Open pages stay visible. The state is kept per Space and shared across windows
+- Double-click a bookmark whose tab moved on to another page to load the bookmarked page back in that tab
+- Links you open from a bookmark or Favorite page (`Cmd+Click`) land at the top of the Tab list
+- Drag and drop to organize. Drag a tab onto the tree to bookmark it
+- `...` menu: New Folder, New Bookmark, Sort by Name/Date, Edit, Duplicate, Delete, Pin, Move to New Window, Expand All, Open as Tab Group
+- A speaker icon for pages playing audio, an X on hover to close the tab
 
-- Quick-access icon bar at top of panel
-- Pin bookmarks or tabs for one-click navigation
-- Drag-and-drop to reorder
-- Custom icons and colors
-- Configurable icon size (12-48px)
-- Right-click menu: Edit (title, URL, icon, color), Duplicate, Reset favicon, Unpin, Move to New Window (when loaded)
-- Click: Open as Arc-style tab
-- Cmd/Ctrl+Click: Open in new background tab, Shift+Click: Open in new window
-- Open indicator: Circular dot for opened state, triangle for playing audio
+### Tabs
 
-### Bookmarks
+- The current Space's tabs that aren't pinned pages
+- Recently left tabs get a stronger background that fades over 3 hours. Pick White, Accent, Cooling or Trail in Settings, or turn it off
 
-- Display bookmarks and folders in a tree structure
-- Context menu (...):
-  - New Folder
-  - Sort by Name/Date
-  - Edit
-  - Duplicate
-  - Delete
-  - Pin to pinned bar
-  - Move to New Window (when loaded)
-  - Expand All (folders only, recursively expands all subfolders)
-- Collapse the whole section with the chevron on the Space title row (click the row; the `...` menu still opens the menu)
-  - Collapsed, it still shows the Space's open bookmark pages, the active one as a card
-  - Kept per Space and shared across windows
-  - While a text search is active the section is shown expanded
-- Drag-and-drop to organize bookmarks
-- Drag tabs from Tabs section to create bookmarks
-- Click: Open as Arc-style tab
-- Cmd/Ctrl+Click: Open in new background tab, Shift+Click: Open in new window
-- Audio indicator (speaker icon) for playing audio
-- Close tab via X button on hover
+  ![Tab age highlight looks](asset/tab-age-highlight-light.png)
 
-### Archive
-
-Arc-style auto-archive for tabs you stopped using. Off by default; turn it on with **Archive tabs after** in Settings.
-
-- **Auto-archive** (runs in the background, also while the sidebar is closed):
-  - Regular tabs (the ones in the Tabs section) unused for the chosen time are saved as bookmarks in an `asd_Archive` folder inside the Space's bookmark folder, then closed
-  - Open bookmark pages unused for the chosen time are closed; the bookmark stays. A bookmark tab that moved on to another page is archived first, so that page is kept
-  - Empty pages (New Tab, `about:blank`) are closed without a bookmark
-  - Never closed: the active tab of each window and tabs shown next to it in a split view, tabs playing audio, Chrome-pinned tabs, Favorites (and any tab showing a Favorite's page), and incognito tabs
-  - Tabs with no Space, or whose Space has no bookmark folder, stay open
-  - With "Open bookmark" set to In new tab or In active tab, pages opened from bookmarks are regular tabs and are archived like any other
-  - "Unused" counts from the moment you switched away from the tab, including time while Chrome is closed or the computer sleeps; it survives browser restarts
-  - Switching from Never to a period starts every tab's clock at that moment, so nothing closes right away
-  - Archiving the same URL again replaces the older archive item
-- **Archive section** between Bookmarks and Tabs, showing the active Space's archive:
-  - Collapsed by default; hover the header to see the newest items and search the archive
-  - Click the header to expand it: all items, newest first, with the time each was archived
-  - Click an item to reopen it as a regular tab in the active Space; it is removed from the archive
-  - Right-click an item: Delete from Archive (can be undone; the item then comes back on top as newly archived)
-  - Hidden when the archive is empty or the live tabs filter is on; a text search shows matching items
-- The `asd_Archive` folder is hidden in the Bookmarks section, search, folder popovers, and folder pickers. Chrome's own bookmark bar and Bookmark Manager still show it.
-- Archived items are never deleted automatically
-- Pointing a Space at another bookmark folder starts a new, empty archive there; the old `asd_Archive` stays in the old folder
-
-### Active Tabs
-
-- Display unpinned tabs that belong to the current Space
-- Audio indicator (speaker icon) for tabs playing audio
-- Recently left tabs get a stronger background that fades over 3 hours (White, Accent, Cooling or Trail; on by default, see **Highlight tabs by last use** in [Settings](#settings))
-- Follow Chrome's active tab and switch Spaces according to the configured follow mode
-- Reorder tabs via drag-and-drop
-- Click to switch to tab
-- Close tab via X button on hover
-- "New Tab" row at the bottom for quick tab creation
-- Tab context menu (right-click):
-  - Pin to Sidebar
-  - Add to Group
-  - Add to Bookmark (or "Move to Bookmark" in Arc style mode)
-  - Move to New Window
-  - Duplicate
-  - Close
-  - Close Tabs Before / After / Other Tabs
-- Sort options (via header menu):
-  - Sort by domain then title (A-Z or Z-A)
-  - Close all tabs
-- Tab Group support:
-  - Display Chrome tab groups with their color and title
-  - Collapse/expand groups by clicking the group header
-  - Group context menu:
-    - New Tab (in group)
-    - Sort by Domain (A-Z or Z-A)
-    - Save to Bookmarks (creates a bookmark folder with all tabs)
-    - Rename Group
-    - Change Color
-    - Close All Tabs in Group
-  - Drag-and-drop support:
-    - Reorder tabs within a group
-    - Move tabs between groups
-    - Move tabs in/out of groups
-    - Reorder tab groups
-    - Drag tab groups to Bookmarks section to save as folder
+- Drag to reorder, click to switch, X on hover to close
+- "+ New Tab" row at the bottom, with **Clear** (close the list's tabs) and **Archive** (save them to the Archive, then close). Both can be undone
+- Right-click: Pin to Sidebar, Add to Group, Add to Bookmark, Move to New Window, Duplicate, Close, Close Tabs Before / After / Other Tabs
+- Sort by domain, then title (A-Z or Z-A)
+- Chrome tab groups show with their color and title. Group menu: New Tab, Sort by Domain, Save to Bookmarks, Rename, Change Color, Close All. Drag tabs in and out of groups, reorder groups, drop a group on the bookmark tree to save it as a folder
 
 ### Spaces
 
-Organize your browsing by context with Arc-style Spaces—isolated workspaces that filter the sidebar to show only relevant bookmarks and tabs.
+- A Space is a bookmark folder plus a set of real Chrome tabs, with a name, icon and color
+- One Space is visible at a time. There is no "All" view
+- Switch with the icons at the bottom or a two-finger swipe. Switching brings the Space's most recently used tab forward. A Space with no tabs opens a new tab
+- New tabs (`Cmd+T`) belong to the active Space
+- Space membership doesn't depend on Chrome tab groups. Your own groups work normally inside a Space, and moving a tab between windows keeps its Space
+- Create with "+" in the bar: name, icon, color and bookmark folder (created if missing)
+- Right-click a Space icon to edit or delete it. The last Space can't be deleted
+- Optionally tint the sidebar with the Space's color
+- Use a bookmark folder for one Space only. Two Spaces on one folder aren't blocked, but bookmarks then resolve to whichever Space comes first
 
-- **What is a Space?** A Space links a bookmark folder with a persistent set of real Chrome tabs, plus a name, icon, and color
-- **One Space at a time**: There is no aggregate `All` Space; the sidebar always shows one real Space
-- **Legacy migration**: Older `all` or deleted Space state automatically resolves to the first available real Space
-- **SpaceBar**: Horizontal row of space icons at the bottom of the panel
-  - Click to switch spaces
-  - Active Space uses Arc-style visual treatment
-  - Swipe left/right to switch spaces
-- **Creating Spaces**:
-  - Click "+" in the SpaceBar
-  - Pick a name, icon, color, and bookmark folder
-  - Folder auto-creates if it doesn't exist
-- **Filtering**:
-  - Active Space shows only its bookmark folder and internally assigned tabs
-  - New tabs (Cmd+T) automatically belong to the active Space without being placed in a native group
-  - Legacy tabs are migrated from prior extension state and existing Space-named groups once
-  - Tab operations (Close All, Sort) only affect the current space's tabs
-- **Chrome Tab Group Independence**:
-  - Native Chrome groups remain available as ordinary user-created groups inside each Space
-  - Moving, renaming, or deleting a native group does not change Space membership
-  - Upgrading from the older group-backed model ungroups only groups explicitly recorded as extension-owned; no tabs are closed
-  - Historical closed Saved Tab Group shortcuts must be removed once through Chrome because Chrome exposes no extension API for deleting them
-- **Context menu** (right-click space icon):
-  - Edit (name, icon, color, bookmark folder)
-  - Delete (with confirmation)
-- **Last Space protection**: The final remaining Space cannot be deleted; use `+` to create additional Spaces
-- **Multi-window**: Each real Tab keeps its own Space assignment when moved between windows
-- **One folder, one Space**: a bookmark folder is assumed to belong to at most one Space. Picking the same folder for two Spaces is not blocked, but is unsupported - the extension resolves a bookmark to its Space by folder, so a shared folder resolves to whichever Space is found first.
+### Archive
 
-### Import & Export
+Off by default. Turn it on with **Archive tabs after** in Settings: 12 hours, 24 hours, 3 days, 7 days or 30 days.
 
-- Full backup and restore capability via JSON files
-- Export options:
-  - Select specific data to export: Pinned sites, Bookmarks, and/or Tabs & Groups
-- Import options:
-  - **Pinned Sites**: Replace existing or append to list
-  - **Bookmarks**: Replace all or import as a subfolder
-  - **Tabs & Groups**: Replace current session or append to current window
+- Tabs from the Tab list that you haven't used for that long are saved as bookmarks in an `asd_Archive` folder inside the Space's folder, then closed
+- Open pinned pages unused for that long are closed. Their bookmark stays. If the tab had moved on to another page, that page is archived first
+- Empty pages (New Tab, `about:blank`) close without a bookmark
+- Never closed: the active tab of each window and the tab next to it in split view, tabs playing audio, Chrome-pinned tabs, Favorites and tabs showing a Favorite's page, incognito tabs, and tabs with no Space or whose Space has no folder
+- "Unused" counts from the moment you switched away, including while Chrome is closed or the computer sleeps
+- Turning the setting on starts every tab's clock at that moment, so nothing closes right away
+- Archiving a URL again replaces the older item. Archived items are never deleted automatically
 
-### Filter & Search
+The **Archive** section sits between Bookmarks and Tabs. Hover the header for the newest items and a search box. Click it to list everything, newest first, with the time each was archived. Click an item to reopen it in the active Space. Right-click to delete it (with Undo).
 
-Toolbar at the top with filter options:
+The extension hides `asd_Archive` in the sidebar, search and folder pickers. Chrome's bookmark bar and Bookmark Manager still show it.
 
-- **Text search bar**: Search by title or URL across pinned sites, bookmarks, tabs, and the active Space's archive
-  - Dropdown shows saved and recent filters (last 5 used)
-  - Save button to persist current filter
-- **Search bar toggle**: Show/hide the text search bar (hidden by default)
-- **Live tabs filter**: Show only bookmarks/pins that have an open tab (hides the Archive section)
-- **Audible filter**: Show only items playing audio/video
-- **Reset button**: Clears all active filters
+### Search and filters
+
+- Search titles and URLs across Favorites, bookmarks, tabs and the active Space's archive
+- Saved filters and the last 5 searches in a dropdown
+- Show only items with an open tab, or only items playing audio
+- One button clears all filters
+
+### Keyboard
+
+| Shortcut | Action |
+| --- | --- |
+| `Cmd+Shift+E` / `Ctrl+Shift+E` | Open the sidebar |
+| `Cmd+Shift+<` / `Ctrl+Shift+<` | Previous tab in this window's history |
+| `Cmd+Shift+>` / `Ctrl+Shift+>` | Next tab in history |
+| not set | Tab Switcher: hold the modifier, press to list the Space's tabs by last use, press again to move, release to switch |
+| not set | Space Switcher: the same for Spaces |
+
+Set or change shortcuts in `chrome://extensions/shortcuts`.
 
 ### Settings
 
-Gear icon in the bottom-left corner:
+Gear menu → Settings:
 
-- **Font size**: 6-36px (default: 14px)
-- **Pinned icon size**: 12-48px (default: 22px)
-- **Open bookmark**: Choose how bookmarks open
-  - Arc style: Bookmarks act as persistent tabs (hidden from Tabs section)
-    - Associations are stored in session state and recovered from a local backup when matching real tabs still exist.
-  - In new tab: Opens bookmark in a new background tab
-  - In active tab: Replaces the current tab with the bookmark
-- **Follow active tab**: Switch Space, switch and scroll, or keep the sidebar fixed
-- **Archive tabs after**: Never (default), 12 hours, 24 hours, 3 days, 7 days, or 30 days (debug builds also offer 1 minute). See [Archive](#archive)
-- **Space color**: Optionally tint the sidebar with the active Space color
-- **Highlight tabs by last use**: Off, White (default), Accent, Cooling, or Trail. Tabs in the Tabs section get a stronger background the more recently you left them; tabs unused for more than 3 hours, the active tab, and selected tabs look as usual. Accent and Trail use the Space color when it tints the sidebar
-- **AI naming**: Configure an OpenAI-compatible endpoint, model, protocol, prompt, and automatic naming behavior
+- Font size (6-36px) and Pinned icon size (12-48px)
+- **Open bookmark**: Arc style (pinned pages act as tabs and are hidden from the Tab list), in a new tab, or in the active tab
+- **Follow active tab**: switch Space, switch and scroll, or keep the sidebar where it is
+- **Archive tabs after**: Never, or 12 hours to 30 days
+- **Highlight tabs by last use**: Off, White (default), Accent, Cooling or Trail
+- Space color tint
+- **AI naming**: rename Favorites and pinned pages with an OpenAI-compatible API you configure (endpoint, model, prompt, automatic or manual)
 
-### General
+### Backup
 
-- Dark/light mode (follows your system preference)
-- Keyboard shortcuts:
-  - `Cmd+Shift+E` (Mac) / `Ctrl+Shift+E` (Windows/Linux): Open the sidebar
-  - `Cmd+Shift+<` / `Cmd+Shift+>`: Navigate tab history
-  - Tab Switcher (no default shortcut): hold the modifier and press the shortcut to list the current Space's tabs by last use, press it again to move down, and release the modifier to switch. "Tab Switcher: previous tab" moves up
-  - Space Switcher (no default shortcut): the same for Spaces; picking a Space opens its most recently used tab
-  - `Alt+Shift+F`: Toggle saved filters dropdown
-  - Customize shortcuts via `chrome://extensions/shortcuts`
+Export Favorites, bookmarks and tabs to a JSON file, and import them back: replace or append Favorites, replace bookmarks or add them as a subfolder, replace the session or add tabs to the current window.
 
-### Permissions
+Light and dark mode follow your system.
 
-- `sidePanel`, `bookmarks`, `tabs`, `tabGroups`: Core features
-- `storage`: Save your settings locally
-- `favicon`: Show website icons
-- `scripting`: Read page content only when requested for AI-assisted naming
-- `alarms`: Check for unused tabs every few minutes while "Archive tabs after" is on (no install warning)
-- Optional `http://*/*` and `https://*/*` host access: Requested explicitly for page reading or the configured AI endpoint
+## Permissions
 
-## Full Changelog
+| Permission | Why |
+| --- | --- |
+| `sidePanel`, `bookmarks`, `tabs`, `tabGroups` | Show and manage bookmarks, tabs and groups |
+| `storage` | Settings and sidebar state, stored locally |
+| `favicon` | Website icons |
+| `scripting` | Read a page's text, only when you ask for AI naming |
+| `activeTab` | Draw the Tab and Space Switcher over the current page |
+| `alarms` | Check for unused tabs every few minutes while auto-archive is on |
+| Optional `http://*/*`, `https://*/*` | Asked for when you use AI naming, to read the page and call your AI endpoint |
 
-[docs/changelog.md](docs/changelog.md)
+## More
 
-## Tech Stack
+- [Changelog](docs/changelog.md)
+- [Privacy](PRIVACY.md)
+- [Development](docs/development.md): build, tests, architecture
+- Issues and ideas: [GitHub issues](https://github.com/rashpile/SideBarforArcUsers/issues)
 
-Built with the usual modern web stack:
+## Credits
 
-- [React](https://react.dev/) (v18) + [TypeScript](https://www.typescriptlang.org/)
-- [Vite](https://vitejs.dev/) for builds
-- [Tailwind CSS](https://tailwindcss.com/) for styling
-- [Lucide React](https://lucide.dev/) for icons
-- [@dnd-kit/core](https://dndkit.com/) for drag & drop
-- Chrome Manifest V3 APIs (`sidePanel`, `bookmarks`, `tabs`, `tabGroups`, `storage`, `favicon`, `alarms`)
+This fork started from [monemone-org/ChromeSideBar](https://github.com/monemone-org/ChromeSideBar) by monehsieh, through [lizeyan/SideBarforArcUsers](https://github.com/lizeyan/SideBarforArcUsers), which moved Spaces off Chrome tab groups and rebuilt the visuals after Arc. It is maintained on its own and doesn't merge back upstream. The bigger differences from upstream are one Space at a time, Space membership independent of tab groups, auto-archive, the switchers and the Arc-style visuals.
 
-## Project Structure
-
-```
-/
-├── docs/           # Feature documentation
-├── public/         # Chrome extension manifest, service worker, icons
-├── src/
-│   ├── components/ # React UI components (tabs, bookmarks, pinned bar, dialogs)
-│   ├── hooks/      # Custom hooks wrapping Chrome APIs and shared state
-│   ├── contexts/   # React contexts for global state (font size, bookmark-tab associations)
-│   └── utils/      # Helper functions (drag-drop)
-```
-
-## Documentation
-
-- `docs/chrome-web-store-info.md` - Chrome Web Store listing (summary, description, key features, change logs)
-- `docs/features/` - Feature specs
-- `docs/plans/` - Implementation plans; finished ones move to `docs/plans/completed/`
-- `docs/state-reference.md` - Extension state reference
-
-
-## Setup & Build
-
-### Prerequisites
-- Node.js (v18+)
-- npm
-
-### Installation
-```bash
-npm install
-```
-
-### Build
-```bash
-npm run build
-npm run build:debug
-```
-Outputs production build to `dist/` folder.
-
-## Load in Chrome
-
-1. Go to `chrome://extensions/`
-2. Turn on **Developer mode** (top-right toggle)
-3. Click **Load unpacked** and select the `dist/` folder
-4. Click the extension icon or hit `Cmd+Shift+E` to open the sidebar
-
-## Upstream and Attribution
-
-This fork is based on [monemone-org/ChromeSideBar](https://github.com/monemone-org/ChromeSideBar). Thanks to the upstream project for the original extension architecture and feature foundation.
-
-Install this fork from a release produced by this repository, or build it locally using the instructions above. The upstream Chrome Web Store listing installs the upstream extension, not this Arc-focused fork.
+Licensed under the [Apache License 2.0](LICENSE). Third-party licenses are in [LICENSES.md](LICENSES.md).

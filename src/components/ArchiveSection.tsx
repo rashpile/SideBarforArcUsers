@@ -1,5 +1,5 @@
 /**
- * ArchiveSection - the active Space's archive (feature 035), between the Bookmarks
+ * ArchiveSection - the active Space's archive, between the Bookmarks
  * and Tabs sections. Auto-archive saves closed tabs as bookmarks in the Space
  * folder's `asd_Archive` folder; this section reopens them.
  * Collapsed: hovering the header peeks the newest items (FolderRecentPopover).

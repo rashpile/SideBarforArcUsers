@@ -1,5 +1,5 @@
-// The Tab list's Archive button: saves the tabs into the Space's archive
-// (feature 035), then closes them. Closing goes through an action from the
+// The Tab list's Archive button: saves the tabs into the Space's archive,
+// then closes them. Closing goes through an action from the
 // injected factory (CloseTabAction in the app), which keeps chrome.* out of
 // this module so Node tests can load it.
 

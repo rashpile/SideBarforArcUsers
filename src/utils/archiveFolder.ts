@@ -1,4 +1,4 @@
-// Archive folder of a Space (feature 035): a bookmark folder titled `asd_Archive`,
+// Archive folder of a Space: a bookmark folder titled `asd_Archive`,
 // a direct child of the Space's bookmark folder. Auto-archive saves closed tabs
 // there as bookmarks, newest at index 0. The Bookmarks section hides the folder;
 // only the Archive section shows it.

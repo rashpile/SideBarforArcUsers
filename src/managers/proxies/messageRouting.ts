@@ -2,9 +2,8 @@
 // (background.ts's managers and src/proxies/*), so an action string is never
 // spelled out by hand in two places and cannot drift.
 //
-// See docs/decisions/2026-07-30-shared-storage-multiple-writers.md, "Two-level
-// routing, per manager": background.ts knows managers, each manager knows its
-// own methods, neither knows the other's half.
+// See "Message routing" in docs/development.md: background.ts knows managers, each
+// manager knows its own methods, neither knows the other's half.
 //
 //   "TabSpaceRegistry_msg_register"
 //    └── managerId ──┘     └ method ┘

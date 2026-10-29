@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { resolveBookmarkRowVisualState } from '../src/utils/bookmarkRowVisualState.ts';
 
-test('当前活跃固定 Tab 的单项选择仍使用 active 样式', () =>
+test('a single selection of the active pinned tab still uses the active style', () =>
 {
   assert.equal(resolveBookmarkRowVisualState({
     isActive: true,
@@ -12,7 +12,7 @@ test('当前活跃固定 Tab 的单项选择仍使用 active 样式', () =>
   }), 'active');
 });
 
-test('真正多选时使用 selected 样式覆盖 active', () =>
+test('a real multi-selection uses the selected style over active', () =>
 {
   assert.equal(resolveBookmarkRowVisualState({
     isActive: true,
@@ -21,7 +21,7 @@ test('真正多选时使用 selected 样式覆盖 active', () =>
   }), 'selected');
 });
 
-test('未选中的非活跃固定 Tab 使用 default 样式', () =>
+test('an unselected inactive pinned tab uses the default style', () =>
 {
   assert.equal(resolveBookmarkRowVisualState({
     isActive: false,

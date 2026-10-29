@@ -4,8 +4,8 @@
 // reaches it through proxies/pinnedSitesManagerProxy.ts; the routing
 // vocabulary is in proxies/messageRouting.ts.
 //
-// This is the single writer of the `pinnedSites` storage key - Case 2 in
-// docs/decisions/2026-07-30-shared-storage-multiple-writers.md. Before this,
+// This is the single writer of the `pinnedSites` storage key - see
+// "Shared state" in docs/development.md. Before this,
 // background's favicon patching, the sidebar's CRUD, the sidebar's lazy icon
 // resolver and DeletePinnedSiteAction each did their own read-modify-write of
 // the whole array, so any two of them overlapping could drop the other's

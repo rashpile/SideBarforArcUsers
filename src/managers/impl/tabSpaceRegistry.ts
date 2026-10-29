@@ -98,7 +98,7 @@ export class TabSpaceRegistry implements RoutedManager, TabSpaceRegistryApi
     void this.save();
   }
 
-  /** Tab 排序或批量移动后刷新持久化恢复所需的 URL/index 元数据。 */
+  /** Call after a reorder or bulk move; the restore from storage needs current URLs and indexes. */
   async refreshWindowMetadata(windowId: number): Promise<void>
   {
     const assignments = this.#registry.get(windowId);
@@ -147,7 +147,7 @@ export class TabSpaceRegistry implements RoutedManager, TabSpaceRegistryApi
       this.#tabMetadata.set(`${tab.windowId}:${tab.id}`, { url: tab.url ?? '', index: tab.index });
     }
 
-    // 一次性兼容旧 session 数据，避免升级当下丢失仍打开 Tab 的归属。
+    // One-off migration of old session data, so tabs open during the upgrade keep their Space.
     const legacy = legacyResult[TabSpaceRegistry.LEGACY_SESSION_KEY];
     if (Array.isArray(legacy))
     {

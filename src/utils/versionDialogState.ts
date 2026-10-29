@@ -11,7 +11,7 @@ export interface VersionDialogState
   hasVersionChanged: boolean;
 }
 
-/** 存储就绪前不推断安装状态，避免每次冷启动误挂载 Welcome 对话框。 */
+/** Infers no install state before storage loads, so cold starts never mount Welcome by mistake. */
 export function resolveVersionDialogState({
   isLoaded,
   lastSeenVersion,

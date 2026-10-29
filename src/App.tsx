@@ -30,10 +30,9 @@ import { UnifiedDragOverlay } from './components/UnifiedDragOverlay';
 import { SpaceDialogs } from './components/SpaceDialogs';
 import { useFontSize } from './contexts/FontSizeContext';
 import { getSpaceBgColor, getSpaceAccentRgb } from './utils/groupColors';
-import { Settings, Info, Upload, Download, RefreshCw, Undo2, Sparkles, Newspaper, Mail, Heart } from 'lucide-react';
+import { Settings, Info, Upload, Download, RefreshCw, Undo2, Sparkles } from 'lucide-react';
 import { SectionHeader } from './components/SectionHeader';
 import { SpaceContextMenuContent } from './components/SpaceContextMenuContent';
-import { useNewsCheck } from './hooks/useNewsCheck';
 import { lastAudibleTrackerProxy } from './managers/proxies/lastAudibleTrackerProxy';
 import { useFollowActiveTab } from './hooks/useFollowActiveTab';
 import { FollowActiveTabMode, FOLLOW_ACTIVE_TAB_KEY, DEFAULT_FOLLOW_ACTIVE_TAB_MODE, parseFollowActiveTabMode } from './utils/followActiveTab';
@@ -50,20 +49,7 @@ import {
 import { OpenAiCompatibleClient } from './services/aiRenameService';
 import { resolveVersionDialogState } from './utils/versionDialogState';
 
-// DEV-only, code-split so it never ends up in a production bundle - see
-// src/tests/inpanel/TestRunnerPanel.tsx. Lazy (not the dynamic-import-on-click
-// pattern the other "Unit Test ..." menu items use) because it needs to stay
-// mounted at all times in DEV to detect a resumable paused run on every
-// sidebar open, not just after the user opens it from the menu. Guarded by
-// import.meta.env.DEV here too (not just at the render site below) so the
-// dynamic import() call itself is unreachable in a production build,
-// regardless of whether the bundler's tree-shaking would have stripped the
-// chunk anyway.
-const TestRunnerPanel = import.meta.env.DEV
-  ? React.lazy(() => import('./tests/inpanel/TestRunnerPanel').then(m => ({ default: m.TestRunnerPanel })))
-  : null;
-
-// 首屏不需要的对话框按需加载，避免把设置、导入和 emoji 数据放进冷启动路径。
+// Loaded on demand to keep the settings, import and emoji data off the cold start path.
 const SettingsDialog = React.lazy(() => import('./components/SettingsDialog').then(m => ({ default: m.SettingsDialog })));
 const AboutDialog = React.lazy(() => import('./components/AboutDialog').then(m => ({ default: m.AboutDialog })));
 const ExportDialog = React.lazy(() => import('./components/ExportDialog').then(m => ({ default: m.ExportDialog })));
@@ -93,7 +79,7 @@ interface SidebarContentProps
   onSpaceDropTargetChange?: (spaceId: string | null) => void;
   onAiRenameBookmark?: (bookmark: chrome.bookmarks.BookmarkTreeNode, tabId?: number) => void;
   onBookmarkCreated?: (bookmark: chrome.bookmarks.BookmarkTreeNode, tabId?: number) => void;
-  // Collapse state of the Bookmarks / Archive sections as shown, owned by App (feature 035)
+  // Collapse state of the Bookmarks / Archive sections as shown, owned by App
   sectionCollapseState: SectionCollapseState;
   // Toggle for section headers rendered in the scroll area (the Archive section); undefined while filtering
   onToggleSection?: ToggleSection;
@@ -350,7 +336,7 @@ const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({
   // Root folder of the active space - target for "New Folder" in the space menu
   const spaceRoot = findFolderBySegments(activeSpace.bookmarkFolderSegments ?? [], activeSpace.bookmarkFolderInAccount);
 
-  // The Space title toggles the Bookmarks section (feature 035); keyed like SidebarContent's tree
+  // The Space title toggles the Bookmarks section; keyed like SidebarContent's tree
   const bookmarksCollapsed = sectionCollapseState.isCollapsed(activeSpaceId, 'bookmarks');
   const handleToggleBookmarks = useCallback(() =>
   {
@@ -733,12 +719,11 @@ function App() {
     false,
     { parse: (v) => v === 'true', serialize: (v) => v.toString() }
   );
-  // Bookmarks / Archive collapse state per Space (feature 035) - one owner for the
+  // Bookmarks / Archive collapse state per Space - one owner for the
   // Space title, the Bookmarks tree and the Archive section
   const [storedSectionCollapseState, toggleSection] = useSectionCollapseState();
   const [showSettings, setShowSettings] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
-  const [showTestRunner, setShowTestRunner] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showArcImport, setShowArcImport] = useState(false);
@@ -824,19 +809,7 @@ function App() {
   const [spaceToDelete, setSpaceToDelete] = useState<Space | null>(null);
   const [showSpaceDeleteDialog, setShowSpaceDeleteDialog] = useState(false);
   const bookmarkDropResolverRef = useRef<ResolveBookmarkDropTarget | null>(null);
-  const newsHoverTimerRef = useRef<number | null>(null);
   const aiRequestIdsRef = useRef(new Map<string, number>());
-  // Clean up hover timer on unmount
-  useEffect(() =>
-  {
-    return () =>
-    {
-      if (newsHoverTimerRef.current)
-      {
-        clearTimeout(newsHoverTimerRef.current);
-      }
-    };
-  }, []);
   const buttonRef = useRef<HTMLButtonElement>(null!);
   const audioButtonRef = useRef<HTMLButtonElement>(null!);
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -854,7 +827,6 @@ function App() {
     appendPinnedSites,
   } = usePinnedSites();
   const { tabs, refreshTabs } = useTabs();
-  const { hasUnreadNews, markNewsRead, openNews } = useNewsCheck();
 
   const handleApplySettings = (newSettings: SettingsValues) => {
     setFontSize(newSettings.fontSize);
@@ -926,7 +898,7 @@ function App() {
   }, []);
 
   /**
-   * 为同一目标生成递增请求号，较早返回的慢请求不能覆盖较新的重命名。
+   * Numbered per target, so a slow earlier request can't overwrite a newer rename.
    */
   const beginAiRequest = useCallback((targetKey: string): number =>
   {
@@ -948,7 +920,7 @@ function App() {
   }, []);
 
   /**
-   * 手动操作可直接申请 API origin；自动操作只能使用设置阶段已经授予的权限。
+   * A manual action may request the API origin; an automatic one only has what Settings granted.
    */
   const hasApiAccess = useCallback(async (manualRequest: boolean): Promise<boolean> =>
   {
@@ -959,7 +931,7 @@ function App() {
   }, [aiSettings.baseUrl]);
 
   /**
-   * 对固定项目执行 AI 重命名，并通过后台条件写入保护用户后续编辑。
+   * The background writes the name only if the pin is unchanged, so later user edits are kept.
    */
   const handleAiRenamePin = useCallback(async (
     site: PinnedSite,
@@ -1005,7 +977,8 @@ function App() {
   }, [aiSettings, beginAiRequest, hasApiAccess, hasPageContentAccess, renamePinIfUnchanged, showToast]);
 
   /**
-   * 书签 API 没有事务式条件更新，因此写入前重新读取并核对标题与 URL。
+   * The bookmarks API has no atomic conditional update, so the title and URL are re-read
+   * and checked before writing.
    */
   const handleAiRenameBookmark = useCallback(async (
     bookmark: chrome.bookmarks.BookmarkTreeNode,
@@ -1054,7 +1027,7 @@ function App() {
   }, [aiSettings, beginAiRequest, hasApiAccess, hasPageContentAccess, showToast]);
 
   /**
-   * 先完成固定操作，再异步命名；AI 失败不会撤销用户刚创建的固定项目。
+   * Pins first and names afterwards, so an AI failure doesn't undo the pin the user just created.
    */
   const handleAddPin = useCallback(async (
     url: string,
@@ -1091,7 +1064,7 @@ function App() {
     const newPins = await addPins(pins);
     if (aiSettings.autoRename)
     {
-      // 多选固定会产生多个独立请求；每个请求失败都只保留自己的原标题。
+      // Each pin gets its own request; a failed one leaves only that pin with its original title.
       for (const pin of newPins)
       {
         void handleAiRenamePin(pin, undefined, false);
@@ -1382,7 +1355,6 @@ function App() {
               setFilterText('');
             }
           }}
-          hasUnreadNews={hasUnreadNews}
         />
 
         {/* Settings popup menu */}
@@ -1433,36 +1405,6 @@ function App() {
               <Sparkles size={14} className="mr-2" />
               What's New
             </DropdownMenu.Item>
-            <DropdownMenu.Item
-              onSelect={openNews}
-              onMouseEnter={() =>
-              {
-                newsHoverTimerRef.current = window.setTimeout(markNewsRead, 1000);
-              }}
-              onMouseLeave={() =>
-              {
-                if (newsHoverTimerRef.current)
-                {
-                  clearTimeout(newsHoverTimerRef.current);
-                  newsHoverTimerRef.current = null;
-                }
-              }}
-            >
-              <Newspaper size={14} className="mr-2" />
-              News
-              {/* Red dot for unread news */}
-              {hasUnreadNews && (
-                <span className="ml-1.5 w-2 h-2 bg-red-500 rounded-full inline-block" />
-              )}
-            </DropdownMenu.Item>
-            <DropdownMenu.Item onSelect={() => window.open('mailto:chrome-dev@monemone.org?subject=Sidebar Feedback')}>
-              <Mail size={14} className="mr-2" />
-              Email Us
-            </DropdownMenu.Item>
-            <DropdownMenu.Item onSelect={() => window.open('https://github.com/sponsors/monehsieh', '_blank')}>
-              <Heart size={14} className="mr-2" />
-              Support Us
-            </DropdownMenu.Item>
             <DropdownMenu.Item onSelect={() => setShowAbout(true)}>
               <Info size={14} className="mr-2" />
               About
@@ -1506,10 +1448,6 @@ function App() {
                   Unit Test Do/Undo Delete Space
                 </DropdownMenu.Item>
                 {/*} add new unit tests here */}
-                <DropdownMenu.Item onSelect={() => setShowTestRunner(true)}>
-                  <span className="w-[14px] mr-2" />
-                  Test Runner…
-                </DropdownMenu.Item>
                 <DropdownMenu.Item onSelect={() => chrome.runtime.reload()}>
                   <RefreshCw size={14} className="mr-2" />
                   Reload Extension
@@ -1599,27 +1537,6 @@ function App() {
 
       {/* Unified Drag Overlay for cross-component DnD */}
       <UnifiedDragOverlay pinnedIconSize={pinnedIconSize} yOffset={24} />
-
-      {/* DEV Test Runner - docked at the bottom of the flex column (not a
-          modal), last child so it renders below the space bar and
-          everything else stays interactive while it's open */}
-      {TestRunnerPanel && (
-        <Suspense fallback={null}>
-          <TestRunnerPanel
-            isOpen={showTestRunner}
-            onOpenChange={setShowTestRunner}
-            pinnedSites={pinnedSites}
-            addPin={async (url, title) => { await addPin(url, title); }}
-            removePin={removePin}
-            updatePin={updatePin}
-            resetFavicon={resetFavicon}
-            movePin={movePin}
-            duplicatePin={duplicatePin}
-            replacePinnedSites={replacePinnedSites}
-            appendPinnedSites={appendPinnedSites}
-          />
-        </Suspense>
-      )}
       </AppContainer>
       </UnifiedDndProvider>
       </SelectionProvider>

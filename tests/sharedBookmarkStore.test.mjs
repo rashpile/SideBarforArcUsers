@@ -33,7 +33,7 @@ class FakeBookmarkSource
   }
 }
 
-test('多个订阅者共享一次初始读取和一组 Chrome 监听器', () =>
+test('several subscribers share one initial read and one set of Chrome listeners', () =>
 {
   const source = new FakeBookmarkSource();
   const store = new SharedBookmarkStore(() => source, () => false, 0);
@@ -51,7 +51,7 @@ test('多个订阅者共享一次初始读取和一组 Chrome 监听器', () =>
   assert.equal(source.unsubscribeCount, 1);
 });
 
-test('书签事件合并为一次共享刷新', async () =>
+test('bookmark events coalesce into one shared refresh', async () =>
 {
   const source = new FakeBookmarkSource();
   const store = new SharedBookmarkStore(() => source, () => false, 0);

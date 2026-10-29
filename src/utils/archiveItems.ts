@@ -1,5 +1,5 @@
-// The pages of a Space's archive folder as the Archive section lists them
-// (feature 035). An item's archive time is the moment its bookmark was created
+// The pages of a Space's archive folder as the Archive section lists them.
+// An item's archive time is the moment its bookmark was created
 // (`dateAdded`): auto-archive creates a new bookmark for every archived tab.
 
 import { collectFolderBookmarks } from './folderRecentItems.ts';

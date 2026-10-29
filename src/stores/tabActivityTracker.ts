@@ -1,5 +1,5 @@
-// TabActivityTracker - last-use time of every tab, for auto-archive (feature 035)
-// and the Tab list's age highlight (feature 036).
+// TabActivityTracker - last-use time of every tab, for auto-archive
+// and the Tab list's age highlight.
 //
 // "Last use" is the moment a tab stopped being active. Chrome's tab.lastAccessed
 // holds the moment it became active, so the background records deactivations

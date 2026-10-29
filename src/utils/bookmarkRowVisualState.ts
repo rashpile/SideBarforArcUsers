@@ -8,8 +8,8 @@ export interface BookmarkRowVisualInput
 }
 
 /**
- * 决定固定 Tab 行的主要视觉状态。
- * 普通点击形成的单项选择不能覆盖 Arc 的活跃卡片；只有真正多选时才显示选择态。
+ * A single selection from a plain click must not cover Arc's active card; only a real
+ * multi-selection shows the selected style.
  */
 export function resolveBookmarkRowVisualState({
   isActive,

@@ -1,4 +1,4 @@
-// Row selection for the collapsed-folder recent popover (feature 034).
+// Row selection for the collapsed-folder recent popover.
 
 import { matchesFilter } from './searchParser.ts';
 import { isArchiveFolder } from './archiveFolder.ts';

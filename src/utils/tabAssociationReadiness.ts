@@ -1,8 +1,8 @@
 type AsyncStep = () => Promise<unknown>;
 
 /**
- * 统一固定 Tab 关联的启动顺序：先加载 background manager，再恢复本地备份。
- * 调用方只需要等待 wait()，不需要了解两阶段初始化或错误降级细节。
+ * Pinned tab associations start in a fixed order: the background managers load before the local
+ * backup is restored.
  */
 export class TabAssociationReadiness
 {

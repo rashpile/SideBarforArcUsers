@@ -22,8 +22,8 @@ export type BookmarkRowKeyIntent =
   | 'none';
 
 /**
- * Space 绑定的书签根文件夹只负责界定范围，不作为侧边栏中的可见行。
- * The Space's archive folder (feature 035) is shown only by the Archive section.
+ * The Space's root bookmark folder only sets the scope and is not a visible row in the sidebar.
+ * The Space's archive folder is shown only by the Archive section.
  */
 export const getVisibleSpaceRootItems = <TNode extends BookmarkTreeNodeLike>(
   spaceRoot: TNode,
@@ -32,7 +32,7 @@ export const getVisibleSpaceRootItems = <TNode extends BookmarkTreeNodeLike>(
 
 /**
  * The open bookmarks among the nodes and everything inside them, in tree order:
- * what a collapsed folder - or the collapsed Bookmarks section (feature 035) -
+ * what a collapsed folder - or the collapsed Bookmarks section -
  * still shows. Archive folders are skipped, with everything inside them.
  */
 export const collectOpenBookmarks = <TNode extends BookmarkTreeNodeLike>(
@@ -44,7 +44,7 @@ export const collectOpenBookmarks = <TNode extends BookmarkTreeNodeLike>(
 
   const visit = (level: readonly BookmarkTreeNodeLike[]) =>
   {
-    // 深度优先遍历保持书签树原有顺序
+    // Depth-first, to keep the bookmark tree's order
     for (const node of level)
     {
       if (isArchiveFolder(node)) continue;
@@ -66,11 +66,10 @@ export const collectOpenBookmarks = <TNode extends BookmarkTreeNodeLike>(
 };
 
 /**
- * 返回文件夹当前应渲染的子节点。
- *
- * 折叠时仍递归寻找所有已打开的固定 Tab：文件夹结构保持折叠，但用户能看到
- * 哪些页面开着、当前页面位于哪个文件夹。活跃项依旧由行本身的 active 样式标出。
- * Archive folders (feature 035) are skipped in both modes, with everything inside them.
+ * A collapsed folder still shows every open pinned tab below it: the folder stays collapsed, but
+ * the user sees which pages are open and which folder holds the current page. The active item is
+ * still marked by the row's own active style.
+ * Archive folders are skipped in both modes, with everything inside them.
  */
 export const getVisibleBookmarkChildren = <TNode extends BookmarkTreeNodeLike>(
   folder: TNode,
@@ -90,9 +89,6 @@ export const getVisibleBookmarkChildren = <TNode extends BookmarkTreeNodeLike>(
   return collectOpenBookmarks(children, isOpen).map((node) => ({ node, isPeek: true }));
 };
 
-/**
- * 将文件夹行点击与书签打开区分开，组合键点击继续交给多选逻辑处理。
- */
 export const resolveBookmarkRowClickIntent = (
   isFolder: boolean,
   hasSelectionModifier: boolean,
@@ -107,7 +103,7 @@ export const resolveBookmarkRowClickIntent = (
 };
 
 /**
- * 将键盘输入解析为与 Arc 一致的文件夹和固定页面动作。
+ * Key handling follows Arc's actions for folders and pinned pages.
  */
 export const resolveBookmarkRowKeyIntent = (
   isFolder: boolean,

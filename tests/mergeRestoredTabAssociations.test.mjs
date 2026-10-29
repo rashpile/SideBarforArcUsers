@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { mergeRestoredTabAssociations } from '../src/utils/restoreTabAssociations.ts';
 
-test('恢复时保留有效 session 关联，并只用 backup 补充缺失项', () =>
+test('restore keeps valid session associations and fills only the missing ones from the backup', () =>
 {
   const merged = mergeRestoredTabAssociations(
     {

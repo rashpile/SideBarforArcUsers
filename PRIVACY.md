@@ -1,8 +1,8 @@
-# Privacy Policy for Sidebar for Arc Users
+# Privacy Policy for Side Bar for Arc Users — Arc Style
 
 ## Data Collection
 
-This extension does not collect, transmit, or share any personal data.
+This extension does not collect personal data and has no server. The developer receives nothing. The only data that leaves your device is described under External Services below, and AI naming sends data only to the endpoint you configure.
 
 ## Local Storage
 
@@ -11,9 +11,10 @@ The extension stores the following data locally on your device using Chrome's st
 - Pinned sites (URLs, titles, custom icons)
 - Favicons (stored as base64 image data)
 - User preferences (font size, icon size, display settings)
+- AI naming settings, including the API key you enter, if you configure AI naming
 - The URL, window, position in the window, and last-use times of each open tab, recorded while "Archive tabs after" or "Highlight tabs by last use" is turned on, so the extension knows how long a tab has been unused and how recently you left it (stored in `chrome.storage.local`; incognito tabs are never recorded). "Highlight tabs by last use" is on by default, so the extension records them unless you turn it off. Setting "Archive tabs after" to "Never" and "Highlight tabs by last use" to "Off" deletes them
 
-This data never leaves your device and is not accessible to the developer or any third party.
+This data stays on your device and is not accessible to the developer or any third party.
 
 ## External Services
 
@@ -21,6 +22,14 @@ This data never leaves your device and is not accessible to the developer or any
 - **Favicons**: The extension may fetch favicons directly from websites you pin to store them locally for faster loading.
 
 No user data is sent in these requests beyond standard HTTP headers.
+
+## AI Naming
+
+AI naming is off until you enter an API endpoint in Settings. When you rename a Favorite or pinned page with AI, or turn on automatic naming:
+
+- The extension reads the page's text, title and description from the open tab, after asking for host permission. It may also fetch the page and the site's `llms.txt` without cookies.
+- It sends the page URL, title, description, up to 12,000 characters of that text and up to 3,000 characters from `llms.txt`, together with your prompt, to the endpoint you configured, using your API key.
+- What that service does with the request is governed by its own privacy policy. The extension doesn't send this data anywhere else.
 
 ## Bookmarks and Tabs
 
@@ -36,4 +45,4 @@ Any changes to this privacy policy will be posted in this repository.
 
 ## Contact
 
-For questions or concerns, please open an issue on GitHub.
+For questions or concerns, open an issue at https://github.com/rashpile/SideBarforArcUsers/issues.

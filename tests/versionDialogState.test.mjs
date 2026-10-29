@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { resolveVersionDialogState } from '../src/utils/versionDialogState.ts';
 
-test('版本存储尚未加载时不启动任何欢迎或升级对话框', () =>
+test('no welcome or upgrade dialog opens before the version storage loads', () =>
 {
   assert.deepEqual(resolveVersionDialogState({
     isLoaded: false,
@@ -15,7 +15,7 @@ test('版本存储尚未加载时不启动任何欢迎或升级对话框', () =>
   });
 });
 
-test('加载完成后空版本表示全新安装', () =>
+test('after loading, an empty version means a fresh install', () =>
 {
   assert.deepEqual(resolveVersionDialogState({
     isLoaded: true,
@@ -27,7 +27,7 @@ test('加载完成后空版本表示全新安装', () =>
   });
 });
 
-test('加载完成后的旧版本表示需要显示升级内容', () =>
+test('after loading, an older version means the upgrade notes are shown', () =>
 {
   assert.deepEqual(resolveVersionDialogState({
     isLoaded: true,

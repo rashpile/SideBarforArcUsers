@@ -58,7 +58,7 @@ interface SeenActivation
 }
 
 /**
- * When the user last left each tab, for the Tab list's age highlight (feature 036).
+ * When the user last left each tab, for the Tab list's age highlight.
  * Reads the records background.ts keeps (TabActivityTracker) and follows their
  * changes. The tab the sidebar sees stop being active counts as left right then:
  * the background's record of that leave arrives a little later.

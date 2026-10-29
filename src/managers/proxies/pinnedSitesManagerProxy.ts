@@ -214,8 +214,9 @@ class PinnedSitesManagerProxy implements Remote<PinnedSitesApi>
   }
 
   /**
-   * 条件写入不能做乐观更新：本地镜像可能刚好落后于后台，条件在后台失败时，
-   * 乐观结果会与真实列表分叉。这里等待后台原子判断后再应用权威结果。
+   * No optimistic update for a conditional write: the local mirror may lag behind the background,
+   * and when the condition fails there, the optimistic result would diverge from the real list.
+   * So this waits for the background's atomic check and then applies its authoritative result.
    */
   async #mutateWithAuthoritativeAck(
     method: string,

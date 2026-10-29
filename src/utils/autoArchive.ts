@@ -1,4 +1,4 @@
-// "Archive tabs after" setting (feature 035): how long a tab may stay unused
+// "Archive tabs after" setting: how long a tab may stay unused
 // before the background closes it. Regular tabs are saved to the Space's
 // archive folder first; open bookmark pages are closed without archiving.
 
