@@ -4,6 +4,7 @@
 // turns the highlight off.
 
 import type { AutoArchivePeriod } from './autoArchive.ts';
+import type { UnvisitedTabMarkerSetting } from './unvisitedTabMarker.ts';
 import { HOUR_MS, MINUTE_MS, SECOND_MS, newerTime } from './time.ts';
 
 export type TabAgeHighlightStyle = 'off' | 'white' | 'accent' | 'cooling' | 'trail';
@@ -38,12 +39,17 @@ export function parseTabAgeHighlightStyle(value: unknown): TabAgeHighlightStyle
 }
 
 /**
- * Whether the background records tab last-use times: auto-archive needs them,
- * and so does the highlight. Records are dropped only when neither is on.
+ * Whether the background keeps the tab activity records: auto-archive needs
+ * them, and so do the highlight and the unvisited tab marker. Records are
+ * dropped only when all three are off.
  */
-export function isTabActivityRecording(period: AutoArchivePeriod, style: TabAgeHighlightStyle): boolean
+export function isTabActivityRecording(
+  period: AutoArchivePeriod,
+  style: TabAgeHighlightStyle,
+  marker: UnvisitedTabMarkerSetting
+): boolean
 {
-  return period !== 'never' || style !== 'off';
+  return period !== 'never' || style !== 'off' || marker === 'on';
 }
 
 /**

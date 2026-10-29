@@ -62,10 +62,10 @@ test('the setting reads as White when absent or unknown', () =>
   assert.equal(parseTabAgeHighlightStyle(1), 'white');
 });
 
-test('last-use times are recorded unless auto-archive is Never and the highlight is Off', () =>
+test('records are kept while any of auto-archive, the highlight or the unvisited marker is on', () =>
 {
-  assert.equal(isTabActivityRecording('12h', 'white'), true);
-  assert.equal(isTabActivityRecording('12h', 'off'), true);
-  assert.equal(isTabActivityRecording('never', 'white'), true);
-  assert.equal(isTabActivityRecording('never', 'off'), false);
+  assert.equal(isTabActivityRecording('never', 'off', 'off'), false);
+  assert.equal(isTabActivityRecording('12h', 'off', 'off'), true);
+  assert.equal(isTabActivityRecording('never', 'white', 'off'), true);
+  assert.equal(isTabActivityRecording('never', 'off', 'on'), true);
 });

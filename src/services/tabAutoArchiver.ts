@@ -20,6 +20,7 @@ import {
 import { MINUTE_MS } from '../utils/time';
 import type { AutoArchivePeriod } from '../utils/autoArchive';
 import { isTabActivityRecording, parseTabAgeHighlightStyle, TAB_AGE_HIGHLIGHT_KEY } from '../utils/tabAgeHighlight';
+import { parseUnvisitedTabMarker, UNVISITED_TAB_MARKER_KEY } from '../utils/unvisitedTabMarker';
 import {
   SavedPages,
   selectTabsToClose,
@@ -70,13 +71,14 @@ function parseStoredPeriod(value: unknown): AutoArchivePeriod
   return parseAutoArchivePeriod(value, import.meta.env.DEV);
 }
 
-/** Whether the tab activity tracker records last-use times: while auto-archive or the tab age highlight is on. */
+/** Whether the tab activity tracker records: while auto-archive, the tab age highlight or the unvisited tab marker is on. */
 export async function readTabActivityRecording(): Promise<boolean>
 {
-  const result = await chrome.storage.local.get([AUTO_ARCHIVE_AFTER_KEY, TAB_AGE_HIGHLIGHT_KEY]);
+  const result = await chrome.storage.local.get([AUTO_ARCHIVE_AFTER_KEY, TAB_AGE_HIGHLIGHT_KEY, UNVISITED_TAB_MARKER_KEY]);
   return isTabActivityRecording(
     parseStoredPeriod(result[AUTO_ARCHIVE_AFTER_KEY]),
-    parseTabAgeHighlightStyle(result[TAB_AGE_HIGHLIGHT_KEY])
+    parseTabAgeHighlightStyle(result[TAB_AGE_HIGHLIGHT_KEY]),
+    parseUnvisitedTabMarker(result[UNVISITED_TAB_MARKER_KEY])
   );
 }
 

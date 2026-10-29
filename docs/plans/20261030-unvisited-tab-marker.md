@@ -135,12 +135,12 @@ No e2e suite in the project; the UI is checked manually (Post-Completion).
 - Modify: `src/services/tabAutoArchiver.ts`
 - Modify: `tests/tabAgeHighlight.test.mjs`
 
-- [ ] add `UnvisitedTabMarkerSetting`, key, default `'on'`, `parseUnvisitedTabMarker`
-- [ ] add `RecentWindows` and `isOpenedUnvisited`
-- [ ] `isTabActivityRecording` takes the marker setting; `readTabActivityRecording` reads it
-- [ ] write tests: `RecentWindows` (just created, older than 2 s, unknown window); `isOpenedUnvisited` — inactive new, active, in a just-created window, park page, incognito
-- [ ] update tests: recording condition — all off → false, each one on → true
-- [ ] run `make test` — must pass before task 3
+- [x] add `UnvisitedTabMarkerSetting`, key, default `'on'`, `parseUnvisitedTabMarker`
+- [x] add `RecentWindows` and `isOpenedUnvisited`
+- [x] `isTabActivityRecording` takes the marker setting; `readTabActivityRecording` reads it
+- [x] write tests: `RecentWindows` (just created, older than 2 s, unknown window); `isOpenedUnvisited` — inactive new, active, in a just-created window, park page, incognito
+- [x] update tests: recording condition — all off → false, each one on → true
+- [x] run `make test` — must pass before task 3
 
 ### Task 3: `unvisited` in the tab activity records
 
