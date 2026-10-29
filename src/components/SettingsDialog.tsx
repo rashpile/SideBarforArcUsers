@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Dialog } from './Dialog';
 import { FollowActiveTabMode } from '../utils/followActiveTab';
 import { AutoArchivePeriod } from '../utils/autoArchive';
+import { TabAgeHighlightStyle } from '../utils/tabAgeHighlight';
 import { Eye, EyeOff } from 'lucide-react';
 import {
   AiRenameSettings,
@@ -25,6 +26,7 @@ export interface SettingsValues {
   spaceColorAlpha: number;  // 1-100 percent
   followActiveTab: FollowActiveTabMode;
   autoArchiveAfter: AutoArchivePeriod;
+  tabAgeHighlight: TabAgeHighlightStyle;
   aiSettings: AiRenameSettings;
 }
 
@@ -55,6 +57,7 @@ export function SettingsDialog({
   const [tempSpaceColorAlpha, setTempSpaceColorAlpha] = useState(settings.spaceColorAlpha);
   const [tempFollowActiveTab, setTempFollowActiveTab] = useState(settings.followActiveTab);
   const [tempAutoArchiveAfter, setTempAutoArchiveAfter] = useState(settings.autoArchiveAfter);
+  const [tempTabAgeHighlight, setTempTabAgeHighlight] = useState(settings.tabAgeHighlight);
   const [tempAiSettings, setTempAiSettings] = useState(settings.aiSettings);
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
   const [showApiKey, setShowApiKey] = useState(false);
@@ -90,6 +93,7 @@ export function SettingsDialog({
       setTempSpaceColorAlpha(settings.spaceColorAlpha);
       setTempFollowActiveTab(settings.followActiveTab);
       setTempAutoArchiveAfter(settings.autoArchiveAfter);
+      setTempTabAgeHighlight(settings.tabAgeHighlight);
       setTempAiSettings(settings.aiSettings);
       setShowApiKey(false);
       setAiValidation({ state: 'idle', message: '' });
@@ -114,6 +118,7 @@ export function SettingsDialog({
       spaceColorAlpha: tempSpaceColorAlpha,
       followActiveTab: tempFollowActiveTab,
       autoArchiveAfter: tempAutoArchiveAfter,
+      tabAgeHighlight: tempTabAgeHighlight,
       aiSettings: tempAiSettings,
     });
   };
@@ -300,6 +305,27 @@ export function SettingsDialog({
                   />
                 </div>
               )}
+            </div>
+
+            {/* Highlight tabs by last use */}
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 mb-1">
+                Highlight tabs by last use
+              </label>
+              <select
+                value={tempTabAgeHighlight}
+                onChange={(e) => setTempTabAgeHighlight(e.target.value as TabAgeHighlightStyle)}
+                className="w-full px-2 py-1 border rounded dark:bg-gray-900 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+              >
+                <option value="off">Off</option>
+                <option value="white">White</option>
+                <option value="accent">Accent</option>
+                <option value="cooling">Cooling</option>
+                <option value="trail">Trail</option>
+              </select>
+              <p className="mt-0.5 text-gray-500 dark:text-gray-400 ml-5">
+                Recently used tabs in the Tab list get a stronger background
+              </p>
             </div>
           </>
         )}

@@ -173,9 +173,9 @@ No e2e suite in the project; the UI is checked manually (Post-Completion).
 - Modify: `src/App.tsx`
 - Modify: `src/components/SettingsDialog.tsx`
 
-- [ ] `useChromeLocalStorage` for `tabAgeHighlight` (raw string), pass into the settings object and save handler
-- [ ] Appearance tab select with the five values and the description
-- [ ] no tests (settings plumbing); `make test` and the TypeScript build still pass
+- [x] `useChromeLocalStorage` for `tabAgeHighlight` (raw string), pass into the settings object and save handler
+- [x] Appearance tab select with the five values and the description
+- [x] no tests (settings plumbing); `make test` and the TypeScript build still pass
 
 ### Task 5: Grades on Tab list rows
 

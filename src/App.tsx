@@ -38,6 +38,7 @@ import { lastAudibleTrackerProxy } from './managers/proxies/lastAudibleTrackerPr
 import { useFollowActiveTab } from './hooks/useFollowActiveTab';
 import { FollowActiveTabMode, FOLLOW_ACTIVE_TAB_KEY, DEFAULT_FOLLOW_ACTIVE_TAB_MODE, parseFollowActiveTabMode } from './utils/followActiveTab';
 import { AutoArchivePeriod, AUTO_ARCHIVE_AFTER_KEY, DEFAULT_AUTO_ARCHIVE_PERIOD, parseAutoArchivePeriod } from './utils/autoArchive';
+import { TabAgeHighlightStyle, TAB_AGE_HIGHLIGHT_KEY, DEFAULT_TAB_AGE_HIGHLIGHT_STYLE, parseTabAgeHighlightStyle } from './utils/tabAgeHighlight';
 import * as DropdownMenu from './components/menu/DropdownMenu';
 import {
   AI_SETTINGS_STORAGE_KEY,
@@ -704,6 +705,12 @@ function App() {
     DEFAULT_AUTO_ARCHIVE_PERIOD,
     { parse: (v) => parseAutoArchivePeriod(v, import.meta.env.DEV), serialize: (v) => v }
   );
+  // Raw string, not JSON: background.ts reads it to decide whether to record tab last-use times
+  const [tabAgeHighlight, setTabAgeHighlight] = useChromeLocalStorage<TabAgeHighlightStyle>(
+    TAB_AGE_HIGHLIGHT_KEY,
+    DEFAULT_TAB_AGE_HIGHLIGHT_STYLE,
+    { parse: parseTabAgeHighlightStyle, serialize: (v) => v }
+  );
   const [aiSettings, setAiSettings] = useChromeLocalStorage<AiRenameSettings>(
     AI_SETTINGS_STORAGE_KEY,
     DEFAULT_AI_RENAME_SETTINGS,
@@ -849,6 +856,7 @@ function App() {
     setSpaceColorAlpha(newSettings.spaceColorAlpha);
     setFollowActiveTab(newSettings.followActiveTab);
     setAutoArchiveAfter(newSettings.autoArchiveAfter);
+    setTabAgeHighlight(newSettings.tabAgeHighlight);
     setAiSettings(newSettings.aiSettings);
     setShowSettings(false);
   };
@@ -1255,6 +1263,7 @@ function App() {
               spaceColorAlpha,
               followActiveTab,
               autoArchiveAfter,
+              tabAgeHighlight,
               aiSettings,
             }}
             onApply={handleApplySettings}
