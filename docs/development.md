@@ -24,6 +24,7 @@ Load `dist/` in Chrome: `chrome://extensions` → Developer mode → Load unpack
 | `make test` | Unit tests (`node --test tests/*.test.mjs`) |
 | `make lint` | ESLint. Broken for now: the repo has no ESLint config ([#17](https://github.com/rashpile/SideBarforArcUsers/issues/17)) |
 | `make chrome` | Chrome with a fresh test profile (`tools/start-test-chrome.sh`) |
+| `make screenshot` | Retake `asset/sidebar.png` from a fresh profile with the fake data in `tools/screenshot/fake-data.mjs`. Needs the network; installs Playwright into `tmp/screenshot/`, not `package.json` |
 | `make version` | Bump the version in `package.json` and `manifest.json` |
 | `make release` | Build and zip into `releases/` |
 | `make tag` | Local `release-{version}` git tag |

@@ -4,6 +4,8 @@ Arc's sidebar in Chrome's Side Panel. Favorites, pinned pages, folders and tabs 
 
 Chrome still draws its own tab strip, address bar and Side Panel header. An extension can't replace those, so the work goes into everything inside the panel.
 
+![The sidebar in light and dark mode](asset/sidebar.png)
+
 ## Install
 
 The extension is not in the Chrome Web Store. The "Sidebar for Arc Users" listing there is the upstream project, not this fork.
