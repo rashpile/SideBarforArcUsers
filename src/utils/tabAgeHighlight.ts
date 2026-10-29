@@ -1,10 +1,10 @@
 // "Highlight tabs by last use" setting (feature 036): rows in the Tab list get a
 // background that is stronger the more recently the user left the tab. Tabs not
-// used for more than 24 hours get none. The style picks one of four looks or
+// used for more than 3 hours get none. The style picks one of four looks or
 // turns the highlight off.
 
 import type { AutoArchivePeriod } from './autoArchive.ts';
-import { HOUR_MS, MINUTE_MS, newerTime } from './time.ts';
+import { HOUR_MS, MINUTE_MS, SECOND_MS, newerTime } from './time.ts';
 
 export type TabAgeHighlightStyle = 'off' | 'white' | 'accent' | 'cooling' | 'trail';
 
@@ -21,14 +21,15 @@ const TAB_AGE_HIGHLIGHT_STYLES: readonly TabAgeHighlightStyle[] = ['off', 'white
 // Inclusive upper bound of each grade's age; the index is the grade (0 = freshest).
 // A tab older than the last bound has no grade.
 const GRADE_UPPER_BOUNDS_MS: readonly number[] = [
+  MINUTE_MS,
   5 * MINUTE_MS,
   30 * MINUTE_MS,
-  HOUR_MS,
   3 * HOUR_MS,
-  6 * HOUR_MS,
-  12 * HOUR_MS,
-  24 * HOUR_MS,
 ];
+
+// How often the sidebar re-grades the rows. Well under the 1-minute bound of
+// grade 0, so a tab leaves it at most 15 s late.
+export const TAB_AGE_REGRADE_INTERVAL_MS = 15 * SECOND_MS;
 
 /** Parse a stored value, falling back to the default for absent/unknown values. */
 export function parseTabAgeHighlightStyle(value: unknown): TabAgeHighlightStyle
@@ -47,7 +48,7 @@ export function isTabActivityRecording(period: AutoArchivePeriod, style: TabAgeH
 
 /**
  * The grade (0 = freshest) of a tab last used at `lastUsedAt`, or undefined
- * when the time is unknown or older than 24 hours. A time in the future
+ * when the time is unknown or older than 3 hours. A time in the future
  * (clock skew) counts as fresh.
  */
 export function tabAgeGrade(lastUsedAt: number | undefined, now: number): number | undefined

@@ -1,13 +1,13 @@
 # Tab Age Highlight
 
 ## Overview
-- Rows in the Tab list get a background that shows how recently each tab was used: the more recently you left a tab, the stronger its highlight. Tabs not used for more than 24 hours look as they do today.
+- Rows in the Tab list get a background that shows how recently each tab was used: the more recently you left a tab, the stronger its highlight. Tabs not used for more than 3 hours look as they do today.
 - Why: to find fresh tabs fast. The main moment is "where was I just now"; spotting old tabs is secondary.
 - A new setting picks one of four looks, or turns the highlight off.
 
 ### Decided with the user
-- Eight grades by time since last use: ≤5 min, ≤30 min, ≤1 h, ≤3 h, ≤6 h, ≤12 h, ≤24 h, older (no highlight).
-- Four looks, all offered in Settings (prototype v2): **White** (white wash, like a fainter active row), **Accent** (one colour, fading), **Cooling** (orange → yellow → green → cyan → blue), **Trail** (left gradient whose length and strength show freshness).
+- Four grades by time since last use: ≤1 min, ≤5 min, ≤30 min, ≤3 h, older (no highlight). Changed by the user after trying the real sidebar; the first version had seven grades up to 24 h (≤5 min, ≤30 min, ≤1 h, ≤3 h, ≤6 h, ≤12 h, ≤24 h).
+- Four looks, all offered in Settings (prototype v2): **White** (white wash, like a fainter active row), **Accent** (one colour, fading), **Cooling** (orange → yellow → green → blue), **Trail** (left gradient whose length and strength show freshness).
 - Default: **White**, so people discover the feature.
 - The first two grades stand out; the rest fade quickly. Dark theme gets more contrast than the first prototype (v2 values below).
 - Only regular tabs in the Tab list. Not open bookmarks in the Bookmarks section, not Favorites, not Archive, not the keyboard switchers.
@@ -22,7 +22,7 @@
 - Auto-archive's grace ("no tab closed earlier than one period after switching on") keeps working: it already uses `max(lastUsedAt, autoArchiveEnabledAt)`, so records that were kept while auto-archive was off can't close a tab early.
 - Accent and Trail use the active Space's colour when "Use space colour" is on, otherwise the theme violet.
 - Grouped tabs are highlighted too, layered over the group colour. Selected rows and the active row show no age highlight. Hover stays visible over the highlight.
-- Grades are recomputed once a minute while the sidebar is open, and whenever the records change.
+- Grades are recomputed once a minute while the sidebar is open, and whenever the records change. Changed with the four grades: every 15 s, as a 60 s tick could keep a tab in the 1-minute grade 0 for up to 2 minutes.
 
 ### Known limitations
 - Right after a browser restart, before the background has re-matched the records to the new tab IDs, the sidebar may briefly show grades from old IDs. Cosmetic, fixes itself on the next records write.
@@ -58,7 +58,7 @@
 
 ## Testing Strategy
 Decisions worth a test (they would show wrong tabs as fresh, or lose / keep records wrongly):
-- grade boundaries (inclusive upper bounds, older than 24 h → none, unknown time → none);
+- grade boundaries (inclusive upper bounds, older than 3 h → none, unknown time → none);
 - last use = `max(leftAt, lastAccessed)`, with either missing;
 - setting parse (absent or unknown → `'white'`);
 - recording condition (records dropped only when auto-archive is Never **and** highlight is Off);
@@ -74,7 +74,7 @@ No e2e suite in the project; the UI is checked manually (Post-Completion).
 
 ## Solution Overview
 - **Background:** the tracker's records gain `leftAt`. The tracker records while auto-archive or the highlight is on. Changing either setting calls `tracker.load(openTabs)`, which keeps/attaches records when recording and drops them otherwise; this replaces the archiver's `tracker.clear()`.
-- **Sidebar:** a hook reads `tabLastUsedAt` and follows `chrome.storage.onChanged`; a minute clock re-renders. `TabList` computes each regular tab's grade from `max(leftAt, lastAccessed)` and passes it to `TabRow` → `TreeRow` as `data-tab-age`. The chosen look is a `data-tab-age-style` attribute on the `.arc-theme` root; CSS does the rest.
+- **Sidebar:** a hook reads `tabLastUsedAt` and follows `chrome.storage.onChanged`; a clock re-renders (every minute at first, every 15 s with the four grades). `TabList` computes each regular tab's grade from `max(leftAt, lastAccessed)` and passes it to `TabRow` → `TreeRow` as `data-tab-age`. The chosen look is a `data-tab-age-style` attribute on the `.arc-theme` root; CSS does the rest.
 - **CSS:** each look × grade sets `background-image` (a solid `linear-gradient(c, c)` for White/Accent/Cooling, a real gradient for Trail). `background-image` paints over `background-color`, so the group colour stays underneath. The age rules must out-rank `.arc-tree-row-hoverable:hover`, whose `background` shorthand resets `background-image`; hover is then shown with an inset overlay so it stays visible.
 
 ## Technical Details
@@ -87,7 +87,8 @@ No e2e suite in the project; the UI is checked manually (Post-Completion).
 - `export function isTabActivityRecording(period: AutoArchivePeriod, style: TabAgeHighlightStyle): boolean` — `period !== 'never' || style !== 'off'`
 
 ### Grades — same module
-- Upper bounds, inclusive: `[5 min, 30 min, 1 h, 3 h, 6 h, 12 h, 24 h]` → grade `0..6`; above 24 h → `undefined` (no highlight).
+- Upper bounds, inclusive: `[1 min, 5 min, 30 min, 3 h]` → grade `0..3`; above 3 h → `undefined` (no highlight). (First version: `[5 min, 30 min, 1 h, 3 h, 6 h, 12 h, 24 h]` → `0..6`.)
+- `TAB_AGE_REGRADE_INTERVAL_MS = 15 s`: the sidebar's re-grade tick, well under grade 0's 1-minute bound.
 - `tabAgeGrade(lastUsedAt: number | undefined, now: number): number | undefined` — `undefined` input → `undefined`; a time in the future (clock skew) → grade 0.
 - `tabLastUseForHighlight(leftAt?: number, lastAccessed?: number): number | undefined` — the newer of the two; `undefined` when both missing. (Small enough to be a function; wrap in a class only if more per-tab logic shows up.)
 
@@ -109,18 +110,19 @@ No e2e suite in the project; the UI is checked manually (Post-Completion).
 ### Sidebar
 - `App.tsx`: `useChromeLocalStorage<TabAgeHighlightStyle>(TAB_AGE_HIGHLIGHT_KEY, DEFAULT_…, { parse: parseTabAgeHighlightStyle, serialize: v => v })`; pass to `SettingsDialog` and set `data-tab-age-style` on the `.arc-theme` root (omit when `'off'`). When `applySpaceColor`, also set `--arc-tab-age-accent` to the Space accent as an `r, g, b` triplet (`hexToRgb(GROUP_COLORS[color]?.accentDarkHex …)`). Implemented as `getSpaceAccentRgb(color, isDark)` in `groupColors.ts`: the light accent in light mode, the dark accent in dark mode, as prototype v2's Space look used a strong blue in light mode.
 - New hook (e.g. `src/hooks/useTabLeftTimes.ts`): `chrome.storage.local.get(TabActivityTracker.RECORDS_KEY)` + `chrome.storage.onChanged`, returns `TabLeftTimes`. Skip reading entirely when the style is `'off'`.
-- Minute clock: re-render every 60 s while the style isn't `'off'` (reuse an existing interval hook if there is one).
+- Minute clock: re-render every 60 s while the style isn't `'off'` (reuse an existing interval hook if there is one). Changed with the four grades: `useClock(enabled, intervalMs)` (`src/hooks/useClock.ts`, was `useMinuteClock`), ticked every `TAB_AGE_REGRADE_INTERVAL_MS` (15 s).
 - `TabList.tsx`: for each regular tab row (not active, not selected) compute `tabAgeGrade(tabLastUseForHighlight(leftTimes.leftAt(tab.id), tab.lastAccessed), now)`; pass `tabAgeGrade` to `TabRow`. `lastAccessed` via the `TabWithLastAccess` type from `switcherLists.ts`.
 - Added in review: `useTabLeftTimes(enabled, activeTabId)` counts the tab the sidebar sees stop being active as left right then (`TabLeftTimes.withLeave`, newer of that and the stored `leftAt`), so the tab just left doesn't show its `lastAccessed` grade until the background's write arrives; it returns `undefined` (no grades) until the records are read. `App` treats the setting as `'off'` until `useChromeLocalStorage` has loaded it. White on the light theme darkens a hovered row (`rgba(41, 35, 76, 0.035)`), as the white hover vanished into the fresh grades.
 - Changed in the code smells review: the seen leave moved out of `TabLeftTimes` (now a pure view of the stored records) into the hook's `SidebarTabLeftTimes`; the hook returns `[leftTimes, isLoaded]` like `useChromeLocalStorage` instead of `undefined` while loading; `tabAgeGradeOf` types the tab by the fields it reads, not `TabWithLastAccess`; `MINUTE_MS` / `HOUR_MS` and `newerTime` live in `src/utils/time.ts`.
 - `TreeRow.tsx`: optional `ageGrade?: number` prop → `data-tab-age={ageGrade}`. Changed in review: `TabRow` passes `data-tab-age` to `TreeRow`, which spreads it on the row; no prop.
 
-### CSS — `src/index.css` (values from prototype v2, grades 0..6)
-- White, light: `rgba(255,255,255, .62 .46 .34 .25 .18 .12 .07)`; dark: `.17 .13 .10 .075 .055 .038 .022`.
-- Accent, light: `rgba(var(--arc-tab-age-accent), .36 .26 .19 .14 .10 .07 .04)`; dark: `.58 .44 .33 .25 .18 .12 .07`. Default accent `106, 90, 205` light, `165, 155, 255` dark.
-- Cooling, hues `24 38 50 90 160 195 220`, sat/light `95/55 95/52 92/48 60/45 55/42 65/48 60/58`; alpha light `.36 .30 .25 .21 .17 .13 .09`, dark `.62 .50 .40 .33 .27 .21 .15`.
-- Trail: `linear-gradient(90deg, rgba(accent, a) 0%, rgba(accent, 0) L%)`, L `100 80 62 48 36 26 16`; a light `.38 .32 .28 .25 .22 .19 .16`, dark `.66 .56 .48 .42 .36 .31 .26`.
-- Prefer CSS custom properties per grade over 4×7×2 literal rules if it reads cleaner; tune values on the real sidebar.
+### CSS — `src/index.css` (grades 0..3)
+Values for the four grades (`--arc-tab-age-0..3`). The seven-grade version used prototype v2's values, with the dark ones halved after the first look on the real sidebar (too bright).
+- White, light: `rgba(255,255,255, .62 .40 .24 .12)`; dark: `.085 .06 .04 .022`.
+- Accent, light: `rgba(var(--arc-tab-age-accent), .36 .24 .14 .07)`; dark: `.29 .20 .12 .06`. Default accent `106, 90, 205` light, `165, 155, 255` dark.
+- Cooling, hue/sat/light `24/95/55 50/92/48 160/55/42 220/60/58`; alpha light `.36 .27 .19 .11`, dark `.31 .23 .16 .09`.
+- Trail: `linear-gradient(90deg, rgba(accent, a) 0%, rgba(accent, 0) L%)`, L `100 70 45 20`; a light `.38 .32 .26 .20`, dark `.33 .27 .22 .17`.
+- Prefer CSS custom properties per grade over 4×4×2 literal rules if it reads cleaner; tune values on the real sidebar.
 - Prototype for reference: `/private/tmp/claude-501/-Users-pkoptilin-workspace-repos-SideBarforArcUsers/3a19c148-ba05-4307-b2a5-4374dc5c196d/scratchpad/.superpowers/brainstorm/27682-1793290783/content/tab-age-backgrounds-v2.html` (throwaway).
 
 ### Settings UI — `src/components/SettingsDialog.tsx`
@@ -141,8 +143,8 @@ No e2e suite in the project; the UI is checked manually (Post-Completion).
 
 - [x] add `TabAgeHighlightStyle`, `TAB_AGE_HIGHLIGHT_KEY`, default `'white'`, `parseTabAgeHighlightStyle`
 - [x] add `isTabActivityRecording(period, style)`
-- [x] add `tabAgeGrade(lastUsedAt, now)` with the seven inclusive bounds and `tabLastUseForHighlight(leftAt, lastAccessed)`
-- [x] write tests: grade boundaries (exactly 5 min → 0, 5 min + 1 ms → 1, exactly 24 h → 6, above 24 h → none, undefined → none, future → 0)
+- [x] add `tabAgeGrade(lastUsedAt, now)` with the four inclusive bounds (seven at first) and `tabLastUseForHighlight(leftAt, lastAccessed)`
+- [x] write tests: grade boundaries (exactly 1 min → 0, 1 min + 1 ms → 1, exactly 3 h → 3, above 3 h → none, undefined → none, future → 0)
 - [x] write tests: `tabLastUseForHighlight` with both / one / none; parse (absent, unknown, each value); recording condition (all four combinations)
 - [x] run `make test` — must pass before task 2
 
@@ -191,11 +193,11 @@ No e2e suite in the project; the UI is checked manually (Post-Completion).
 - Modify: `src/App.tsx`
 - Modify: `src/components/TabList.tsx`
 - Modify: `src/components/TreeRow.tsx`
-- ➕ Create: `src/hooks/useMinuteClock.ts` (no interval hook existed)
+- ➕ Create: `src/hooks/useClock.ts` (no interval hook existed; first named `useMinuteClock`)
 - ➕ Modify: `src/utils/groupColors.ts` (`getSpaceAccentRgb`; `hexToRgb` is private there)
 
 - [x] hook reading `tabLastUsedAt` + `onChanged`, returning `TabLeftTimes`; idle when style is `'off'`
-- [x] minute clock while the style isn't `'off'`
+- [x] clock while the style isn't `'off'` (60 s, then 15 s with the four grades)
 - [x] `TabList` computes the grade per regular tab (skip active and selected rows) and passes it through `TabRow` to `TreeRow` (`data-tab-age`)
 - [x] `App` sets `data-tab-age-style` on the `.arc-theme` root and `--arc-tab-age-accent` from the Space colour when it's applied
 - [x] no new tests (wiring; grade logic tested in task 1); `make test` and build pass
@@ -205,7 +207,7 @@ No e2e suite in the project; the UI is checked manually (Post-Completion).
 **Files:**
 - Modify: `src/index.css`
 
-- [x] White, Accent, Cooling, Trail for grades 0..6, light and dark, via `background-image`
+- [x] White, Accent, Cooling, Trail for grades 0..3 (0..6 at first), light and dark, via `background-image`
 - [x] make the age rules win over hover's `background` shorthand; show hover as an inset overlay on highlighted rows
 - [x] check grouped tabs: the highlight lies over the group colour
 - [x] tune values on the real sidebar (neutral, Space colour, dark) (skipped - not automatable: prototype v2 values kept; cascade checked in headless Chrome against the built CSS, the visual check stays in Post-Completion)
@@ -229,7 +231,8 @@ No e2e suite in the project; the UI is checked manually (Post-Completion).
 *Manual checks in Chrome — no checkboxes*
 
 **Manual verification:**
-- leave a tab after working in it for a while: it shows the freshest grade right away, not "1 h"
+- leave a tab after working in it for a while: it shows the freshest grade right away, not "30 min"
+- a tab left about a minute ago moves from grade 0 to grade 1 within 15 s
 - open a link in the background (Cmd+click): the new tab is highlighted as fresh
 - after updating the extension: tabs never left since show grades from Chrome's `lastAccessed`, not all as fresh
 - restart the browser: grades come back for re-opened tabs (records re-matched by URL)

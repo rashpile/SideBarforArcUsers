@@ -14,7 +14,7 @@ const NOW = 1_800_000_000_000;
 
 test('each grade includes its upper bound; the next millisecond falls into the next grade', () =>
 {
-  const bounds = [5 * MINUTE, 30 * MINUTE, HOUR, 3 * HOUR, 6 * HOUR, 12 * HOUR, 24 * HOUR];
+  const bounds = [MINUTE, 5 * MINUTE, 30 * MINUTE, 3 * HOUR];
 
   bounds.forEach((bound, grade) =>
   {
@@ -22,6 +22,13 @@ test('each grade includes its upper bound; the next millisecond falls into the n
     const next = grade + 1 < bounds.length ? grade + 1 : undefined;
     assert.equal(tabAgeGrade(NOW - bound - 1, NOW), next, `${bound} ms + 1 ms`);
   });
+});
+
+test('a tab used more than 3 hours ago has no grade', () =>
+{
+  assert.equal(tabAgeGrade(NOW - 3 * HOUR, NOW), 3);
+  assert.equal(tabAgeGrade(NOW - 3 * HOUR - 1, NOW), undefined);
+  assert.equal(tabAgeGrade(NOW - 24 * HOUR, NOW), undefined);
 });
 
 test('a tab used just now is the freshest grade, even when its time is in the future', () =>

@@ -239,10 +239,10 @@ html, body, #root {
 
 /*
  * Tab age highlight (feature 036, Settings: "Highlight tabs by last use").
- * TabList gives a regular tab row data-tab-age, 0 (left within 5 min) to 6
- * (within 24 h); older tabs, the active row and selected rows get none.
+ * TabList gives a regular tab row data-tab-age, 0 (left within 1 min) to 3
+ * (within 3 h); older tabs, the active row and selected rows get none.
  * data-tab-age-style on the theme root picks the look, which fills a colour
- * table per grade, --arc-tab-age-0..6; the grade rules set the Trail's length.
+ * table per grade, --arc-tab-age-0..3; the grade rules set the Trail's length.
  * The highlight is a background-image, so a tab group's colour (a Tailwind
  * background-color) stays underneath.
  */
@@ -250,45 +250,33 @@ html, body, #root {
 /* White: a white wash, like a fainter active row */
 .arc-theme[data-tab-age-style="white"] {
   --arc-tab-age-0: rgba(255, 255, 255, 0.62);
-  --arc-tab-age-1: rgba(255, 255, 255, 0.46);
-  --arc-tab-age-2: rgba(255, 255, 255, 0.34);
-  --arc-tab-age-3: rgba(255, 255, 255, 0.25);
-  --arc-tab-age-4: rgba(255, 255, 255, 0.18);
-  --arc-tab-age-5: rgba(255, 255, 255, 0.12);
-  --arc-tab-age-6: rgba(255, 255, 255, 0.07);
+  --arc-tab-age-1: rgba(255, 255, 255, 0.40);
+  --arc-tab-age-2: rgba(255, 255, 255, 0.24);
+  --arc-tab-age-3: rgba(255, 255, 255, 0.12);
 }
 
 /* Accent: one colour, fading */
 .arc-theme[data-tab-age-style="accent"] {
   --arc-tab-age-0: rgba(var(--arc-tab-age-accent), 0.36);
-  --arc-tab-age-1: rgba(var(--arc-tab-age-accent), 0.26);
-  --arc-tab-age-2: rgba(var(--arc-tab-age-accent), 0.19);
-  --arc-tab-age-3: rgba(var(--arc-tab-age-accent), 0.14);
-  --arc-tab-age-4: rgba(var(--arc-tab-age-accent), 0.10);
-  --arc-tab-age-5: rgba(var(--arc-tab-age-accent), 0.07);
-  --arc-tab-age-6: rgba(var(--arc-tab-age-accent), 0.04);
+  --arc-tab-age-1: rgba(var(--arc-tab-age-accent), 0.24);
+  --arc-tab-age-2: rgba(var(--arc-tab-age-accent), 0.14);
+  --arc-tab-age-3: rgba(var(--arc-tab-age-accent), 0.07);
 }
 
-/* Cooling: orange, yellow, green, cyan, blue */
+/* Cooling: orange, yellow, green, blue */
 .arc-theme[data-tab-age-style="cooling"] {
   --arc-tab-age-0: hsla(24, 95%, 55%, 0.36);
-  --arc-tab-age-1: hsla(38, 95%, 52%, 0.30);
-  --arc-tab-age-2: hsla(50, 92%, 48%, 0.25);
-  --arc-tab-age-3: hsla(90, 60%, 45%, 0.21);
-  --arc-tab-age-4: hsla(160, 55%, 42%, 0.17);
-  --arc-tab-age-5: hsla(195, 65%, 48%, 0.13);
-  --arc-tab-age-6: hsla(220, 60%, 58%, 0.09);
+  --arc-tab-age-1: hsla(50, 92%, 48%, 0.27);
+  --arc-tab-age-2: hsla(160, 55%, 42%, 0.19);
+  --arc-tab-age-3: hsla(220, 60%, 58%, 0.11);
 }
 
 /* Trail: a left gradient whose strength and length show freshness */
 .arc-theme[data-tab-age-style="trail"] {
   --arc-tab-age-0: rgba(var(--arc-tab-age-accent), 0.38);
   --arc-tab-age-1: rgba(var(--arc-tab-age-accent), 0.32);
-  --arc-tab-age-2: rgba(var(--arc-tab-age-accent), 0.28);
-  --arc-tab-age-3: rgba(var(--arc-tab-age-accent), 0.25);
-  --arc-tab-age-4: rgba(var(--arc-tab-age-accent), 0.22);
-  --arc-tab-age-5: rgba(var(--arc-tab-age-accent), 0.19);
-  --arc-tab-age-6: rgba(var(--arc-tab-age-accent), 0.16);
+  --arc-tab-age-2: rgba(var(--arc-tab-age-accent), 0.26);
+  --arc-tab-age-3: rgba(var(--arc-tab-age-accent), 0.20);
 }
 
 /* Each grade picks its colour; --arc-tab-age-length is the Trail's length, the same in every theme */
@@ -299,32 +287,17 @@ html, body, #root {
 
 .arc-tree-row[data-tab-age="1"] {
   --arc-tab-age-color: var(--arc-tab-age-1);
-  --arc-tab-age-length: 80%;
+  --arc-tab-age-length: 70%;
 }
 
 .arc-tree-row[data-tab-age="2"] {
   --arc-tab-age-color: var(--arc-tab-age-2);
-  --arc-tab-age-length: 62%;
+  --arc-tab-age-length: 45%;
 }
 
 .arc-tree-row[data-tab-age="3"] {
   --arc-tab-age-color: var(--arc-tab-age-3);
-  --arc-tab-age-length: 48%;
-}
-
-.arc-tree-row[data-tab-age="4"] {
-  --arc-tab-age-color: var(--arc-tab-age-4);
-  --arc-tab-age-length: 36%;
-}
-
-.arc-tree-row[data-tab-age="5"] {
-  --arc-tab-age-color: var(--arc-tab-age-5);
-  --arc-tab-age-length: 26%;
-}
-
-.arc-tree-row[data-tab-age="6"] {
-  --arc-tab-age-color: var(--arc-tab-age-6);
-  --arc-tab-age-length: 16%;
+  --arc-tab-age-length: 20%;
 }
 
 /* Out-ranks hover's background shorthand, which would reset background-image */
@@ -471,45 +444,34 @@ html, body, #root {
     --arc-row-overlay: rgba(255, 255, 255, 0.20);
   }
 
-  /* Tab age looks: stronger tints, or the grades blur together on the dark base */
+  /* Tab age looks on the dark base: kept subtle so highlighted rows don't outshine the
+     plain ones, and White's grade 0 stays below the active row's 0.14 */
   .arc-theme[data-tab-age-style="white"] {
-    --arc-tab-age-0: rgba(255, 255, 255, 0.17);
-    --arc-tab-age-1: rgba(255, 255, 255, 0.13);
-    --arc-tab-age-2: rgba(255, 255, 255, 0.10);
-    --arc-tab-age-3: rgba(255, 255, 255, 0.075);
-    --arc-tab-age-4: rgba(255, 255, 255, 0.055);
-    --arc-tab-age-5: rgba(255, 255, 255, 0.038);
-    --arc-tab-age-6: rgba(255, 255, 255, 0.022);
+    --arc-tab-age-0: rgba(255, 255, 255, 0.085);
+    --arc-tab-age-1: rgba(255, 255, 255, 0.06);
+    --arc-tab-age-2: rgba(255, 255, 255, 0.04);
+    --arc-tab-age-3: rgba(255, 255, 255, 0.022);
   }
 
   .arc-theme[data-tab-age-style="accent"] {
-    --arc-tab-age-0: rgba(var(--arc-tab-age-accent), 0.58);
-    --arc-tab-age-1: rgba(var(--arc-tab-age-accent), 0.44);
-    --arc-tab-age-2: rgba(var(--arc-tab-age-accent), 0.33);
-    --arc-tab-age-3: rgba(var(--arc-tab-age-accent), 0.25);
-    --arc-tab-age-4: rgba(var(--arc-tab-age-accent), 0.18);
-    --arc-tab-age-5: rgba(var(--arc-tab-age-accent), 0.12);
-    --arc-tab-age-6: rgba(var(--arc-tab-age-accent), 0.07);
+    --arc-tab-age-0: rgba(var(--arc-tab-age-accent), 0.29);
+    --arc-tab-age-1: rgba(var(--arc-tab-age-accent), 0.20);
+    --arc-tab-age-2: rgba(var(--arc-tab-age-accent), 0.12);
+    --arc-tab-age-3: rgba(var(--arc-tab-age-accent), 0.06);
   }
 
   .arc-theme[data-tab-age-style="cooling"] {
-    --arc-tab-age-0: hsla(24, 95%, 55%, 0.62);
-    --arc-tab-age-1: hsla(38, 95%, 52%, 0.50);
-    --arc-tab-age-2: hsla(50, 92%, 48%, 0.40);
-    --arc-tab-age-3: hsla(90, 60%, 45%, 0.33);
-    --arc-tab-age-4: hsla(160, 55%, 42%, 0.27);
-    --arc-tab-age-5: hsla(195, 65%, 48%, 0.21);
-    --arc-tab-age-6: hsla(220, 60%, 58%, 0.15);
+    --arc-tab-age-0: hsla(24, 95%, 55%, 0.31);
+    --arc-tab-age-1: hsla(50, 92%, 48%, 0.23);
+    --arc-tab-age-2: hsla(160, 55%, 42%, 0.16);
+    --arc-tab-age-3: hsla(220, 60%, 58%, 0.09);
   }
 
   .arc-theme[data-tab-age-style="trail"] {
-    --arc-tab-age-0: rgba(var(--arc-tab-age-accent), 0.66);
-    --arc-tab-age-1: rgba(var(--arc-tab-age-accent), 0.56);
-    --arc-tab-age-2: rgba(var(--arc-tab-age-accent), 0.48);
-    --arc-tab-age-3: rgba(var(--arc-tab-age-accent), 0.42);
-    --arc-tab-age-4: rgba(var(--arc-tab-age-accent), 0.36);
-    --arc-tab-age-5: rgba(var(--arc-tab-age-accent), 0.31);
-    --arc-tab-age-6: rgba(var(--arc-tab-age-accent), 0.26);
+    --arc-tab-age-0: rgba(var(--arc-tab-age-accent), 0.33);
+    --arc-tab-age-1: rgba(var(--arc-tab-age-accent), 0.27);
+    --arc-tab-age-2: rgba(var(--arc-tab-age-accent), 0.22);
+    --arc-tab-age-3: rgba(var(--arc-tab-age-accent), 0.17);
   }
 
   /* The dark White wash is faint enough for the usual light hover: keep this equal to the

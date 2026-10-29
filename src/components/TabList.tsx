@@ -60,8 +60,8 @@ import { DropIndicators } from './DropIndicators';
 import * as ContextMenu from './menu/ContextMenu';
 import { useInView } from '../hooks/useInView';
 import { useTabLeftTimes } from '../hooks/useTabLeftTimes';
-import { useMinuteClock } from '../hooks/useMinuteClock';
-import { tabAgeGrade, tabLastUseForHighlight } from '../utils/tabAgeHighlight';
+import { useClock } from '../hooks/useClock';
+import { TAB_AGE_REGRADE_INTERVAL_MS, tabAgeGrade, tabLastUseForHighlight } from '../utils/tabAgeHighlight';
 import { useChromeLocalStorage } from '../hooks/useChromeLocalStorage';
 import {
   useDraggable,
@@ -896,9 +896,9 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
   const activeTabId = tabs.find(t => t.active)?.id;
 
   // Tab age highlight: when the user last left each tab (background records, plus the leave
-  // this list just saw), re-graded every minute. No grades until the records are read
+  // this list just saw), re-graded every 15 s. No grades until the records are read
   const [tabLeftTimes, tabLeftTimesLoaded] = useTabLeftTimes(highlightTabAge, activeTabId);
-  const now = useMinuteClock(highlightTabAge);
+  const now = useClock(highlightTabAge, TAB_AGE_REGRADE_INTERVAL_MS);
   // lastAccessed (Chrome 121+) is missing from @types/chrome, so the tab is typed by the fields read
   const tabAgeGradeOf = (tab: { id?: number; lastAccessed?: number }): number | undefined =>
   {
