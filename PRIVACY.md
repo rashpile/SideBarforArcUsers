@@ -12,7 +12,7 @@ The extension stores the following data locally on your device using Chrome's st
 - Favicons (stored as base64 image data)
 - User preferences (font size, icon size, display settings)
 - AI naming settings, including the API key you enter, if you configure AI naming
-- The URL, window, position in the window, and last-use times of each open tab, recorded while "Archive tabs after" or "Highlight tabs by last use" is turned on, so the extension knows how long a tab has been unused and how recently you left it (stored in `chrome.storage.local`; incognito tabs are never recorded). "Highlight tabs by last use" is on by default, so the extension records them unless you turn it off. Setting "Archive tabs after" to "Never" and "Highlight tabs by last use" to "Off" deletes them
+- The URL, window, position in the window, and last-use times of each open tab, and whether you have switched to it since it was opened, recorded while "Archive tabs after", "Highlight tabs by last use" or "Mark unvisited tabs" is turned on, so the extension knows how long a tab has been unused, how recently you left it and which tabs you haven't looked at yet (stored in `chrome.storage.local`; incognito tabs are never recorded). "Highlight tabs by last use" and "Mark unvisited tabs" are on by default, so the extension records them unless you turn both off. Setting "Archive tabs after" to "Never", "Highlight tabs by last use" to "Off" and turning "Mark unvisited tabs" off deletes them
 
 This data stays on your device and is not accessible to the developer or any third party.
 

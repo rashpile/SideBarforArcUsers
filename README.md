@@ -66,6 +66,7 @@ Everything is stored in Chrome: bookmarks for Spaces, pinned pages and the archi
 
   ![Tab age highlight looks](asset/tab-age-highlight-light.png)
 
+- A dot at the left edge marks a tab opened in the background (`Cmd+Click`, "Open link in new tab") until you first switch to it. Turn it off with **Mark unvisited tabs** in Settings
 - Drag to reorder, click to switch, X on hover to close
 - "+ New Tab" row at the bottom, with **Clear** (close the list's tabs) and **Archive** (save them to the Archive, then close). Both can be undone
 - Right-click: Pin to Sidebar, Add to Group, Add to Bookmark, Move to New Window, Duplicate, Close, Close Tabs Before / After / Other Tabs
@@ -128,6 +129,7 @@ Gear menu → Settings:
 - **Follow active tab**: switch Space, switch and scroll, or keep the sidebar where it is
 - **Archive tabs after**: Never, or 12 hours to 30 days
 - **Highlight tabs by last use**: Off, White (default), Accent, Cooling or Trail
+- **Mark unvisited tabs**: a dot on tabs opened in the background that you haven't switched to yet. On by default
 - Space color tint
 - **AI naming**: rename Favorites and pinned pages with an OpenAI-compatible API you configure (endpoint, model, prompt, automatic or manual)
 

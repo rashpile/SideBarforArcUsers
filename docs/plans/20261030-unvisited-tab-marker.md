@@ -197,11 +197,11 @@ No e2e suite in the project; the UI is checked manually (Post-Completion).
 - [x] `make test`, `make lint`, `npm run build`
 
 ### Task 8: [Final] Update documentation
-- [ ] `README.md` (Settings) and `docs/changelog.md` (Latest Version)
-- [ ] `src/data/changelog.ts` `1.0.352` — "New: "Mark unvisited tabs" setting (Settings > Appearance, on by default) - a dot marks tabs opened in the background until you first switch to them"
-- [ ] `docs/state-reference.md` — key `markUnvisitedTabs`; `tabLastUsedAt.unvisited`; the three-setting recording condition at ~121–122, ~227, ~248, ~264–266; `TabLeftTimes` rename; writers `onCreated`, `onUpdated`, clear on activation
-- [ ] `PRIVACY.md` (~15, the "Never and Off deletes them" sentence) and `docs/chrome-web-store-info.md` — records also kept while this setting is on
-- [ ] move this plan to `docs/plans/completed/`
+- [x] `README.md` (Settings) and `docs/changelog.md` (Latest Version)
+- [x] `src/data/changelog.ts` `1.0.352` — "New: "Mark unvisited tabs" setting (Settings > Appearance, on by default) - a dot marks tabs opened in the background until you first switch to them"
+- [x] `docs/state-reference.md` — key `markUnvisitedTabs`; `tabLastUsedAt.unvisited`; the three-setting recording condition at ~121–122, ~227, ~248, ~264–266; `TabLeftTimes` rename; writers `onCreated`, `onUpdated`, clear on activation
+- [x] `PRIVACY.md` (~15, the "Never and Off deletes them" sentence) and `docs/chrome-web-store-info.md` — records also kept while this setting is on
+- [x] move plan (done by the orchestrator after reviews)
 
 ## Post-Completion
 *Manual checks in Chrome — no checkboxes*
