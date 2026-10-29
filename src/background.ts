@@ -912,13 +912,21 @@ async function moveLinkTabToTabListTop(tabId: number, windowId: number, openerTa
 
   const windowTabs = await chrome.tabs.query({ windowId });
   const newTab = windowTabs.find(t => t.id === tabId);
-  if (!newTab) return;
+  const opener = windowTabs.find(t => t.id === openerTabId);
+  if (!newTab || !opener) return;
 
   // The tabs the Tab list shows: no bookmark or Favorite association, in the tab's Space
-  const tabListTabs = windowTabs.filter(t => t.id !== undefined
-    && !associations[t.id]
-    && (!spaceId || tabSpaceRegistry.getSpace(windowId, t.id) === spaceId));
-  const index = tabListTopIndexForLinkTab({ id: tabId, index: newTab.index }, openerItemKey, tabListTabs);
+  const tabListTabIds = new Set(windowTabs
+    .filter(t => t.id !== undefined
+      && !associations[t.id]
+      && (!spaceId || tabSpaceRegistry.getSpace(windowId, t.id) === spaceId))
+    .map(t => t.id!));
+  const index = tabListTopIndexForLinkTab(
+    { id: tabId, index: newTab.index },
+    { index: opener.index, itemKey: openerItemKey },
+    windowTabs,
+    tabListTabIds
+  );
   if (index !== undefined) await chrome.tabs.move(tabId, { index });
 }
 
