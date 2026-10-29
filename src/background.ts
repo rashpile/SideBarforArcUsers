@@ -922,7 +922,7 @@ async function moveLinkTabToTabListTop(tabId: number, windowId: number, openerTa
       && (!spaceId || tabSpaceRegistry.getSpace(windowId, t.id) === spaceId))
     .map(t => t.id!));
   const index = tabListTopIndexForLinkTab(
-    { id: tabId, index: newTab.index },
+    { id: tabId, index: newTab.index, url: newTab.url, pendingUrl: newTab.pendingUrl },
     { index: opener.index, itemKey: openerItemKey },
     windowTabs,
     tabListTabIds

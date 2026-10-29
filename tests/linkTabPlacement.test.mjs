@@ -46,6 +46,23 @@ test('a tab Chrome appended at the end (Cmd+T, the + button) is not moved, even 
   assert.equal(tabListTopIndexForLinkTab(newTab, opener, strip, tabListIds), undefined);
 });
 
+test('a New Tab page right after the last tab, a bookmark tab, is not moved (Cmd+T after opening a bookmark)', () =>
+{
+  // The sidebar opens a bookmark's tab at the end of the strip, so Cmd+T lands right after it:
+  // only the New Tab page URL tells it from a link opened there
+  const tabs = [
+    { id: 1, index: 0, groupId: -1 },
+    { id: 7, index: 1, groupId: -1 },
+    { id: 9, index: 2, groupId: -1 },
+  ];
+  const opener = { index: 1, itemKey: 'bookmark-42' };
+  const tabListIds = new Set([1, 9]);
+
+  assert.equal(tabListTopIndexForLinkTab({ id: 9, index: 2, pendingUrl: 'chrome://newtab/' }, opener, tabs, tabListIds), undefined);
+  assert.equal(tabListTopIndexForLinkTab({ id: 9, index: 2, url: 'chrome://newtab/' }, opener, tabs, tabListIds), undefined);
+  assert.equal(tabListTopIndexForLinkTab({ id: 9, index: 2, pendingUrl: 'https://example.com/a' }, opener, tabs, tabListIds), 0);
+});
+
 test('a tab already above every other Tab list tab is not moved', () =>
 {
   const tabs = [
