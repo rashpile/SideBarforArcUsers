@@ -26,6 +26,8 @@
 
 ### Known limitations
 - Right after a browser restart, before the background has re-matched the records to the new tab IDs, the sidebar may briefly show grades from old IDs. Cosmetic, fixes itself on the next records write.
+- Trail: the row's hover buttons (Pin, Close) don't repaint the trail under them. Only the freshest grade (100% long) still has a faint tint at the right end, so hovering it leaves a slightly untinted patch behind the buttons.
+- A hovered grouped tab loses its group colour under the highlight, as hovered grouped tabs already do without it (hover's `background` shorthand replaces the Tailwind colour).
 
 ## Context (from discovery)
 - `src/stores/tabActivityTracker.ts` — `TabActivityTracker` (background is the only writer). `TabUseRecords` keyed by tab ID, stored under `tabLastUsedAt` as `{ [tabId]: { windowId, url, index, lastUsedAt } }`. `markActivated` stamps the tab the user left; `refresh` (`refreshedForLiveTabs`) stamps first-seen and in-use tabs with now; `keptForLiveTabs` / `rematchedByUrl` carry records across worker / browser restarts; `load` drops everything when `isRecording()` is false; `clear()` drops everything. All record writes go through `#put(tab, lastUsedAt)`.
@@ -198,11 +200,11 @@ No e2e suite in the project; the UI is checked manually (Post-Completion).
 **Files:**
 - Modify: `src/index.css`
 
-- [ ] White, Accent, Cooling, Trail for grades 0..6, light and dark, via `background-image`
-- [ ] make the age rules win over hover's `background` shorthand; show hover as an inset overlay on highlighted rows
-- [ ] check grouped tabs: the highlight lies over the group colour
-- [ ] tune values on the real sidebar (neutral, Space colour, dark)
-- [ ] no tests (CSS); build passes
+- [x] White, Accent, Cooling, Trail for grades 0..6, light and dark, via `background-image`
+- [x] make the age rules win over hover's `background` shorthand; show hover as an inset overlay on highlighted rows
+- [x] check grouped tabs: the highlight lies over the group colour
+- [x] tune values on the real sidebar (neutral, Space colour, dark) (skipped - not automatable: prototype v2 values kept; cascade checked in headless Chrome against the built CSS, the visual check stays in Post-Completion)
+- [x] no tests (CSS); build passes
 
 ### Task 7: Verify acceptance criteria
 - [ ] every item under "Decided with the user" works; grouped, selected, active, hover cases look right

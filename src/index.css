@@ -20,6 +20,8 @@ html, body, #root {
   --arc-surface-hover: rgba(255, 255, 255, 0.34);
   --arc-surface-active: rgba(255, 255, 255, 0.72);
   --arc-shadow: 0 1px 2px rgba(41, 35, 76, 0.07), 0 3px 10px rgba(41, 35, 76, 0.07);
+  /* r, g, b of the tab age Accent and Trail looks; App sets the Space accent when the Space colour is applied */
+  --arc-tab-age-accent: 106, 90, 205;
   color: var(--arc-text);
   -webkit-font-smoothing: antialiased;
   text-rendering: geometricPrecision;
@@ -235,6 +237,128 @@ html, body, #root {
     var(--arc-sidebar-bg, transparent);
 }
 
+/*
+ * Tab age highlight (Settings: "Highlight tabs by last use"). TabList gives a
+ * regular tab row data-tab-age, 0 (left within 5 min) to 6 (within 24 h); older
+ * tabs, the active row and selected rows get none. data-tab-age-style on the
+ * theme root picks the look, which fills a table per grade: --arc-tab-age-0..6
+ * (colour) and, for Trail, --arc-tab-age-length-0..6.
+ * The highlight is a background-image, so a tab group's colour (a Tailwind
+ * background-color) stays underneath.
+ */
+
+/* White: a white wash, like a fainter active row */
+.arc-theme[data-tab-age-style="white"] {
+  --arc-tab-age-0: rgba(255, 255, 255, 0.62);
+  --arc-tab-age-1: rgba(255, 255, 255, 0.46);
+  --arc-tab-age-2: rgba(255, 255, 255, 0.34);
+  --arc-tab-age-3: rgba(255, 255, 255, 0.25);
+  --arc-tab-age-4: rgba(255, 255, 255, 0.18);
+  --arc-tab-age-5: rgba(255, 255, 255, 0.12);
+  --arc-tab-age-6: rgba(255, 255, 255, 0.07);
+}
+
+/* Accent: one colour, fading */
+.arc-theme[data-tab-age-style="accent"] {
+  --arc-tab-age-0: rgba(var(--arc-tab-age-accent), 0.36);
+  --arc-tab-age-1: rgba(var(--arc-tab-age-accent), 0.26);
+  --arc-tab-age-2: rgba(var(--arc-tab-age-accent), 0.19);
+  --arc-tab-age-3: rgba(var(--arc-tab-age-accent), 0.14);
+  --arc-tab-age-4: rgba(var(--arc-tab-age-accent), 0.10);
+  --arc-tab-age-5: rgba(var(--arc-tab-age-accent), 0.07);
+  --arc-tab-age-6: rgba(var(--arc-tab-age-accent), 0.04);
+}
+
+/* Cooling: orange, yellow, green, cyan, blue */
+.arc-theme[data-tab-age-style="cooling"] {
+  --arc-tab-age-0: hsla(24, 95%, 55%, 0.36);
+  --arc-tab-age-1: hsla(38, 95%, 52%, 0.30);
+  --arc-tab-age-2: hsla(50, 92%, 48%, 0.25);
+  --arc-tab-age-3: hsla(90, 60%, 45%, 0.21);
+  --arc-tab-age-4: hsla(160, 55%, 42%, 0.17);
+  --arc-tab-age-5: hsla(195, 65%, 48%, 0.13);
+  --arc-tab-age-6: hsla(220, 60%, 58%, 0.09);
+}
+
+/* Trail: a left gradient whose strength and length show freshness */
+.arc-theme[data-tab-age-style="trail"] {
+  --arc-tab-age-0: rgba(var(--arc-tab-age-accent), 0.38);
+  --arc-tab-age-1: rgba(var(--arc-tab-age-accent), 0.32);
+  --arc-tab-age-2: rgba(var(--arc-tab-age-accent), 0.28);
+  --arc-tab-age-3: rgba(var(--arc-tab-age-accent), 0.25);
+  --arc-tab-age-4: rgba(var(--arc-tab-age-accent), 0.22);
+  --arc-tab-age-5: rgba(var(--arc-tab-age-accent), 0.19);
+  --arc-tab-age-6: rgba(var(--arc-tab-age-accent), 0.16);
+  --arc-tab-age-length-0: 100%;
+  --arc-tab-age-length-1: 80%;
+  --arc-tab-age-length-2: 62%;
+  --arc-tab-age-length-3: 48%;
+  --arc-tab-age-length-4: 36%;
+  --arc-tab-age-length-5: 26%;
+  --arc-tab-age-length-6: 16%;
+}
+
+.arc-tree-row[data-tab-age="0"] {
+  --arc-tab-age-color: var(--arc-tab-age-0);
+  --arc-tab-age-length: var(--arc-tab-age-length-0);
+}
+
+.arc-tree-row[data-tab-age="1"] {
+  --arc-tab-age-color: var(--arc-tab-age-1);
+  --arc-tab-age-length: var(--arc-tab-age-length-1);
+}
+
+.arc-tree-row[data-tab-age="2"] {
+  --arc-tab-age-color: var(--arc-tab-age-2);
+  --arc-tab-age-length: var(--arc-tab-age-length-2);
+}
+
+.arc-tree-row[data-tab-age="3"] {
+  --arc-tab-age-color: var(--arc-tab-age-3);
+  --arc-tab-age-length: var(--arc-tab-age-length-3);
+}
+
+.arc-tree-row[data-tab-age="4"] {
+  --arc-tab-age-color: var(--arc-tab-age-4);
+  --arc-tab-age-length: var(--arc-tab-age-length-4);
+}
+
+.arc-tree-row[data-tab-age="5"] {
+  --arc-tab-age-color: var(--arc-tab-age-5);
+  --arc-tab-age-length: var(--arc-tab-age-length-5);
+}
+
+.arc-tree-row[data-tab-age="6"] {
+  --arc-tab-age-color: var(--arc-tab-age-6);
+  --arc-tab-age-length: var(--arc-tab-age-length-6);
+}
+
+/* Out-ranks hover's background shorthand, which would reset background-image */
+.arc-theme[data-tab-age-style] .arc-tree-row[data-tab-age] {
+  background-image: linear-gradient(var(--arc-tab-age-color), var(--arc-tab-age-color));
+}
+
+.arc-theme[data-tab-age-style="trail"] .arc-tree-row[data-tab-age] {
+  background-image: linear-gradient(90deg, var(--arc-tab-age-color) 0%, rgba(var(--arc-tab-age-accent), 0) var(--arc-tab-age-length));
+}
+
+/*
+ * Hover lies over the highlight as an inset overlay. Its colour drops out of the
+ * background, which would show through the highlight and double the overlay.
+ */
+.arc-theme[data-tab-age-style] .arc-tree-row-hoverable[data-tab-age]:hover {
+  background-color: transparent;
+  box-shadow: inset 0 0 0 100px var(--arc-row-overlay);
+}
+
+/* Hover actions repaint the highlight too; Trail has faded out at the right end, where they sit */
+.arc-theme[data-tab-age-style]:not([data-tab-age-style="trail"]) .arc-tree-row[data-tab-age] .arc-tree-row-actions button:not(:hover) {
+  background:
+    linear-gradient(var(--arc-row-overlay), var(--arc-row-overlay)),
+    linear-gradient(var(--arc-tab-age-color), var(--arc-tab-age-color)),
+    var(--arc-sidebar-bg, transparent);
+}
+
 .arc-space-root-drop-target {
   min-height: 10px;
 }
@@ -322,6 +446,7 @@ html, body, #root {
     --arc-surface-hover: rgba(255, 255, 255, 0.10);
     --arc-surface-active: rgba(255, 255, 255, 0.14);
     --arc-shadow: 0 1px 2px rgba(0, 0, 0, 0.24), 0 6px 18px rgba(0, 0, 0, 0.20);
+    --arc-tab-age-accent: 165, 155, 255;
   }
 
   .arc-neutral-background {
@@ -344,6 +469,47 @@ html, body, #root {
   .arc-tree-row-selected,
   .arc-tree-row[data-selected="true"] {
     --arc-row-overlay: rgba(255, 255, 255, 0.20);
+  }
+
+  /* Tab age looks: stronger tints, or the grades blur together on the dark base */
+  .arc-theme[data-tab-age-style="white"] {
+    --arc-tab-age-0: rgba(255, 255, 255, 0.17);
+    --arc-tab-age-1: rgba(255, 255, 255, 0.13);
+    --arc-tab-age-2: rgba(255, 255, 255, 0.10);
+    --arc-tab-age-3: rgba(255, 255, 255, 0.075);
+    --arc-tab-age-4: rgba(255, 255, 255, 0.055);
+    --arc-tab-age-5: rgba(255, 255, 255, 0.038);
+    --arc-tab-age-6: rgba(255, 255, 255, 0.022);
+  }
+
+  .arc-theme[data-tab-age-style="accent"] {
+    --arc-tab-age-0: rgba(var(--arc-tab-age-accent), 0.58);
+    --arc-tab-age-1: rgba(var(--arc-tab-age-accent), 0.44);
+    --arc-tab-age-2: rgba(var(--arc-tab-age-accent), 0.33);
+    --arc-tab-age-3: rgba(var(--arc-tab-age-accent), 0.25);
+    --arc-tab-age-4: rgba(var(--arc-tab-age-accent), 0.18);
+    --arc-tab-age-5: rgba(var(--arc-tab-age-accent), 0.12);
+    --arc-tab-age-6: rgba(var(--arc-tab-age-accent), 0.07);
+  }
+
+  .arc-theme[data-tab-age-style="cooling"] {
+    --arc-tab-age-0: hsla(24, 95%, 55%, 0.62);
+    --arc-tab-age-1: hsla(38, 95%, 52%, 0.50);
+    --arc-tab-age-2: hsla(50, 92%, 48%, 0.40);
+    --arc-tab-age-3: hsla(90, 60%, 45%, 0.33);
+    --arc-tab-age-4: hsla(160, 55%, 42%, 0.27);
+    --arc-tab-age-5: hsla(195, 65%, 48%, 0.21);
+    --arc-tab-age-6: hsla(220, 60%, 58%, 0.15);
+  }
+
+  .arc-theme[data-tab-age-style="trail"] {
+    --arc-tab-age-0: rgba(var(--arc-tab-age-accent), 0.66);
+    --arc-tab-age-1: rgba(var(--arc-tab-age-accent), 0.56);
+    --arc-tab-age-2: rgba(var(--arc-tab-age-accent), 0.48);
+    --arc-tab-age-3: rgba(var(--arc-tab-age-accent), 0.42);
+    --arc-tab-age-4: rgba(var(--arc-tab-age-accent), 0.36);
+    --arc-tab-age-5: rgba(var(--arc-tab-age-accent), 0.31);
+    --arc-tab-age-6: rgba(var(--arc-tab-age-accent), 0.26);
   }
 }
 
