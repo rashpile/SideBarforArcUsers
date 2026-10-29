@@ -15,17 +15,20 @@ export const UNVISITED_TAB_MARKER_KEY = 'markUnvisitedTabs';
 
 export const DEFAULT_UNVISITED_TAB_MARKER: UnvisitedTabMarkerSetting = 'on';
 
-const UNVISITED_TAB_MARKER_SETTINGS: readonly UnvisitedTabMarkerSetting[] = ['on', 'off'];
+// Message from the sidebar's Undo (closed tabs, deleted Space) to the background:
+// { action, tabIds } - tabs it re-created, inactive in an existing window. They
+// were open before, so they must not keep the unvisited mark onCreated gave them.
+export const TABS_REOPENED_BY_UNDO_ACTION = 'tabs-reopened-by-undo';
 
 // Chrome has no "restored" flag and doesn't restore lastAccessed, but it
 // dispatches windows.onCreated a few ms before a restored window's tabs. Inactive
 // tabs this close to their window's creation are taken as restored, not new.
-export const RESTORED_WINDOW_MS = 2 * SECOND_MS;
+const RESTORED_WINDOW_MS = 2 * SECOND_MS;
 
 /** Parse a stored value, falling back to the default for absent/unknown values. */
 export function parseUnvisitedTabMarker(value: unknown): UnvisitedTabMarkerSetting
 {
-  return UNVISITED_TAB_MARKER_SETTINGS.find(setting => setting === value) ?? DEFAULT_UNVISITED_TAB_MARKER;
+  return value === 'off' ? 'off' : DEFAULT_UNVISITED_TAB_MARKER;
 }
 
 /** Windows created in the last RESTORED_WINDOW_MS, kept in memory by the background. */
@@ -35,33 +38,25 @@ export class RecentWindows
 
   markCreated(windowId: number, at: number): void
   {
-    this.#forgetOld(at);
+    // Pruned here so the map stays bounded over a long browser session
+    for (const [knownId, createdAt] of this.#createdAt)
+    {
+      if (at - createdAt > RESTORED_WINDOW_MS) this.#createdAt.delete(knownId);
+    }
     this.#createdAt.set(windowId, at);
   }
 
   isJustCreated(windowId: number, now: number): boolean
   {
-    this.#forgetOld(now);
-    return this.#createdAt.has(windowId);
-  }
-
-  #forgetOld(now: number): void
-  {
-    for (const [windowId, createdAt] of this.#createdAt)
-    {
-      if (now - createdAt > RESTORED_WINDOW_MS)
-      {
-        this.#createdAt.delete(windowId);
-      }
-    }
+    const createdAt = this.#createdAt.get(windowId);
+    return createdAt !== undefined && now - createdAt <= RESTORED_WINDOW_MS;
   }
 }
 
 /** The fields of a newly created tab that isOpenedUnvisited reads. */
-export interface NewTabLike
+interface NewTabLike
 {
   active: boolean;
-  incognito: boolean;
   windowId: number;
   url?: string;
   pendingUrl?: string;
@@ -69,14 +64,13 @@ export interface NewTabLike
 
 /**
  * Whether a tab Chrome just reported as created was opened in the background
- * and should carry the unvisited mark. Not for incognito tabs (never recorded),
- * tab suspender park pages (an existing tab in another form) and tabs of a
- * window created moments ago (a restored window).
+ * and should carry the unvisited mark. Not for tab suspender park pages (an
+ * existing tab in another form) and tabs of a window created moments ago (a
+ * restored window). Incognito tabs are left to the tracker, which never records them.
  */
 export function isOpenedUnvisited(tab: NewTabLike, recentWindows: RecentWindows, now: number): boolean
 {
   return !tab.active
-    && !tab.incognito
     && !parseParkedTabUrl(tab.pendingUrl ?? tab.url)
     && !recentWindows.isJustCreated(tab.windowId, now);
 }

@@ -553,15 +553,36 @@ export class TabActivityTracker
 
   /**
    * An unvisited tab's URL changed: its record takes the new URL and position.
-   * Same no-op conditions as markOpenedUnvisited.
+   * Does nothing before load attached the records. No settings check: while not
+   * recording, load dropped every record, so there is no unvisited one to follow.
    */
   followUrl(tab: TrackedTabLike): Promise<void>
   {
     return this.#enqueue(async () =>
     {
-      if (!this.#attached || !isTrackable(tab) || !await this.#isRecording()) return;
+      if (!this.#attached || !isTrackable(tab)) return;
       const records = await this.#readRecords();
       if (records.followUrl(tab)) await this.#writeRecords(records);
+    });
+  }
+
+  /**
+   * The sidebar's Undo re-created these tabs (closed tabs, a deleted Space): they
+   * were open before, so they lose the unvisited mark onCreated gave them. The
+   * background enqueues this after those marks (see its tabs-reopened-by-undo handler).
+   */
+  markReopened(tabIds: readonly number[]): Promise<void>
+  {
+    return this.#enqueue(async () =>
+    {
+      if (!this.#attached) return;
+      const records = await this.#readRecords();
+      let changed = false;
+      for (const tabId of tabIds)
+      {
+        if (records.markVisited(tabId)) changed = true;
+      }
+      if (changed) await this.#writeRecords(records);
     });
   }
 

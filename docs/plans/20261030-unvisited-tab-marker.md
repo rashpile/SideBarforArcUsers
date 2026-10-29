@@ -30,8 +30,10 @@ Issue: https://github.com/rashpile/SideBarforArcUsers/issues/12
 - Incognito tabs are never recorded, so they never get the dot.
 - After a browser restart a dot can move to another copy of the same page (re-match by URL and position only), as `leftAt` can. Leaving that tab clears it.
 - Tabs opened from a Saved Tab Group get dots (they are new inactive tabs to Chrome).
-- "Open all in new window" (Chrome's bookmark manager, other extensions) creates a new window with inactive tabs: no dots, as for a restored window.
-- Restoring a closed tab group into an existing window creates inactive tabs that get dots.
+- "Open all in new window" (the sidebar's own, Chrome's bookmark manager, other extensions) creates a new window with inactive tabs: no dots, as for a restored window.
+- Restoring a closed tab group into an existing window creates inactive tabs that get dots. So do several tabs closed together and brought back at once with Cmd+Shift+T (Chrome restores them inactive into the existing window). To check manually.
+- Undo clears the mark of every tab it re-creates, also of a tab that was still unvisited when it was closed.
+- Other sidebar paths that re-create known pages as inactive tabs (backup import, Tab list drop, "Open as Tab Group") give them dots, as for any tab opened in the background.
 - If Chrome doesn't dispatch `windows.onCreated` before the tabs of windows restored at browser start, those tabs get dots. To check manually.
 
 ## Context (from discovery)

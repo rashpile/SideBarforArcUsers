@@ -1,6 +1,7 @@
 import { UndoableAction } from './types';
 import { truncateTitle } from '../utils/truncateTitle';
 import { tabSpaceRegistryProxy } from '../managers/proxies/tabSpaceRegistryProxy';
+import { reportTabsReopenedByUndo } from './reportReopenedTabs';
 
 interface TabSnapshot
 {
@@ -157,6 +158,7 @@ export class CloseTabAction implements UndoableAction
         });
 
         if (!newTab.id) continue;
+        reportTabsReopenedByUndo([newTab.id]);
 
         if (snapshot.spaceId)
         {

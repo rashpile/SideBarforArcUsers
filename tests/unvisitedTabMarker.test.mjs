@@ -8,7 +8,7 @@ const PARK_URL = 'chrome-extension://abcdefghijklmnop/park.html?tabId=12&url=htt
 
 function newTab(overrides = {})
 {
-  return { active: false, incognito: false, windowId: 1, url: '', pendingUrl: 'https://example.com/', ...overrides };
+  return { active: false, windowId: 1, url: '', pendingUrl: 'https://example.com/', ...overrides };
 }
 
 test('a window counts as just created for 2 s, then no longer', () =>
@@ -58,9 +58,4 @@ test('a tab suspender park page is not unvisited', () =>
 {
   assert.equal(isOpenedUnvisited(newTab({ pendingUrl: PARK_URL }), new RecentWindows(), NOW), false);
   assert.equal(isOpenedUnvisited(newTab({ url: PARK_URL, pendingUrl: undefined }), new RecentWindows(), NOW), false);
-});
-
-test('an incognito tab is not unvisited', () =>
-{
-  assert.equal(isOpenedUnvisited(newTab({ incognito: true }), new RecentWindows(), NOW), false);
 });

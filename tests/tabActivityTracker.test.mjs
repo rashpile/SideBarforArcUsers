@@ -567,15 +567,56 @@ test('a tab opened in the background gets an unvisited record with no leftAt; no
   browser.unvisitedTabMarker = 'off';
   await tracker.load(browser.open([tab(1, 1, 'https://a.test/', 0, true)]));
   await tracker.markOpenedUnvisited(tab(4, 1, 'https://c.test/', 1));
-  await tracker.followUrl(tab(4, 1, 'https://c2.test/', 1));
   assert.ok(!(RECORDS_KEY in browser.local.data));
 
   // A worker whose load never ran (or failed) may hold records of a previous browser session
   const fresh = new Browser();
   fresh.unvisitedTabMarker = 'on';
-  fresh.local.data[RECORDS_KEY] = { 5: { windowId: 1, url: 'https://old.test/', index: 0, lastUsedAt: 1 } };
-  await fresh.tracker().markOpenedUnvisited(tab(5, 1, 'https://new.test/', 0));
-  assert.deepEqual(fresh.storedRecord(5), { windowId: 1, url: 'https://old.test/', index: 0, lastUsedAt: 1 });
+  const oldRecord = { windowId: 1, url: 'https://old.test/', index: 0, lastUsedAt: 1, unvisited: true };
+  fresh.local.data[RECORDS_KEY] = { 5: { ...oldRecord } };
+  const unloaded = fresh.tracker();
+  await unloaded.markOpenedUnvisited(tab(5, 1, 'https://new.test/', 0));
+  await unloaded.followUrl(tab(5, 1, 'https://new.test/', 0));
+  await unloaded.markReopened([5]);
+  assert.deepEqual(fresh.storedRecord(5), oldRecord);
+});
+
+test('tabs re-created by Undo lose the mark onCreated gave them; other unvisited tabs keep theirs', async () =>
+{
+  const { browser, tracker } = await markerOnly([tab(1, 1, 'https://a.test/', 0, true)]);
+  // Undo re-creates tabs 2 and 3 inactive; tab 4 was opened in the background by a link
+  await tracker.markOpenedUnvisited(tab(2, 1, 'https://b.test/', 1));
+  await tracker.markOpenedUnvisited(tab(3, 1, 'https://c.test/', 2));
+  await tracker.markOpenedUnvisited(tab(4, 1, 'https://d.test/', 3));
+
+  await tracker.markReopened([2, 3, 99]);
+
+  const view = TabActivityView.fromStored(browser.local.data[RECORDS_KEY]);
+  assert.ok(!view.isUnvisited(2));
+  assert.ok(!view.isUnvisited(3));
+  assert.ok(view.isUnvisited(4));
+  assert.equal(browser.storedRecord(99), undefined);
+});
+
+test('after a browser restart the unvisited mark stays with its own copy of a page open twice', async () =>
+{
+  const browser = new Browser();
+  browser.unvisitedTabMarker = 'on';
+  // mail.test open twice: tab 2 visited, tab 3 opened in the background and never visited
+  browser.local.data[RECORDS_KEY] = {
+    2: { windowId: 1, url: 'https://mail.test/', index: 1, lastUsedAt: 300, leftAt: 300 },
+    3: { windowId: 1, url: 'https://mail.test/', index: 2, lastUsedAt: 500, unvisited: true },
+  };
+
+  await browser.tracker().load([
+    tab(7, 10, 'https://home.test/', 0, true),
+    tab(8, 10, 'https://mail.test/', 1),
+    tab(9, 10, 'https://mail.test/', 2),
+  ]);
+
+  const view = TabActivityView.fromStored(browser.local.data[RECORDS_KEY]);
+  assert.ok(!view.isUnvisited(8));
+  assert.ok(view.isUnvisited(9));
 });
 
 test('activating an unvisited tab clears its mark, whether the tab left behind is known, unknown or closed', async () =>
@@ -675,4 +716,8 @@ test('an unvisited tab\'s record follows its URL from pending URL through redire
   await tracker.followUrl(tab(2, 1, 'https://b2.test/', 1));
   assert.deepEqual(browser.storedRecord(3), { windowId: 1, url: 'https://result.test/', index: 2, lastUsedAt: 1000, unvisited: true });
   assert.equal(browser.storedRecord(2).url, 'https://b.test/');
+
+  // A navigation that has no URL yet doesn't wipe the one the record can re-match by
+  await tracker.followUrl(tab(3, 1, '', 2));
+  assert.equal(browser.storedRecord(3).url, 'https://result.test/');
 });

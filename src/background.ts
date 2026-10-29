@@ -18,7 +18,7 @@ import { TabActivityTracker } from './stores/tabActivityTracker';
 import { queryOpenTabs, readTabActivityRecording, TabAutoArchiver } from './services/tabAutoArchiver';
 import { AUTO_ARCHIVE_AFTER_KEY } from './utils/autoArchive';
 import { TAB_AGE_HIGHLIGHT_KEY } from './utils/tabAgeHighlight';
-import { isOpenedUnvisited, RecentWindows, UNVISITED_TAB_MARKER_KEY } from './utils/unvisitedTabMarker';
+import { isOpenedUnvisited, RecentWindows, TABS_REOPENED_BY_UNDO_ACTION, UNVISITED_TAB_MARKER_KEY } from './utils/unvisitedTabMarker';
 import { KeyboardSwitcher, parseSwitcherCommand } from './services/keyboardSwitcher';
 import { buildSpaceCards, buildTabCards, findLastUsedTab, WindowSpaces } from './services/switcherLists';
 import { SwitcherMessageAction } from './utils/switcherMessages';
@@ -756,7 +756,9 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) =>
     catch { /* tab may have been closed */ }
   }
 
-  // An unvisited tab's record follows its redirects, so a browser restart can still re-match it
+  // An unvisited tab's record follows its redirects, so a browser restart can still re-match it.
+  // The active tab is skipped here only to save a queued records read per navigation: its mark
+  // was already cleared when it was activated.
   if (changeInfo.url && tab && !tab.active)
   {
     tabActivityTracker.followUrl(tab)
@@ -943,6 +945,20 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) =>
   {
     tabAssociationReadiness.wait().then(() => sendResponse({ ready: true }));
     return true;
+  }
+
+  // The sidebar sends this after chrome.tabs.create returned, so tabs.onCreated for these tabs
+  // was dispatched first and its handler is already waiting on stateReady. Chained on the same
+  // promise, this runs after it and enqueues the clear after onCreated's markOpenedUnvisited.
+  if (message?.action === TABS_REOPENED_BY_UNDO_ACTION)
+  {
+    if (Array.isArray(message.tabIds))
+    {
+      void stateReady
+        .then(() => tabActivityTracker.markReopened(message.tabIds))
+        .catch((error) => console.error('[TabActivityTracker] failed to unmark tabs reopened by Undo:', error));
+    }
+    return;
   }
 
   if (message?.action === SpaceMessageAction.OPEN_SPACE)
