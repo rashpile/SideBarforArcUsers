@@ -36,7 +36,20 @@ export interface SelectedPageContent
 
 export const AI_SETTINGS_STORAGE_KEY = 'sidebar-ai-rename-settings';
 
-export const DEFAULT_AI_PROMPT = `根据提供的网页内容，为这个固定 Tab 或书签生成一个简短、易于扫读的名称。
+export const DEFAULT_AI_PROMPT = `Write a short, easy-to-scan name for this pinned tab or bookmark, based on the page content provided.
+
+Rules:
+- Use the main language of the page content.
+- A Chinese name is usually 4 to 12 characters; an English name is usually 2 to 8 words.
+- Keep the details needed to tell this page apart.
+- Remove repeated site names, marketing copy and meaningless suffixes.
+- No quotes, emoji or trailing punctuation.
+- Don't add words that carry no information, such as "web page", "page" or "website".
+- Return only the name, with no explanation.`;
+
+// The default prompt before it was translated. Saving the AI settings stores the prompt, so
+// profiles that never edited it still hold this text; it is swapped for the current default.
+const LEGACY_DEFAULT_AI_PROMPT = `根据提供的网页内容，为这个固定 Tab 或书签生成一个简短、易于扫读的名称。
 
 要求：
 - 使用网页内容的主要语言。
@@ -66,7 +79,7 @@ const SECRET_QUERY_KEYS = new Set([
 ]);
 
 /**
- * 从存储值读取 AI 设置，并为后续新增字段补齐默认值。
+ * Fields added in later versions get their default values.
  */
 export function parseAiRenameSettings(value: string): AiRenameSettings
 {
@@ -87,11 +100,14 @@ export function parseAiRenameSettings(value: string): AiRenameSettings
     protocol,
     reasoningEffort,
     autoRename: parsed.autoRename === true,
+    prompt: parsed.prompt === undefined || parsed.prompt === LEGACY_DEFAULT_AI_PROMPT
+      ? DEFAULT_AI_PROMPT
+      : parsed.prompt,
   };
 }
 
 /**
- * 构造两种 OpenAI 风格协议的请求体，确保输出上限和推理配置保持一致。
+ * One builder for both OpenAI-style protocols keeps the output limit and reasoning settings equal.
  */
 export function buildAiRequestBody(
   settings: AiRenameSettings,
@@ -122,7 +138,7 @@ export function buildAiRequestBody(
 }
 
 /**
- * 校验 Base URL，避免把密钥放进 URL 后随日志、历史记录或错误信息泄露。
+ * Validates the Base URL, so a key put in it can't leak through logs, history or error messages.
  */
 export function parseSafeHttpUrl(value: string): URL
 {
@@ -145,7 +161,7 @@ export function parseSafeHttpUrl(value: string): URL
     throw new Error('Do not include credentials in the Base URL');
   }
 
-  // API 版本号不是密钥，其他常见密钥参数需要明确拒绝。
+  // An API version is not a secret; other common secret parameters must be rejected explicitly.
   for (const key of url.searchParams.keys())
   {
     if (SECRET_QUERY_KEYS.has(key.toLowerCase()))
@@ -159,7 +175,7 @@ export function parseSafeHttpUrl(value: string): URL
 }
 
 /**
- * 根据 Base URL 和协议生成最终 endpoint；完整接口 URL 会被识别而不是重复拼接。
+ * A full endpoint URL is recognized instead of being appended to again.
  */
 export function normalizeAiEndpoint(
   baseUrl: string,
@@ -188,7 +204,7 @@ export function normalizeAiEndpoint(
 }
 
 /**
- * 返回校验和请求应尝试的 endpoint。Auto 只在 Base URL 没有明确 endpoint 时返回两个候选。
+ * Auto returns two candidates only when the Base URL has no explicit endpoint.
  */
 export function resolveAiEndpointCandidates(
   baseUrl: string,
@@ -217,9 +233,6 @@ export function resolveAiEndpointCandidates(
   ];
 }
 
-/**
- * 将接口 URL 转成 Chrome 可选 Host Permission 使用的 origin pattern。
- */
 export function getHostPermissionPattern(urlValue: string): string
 {
   const url = parseSafeHttpUrl(urlValue);
@@ -227,7 +240,7 @@ export function getHostPermissionPattern(urlValue: string): string
 }
 
 /**
- * 只解析协议规定的文本字段，避免误把 reasoning 或 tool call 内容当作标题。
+ * Reads only the protocol's text fields, so reasoning or tool call content never becomes the title.
  */
 export function extractAiResponseText(
   protocol: ResolvedAiApiProtocol,
@@ -290,7 +303,8 @@ export function extractAiResponseText(
 }
 
 /**
- * 清理模型输出。多行或过长输出视为协议失败，避免静默截断后改变语义。
+ * Multi-line or too-long output counts as a protocol failure, since silent truncation could
+ * change the meaning.
  */
 export function sanitizeGeneratedTitle(value: string): string
 {
@@ -318,7 +332,7 @@ export function sanitizeGeneratedTitle(value: string): string
 }
 
 /**
- * 选择最可信的当前页内容；llms.txt 的站点简介只作为补充上下文。
+ * The llms.txt site summary serves only as supplementary context.
  */
 export function selectPageContent(candidates: PageContentCandidates): SelectedPageContent
 {
@@ -343,7 +357,7 @@ export function selectPageContent(candidates: PageContentCandidates): SelectedPa
 }
 
 /**
- * 从当前路径向站点根生成 llms.txt 候选，越具体的路径越优先。
+ * From the current path up to the site root; more specific paths come first.
  */
 export function buildLlmsTxtCandidates(pageUrl: string, maxCandidates = 5): string[]
 {

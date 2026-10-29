@@ -28,8 +28,9 @@ export interface ParkedTabUrl
 }
 
 /**
- * 解析外部休眠扩展创建的 park 页面，取回它替换掉的原 Tab ID 和原始网址。
- * 只接受 chrome-extension 的 park.html，避免把普通网页中的同名参数误当成 Tab 身份。
+ * A tab suspender replaces a tab with its park page, which carries the original tab ID and URL.
+ * Only a chrome-extension park.html counts, so the same parameters on a regular web page aren't
+ * taken for a tab identity.
  */
 export function parseParkedTabUrl(url?: string): ParkedTabUrl | null
 {
@@ -52,13 +53,11 @@ export function parseParkedTabUrl(url?: string): ParkedTabUrl | null
   }
 }
 
-/** 返回 park 页面代表的真实网址；普通 Tab 原样返回。 */
 export function getEffectiveTabUrl(url?: string): string
 {
   return parseParkedTabUrl(url)?.originalUrl ?? url ?? '';
 }
 
-/** 在当前窗口中寻找替换指定 Tab 的 park 页面。 */
 export function findParkedReplacementTab<TTab extends TabLike>(
   tabs: readonly TTab[],
   sourceTabId: number
@@ -68,8 +67,8 @@ export function findParkedReplacementTab<TTab extends TabLike>(
 }
 
 /**
- * 为丢失关联的 park 页面恢复固定身份。
- * 优先沿用旧 Tab ID 的精确关联；旧关联已经丢失时，才用原始网址匹配 Favorite 或书签。
+ * The exact association of the old tab ID comes first; only when it is lost is the original URL
+ * matched against Favorites and bookmarks.
  */
 export function recoverParkedTabAssociations<TTab extends TabLike>(
   tabs: readonly TTab[],
@@ -82,8 +81,7 @@ export function recoverParkedTabAssociations<TTab extends TabLike>(
 }
 
 /**
- * 把当前窗口中 URL 已属于书签或 Favorite 的 Chrome Tab 恢复为固定身份。
- * 活跃 Tab 优先，保证侧边栏在首次打开时立即展示正确的 active 状态。
+ * The active tab goes first, so the sidebar shows the right active state as soon as it opens.
  */
 export function recoverFixedTabAssociations<TTab extends TabLike>(
   tabs: readonly TTab[],
@@ -116,7 +114,6 @@ function recoverAssociations<TTab extends TabLike>(
 
   const orderedTabs = [...tabs].sort((left, right) => Number(right.active) - Number(left.active));
 
-  // Tab 必须拥有真实 ID，且同一个固定项目不能同时恢复给多个 Tab。
   for (const tab of orderedTabs)
   {
     if (tab.id === undefined || associations[tab.id]) continue;
@@ -136,8 +133,8 @@ function recoverAssociations<TTab extends TabLike>(
 }
 
 /**
- * Favorite 在 Arc 中优先级更高，所以和书签 URL 重复时先保留 Favorite。
- * Archive folders (feature 035) are left out: a tab on an archived URL stays a regular tab.
+ * Favorites take priority in Arc, so a Favorite wins over a bookmark with the same URL.
+ * Archive folders are left out: a tab on an archived URL stays a regular tab.
  */
 function buildPersistentItemUrlIndex(
   bookmarkRoots: readonly BookmarkNodeLike[],
@@ -154,7 +151,7 @@ function buildPersistentItemUrlIndex(
 
   const visitBookmarks = (nodes: readonly BookmarkNodeLike[]): void =>
   {
-    // 深度遍历 Chrome 书签树，保留第一个出现的书签，和现有 Space 解析假设一致。
+    // Depth-first, keeping the first bookmark found, as the Space resolution already assumes.
     for (const node of nodes)
     {
       if (isArchiveFolder(node)) continue;
@@ -175,7 +172,7 @@ function buildPersistentItemUrlIndex(
   return itemKeyByUrl;
 }
 
-/** 忽略 hash 和路径末尾斜杠，兼容 Chrome 与书签保存 URL 时的轻微格式差异。 */
+/** Ignores hash and trailing slash, where Chrome and saved bookmark URLs can differ slightly. */
 export function normalizeComparableUrl(url: string): string
 {
   try

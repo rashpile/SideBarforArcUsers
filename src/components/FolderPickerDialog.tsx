@@ -63,7 +63,7 @@ const FolderItem = ({
   const isFolder = !node.url;
   if (!isFolder) return null;
 
-  // Filter children to only folders; Space archive folders (feature 035) are not offered
+  // Filter children to only folders; Space archive folders are not offered
   const folderChildren = node.children?.filter(child => !child.url && !isArchiveFolder(child)) || [];
   const hasChildren = folderChildren.length > 0;
   const isExpanded = expandedState[node.id];

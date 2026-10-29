@@ -15,7 +15,6 @@ export type SortOption = 'none' | 'name' | 'dateAdded';
 // Module-level flag shared across all hook instances
 let isBatchOperation = false;
 
-/** 为共享 Store 提供 Chrome 书签 API，并集中管理五类变更监听器。 */
 const createChromeBookmarkSource = (): BookmarkTreeSource | undefined =>
 {
   if (typeof chrome === 'undefined' || !chrome.bookmarks) return undefined;
@@ -433,7 +432,7 @@ export const useBookmarks = () => {
   }, [bookmarks]);
 
   // Get all bookmarks recursively from a folder (including nested subfolders).
-  // Archive folders (feature 035) are skipped: their items are not part of the Space's bookmarks
+  // Archive folders are skipped: their items are not part of the Space's bookmarks
   const getAllBookmarksInFolder = useCallback(async (
     folderId: string
   ): Promise<Array<{ id: string; title: string; url: string }>> =>

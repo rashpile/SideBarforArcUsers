@@ -28,7 +28,7 @@ class FakeTabSource
   }
 }
 
-test('多个 useTabs 调用共享一次查询和一组事件监听器', () =>
+test('several useTabs calls share one query and one set of event listeners', () =>
 {
   const source = new FakeTabSource();
   const store = new SharedTabStore(() => source, () => false, 0);

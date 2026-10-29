@@ -13,7 +13,7 @@ import {
   selectPageContent,
 } from '../../src/utils/aiConfig.ts';
 
-test('旧 AI 设置缺少 reasoning effort 时补成 medium', () =>
+test('old AI settings without reasoning effort get medium', () =>
 {
   const settings = parseAiRenameSettings(JSON.stringify({
     baseUrl: 'https://example.com/v1',
@@ -27,7 +27,7 @@ test('旧 AI 设置缺少 reasoning effort 时补成 medium', () =>
   assert.equal(DEFAULT_AI_RENAME_SETTINGS.reasoningEffort, 'medium');
 });
 
-test('Responses 请求使用 100 max output tokens 和 reasoning 对象', () =>
+test('a Responses request uses 100 max output tokens and a reasoning object', () =>
 {
   const body = buildAiRequestBody(
     { ...DEFAULT_AI_RENAME_SETTINGS, model: 'model', reasoningEffort: 'high' },
@@ -42,7 +42,7 @@ test('Responses 请求使用 100 max output tokens 和 reasoning 对象', () =>
   });
 });
 
-test('Chat Completions 请求使用 100 max completion tokens 和 reasoning_effort', () =>
+test('a Chat Completions request uses 100 max completion tokens and reasoning_effort', () =>
 {
   const body = buildAiRequestBody(
     { ...DEFAULT_AI_RENAME_SETTINGS, model: 'model', reasoningEffort: 'low' },
@@ -57,21 +57,21 @@ test('Chat Completions 请求使用 100 max completion tokens 和 reasoning_effo
   });
 });
 
-test('Reasoning effort 为 None 时不发送推理字段', () =>
+test('reasoning effort None sends no reasoning field', () =>
 {
   const settings = { ...DEFAULT_AI_RENAME_SETTINGS, model: 'model', reasoningEffort: 'off' as const };
   assert.equal('reasoning' in buildAiRequestBody(settings, 'responses', 'prompt'), false);
   assert.equal('reasoning_effort' in buildAiRequestBody(settings, 'chat-completions', 'prompt'), false);
 });
 
-test('为 OpenAI 根地址补上 v1 Responses endpoint', () =>
+test('adds the v1 Responses endpoint to an OpenAI root URL', () =>
 {
   assert.equal(
     normalizeAiEndpoint('https://api.openai.com', 'responses'),
     'https://api.openai.com/v1/responses'
   );
 });
-test('为已有 v1 的地址追加 Chat Completions endpoint', () =>
+test('appends the Chat Completions endpoint to a URL that already has v1', () =>
 {
   assert.equal(
     normalizeAiEndpoint('https://example.com/openai/v1/', 'chat-completions'),
@@ -79,7 +79,7 @@ test('为已有 v1 的地址追加 Chat Completions endpoint', () =>
   );
 });
 
-test('完整 endpoint 不重复追加并保留 query', () =>
+test('a full endpoint is not appended again and keeps its query', () =>
 {
   assert.equal(
     normalizeAiEndpoint('https://example.com/v1/responses?api-version=2026-01-01', 'responses'),
@@ -87,7 +87,7 @@ test('完整 endpoint 不重复追加并保留 query', () =>
   );
 });
 
-test('显式协议可以替换完整 URL 中的另一种 endpoint', () =>
+test('an explicit protocol can replace the other endpoint in a full URL', () =>
 {
   assert.equal(
     normalizeAiEndpoint('https://example.com/v1/responses', 'chat-completions'),
@@ -95,7 +95,7 @@ test('显式协议可以替换完整 URL 中的另一种 endpoint', () =>
   );
 });
 
-test('Auto 从完整 Responses endpoint 推断协议', () =>
+test('Auto infers the protocol from a full Responses endpoint', () =>
 {
   assert.deepEqual(
     resolveAiEndpointCandidates('https://example.com/v1/responses', 'auto'),
@@ -103,7 +103,7 @@ test('Auto 从完整 Responses endpoint 推断协议', () =>
   );
 });
 
-test('Auto 对 Base URL 依次返回 Responses 和 Chat Completions', () =>
+test('Auto returns Responses, then Chat Completions, for a Base URL', () =>
 {
   assert.deepEqual(
     resolveAiEndpointCandidates('https://example.com/v1', 'auto'),
@@ -114,32 +114,32 @@ test('Auto 对 Base URL 依次返回 Responses 和 Chat Completions', () =>
   );
 });
 
-test('拒绝非 HTTP URL', () =>
+test('rejects a non-HTTP URL', () =>
 {
   assert.throws(() => normalizeAiEndpoint('file:///tmp/api', 'responses'), /HTTP or HTTPS/);
 });
 
-test('拒绝 URL 中的账号密码', () =>
+test('rejects a username and password in the URL', () =>
 {
   assert.throws(() => normalizeAiEndpoint('https://user:secret@example.com/v1', 'responses'), /credentials/);
 });
 
-test('拒绝 URL query 中的 API Key', () =>
+test('rejects an API key in the URL query', () =>
 {
   assert.throws(() => normalizeAiEndpoint('https://example.com/v1?api_key=secret', 'responses'), /API key or token/);
 });
 
-test('Host Permission 只保留 origin', () =>
+test('the host permission keeps only the origin', () =>
 {
   assert.equal(getHostPermissionPattern('https://example.com:8443/openai/v1'), 'https://example.com:8443/*');
 });
 
-test('解析 Responses 顶层 output_text', () =>
+test('parses the top-level Responses output_text', () =>
 {
   assert.equal(extractAiResponseText('responses', { output_text: 'Short title' }), 'Short title');
 });
 
-test('解析 Responses output content', () =>
+test('parses Responses output content', () =>
 {
   const payload = {
     output: [{ content: [{ type: 'output_text', text: '标题' }] }],
@@ -147,7 +147,7 @@ test('解析 Responses output content', () =>
   assert.equal(extractAiResponseText('responses', payload), '标题');
 });
 
-test('Responses 不误取 reasoning 文本', () =>
+test('Responses parsing does not pick up reasoning text', () =>
 {
   assert.throws(
     () => extractAiResponseText('responses', { output: [{ content: [{ type: 'reasoning', text: 'secret' }] }] }),
@@ -155,7 +155,7 @@ test('Responses 不误取 reasoning 文本', () =>
   );
 });
 
-test('解析 Chat Completions 字符串 content', () =>
+test('parses Chat Completions string content', () =>
 {
   assert.equal(
     extractAiResponseText('chat-completions', { choices: [{ message: { content: 'Short title' } }] }),
@@ -163,28 +163,28 @@ test('解析 Chat Completions 字符串 content', () =>
   );
 });
 
-test('解析 Chat Completions 文本 parts', () =>
+test('parses Chat Completions text parts', () =>
 {
   const payload = { choices: [{ message: { content: [{ type: 'text', text: '标题' }] } }] };
   assert.equal(extractAiResponseText('chat-completions', payload), '标题');
 });
 
-test('标题清理成对引号、空白和句末标点', () =>
+test('the title loses paired quotes, extra whitespace and final punctuation', () =>
 {
   assert.equal(sanitizeGeneratedTitle('  “Arc   AI 命名。”  '), 'Arc AI 命名');
 });
 
-test('拒绝多行模型输出', () =>
+test('rejects multi-line model output', () =>
 {
   assert.throws(() => sanitizeGeneratedTitle('Title\nExplanation'), /exactly one line/);
 });
 
-test('拒绝超长模型输出', () =>
+test('rejects too-long model output', () =>
 {
   assert.throws(() => sanitizeGeneratedTitle('a'.repeat(101)), /longer than 100/);
 });
 
-test('内容优先级为页面 Markdown、llms 匹配内容、清理正文', () =>
+test('content priority is page Markdown, then matching llms content, then cleaned page text', () =>
 {
   assert.equal(selectPageContent({ pageMarkdown: 'page', matchedLlmsMarkdown: 'llms', cleanedPage: 'dom' }).source, 'page-markdown');
   assert.equal(selectPageContent({ matchedLlmsMarkdown: 'llms', cleanedPage: 'dom' }).source, 'llms-txt');
@@ -192,7 +192,7 @@ test('内容优先级为页面 Markdown、llms 匹配内容、清理正文', () 
   assert.equal(selectPageContent({ llmsSummary: 'site' }).source, 'metadata-only');
 });
 
-test('llms.txt 候选从具体目录回退到站点根', () =>
+test('llms.txt candidates go from the specific directory up to the site root', () =>
 {
   assert.deepEqual(
     buildLlmsTxtCandidates('https://example.com/docs/guides/page.html?x=1'),
@@ -204,7 +204,7 @@ test('llms.txt 候选从具体目录回退到站点根', () =>
   );
 });
 
-test('网页 URL 中的 token query 不影响 llms.txt 路径发现', () =>
+test('a token query in the page URL does not affect llms.txt path discovery', () =>
 {
   assert.deepEqual(
     buildLlmsTxtCandidates('https://example.com/docs/page?access_token=page-state'),

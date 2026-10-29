@@ -1,4 +1,4 @@
-// "Highlight tabs by last use" setting (feature 036): rows in the Tab list get a
+// "Highlight tabs by last use" setting: rows in the Tab list get a
 // background that is stronger the more recently the user left the tab. Tabs not
 // used for more than 3 hours get none. The style picks one of four looks or
 // turns the highlight off.

@@ -11,7 +11,7 @@ import {
 const parkUrl = (sourceTabId, originalUrl) =>
   `chrome-extension://suspender-id/park.html?tabId=${sourceTabId}&url=${encodeURIComponent(originalUrl)}`;
 
-test('识别外部扩展用新 Tab 替换固定 Tab 的 park 页面', () =>
+test('recognizes the park page an external extension puts in place of a pinned tab', () =>
 {
   assert.deepEqual(
     parseParkedTabUrl(parkUrl(42, 'https://example.com/docs')),
@@ -23,7 +23,7 @@ test('识别外部扩展用新 Tab 替换固定 Tab 的 park 页面', () =>
   );
 });
 
-test('根据被替换的原 Tab 关联恢复 park 页的固定身份', () =>
+test('a park page gets its pinned identity from the association of the tab it replaced', () =>
 {
   const tabs = [
     { id: 100, url: parkUrl(42, 'https://example.com/docs') },
@@ -36,7 +36,7 @@ test('根据被替换的原 Tab 关联恢复 park 页的固定身份', () =>
   assert.equal(findParkedReplacementTab(tabs, 42)?.id, 100);
 });
 
-test('旧关联已丢失时只按 park 页原始 URL 自愈，普通同 URL Tab 不会被误判', () =>
+test('a lost association heals by URL only for a park page; a regular tab on the same URL is not matched', () =>
 {
   const tabs = [
     { id: 100, url: parkUrl(42, 'https://example.com/docs') },
@@ -58,7 +58,7 @@ test('旧关联已丢失时只按 park 页原始 URL 自愈，普通同 URL Tab 
   );
 });
 
-test('已有普通 Chrome Tab 的 URL 属于书签或 Favorite 时恢复为固定身份', () =>
+test('an open regular Chrome tab whose URL belongs to a bookmark or Favorite gets its pinned identity back', () =>
 {
   const tabs = [
     { id: 101, active: false, url: 'https://example.com/docs/' },
@@ -82,7 +82,7 @@ test('已有普通 Chrome Tab 的 URL 属于书签或 Favorite 时恢复为固�
   );
 });
 
-test('asd_Archive 中的书签不参与 URL 自愈，归档网址上的 Tab 保持普通 Tab', () =>
+test('bookmarks in asd_Archive take no part in URL healing; a tab on an archived URL stays a regular tab', () =>
 {
   const tabs = [
     { id: 101, active: true, url: 'https://archived.example.com/page' },

@@ -17,13 +17,12 @@ const generateId = (): string => {
   return `pin_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 };
 
-// Favicon loading strategy: see docs/favicon-loading-strategy.md
+// Favicon loading strategy: see "Favicon loading" in docs/development.md
 
 export const usePinnedSites = () => {
   // The list is mirrored by pinnedSitesManagerProxy, outside React state, so a
   // mutation is visible to the next line that reads it rather than only after
-  // a re-render. See docs/decisions/2026-07-30-shared-storage-multiple-writers.md,
-  // section 5.
+  // a re-render. See "Mirror store" in docs/development.md.
   const pinnedSites = useSyncExternalStore(
     pinnedSitesManagerProxy.store.subscribe,
     pinnedSitesManagerProxy.store.getSnapshot

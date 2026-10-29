@@ -123,9 +123,6 @@ export function SettingsDialog({
     });
   };
 
-  /**
-   * 请求用户配置的 API origin 权限并发送最小真实请求。
-   */
   const handleValidateAi = async () =>
   {
     setAiValidation({ state: 'running', message: 'Validating with a real API request…' });
@@ -155,7 +152,8 @@ export function SettingsDialog({
   };
 
   /**
-   * 自动命名无法在后台临时弹权限，因此在设置阶段一次性申请网页读取权限。
+   * Auto naming can't prompt for a permission in the background, so page read access is
+   * requested once, here in Settings.
    */
   const handleRequestPageAccess = async () =>
   {

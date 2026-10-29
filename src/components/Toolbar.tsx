@@ -28,13 +28,12 @@ interface ToolbarProps
   onShowToast?: (message: string) => void;
   showFilterArea?: boolean;
   onToggleFilterArea?: () => void;
-  hasUnreadNews?: boolean;
 }
 
 
 // Custom icon for the "show active tab" button: indented tree rows with a
 // gutter arrow pointing at the active child row. Same 24x24 stroke-2 rounded
-// style as the lucide icons around it (design notes in docs/features/033).
+// style as the lucide icons around it.
 const TreeGutterIcon = ({ size = 16 }: { size?: number }) => (
   <svg
     width={size}
@@ -75,7 +74,6 @@ export const Toolbar = forwardRef<HTMLButtonElement, ToolbarProps>(({
   onShowToast,
   showFilterArea = false,
   onToggleFilterArea,
-  hasUnreadNews = false,
 }, _ref) =>
 {
   const activeButtonClass = 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 active:bg-blue-200 dark:active:bg-blue-800';
@@ -633,10 +631,6 @@ export const Toolbar = forwardRef<HTMLButtonElement, ToolbarProps>(({
           >
             <Settings size={16} />
           </button>
-          {/* Red dot badge for unread news */}
-          {hasUnreadNews && (
-            <span className="absolute top-0.5 right-0.5 w-2 h-2 bg-red-500 rounded-full pointer-events-none" />
-          )}
         </div>
       </div>
 

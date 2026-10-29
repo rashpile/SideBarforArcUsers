@@ -1,4 +1,4 @@
-// Last-active time of each bookmark's Arc-style tab (feature 034).
+// Last-active time of each bookmark's Arc-style tab, for the collapsed-folder recent popover.
 // background.ts is the only writer (BookmarkRecencyStore); the sidebar reads
 // the same key through useChromeLocalStorage and wraps it in BookmarkRecency.
 

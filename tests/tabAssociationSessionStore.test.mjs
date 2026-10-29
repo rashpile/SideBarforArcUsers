@@ -19,7 +19,7 @@ class MemoryStorage
   }
 }
 
-test('并发建立多个固定 Tab 的 session 关联不会互相覆盖', async () =>
+test('concurrent session associations for several pinned tabs do not overwrite each other', async () =>
 {
   const storage = new MemoryStorage();
   const store = new TabAssociationSessionStore(storage);

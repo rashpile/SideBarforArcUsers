@@ -76,7 +76,7 @@ export const SpaceDialogs: React.FC<SpaceDialogsProps> = ({
       activeSpaceId,
     );
 
-    // Arc 始终保留至少一个 Space；最后一个 Space 不允许被删除。
+    // Arc always keeps at least one Space, so the last Space can't be deleted.
     if (!nextSpaceId) return;
 
     const action = new DeleteSpaceAction(

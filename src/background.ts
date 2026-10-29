@@ -27,77 +27,11 @@ import { tabListTopIndexForLinkTab } from './utils/linkTabPlacement';
 // Set side panel to open when clicking the extension toolbar button
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 
-// NewsVersionChecker - Fetches latest news version from GitHub (at most once/week)
-// =============================================================================
-
-class NewsVersionChecker
-{
-  static LATEST_VERSION_URL =
-    'https://monemone-org.github.io/ChromeSideBar/public/latest.version';
-  static STORAGE_KEY_VERSION = 'sidebar-news-latest-version';
-  static STORAGE_KEY_CHECK_TIME = 'sidebar-last-news-check-time';
-  static CHECK_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 1 week
-
-  #cachedVersion = 0;
-
-  getCachedVersion(): number
-  {
-    return this.#cachedVersion;
-  }
-
-  async load(): Promise<void>
-  {
-    const result = await chrome.storage.local.get([NewsVersionChecker.STORAGE_KEY_VERSION]);
-    const stored = parseInt(String(result[NewsVersionChecker.STORAGE_KEY_VERSION] ?? 0), 10);
-    this.#cachedVersion = isNaN(stored) ? 0 : stored;
-    await this.checkIfDue();
-  }
-
-  // Fetch from GitHub if enough time has passed since last check
-  async checkIfDue(): Promise<void>
-  {
-    const result = await chrome.storage.local.get([NewsVersionChecker.STORAGE_KEY_CHECK_TIME]);
-    const lastCheckTime = parseInt(String(result[NewsVersionChecker.STORAGE_KEY_CHECK_TIME] ?? 0), 10) || 0;
-    if (Date.now() - lastCheckTime >= NewsVersionChecker.CHECK_INTERVAL_MS)
-    {
-      this.fetchLatestVersion();
-    }
-  }
-
-  private async fetchLatestVersion(): Promise<void>
-  {
-    try
-    {
-      const res = await fetch(NewsVersionChecker.LATEST_VERSION_URL);
-      if (!res.ok) return;
-
-      const text = await res.text();
-      const fetched = parseInt(text.trim(), 10);
-      if (isNaN(fetched)) return;
-
-      this.#cachedVersion = fetched;
-
-      if (import.meta.env.DEV)
-      {
-        console.log(`[NewsVersionChecker] Fetched news version: ${fetched}`);
-      }
-
-      await chrome.storage.local.set({
-        [NewsVersionChecker.STORAGE_KEY_VERSION]: fetched,
-        [NewsVersionChecker.STORAGE_KEY_CHECK_TIME]: Date.now()
-      });
-    }
-    catch
-    {
-      // Silently skip — try again next week
-    }
-  }
-}
-
 // Forward declaration - will be initialized below
 let tabSpaceRegistry: TabSpaceRegistry;
 
-// Space 归属完全由扩展自己的 TabSpaceRegistry 决定；Chrome 原生 groupId 只属于用户。
+// Space membership comes only from the extension's TabSpaceRegistry;
+// Chrome's native groupId belongs to the user.
 async function getSpaceForTab(windowId: number, tabId: number): Promise<string | undefined>
 {
   return tabSpaceRegistry.getSpace(windowId, tabId);
@@ -157,7 +91,6 @@ async function setActiveTabAndSpace(
       return { success: false, error: 'Tab has no window' };
     }
 
-    // 显式跳转始终跟随目标 Tab 的真实 Space。
     const persistedSpaceId = spaceStateManager.getActiveSpace(tab.windowId);
     const currentSpaceId = resolveActiveSpaceId(spaceManager.getSpaces(), persistedSpaceId);
     let destinationSpaceId = await getSpaceForActivatedTab(tab.windowId, tabId);
@@ -226,9 +159,8 @@ const bookmarkSpaceResolver = new BookmarkSpaceResolver(
   (id) => chrome.bookmarks.get(id).then(([node]) => node, () => undefined),
   () => spaceManager.getSpaces(),
 );
-const newsVersionChecker = new NewsVersionChecker();
-// Last-use time of every tab, for auto-archive (feature 035) and the Tab list's age highlight
-// (feature 036). Background is the only writer; nothing is recorded while both are off.
+// Last-use time of every tab, for auto-archive and the Tab list's age highlight.
+// Background is the only writer; nothing is recorded while both are off.
 const tabActivityTracker = new TabActivityTracker({
   local: {
     get: (key) => chrome.storage.local.get(key),
@@ -245,8 +177,8 @@ const tabActivityTracker = new TabActivityTracker({
 });
 
 /**
- * 后台启动时迁移每个窗口遗留的 all 或失效 Space ID。
- * 这一步在 stateReady 之前完成，避免侧边栏未打开时创建的新 Tab 失去归属。
+ * Migrates each window's leftover `all` or invalid Space ID at startup. It runs before stateReady,
+ * so a tab created while the sidebar is closed doesn't lose its Space.
  */
 async function normalizeLoadedWindowSpaces(): Promise<void>
 {
@@ -267,8 +199,8 @@ async function normalizeLoadedWindowSpaces(): Promise<void>
 }
 
 /**
- * 将旧版尚未登记的真实 Tab 迁移到内部 Space 关联。
- * 仅在迁移时读取已有原生组标题；迁移完成后原生组的任何变化都不再影响 Space。
+ * Assigns tabs that older versions never registered to a Space. Native group titles are read only
+ * during this migration; after it, changes to native groups never affect Spaces.
  */
 async function assignUntrackedTabsToSpaces(): Promise<void>
 {
@@ -308,8 +240,8 @@ async function assignUntrackedTabsToSpaces(): Promise<void>
 }
 
 /**
- * 将旧映射明确记录的 Space 原生组无损解散，再清理已停用状态。
- * 只调用 ungroup，不关闭 Tab；没有出现在旧映射中的用户普通组不会受影响。
+ * Ungroups only the Space groups the legacy mapping recorded, then clears that retired state.
+ * No tab is closed, and the user's own groups that the mapping doesn't list are left alone.
  */
 async function detachLegacySpaceGroups(): Promise<void>
 {
@@ -348,7 +280,7 @@ async function loadTabActivity(): Promise<void>
   }
 }
 
-// Switching the tab age highlight (feature 036) on or off starts recording, or drops the records when
+// Switching the tab age highlight on or off starts recording, or drops the records when
 // auto-archive doesn't need them either. A change between two looks reloads harmlessly.
 chrome.storage.onChanged.addListener((changes, areaName) =>
 {
@@ -375,7 +307,7 @@ const sameBrowserSession = browserSessionMarker.isSameBrowserSession().then((sam
   return same;
 });
 
-// 固定 Tab 关联必须在 manager 数据加载后恢复；Side Panel 会显式等待这一就绪点。
+// Pinned tab associations must wait for the managers to load; the Side Panel waits for this point.
 const managerLoadPromise = Promise.all([
   spaceStateManager.load(),
   spaceManager.load(),
@@ -383,7 +315,6 @@ const managerLoadPromise = Promise.all([
   lastAudibleTracker.load(),
   pinnedSitesManager.load(),
   sameBrowserSession.then((same) => tabSpaceRegistry.load(same)),
-  newsVersionChecker.load(),
   loadTabActivity()
 ])
   .then(normalizeLoadedWindowSpaces)
@@ -404,11 +335,12 @@ const tabAssociationReadiness = new TabAssociationReadiness(
   (error) => console.error('[TabAssociationReadiness] initialization failed:', error)
 );
 
-// 所有事件和消息都等待同一个真实初始化流程，避免 Tab 在归属恢复和旧组迁移中途被处理。
+// Events and messages all wait for this one initialization, so no tab is handled while Space
+// records are still being restored or legacy groups migrated.
 const stateReady = tabAssociationReadiness.wait();
 
 // =============================================================================
-// Bookmark recency (feature 034) - last-active time per Arc-style bookmark tab,
+// Bookmark recency - last-active time per Arc-style bookmark tab,
 // read by the sidebar's collapsed-folder popover. Background is the only writer.
 // =============================================================================
 
@@ -467,7 +399,7 @@ chrome.bookmarks.onRemoved.addListener((id, removeInfo) =>
 });
 
 // =============================================================================
-// Tab auto-archive (feature 035) - closes tabs unused for the "Archive tabs
+// Tab auto-archive - closes tabs unused for the "Archive tabs
 // after" period, saving regular tabs to their Space's asd_Archive folder first.
 // Works with the sidebar closed: once at worker start and on an alarm.
 // =============================================================================
@@ -576,9 +508,6 @@ chrome.tabs.onActivated.addListener(async (activeInfo) =>
   tabActivityTracker.markActivated(activeInfo.windowId, activeInfo.tabId)
     .catch((error) => console.error('[TabActivityTracker] failed to record activation:', error));
 
-  // Check for news updates (throttled to once per week)
-  await newsVersionChecker.checkIfDue();
-
   const isNavigating = historyManager.isNavigating(activeInfo.windowId);
 
   // if (import.meta.env.DEV)
@@ -624,7 +553,6 @@ chrome.tabs.onActivated.addListener(async (activeInfo) =>
   const followResult = await chrome.storage.local.get([FOLLOW_ACTIVE_TAB_KEY]);
   const followMode = parseFollowActiveTabMode(followResult[FOLLOW_ACTIVE_TAB_KEY]);
 
-  // Follow 模式只在真实 Space 之间切换。
   let spaceSwitched = false;
   if (followMode !== 'off' && destinationSpaceId)
   {
@@ -677,7 +605,8 @@ async function refreshBackupIndices(windowId: number): Promise<void>
 }
 
 /**
- * 外部休眠扩展会创建 park 页面并关闭原 Tab。把固定身份迁到新 Tab，避免它重新出现在 Tabs。
+ * A tab suspender extension creates a park page and closes the original tab. The pinned identity
+ * moves to the new tab, so the tab doesn't show up again in Tabs.
  */
 async function migrateParkedTabAssociation(tab: chrome.tabs.Tab): Promise<boolean>
 {
@@ -690,7 +619,8 @@ async function migrateParkedTabAssociation(tab: chrome.tabs.Tab): Promise<boolea
   const itemKey = associations[parked.sourceTabId];
   if (!itemKey) return false;
 
-  // 先写入新关联再删除旧关联，侧边栏不会在两个 storage 事件之间把固定项目短暂当成普通 Tab。
+  // Store the new association before removing the old one, so the sidebar never shows the pinned
+  // item as a regular tab between the two storage events.
   await storeTabAssociation(tab.windowId, tab.id, itemKey);
   await removeTabAssociation(tab.windowId, parked.sourceTabId);
   await saveTabAssociationBackup(tab.windowId, itemKey, {
@@ -726,7 +656,8 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) =>
     const itemKey = associations[tabId];
     if (itemKey)
     {
-      // park 页面通常已经存在，再关闭原 Tab；优先迁移，找不到替代页才按真正关闭清理。
+      // The park page usually exists before the original tab closes: migrate first, and clean up
+      // as a real close only when no replacement is found.
       const currentTabs = await chrome.tabs.query({ windowId: removeInfo.windowId });
       const replacement = findParkedReplacementTab(currentTabs, tabId);
       if (!replacement || !await migrateParkedTabAssociation(replacement))
@@ -806,7 +737,7 @@ chrome.tabs.onAttached.addListener(async (tabId, attachInfo) =>
   await refreshBackupIndices(attachInfo.newWindowId);
 });
 
-// Favicon loading Scenario 5 — see docs/favicon-loading-strategy.md
+// Favicon loading scenario 5 - see "Favicon loading" in docs/development.md
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) =>
 {
   await stateReady;
@@ -930,7 +861,7 @@ async function moveLinkTabToTabListTop(tabId: number, windowId: number, openerTa
   if (index !== undefined) await chrome.tabs.move(tabId, { index });
 }
 
-// 新 Tab 直接登记到当前 Space；Chrome 原生 groupId 不参与 Space 生命周期。
+// A new tab joins the current Space; Chrome's native groupId plays no part in the Space lifecycle.
 chrome.tabs.onCreated.addListener(async (tab) =>
 {
   if (!tab.id || !tab.windowId) return;
@@ -1048,7 +979,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) =>
     return true;  // async response
   }
 
-  // 兼容旧调用名：现在只更新内部 Space 关联，不再操作 Chrome 标签组。
+  // Legacy action name: it now only updates the internal Space association, not Chrome tab groups.
   if (message.action === 'queue-tab-for-grouping')
   {
     (async () =>

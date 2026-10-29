@@ -128,7 +128,7 @@ export const BookmarkTabsProvider = ({ children }: BookmarkTabsProviderProps) =>
     {
       await chrome.runtime.sendMessage({ action: WAIT_FOR_TAB_ASSOCIATIONS_READY });
 
-      // 一次读取当前窗口全部 Tab，避免固定 Tab 越多，首次打开就产生越多次 chrome.tabs.get。
+      // One query for the window, so first open doesn't cost a chrome.tabs.get per pinned tab.
       const [associations, allTabs] = await Promise.all([
         getTabAssociations(windowId),
         chrome.tabs.query({ windowId }),
@@ -143,8 +143,9 @@ export const BookmarkTabsProvider = ({ children }: BookmarkTabsProviderProps) =>
         async (tabId) => tabsById.get(tabId) ?? null
       );
 
-      // 外部休眠扩展可能用 park 页面替换原 Tab。先按旧 Tab ID 恢复；只有旧关联已经
-      // 丢失时，才额外读取书签和 Favorites，用 park 页面携带的原始 URL 做一次自愈。
+      // A tab suspender may replace a tab with its park page. Restore by the old tab ID first;
+      // only when that association is lost, read bookmarks and Favorites and heal it from the
+      // park page's original URL.
       let recovered = recoverParkedTabAssociations(allTabs, associations);
       let persistentItemsLoaded = false;
       const hasUnresolvedParkedTab = allTabs.some(tab =>
@@ -173,7 +174,7 @@ export const BookmarkTabsProvider = ({ children }: BookmarkTabsProviderProps) =>
       }
 
       const recoveredBackups: Promise<void>[] = [];
-      // 把恢复出的 park 页面补进所有派生索引，并立即持久化，确保再次关闭侧边栏后仍稳定。
+      // Persisted at once, so recovered park pages stay associated after the sidebar closes again.
       for (const [tabIdText, itemKey] of Object.entries(recovered))
       {
         const tabId = Number(tabIdText);
@@ -196,7 +197,7 @@ export const BookmarkTabsProvider = ({ children }: BookmarkTabsProviderProps) =>
       performance.mark('sidebar:associations-ready');
       performance.measure('sidebar:associations-restore', 'sidebar:associations-start', 'sidebar:associations-ready');
 
-      // 只有清理掉失效 Tab 时才回写，避免 storage 监听形成无意义的重建循环。
+      // Write only if stale tabs were dropped, or the storage listener loops on pointless rebuilds.
       if (JSON.stringify(restored.associations) !== JSON.stringify(associations))
       {
         await setTabAssociations(windowId, restored.associations);
@@ -211,7 +212,8 @@ export const BookmarkTabsProvider = ({ children }: BookmarkTabsProviderProps) =>
 
       if (!persistentItemsLoaded)
       {
-        // 普通 URL 匹配放在首屏状态提交之后执行，固定身份会很快补齐，但不会重新引入首次空白等待。
+        // Runs after the first state commit: pinned identities fill in shortly, without bringing
+        // back the blank wait on first open.
         void Promise.all([
           chrome.bookmarks.getTree(),
           chrome.storage.local.get([PINNED_SITES_STORAGE_KEY]),
@@ -307,7 +309,7 @@ export const BookmarkTabsProvider = ({ children }: BookmarkTabsProviderProps) =>
       return next;
     });
 
-    // 显式等待 session 和 local backup 都删除完成，Side Panel 关闭也不会丢写。
+    // Await both the session and local backup removals, so closing the Side Panel loses no write.
     await Promise.all([
       removeStoredAssociation(windowId, tabId),
       removeTabAssociationBackup(windowId, itemKey),
@@ -323,7 +325,8 @@ export const BookmarkTabsProvider = ({ children }: BookmarkTabsProviderProps) =>
     {
       if (removeInfo.windowId !== currentWindowId) return;
 
-      // 休眠扩展先创建 park 页面再关闭原 Tab；此时迁移身份，不能按普通关闭清掉备份。
+      // A suspender opens the park page before closing the tab: move the identity instead of
+      // clearing the backup as on a normal close.
       const currentTabs = await chrome.tabs.query({ windowId: currentWindowId });
       const replacement = findParkedReplacementTab(currentTabs, tabId);
       const replacementId = replacement?.id;
@@ -575,7 +578,6 @@ export const BookmarkTabsProvider = ({ children }: BookmarkTabsProviderProps) =>
           return newMap;
         });
 
-        // 书签和 Favorite 固定 Tab 都登记内部 Space 归属。
         if (spaceId && windowId)
         {
           await tabSpaceRegistryProxy.register(windowId, tabId, spaceId);
@@ -826,7 +828,7 @@ export const BookmarkTabsProvider = ({ children }: BookmarkTabsProviderProps) =>
   }, [itemToTab, tabTitles]);
 
   // Deassociate a pinned site from its tab (tab stays alive, becomes unmanaged).
-  // 先移除固定项关联，再让 background 把它登记为当前 Space 的普通 Tab。
+  // Remove the association first, then background makes it a regular tab of the current Space.
   const deassociatePinnedTab = useCallback(async (pinnedId: string): Promise<void> =>
   {
     if (currentWindowId === null) return;

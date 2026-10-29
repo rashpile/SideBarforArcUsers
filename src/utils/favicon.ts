@@ -31,12 +31,13 @@ export const fetchAsBase64 = async (url: string): Promise<string | undefined> =>
 // Cached default favicon base64 (Chrome's globe icon for unknown sites)
 let defaultFaviconBase64: string | undefined;
 
-// Fetch Chrome's default favicon by requesting an invalid domain.
-// Cached after the first call.
+// Chrome's default globe differs between Chrome versions and sizes, so it is read from Chrome
+// rather than bundled. _favicon only reads Chrome's local cache; the reserved .invalid domain
+// (RFC 2606) is never cached, so Chrome answers with the default icon.
 const fetchDefaultFavicon = async (): Promise<string | undefined> => {
   if (defaultFaviconBase64 !== undefined) return defaultFaviconBase64;
 
-  const invalidUrl = getFaviconUrl('https://invalid.monemone.org');
+  const invalidUrl = getFaviconUrl('https://default-favicon.invalid');
   defaultFaviconBase64 = await fetchAsBase64(invalidUrl);
 
   // if (import.meta.env.DEV)

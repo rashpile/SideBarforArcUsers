@@ -11,8 +11,7 @@ interface BookmarkLocation
 type BookmarkMovedCallback = (bookmarkId: string, targetFolderId: string) => Promise<void>;
 
 /**
- * 把一组选中的固定 Tab 组成新的 Chrome 书签文件夹，并支持撤销。
- * 原始父目录和位置只在第一次执行时记录，后续 redo 继续使用同一组位置。
+ * The original parents and positions are recorded only on the first run; a redo reuses them.
  */
 export class CreateBookmarkFolderAction implements UndoableAction
 {
@@ -65,7 +64,7 @@ export class CreateBookmarkFolderAction implements UndoableAction
       });
       this.#createdFolderId = folder.id;
 
-      // 按选中顺序移动，确保新文件夹中的顺序与侧边栏选择顺序一致。
+      // Moved in selection order, so the new folder matches the order selected in the sidebar.
       for (let index = 0; index < this.#bookmarkIds.length; index++)
       {
         const bookmarkId = this.#bookmarkIds[index];
@@ -83,7 +82,7 @@ export class CreateBookmarkFolderAction implements UndoableAction
 
     await runBatchOperation(async () =>
     {
-      // 同一父目录按原 index 升序恢复，避免前面的移动改变后续插入位置。
+      // Sorted by original index within each parent, so earlier moves don't shift later positions.
       const locations = [...this.#originalLocations].sort((a, b) =>
       {
         if (a.parentId !== b.parentId) return a.parentId.localeCompare(b.parentId);

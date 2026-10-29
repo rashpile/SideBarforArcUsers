@@ -13,9 +13,9 @@ export interface BookmarkStoreSnapshot
 }
 
 /**
- * 在所有 useBookmarks 调用方之间共享完整书签树和 Chrome 事件监听器。
- * Side Panel 首次挂载时会同时创建多个功能组件；共享读取可以避免它们各自
- * 调用 getTree 并注册重复监听器，同时保持原有书签操作 API 不变。
+ * The Side Panel mounts several components at once on first open. Sharing one bookmark tree and
+ * one set of Chrome event listeners among the useBookmarks callers keeps each of them from
+ * calling getTree and adding duplicate listeners, while the bookmark operation API stays the same.
  */
 export class SharedBookmarkStore
 {
@@ -62,7 +62,7 @@ export class SharedBookmarkStore
     };
   };
 
-  /** 立即重新读取共享书签树；并发请求会合并为当前请求结束后的一次刷新。 */
+  /** Concurrent calls merge into one refresh that runs after the current one ends. */
   refresh = (): void =>
   {
     const source = this.#source ?? this.#sourceFactory();

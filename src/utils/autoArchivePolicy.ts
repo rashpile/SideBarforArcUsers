@@ -1,4 +1,4 @@
-// Which tabs auto-archive closes (feature 035). Pure rules, no chrome.* calls:
+// Which tabs auto-archive closes. Pure rules, no chrome.* calls:
 // the archiver gathers tabs, associations, bookmarks, Favorites and last-use
 // times, and this module decides. A tab is closed only when it is overdue and
 // none of the exemptions hold; when anything about it is unknown, it stays open.

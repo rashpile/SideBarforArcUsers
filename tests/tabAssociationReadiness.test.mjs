@@ -10,7 +10,7 @@ function deferred()
   return { promise, resolve };
 }
 
-test('关联状态只能在 manager 加载和备份恢复都完成后就绪', async () =>
+test('associations are ready only after the manager load and the backup restore both finish', async () =>
 {
   const managerLoad = deferred();
   const restore = deferred();
@@ -42,7 +42,7 @@ test('关联状态只能在 manager 加载和备份恢复都完成后就绪', as
   assert.equal(ready, true);
 });
 
-test('初始化步骤失败时仍会就绪，但 wait() 报告失败且不再执行后续步骤', async () =>
+test('a failed init step still settles, but wait() reports the failure and later steps do not run', async () =>
 {
   const errors = [];
   let restoreStarted = false;
@@ -58,7 +58,7 @@ test('初始化步骤失败时仍会就绪，但 wait() 报告失败且不再执
   assert.deepEqual(errors.map(error => error.message), ['manager load failed']);
 });
 
-test('备份恢复步骤失败时 wait() 同样报告失败', async () =>
+test('a failed backup restore step also makes wait() report failure', async () =>
 {
   const errors = [];
   const readiness = new TabAssociationReadiness(

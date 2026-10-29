@@ -13,7 +13,7 @@ interface SectionHeaderProps
   showMenuButton?: boolean;  // Show "..." button (default true). When false, use right-click for menu.
   textClassName?: string;  // Optional custom text color classes (overrides default gray)
   labelClassName?: string;  // Optional extra classes for the label span (e.g. font-bold)
-  className?: string;  // 供视觉主题使用的语义类名
+  className?: string;  // Semantic class name for the visual theme
   collapsed?: boolean;  // Collapsible section: chevron before the label, right = collapsed, down = expanded
   onToggleCollapsed?: () => void;  // Row click / Enter / Space toggles the section; omit for a display-only chevron
 }

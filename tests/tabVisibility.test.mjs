@@ -22,7 +22,7 @@ test('only tabs associated with a bookmark or Favorite are hidden', () =>
   assert.equal(visible[0].pinned, true);
 });
 
-test('普通 Tabs 按扩展自己的 Space 关联过滤，不依赖 Chrome groupId', () =>
+test('regular tabs are filtered by the Space associations the extension keeps, not by Chrome groupId', () =>
 {
   const tabs = [
     { id: 1, title: 'A', groupId: 91 },

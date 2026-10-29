@@ -7,37 +7,14 @@ export const CHANGELOG: Record<string, string[]> = {
     'New: Archive section between Bookmarks and Tabs - hover to search archived tabs, click one to reopen it',
     'New: collapse the Bookmarks section from the space title - open bookmark pages stay visible',
     'New: "Highlight tabs by last use" setting (Settings > Appearance, on by default) - tabs you left recently get a stronger background in the Tab list, fading over 3 hours; pick White, Accent, Cooling or Trail, or turn it off',
+    'New: Archive button next to Clear on the "+ New Tab" row - saves the Tab list to the Archive and closes it, with Undo',
+    'New: Tab Switcher and Space Switcher - hold the modifier and press the shortcut to step through tabs or Spaces by last use, release to switch. Set the shortcuts in chrome://extensions/shortcuts',
+    'Removed: Space Navigator (Cmd+Shift+S) - the Space Switcher replaces it',
+    'New: hover a collapsed folder to see its recently used pages, with search',
+    'New: double-click a bookmark or Favorite whose tab moved to another page to load its page back in that tab',
+    'Changed: switching to a Space brings its most recently used tab forward',
+    'Changed: Favorites tiles follow the "Pinned icon size" setting',
   ],
-  '1.0.326': [
-    'New: "Follow active tab" setting - choose whether switching tabs follows the sidebar to the tab\'s space, scrolls it into view, or does nothing',
-    'New: "Show active tab" toolbar button - jump to the currently active tab on demand',
-  ],
-  '1.0.322': [
-    'New: Space Navigator (Cmd+Shift+S / Ctrl+Shift+S) - type to search spaces or use 0-9 keys to jump directly',
-    'New: Space colour tints the sidebar background - set it in Space settings',
-    'Settings dialog now has Appearance and Behaviour tabs for easier navigation',
-  ],
-  '1.0.313': [
-    'Bookmark folder expand/collapse state is now persisted across Chrome restarts',
-  ],
-  '1.0.306': [
-    'Audio button quick-jump: single click jumps to the latest playing audio/video tab',
-    'Hold the audio button to open the full audio tabs list',
-  ],
-  '1.0.303': [
-    'Drag a tab from the tab list onto the bookmark tree to create a bookmark with that tab as its live tab',
-  ],
-  '1.0.294': [
-    'Persistent tab associations: bookmark and pinned site tab links now survive browser restarts',
-    'Close and Delete option in bookmark context menu',
-    'Undo support for closing tabs',
-    'Cleaner search toolbar: filter buttons consolidated into the search bar',
-  ],
-  '1.0.281': [
-    'Import from Arc Browser: import pinned sites, spaces, and bookmarks from Arc',
-    'Emoji icons: use any emoji as the icon for spaces and pinned sites',
-    'Custom hex colors for spaces',
-  ]
 };
 
 function compareVersions(a: string, b: string): number

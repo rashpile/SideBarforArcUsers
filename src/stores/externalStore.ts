@@ -1,8 +1,7 @@
 // Plain observable store used by proxy-owned mirrors, outside React state.
 //
-// See docs/decisions/2026-07-30-shared-storage-multiple-writers.md, "The
-// mirror is a plain store, not React state": read-after-write (decision 4)
-// only works if the mirror can be written and read back in the same tick.
+// See "Mirror store" in docs/development.md: read-after-write only works if
+// the mirror can be written and read back in the same tick.
 // React state cannot do that - setSpaces(next) schedules a re-render, it does
 // not change the const a running function captured at render time. So each
 // proxy owns one of these, and components read it with useSyncExternalStore

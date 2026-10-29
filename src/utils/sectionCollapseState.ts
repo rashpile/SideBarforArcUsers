@@ -1,4 +1,4 @@
-// Collapse state of the sidebar's Bookmarks and Archive sections (feature 035).
+// Collapse state of the sidebar's Bookmarks and Archive sections.
 // Kept per Space and shared by every window through chrome.storage.local
 // (useSectionCollapseState); only the sidebar reads and writes it.
 

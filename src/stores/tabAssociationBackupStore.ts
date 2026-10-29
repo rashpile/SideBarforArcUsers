@@ -19,10 +19,6 @@ const BACKUP_WINDOW_IDS_KEY = 'tabAssociationsBackupWindowIds';
 
 const backupKey = (windowId: number) => `${BACKUP_KEY_PREFIX}${windowId}`;
 
-/**
- * 串行管理固定 Tab 的本地关联备份。
- * Module 隐藏 storage key、窗口索引和 read-modify-write 队列，调用方只表达意图。
- */
 export class TabAssociationBackupStore
 {
   #storage: TabAssociationBackupStorage;
@@ -90,7 +86,7 @@ export class TabAssociationBackupStore
       const backup = await this.#readBackup(windowId);
       let changed = false;
 
-      // 在一个串行事务中更新该窗口所有受影响项目，避免多次覆盖整份对象。
+      // All affected items of the window in one serial transaction, so the object is written once.
       for (const [itemKey, tabIndex] of Object.entries(itemKeyToIndex))
       {
         const entry = backup[itemKey];
@@ -125,7 +121,7 @@ export class TabAssociationBackupStore
         [BACKUP_WINDOW_IDS_KEY]: nextIds,
       };
 
-      // 恢复阶段一次写入所有有效窗口，避免逐窗口 read-modify-write。
+      // The restore writes all valid windows at once instead of a read-modify-write per window.
       for (const [windowId, backup] of backups)
       {
         values[backupKey(windowId)] = backup;

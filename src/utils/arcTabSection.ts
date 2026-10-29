@@ -3,7 +3,7 @@ export type ArcTabSectionItem<TTab> =
   | { type: 'tab'; tab: TTab };
 
 /**
- * Arc 将 New Tab 作为普通标签页列表的固定入口，始终排在临时标签页之前。
+ * As in Arc, New Tab is a fixed entry of the regular tab list, always before the temporary tabs.
  */
 export function getArcTabSectionItems<TTab>(
   tabs: readonly TTab[],

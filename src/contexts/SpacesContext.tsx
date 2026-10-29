@@ -67,7 +67,7 @@ interface SpacesContextValue
   // listeners - and the next CRUD call would then persist that accident.
   // Build a new list and go through the context's own mutators instead.
   spaces: readonly Space[];
-  allSpaces: Space[];  // 可导航的真实 Space，保留字段名以减少上游同步冲突
+  allSpaces: Space[];  // Real, navigable Spaces
   activeSpace: Space;
   isInitialized: boolean;
   windowId: number | null;
@@ -449,7 +449,7 @@ export const SpacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const tabIdsToClose: number[] = [];
 
-    // 1. 读取扩展持有的普通 Tab Space 关联。
+    // 1. Regular tabs from the extension's own Space associations
     try
     {
       const [tabs, assignments] = await Promise.all([
@@ -509,7 +509,7 @@ export const SpacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Derived state
   // ---------------------------------------------------------------------------
 
-  // All Space 已移除；这里保留旧字段名，只返回真实 Space。
+  // The All Space is gone; the old field name stays, and it returns only real Spaces.
   const allSpaces = useMemo(() =>
   {
     return [...spaces];
@@ -526,7 +526,7 @@ export const SpacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return (resolvedActiveSpaceId && getSpaceById(resolvedActiveSpaceId)) || ALL_SPACE;
   }, [resolvedActiveSpaceId, getSpaceById]);
 
-  // 旧版本的 all 或已删除 ID 都迁移到第一个真实 Space。
+  // A legacy `all` or deleted ID moves to the first real Space.
   useEffect(() =>
   {
     if (resolvedActiveSpaceId && resolvedActiveSpaceId !== windowState.activeSpaceId)

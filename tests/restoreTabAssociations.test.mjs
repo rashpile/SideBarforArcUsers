@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { restoreTabAssociations } from '../src/utils/restoreTabAssociations.ts';
 
-test('恢复固定 Tab 关联时并发验证所有 Tab', async () =>
+test('restoring pinned tab associations checks all tabs concurrently', async () =>
 {
   const associations = {
     11: 'bookmark-a',

@@ -12,27 +12,27 @@ const spaces = [
   { id: 'space-c' },
 ];
 
-test('旧的 All Space 状态迁移到第一个真实 Space', () =>
+test('the legacy All Space state migrates to the first real Space', () =>
 {
   assert.equal(resolveActiveSpaceId(spaces, 'all'), 'space-a');
 });
 
-test('仍然存在的真实 Space 保持选中', () =>
+test('a real Space that still exists stays selected', () =>
 {
   assert.equal(resolveActiveSpaceId(spaces, 'space-b'), 'space-b');
 });
 
-test('已删除或未知的 Space 回退到第一个真实 Space', () =>
+test('a deleted or unknown Space falls back to the first real Space', () =>
 {
   assert.equal(resolveActiveSpaceId(spaces, 'missing'), 'space-a');
 });
 
-test('没有真实 Space 时不再回退到 All Space', () =>
+test('with no real Space there is no fallback to the All Space', () =>
 {
   assert.equal(resolveActiveSpaceId([], 'all'), null);
 });
 
-test('删除当前 Space 后优先切换到右侧相邻 Space', () =>
+test('deleting the current Space switches to the Space on its right first', () =>
 {
   assert.equal(
     resolveSpaceIdAfterDeletion(spaces, 'space-b', 'space-b'),
@@ -40,7 +40,7 @@ test('删除当前 Space 后优先切换到右侧相邻 Space', () =>
   );
 });
 
-test('删除最后一个 Space 时切换到左侧相邻 Space', () =>
+test('deleting the last Space switches to the Space on its left', () =>
 {
   assert.equal(
     resolveSpaceIdAfterDeletion(spaces, 'space-c', 'space-c'),
@@ -48,7 +48,7 @@ test('删除最后一个 Space 时切换到左侧相邻 Space', () =>
   );
 });
 
-test('删除非当前 Space 时保持当前 Space', () =>
+test('deleting another Space keeps the current Space', () =>
 {
   assert.equal(
     resolveSpaceIdAfterDeletion(spaces, 'space-a', 'space-c'),

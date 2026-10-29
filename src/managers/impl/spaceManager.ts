@@ -78,8 +78,7 @@ export class SpaceManager implements RoutedManager, SpaceManagerApi
    *
    * This is also the self-heal for Arc import and any backup that predates
    * bookmarkFolderSegments: both hand updateSpaces() a space shaped exactly
-   * like this (path set, no segments) - see the "Case" writeup in
-   * docs/decisions/2026-07-30-shared-storage-multiple-writers.md.
+   * like this (path set, no segments).
    */
   private async resolveMissingSegments(spaces: Space[]): Promise<{ spaces: Space[]; changed: boolean }>
   {
@@ -167,7 +166,7 @@ export class SpaceManager implements RoutedManager, SpaceManagerApi
 
     // DEV-only: confirms background actually applied this update to its own
     // in-memory list, at the moment it happens - for manually verifying the
-    // Case 3 fix (docs/test/tab-space-association-test-cases.md D.3) without
+    // fix for a deleted Space staying in background's list, without
     // a sendMessage round trip, which can't reach background from its own
     // console (a context's runtime.sendMessage doesn't loop back to itself).
     if (import.meta.env.DEV)

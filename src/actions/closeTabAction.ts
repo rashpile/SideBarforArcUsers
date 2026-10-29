@@ -187,7 +187,8 @@ export class CloseTabAction implements UndoableAction
             try
             {
               const orig = await chrome.tabGroups.get(snapshot.groupId);
-              // Chrome 会复用已消失的 group ID；窗口或标题不一致时不能把 Tab 放进陌生组。
+              // Chrome reuses IDs of vanished groups; if the window or title differs, the tab
+              // must not go into an unrelated group.
               if (orig.windowId === this.windowId && orig.title === snapshot.groupTitle)
               {
                 targetGroupId = snapshot.groupId;

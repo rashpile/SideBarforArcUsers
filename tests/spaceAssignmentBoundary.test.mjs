@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-test('Space 生命周期不得再创建或维护 Chrome 原生标签组', async () =>
+test('the Space lifecycle no longer creates or maintains native Chrome tab groups', async () =>
 {
   const background = await readFile('src/background.ts', 'utf8');
   const operations = await readFile('src/utils/tabOperations.ts', 'utf8');

@@ -11,9 +11,8 @@ interface PinnedSnapshot
 }
 
 /**
- * 可撤销地移除一个或多个 Favorite，并保存原数据与位置供 Undo 使用。
- * Unpin 保留真实 Chrome Tab，使其成为普通 Tab；Undo 时若原 Tab 仍存在，
- * 同时恢复 Favorite 数据和关联。
+ * Unpin keeps the Chrome tab open as a regular tab. If that tab still exists on Undo,
+ * its association is restored along with the Favorite data.
  */
 export class DeletePinnedSiteAction implements UndoableAction
 {
@@ -88,7 +87,6 @@ export class DeletePinnedSiteAction implements UndoableAction
         this.snapshots.map(s => `"${s.pin.title}" (id=${s.pin.id}, idx=${s.index}, tabId=${s.tabId ?? 'none'})`));
     }
 
-    // 解除 Favorite 关联但保留真实 Tab，使其立即成为 Tabs 区域中的普通 Tab。
     if (this.deassociatePinnedTab)
     {
       for (const snapshot of this.snapshots)
@@ -121,7 +119,6 @@ export class DeletePinnedSiteAction implements UndoableAction
       this.snapshots.map(snapshot => ({ pin: snapshot.pin, index: snapshot.index }))
     );
 
-    // 原 Tab 仍存在时恢复 Favorite 关联；如果用户已关闭它，只恢复 Favorite 数据。
     if (this.restoreItemAssociation)
     {
       for (const snapshot of this.snapshots)
@@ -134,7 +131,7 @@ export class DeletePinnedSiteAction implements UndoableAction
         }
         catch
         {
-          // Tab 已关闭，无需恢复关联。
+          // The tab was closed; there is no association to restore.
         }
       }
     }

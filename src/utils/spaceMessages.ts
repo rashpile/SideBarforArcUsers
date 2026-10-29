@@ -20,7 +20,7 @@ export interface Space
   bookmarkFolderInAccount?: boolean;      // folder is in Google account storage, not device-only (undefined = unknown, first match wins)
 }
 
-// 仅用于读取旧 session 和“尚未创建 Space”的内部空状态，不再渲染为可见 Space。
+// Only for old sessions and the internal "no Space yet" empty state; no longer shown as a Space.
 export const ALL_SPACE: Space = {
   id: 'all',
   name: 'All',

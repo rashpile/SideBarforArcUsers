@@ -26,7 +26,7 @@ export interface TreeRowProps extends Omit<React.HTMLAttributes<HTMLDivElement>,
   badges?: React.ReactNode;     // Content after the title (e.g. tab count, pin)
   children?: React.ReactNode;   // For absolute overlays like drop indicators
   hideIcon?: boolean;           // Hide the icon slot entirely (removes space)
-  hideChevronSlot?: boolean;    // Arc 书签树通过整行折叠，不保留左侧箭头占位
+  hideChevronSlot?: boolean;    // Arc's bookmark tree collapses by whole row; no chevron slot
 
   // DND props
   dndAttributes?: DraggableAttributes;

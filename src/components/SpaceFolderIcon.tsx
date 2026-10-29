@@ -50,7 +50,7 @@ const SpaceIconOverlay = ({
 };
 
 /**
- * 渲染 Arc 文件夹三态图标。活跃透出态复用现有图标库的闭合文件夹和省略号，避免自绘 SVG。
+ * Active peek reuses the icon library's closed folder and ellipsis instead of a hand-drawn SVG.
  */
 const FolderStateGlyph = ({
   state,
@@ -91,9 +91,6 @@ const FolderStateGlyph = ({
   );
 };
 
-/**
- * 渲染书签文件夹图标；Space 根文件夹会保留原有颜色和角标。
- */
 export const SpaceFolderIcon = ({
   space,
   size = 16,

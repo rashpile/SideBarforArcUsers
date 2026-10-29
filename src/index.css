@@ -10,8 +10,7 @@ html, body, #root {
 }
 
 /*
- * Arc 风格集中在语义类名上，避免把视觉覆盖散落到书签、标签页和拖拽逻辑中。
- * 这样同步上游时，绝大多数业务组件仍能直接沿用原实现。
+ * Arc styling lives on semantic class names, not spread over the bookmark, tab and drag logic.
  */
 .arc-theme {
   --arc-text: #151a4f;
@@ -238,7 +237,7 @@ html, body, #root {
 }
 
 /*
- * Tab age highlight (feature 036, Settings: "Highlight tabs by last use").
+ * Tab age highlight (Settings: "Highlight tabs by last use").
  * TabList gives a regular tab row data-tab-age, 0 (left within 1 min) to 3
  * (within 3 h); older tabs, the active row and selected rows get none.
  * data-tab-age-style on the theme root picks the look, which fills a colour

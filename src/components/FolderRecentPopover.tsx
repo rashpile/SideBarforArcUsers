@@ -1,7 +1,7 @@
 /**
- * FolderRecentPopover - Arc-style peek on a collapsed bookmark folder (feature 034).
+ * FolderRecentPopover - Arc-style peek on a collapsed bookmark folder.
  * Lists the folder's bookmarks by last-active time, with a search field.
- * Also the peek of the collapsed Archive section (feature 035), ordered by archive time.
+ * Also the peek of the collapsed Archive section, ordered by archive time.
  */
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';

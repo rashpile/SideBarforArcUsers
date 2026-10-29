@@ -852,7 +852,7 @@ type DisplayItem =
   | { type: 'group'; group: chrome.tabGroups.TabGroup; tabs: chrome.tabs.Tab[]; startIndex: number }
   | { type: 'tab'; tab: chrome.tabs.Tab };
 
-// chrome.bookmarks calls for the Archive button's TabArchiveBatch (feature 035)
+// chrome.bookmarks calls for the Archive button's TabArchiveBatch
 const chromeArchiveBookmarks: ArchiveBookmarksApi = {
   getChildren: (id) => chrome.bookmarks.getChildren(id),
   create: (bookmark) => chrome.bookmarks.create(bookmark),
@@ -909,7 +909,6 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
   // Check if we're in a non-"all" space
   const isInSpace = activeSpace && activeSpace.id !== 'all';
 
-  // 固定项先排除，普通 Tab 再按扩展内部 Space 关联过滤。
   const visibleTabs = useMemo(() =>
   {
     const managedTabIds = getManagedTabIds();
@@ -929,7 +928,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     return filtered;
   }, [tabs, getManagedTabIds, filterText, isInSpace, activeSpace, tabSpaceAssignments]);
 
-  // 用户自己的原生标签组仍可在当前 Space 中展示，但它们不再决定 Space 归属。
+  // The user's native tab groups still show in the current Space but no longer decide membership.
   const visibleGroupIds = new Set(visibleTabs.map(tab => tab.groupId).filter(groupId => groupId !== -1));
   const visibleTabGroups = tabGroups.filter(group => visibleGroupIds.has(group.id));
 

@@ -93,8 +93,7 @@ export interface PinnedSiteFaviconPatch
  * everything IS the intent). That is what keeps background's favicon patching
  * and the sidebar's CRUD from overwriting each other: two writers now only
  * collide when they change the same pin, rather than every time they overlap
- * in time. See docs/decisions/2026-07-30-shared-storage-multiple-writers.md,
- * Case 2.
+ * in time. See "Per-operation writes" in docs/development.md.
  *
  * Every method returns the resulting list, which becomes the ack payload the
  * proxy uses to resync once its in-flight writes drain.
@@ -201,8 +200,8 @@ export function applyUpdatePin(
 }
 
 /**
- * 仅当固定项目仍保持请求开始时的标题和 URL 时写入 AI 名称。
- * 这个条件在后台单写入者中检查，避免慢请求覆盖用户后续的手动编辑。
+ * Writes the AI name only if the pin still has the title and URL it had when the request started.
+ * Checked by the background's single writer, so a slow request can't overwrite a later manual edit.
  */
 export function applyRenamePinIfUnchanged(
   sites: readonly PinnedSite[],

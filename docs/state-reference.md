@@ -111,7 +111,7 @@ Folder expand/collapse state (Record: folderId → boolean)
 - Instances: 1 per window
 
 ### `tabActivityActiveTabs`
-Active tab of each window, as last seen by the background (feature 035 auto-archive, feature 036 tab age highlight)
+Active tab of each window, as last seen by the background (auto-archive and tab age highlight)
 ```typescript
 Record<windowId, tabId>
 ```
@@ -123,7 +123,7 @@ Record<windowId, tabId>
 - Instances: 1 per extension (one map for all windows)
 
 ### `tabActivitySessionStarted`
-Marker that `tabLastUsedAt` was matched to this browser session's tab IDs (feature 035)
+Marker that `tabLastUsedAt` was matched to this browser session's tab IDs (auto-archive)
 ```typescript
 true
 ```
@@ -142,7 +142,7 @@ true
 - Instances: 1 per extension
 
 ### `autoArchiveLastRunAt`
-Moment the last auto-archive run started (feature 035)
+Moment the last auto-archive run started
 ```typescript
 number  // epoch millis
 ```
@@ -210,7 +210,7 @@ Array<{
 - Instances: 1 per extension (shared across windows)
 
 ### `bookmarkLastActiveAt`
-Last time each bookmark's Arc-style tab was active (feature 034, folder recent popover)
+Last time each bookmark's Arc-style tab was active (folder recent popover)
 ```typescript
 string  // JSON of Record<bookmarkId, epochMillis>
 ```
@@ -219,7 +219,7 @@ string  // JSON of Record<bookmarkId, epochMillis>
 - Instances: 1 per extension (shared across windows)
 
 ### `autoArchiveAfter`
-"Archive tabs after" setting (feature 035): how long a tab may stay unused before the background closes it
+"Archive tabs after" setting: how long a tab may stay unused before the background closes it
 ```typescript
 'never' | '12h' | '24h' | '3d' | '7d' | '30d'  // raw string, not JSON; default 'never'. DEV builds also accept '1m'
 ```
@@ -230,7 +230,7 @@ string  // JSON of Record<bookmarkId, epochMillis>
 - Instances: 1 per extension (shared across windows)
 
 ### `autoArchiveEnabledAt`
-Moment auto-archive was switched on from `'never'` (feature 035). No tab closes earlier than one period after it
+Moment auto-archive was switched on from `'never'`. No tab closes earlier than one period after it
 ```typescript
 number  // epoch millis
 ```
@@ -240,7 +240,7 @@ number  // epoch millis
 - Instances: 1 per extension
 
 ### `tabAgeHighlight`
-"Highlight tabs by last use" setting (feature 036): which look the Tab list's age highlight uses, or off
+"Highlight tabs by last use" setting: which look the Tab list's age highlight uses, or off
 ```typescript
 'off' | 'white' | 'accent' | 'cooling' | 'trail'  // raw string, not JSON; default 'white'
 ```
@@ -250,7 +250,7 @@ number  // epoch millis
 - Instances: 1 per extension (shared across windows)
 
 ### `tabLastUsedAt`
-Last-use times of each open tab (feature 035 auto-archive, feature 036 tab age highlight). Last use is the moment the tab stopped being active
+Last-use times of each open tab (auto-archive and tab age highlight). Last use is the moment the tab stopped being active
 ```typescript
 Record<tabId, {
   windowId: number,
@@ -265,13 +265,13 @@ Record<tabId, {
 - Lifecycle: exists while `autoArchiveAfter` is a period or `tabAgeHighlight` is not `'off'` (`isTabActivityRecording`). Removed when the second of them is switched off, and at a worker start that finds both off; nothing is written in between
 - Updates: `onActivated` stamps `lastUsedAt` and `leftAt` of the window's previously active tab (from `tabActivityActiveTabs`) and moves its record to the page and position it shows now, creating the record if the tab had none (a closed tab gets none); each archiver run (only while auto-archive is on) drops closed tabs, updates `url` and `index`, and stamps `lastUsedAt` of first-seen tabs and tabs in use (active, in a split view with the active tab, audible, Chrome-pinned) with now, carrying `leftAt` unchanged; `onRemoved` drops the tab (not when its window closes - the next archiver run or worker start cleans those up); worker start, a switch of `autoArchiveAfter` between `'never'` and a period, and every `tabAgeHighlight` change (`load`) rewrite the key with the records still matched to open tabs
 - Recovery: within a browser session records follow their tab by ID only; after a browser restart (no `tabActivitySessionStarted`) they are re-matched by URL plus nearest tab index (`matchStoredTabs`), and every tab on a URL gets the newest `lastUsedAt` among the records with that URL; `leftAt` stays with the record matched to the tab
-- Records written before feature 036 have no `leftAt` and load as they are; the highlight then uses Chrome's `lastAccessed`
+- Records written before the tab age highlight existed have no `leftAt` and load as they are; the highlight then uses Chrome's `lastAccessed`
 - Incognito tabs and tabs in popup/app windows are never recorded
 - Unreadable value: the tracker logs it, ignores it (starts empty) and overwrites it on the next load; the sidebar shows no `leftAt` times (logged in DEV builds) and grades rows by `lastAccessed`
 - Instances: 1 per extension
 
 ### `sectionCollapsedState`
-Collapse state of the Bookmarks and Archive sections, per Space (feature 035)
+Collapse state of the Bookmarks and Archive sections, per Space
 ```typescript
 string  // JSON of Record<spaceId, { bookmarks: boolean, archive: boolean }>
 ```

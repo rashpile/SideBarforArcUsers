@@ -68,7 +68,7 @@ export class DeleteSpaceAction implements UndoableAction
       tabs: [],
     };
 
-    // 快照扩展内部登记到该 Space 的全部真实 Tab，原生 Chrome 组不参与。
+    // Snapshot the tabs the extension registered to this Space; native Chrome groups play no part.
     try
     {
       const [tabs, assignments] = await Promise.all([

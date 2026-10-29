@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { tabSpaceRegistryProxy } from '../managers/proxies/tabSpaceRegistryProxy';
 import { TAB_SPACE_ASSIGNMENTS_CHANGED } from '../managers/shared/tabSpaceRegistryApi';
 
-/** 当前窗口全部真实 Tab 的 Space 归属镜像。 */
 export function useTabSpaceAssignments(windowId: number | null | undefined): Record<number, string>
 {
   const [assignments, setAssignments] = useState<Record<number, string>>({});
