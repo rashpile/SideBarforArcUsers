@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { TabActivityTracker, TabActivityView } from '../stores/tabActivityTracker';
 import { newerTime } from '../utils/time';
 
-// The stored records as left times; unreadable records give none (the highlight is cosmetic)
-function readLeftTimes(stored: unknown): TabActivityView
+// The stored records as a view; unreadable records give an empty one (the highlight and the dot are cosmetic)
+function readTabActivity(stored: unknown): TabActivityView
 {
   try
   {
@@ -13,7 +13,7 @@ function readLeftTimes(stored: unknown): TabActivityView
   {
     if (import.meta.env.DEV)
     {
-      console.warn('[useTabLeftTimes] Unreadable tab activity records:', error);
+      console.warn('[useTabActivityView] Unreadable tab activity records:', error);
     }
     return new TabActivityView();
   }
@@ -27,11 +27,12 @@ interface TabLeave
 }
 
 /**
- * When the user last left each tab, as the Tab list grades it: the background's
- * records plus a leave the sidebar saw itself. That leave fills the gap until
- * the background's record of it arrives; the newer of the two counts.
+ * Tab activity as the Tab list shows it: the background's records plus a leave
+ * the sidebar saw itself. That leave fills the gap until the background's record
+ * of it arrives: for the left time the newer of the two counts, and the left tab
+ * is no longer unvisited.
  */
-class SidebarTabLeftTimes
+class SidebarTabActivityView
 {
   #stored: TabActivityView;
   #seenLeave: TabLeave | undefined;
@@ -48,6 +49,12 @@ class SidebarTabLeftTimes
     const seenLeftAt = this.#seenLeave?.tabId === tabId ? this.#seenLeave.at : undefined;
     return newerTime(this.#stored.leftAt(tabId), seenLeftAt);
   }
+
+  /** Whether the tab was opened in the background and not activated since. */
+  isUnvisited(tabId: number): boolean
+  {
+    return this.#seenLeave?.tabId !== tabId && this.#stored.isUnvisited(tabId);
+  }
 }
 
 /** The active tab as the sidebar last saw it, and the tab it saw the user leave before that. */
@@ -58,15 +65,16 @@ interface SeenActivation
 }
 
 /**
- * When the user last left each tab, for the Tab list's age highlight.
- * Reads the records background.ts keeps (TabActivityTracker) and follows their
- * changes. The tab the sidebar sees stop being active counts as left right then:
- * the background's record of that leave arrives a little later.
- * Returns the times and whether the records were read, like useChromeLocalStorage's
- * isLoaded. Not loaded (no times) until the first read resolves, and while `enabled`
- * is false (nothing is read then).
+ * When the user last left each tab and which tabs are still unvisited, for the
+ * Tab list's age highlight and unvisited dot. Reads the records background.ts
+ * keeps (TabActivityTracker) and follows their changes. The tab the sidebar sees
+ * stop being active counts as left right then: the background's record of that
+ * leave arrives a little later.
+ * Returns the view and whether the records were read, like useChromeLocalStorage's
+ * isLoaded. Not loaded (an empty view) until the first read resolves, and while
+ * `enabled` is false (nothing is read then).
  */
-export function useTabLeftTimes(enabled: boolean, activeTabId: number | undefined): [SidebarTabLeftTimes, boolean]
+export function useTabActivityView(enabled: boolean, activeTabId: number | undefined): [SidebarTabActivityView, boolean]
 {
   const [stored, setStored] = useState<TabActivityView | undefined>(undefined);
 
@@ -91,18 +99,18 @@ export function useTabLeftTimes(enabled: boolean, activeTabId: number | undefine
     const listener = (changes: Record<string, chrome.storage.StorageChange>, areaName: string) =>
     {
       if (areaName !== 'local' || !(key in changes)) return;
-      setStored(readLeftTimes(changes[key].newValue));
+      setStored(readTabActivity(changes[key].newValue));
     };
     chrome.storage.onChanged.addListener(listener);
 
     chrome.storage.local.get(key).then(result =>
     {
-      if (mounted) setStored(readLeftTimes(result[key]));
+      if (mounted) setStored(readTabActivity(result[key]));
     }).catch(error =>
     {
       if (import.meta.env.DEV)
       {
-        console.error('[useTabLeftTimes] Failed to read tab activity records:', error);
+        console.error('[useTabActivityView] Failed to read tab activity records:', error);
       }
       // Grade by Chrome's lastAccessed alone rather than not at all
       if (mounted) setStored(current => current ?? new TabActivityView());
@@ -112,15 +120,15 @@ export function useTabLeftTimes(enabled: boolean, activeTabId: number | undefine
     {
       mounted = false;
       chrome.storage.onChanged.removeListener(listener);
-      // Switched off: drop the times, so switching on again doesn't grade with stale ones
+      // Switched off: drop the records, so switching on again doesn't show stale ones
       setStored(undefined);
     };
   }, [enabled]);
 
   const { leave } = seen;
-  const leftTimes = useMemo(
-    () => new SidebarTabLeftTimes(stored ?? new TabActivityView(), leave),
+  const view = useMemo(
+    () => new SidebarTabActivityView(stored ?? new TabActivityView(), leave),
     [stored, leave]
   );
-  return [leftTimes, stored !== undefined];
+  return [view, stored !== undefined];
 }

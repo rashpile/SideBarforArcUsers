@@ -420,7 +420,7 @@ chrome.alarms.onAlarm.addListener((alarm) =>
 });
 
 // Switching the setting on starts every tab's clock and the alarm; switching it off stops the
-// alarm and drops the last-use records unless the tab age highlight still needs them
+// alarm and drops the last-use records unless the tab age highlight or the unvisited marker still needs them
 chrome.storage.onChanged.addListener((changes, areaName) =>
 {
   const change = changes[AUTO_ARCHIVE_AFTER_KEY];

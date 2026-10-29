@@ -85,6 +85,7 @@ interface SidebarContentProps
   // Toggle for section headers rendered in the scroll area (the Archive section); undefined while filtering
   onToggleSection?: ToggleSection;
   highlightTabAge: boolean;  // "Highlight tabs by last use" is on (any look)
+  markUnvisitedTabs: boolean;  // "Mark unvisited tabs" is on
 }
 
 // Storage key for scroll position per space per window
@@ -113,6 +114,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
   sectionCollapseState,
   onToggleSection,
   highlightTabAge,
+  markUnvisitedTabs,
 }) =>
 {
   const { spaces, activeSpace, activeSpaceId, windowId, getSpaceSwitchSource } = useSpacesContext();
@@ -246,6 +248,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
         onPerformAction={onPerformAction}
         onBookmarkCreated={onBookmarkCreated}
         highlightTabAge={highlightTabAge}
+        markUnvisitedTabs={markUnvisitedTabs}
       />
     </div>
   );
@@ -711,11 +714,13 @@ function App() {
   // Off until the stored look is known, so a sidebar opening doesn't flash the default look
   const shownTabAgeHighlight: TabAgeHighlightStyle = tabAgeHighlightLoaded ? tabAgeHighlight : 'off';
   // Raw string, not JSON: background.ts reads it to decide whether to mark tabs opened in the background
-  const [markUnvisitedTabs, setMarkUnvisitedTabs] = useChromeLocalStorage<UnvisitedTabMarkerSetting>(
+  const [markUnvisitedTabs, setMarkUnvisitedTabs, markUnvisitedTabsLoaded] = useChromeLocalStorage<UnvisitedTabMarkerSetting>(
     UNVISITED_TAB_MARKER_KEY,
     DEFAULT_UNVISITED_TAB_MARKER,
     { parse: parseUnvisitedTabMarker, serialize: (v) => v }
   );
+  // Off until the stored setting is known, so dots don't flash for a user who switched them off
+  const shownUnvisitedTabMarker: UnvisitedTabMarkerSetting = markUnvisitedTabsLoaded ? markUnvisitedTabs : 'off';
   const [aiSettings, setAiSettings] = useChromeLocalStorage<AiRenameSettings>(
     AI_SETTINGS_STORAGE_KEY,
     DEFAULT_AI_RENAME_SETTINGS,
@@ -1518,6 +1523,7 @@ function App() {
         sectionCollapseState={sectionCollapseState}
         onToggleSection={toggleShownSection}
         highlightTabAge={shownTabAgeHighlight !== 'off'}
+        markUnvisitedTabs={shownUnvisitedTabMarker === 'on'}
       />
 
       {/* Space Dialogs */}

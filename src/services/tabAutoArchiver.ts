@@ -169,8 +169,9 @@ export class TabAutoArchiver
   /**
    * chrome.storage.onChanged for `autoArchiveAfter`. Switching on from 'never'
    * starts every tab's clock now; switching to 'never' drops the start time and
-   * the alarm, and the last-use records unless the tab age highlight still needs
-   * them. A change between two periods keeps the start time.
+   * the alarm, and the last-use records unless the tab age highlight or the
+   * unvisited tab marker still needs them. A change between two periods keeps
+   * the start time.
    */
   handleSettingChange(change: chrome.storage.StorageChange): Promise<void>
   {
@@ -178,7 +179,7 @@ export class TabAutoArchiver
     {
       const switched = autoArchiveSwitch(change, import.meta.env.DEV);
 
-      // Off: forget the start time. On: start the clock (grace for records kept for the highlight)
+      // Off: forget the start time. On: start the clock (grace for records kept for the highlight or the marker)
       if (switched === 'off')
       {
         await chrome.storage.local.remove(AUTO_ARCHIVE_ENABLED_AT_KEY);
@@ -188,7 +189,7 @@ export class TabAutoArchiver
         await chrome.storage.local.set({ [AUTO_ARCHIVE_ENABLED_AT_KEY]: Date.now() });
       }
 
-      // The tracker keeps or drops its records to match both settings, and learns the open
+      // The tracker keeps or drops its records to match the three settings, and learns the open
       // tabs and the active tab of each window when it records
       if (switched !== 'unchanged') await this.#deps.tracker.load(await queryOpenTabs());
       await this.#syncAlarm(parseStoredPeriod(change.newValue));

@@ -331,6 +331,22 @@ html, body, #root {
     var(--arc-sidebar-bg, transparent);
 }
 
+/*
+ * Unvisited tab: a dot in the row's 8px left gutter, so it never covers the
+ * favicon of an ungrouped (depth 0) row. The accent follows dark mode and the Space colour.
+ */
+.arc-unvisited-dot {
+  position: absolute;
+  left: 1px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  background: rgb(var(--arc-tab-age-accent));
+  pointer-events: none;
+}
+
 .arc-space-root-drop-target {
   min-height: 10px;
 }

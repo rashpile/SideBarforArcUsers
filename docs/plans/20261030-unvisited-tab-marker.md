@@ -186,15 +186,15 @@ No e2e suite in the project; the UI is checked manually (Post-Completion).
 - Modify: `src/App.tsx`
 - Modify: `src/index.css`
 
-- [ ] hook enabled when either setting is on; exposes `isUnvisited` (false for the seen leave)
-- [ ] `markUnvisitedTabs` passed along the `highlightTabAge` path; `TabRow` gets `isUnvisited` at all three render sites and renders the dot for non-active tabs; age grade still gated on `highlightTabAge`
-- [ ] `.arc-unvisited-dot` in the left gutter, light and dark
-- [ ] no tests (UI wiring, CSS); `make test` and the build pass
+- [x] hook enabled when either setting is on; exposes `isUnvisited` (false for the seen leave)
+- [x] `markUnvisitedTabs` passed along the `highlightTabAge` path; `TabRow` gets `isUnvisited` at all three render sites and renders the dot for non-active tabs; age grade still gated on `highlightTabAge`
+- [x] `.arc-unvisited-dot` in the left gutter, light and dark
+- [x] no tests (UI wiring, CSS); `make test` and the build pass
 
 ### Task 7: Verify acceptance criteria
-- [ ] every item under "Decided with the user" works (against the code; the look on the real sidebar stays in Post-Completion)
-- [ ] age highlight and auto-archive unchanged; all three settings off drops `tabLastUsedAt`
-- [ ] `make test`, `make lint`, `npm run build`
+- [x] every item under "Decided with the user" works (against the code; the look on the real sidebar stays in Post-Completion)
+- [x] age highlight and auto-archive unchanged; all three settings off drops `tabLastUsedAt`
+- [x] `make test`, `make lint`, `npm run build`
 
 ### Task 8: [Final] Update documentation
 - [ ] `README.md` (Settings) and `docs/changelog.md` (Latest Version)
