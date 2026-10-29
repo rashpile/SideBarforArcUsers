@@ -213,7 +213,7 @@ No e2e suite in the project; the UI is checked manually (Post-Completion).
 - close the active tab so a never-visited neighbour becomes active: its dot goes away
 - "Open link in new tab" from the context menu: dot appears
 - a link that redirects (e.g. a search result): dot stays; restart the browser: the dot comes back on that tab
-- close a window with several tabs, restore it with Cmd+Shift+T: no dots; same for a restored tab group
+- close a window with several tabs, restore it with Cmd+Shift+T: no dots (a restored tab group gets dots, see Known limitations)
 - quit and reopen Chrome with session restore: no dots on restored tabs (except tabs that had a dot before)
 - a tab suspender parks a tab: no dot
 - the dot doesn't overlap the favicon on ungrouped (depth 0) rows; light, dark, Space colour; grouped and selected rows
