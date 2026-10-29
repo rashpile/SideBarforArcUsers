@@ -20,6 +20,7 @@ import { AUTO_ARCHIVE_AFTER_KEY } from './utils/autoArchive';
 import { KeyboardSwitcher, parseSwitcherCommand } from './services/keyboardSwitcher';
 import { buildSpaceCards, buildTabCards, findLastUsedTab, WindowSpaces } from './services/switcherLists';
 import { SwitcherMessageAction } from './utils/switcherMessages';
+import { BookmarkSpaceResolver } from './utils/bookmarkSpaceResolver';
 
 // Set side panel to open when clicking the extension toolbar button
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
@@ -101,6 +102,30 @@ async function getSpaceForTab(windowId: number, tabId: number): Promise<string |
 }
 
 /**
+ * The Space of a tab being activated. A bookmark's tab belongs to the Space
+ * whose folder holds the bookmark, so a registry record saying otherwise is
+ * corrected here, whatever wrote it. Debug builds log each correction, to find
+ * that writer.
+ */
+async function getSpaceForActivatedTab(windowId: number, tabId: number): Promise<string | undefined>
+{
+  const registeredSpaceId = tabSpaceRegistry.getSpace(windowId, tabId);
+  const itemKey = (await getTabAssociations(windowId))[tabId];
+  if (!itemKey?.startsWith(BOOKMARK_ITEM_KEY_PREFIX)) return registeredSpaceId;
+
+  const bookmarkSpaceId = await bookmarkSpaceResolver.findSpaceId(itemKey.slice(BOOKMARK_ITEM_KEY_PREFIX.length));
+  if (!bookmarkSpaceId || bookmarkSpaceId === registeredSpaceId) return registeredSpaceId;
+
+  if (import.meta.env.DEV)
+  {
+    console.log(`[TabSpace] bookmark tab ${tabId} (${itemKey}) was registered to Space ${registeredSpaceId}; `
+      + `its bookmark is in Space ${bookmarkSpaceId}`);
+  }
+  await tabSpaceRegistry.register(windowId, tabId, bookmarkSpaceId);
+  return bookmarkSpaceId;
+}
+
+/**
  * Activates a tab and switches the sidebar to its space.
  *
  * Used by explicit user actions (audio quick-jump, audio tabs list, the
@@ -133,7 +158,7 @@ async function setActiveTabAndSpace(
     // 显式跳转始终跟随目标 Tab 的真实 Space。
     const persistedSpaceId = spaceStateManager.getActiveSpace(tab.windowId);
     const currentSpaceId = resolveActiveSpaceId(spaceManager.getSpaces(), persistedSpaceId);
-    let destinationSpaceId = await getSpaceForTab(tab.windowId, tabId);
+    let destinationSpaceId = await getSpaceForActivatedTab(tab.windowId, tabId);
 
     if (currentSpaceId && currentSpaceId !== persistedSpaceId)
     {
@@ -194,6 +219,11 @@ const pinnedSitesManager = new PinnedSitesManager();
 // Reads the history manager's activation order, so it has to come after it.
 const lastAudibleTracker = new LastAudibleTracker(historyManager);
 tabSpaceRegistry = new TabSpaceRegistry();
+// The Space of a bookmark's tab, from the bookmark's folder (getSpaceForActivatedTab)
+const bookmarkSpaceResolver = new BookmarkSpaceResolver(
+  (id) => chrome.bookmarks.get(id).then(([node]) => node, () => undefined),
+  () => spaceManager.getSpaces(),
+);
 const newsVersionChecker = new NewsVersionChecker();
 // Last-use time of every tab, for auto-archive (feature 035). Background is the only writer;
 // nothing is recorded while "Archive tabs after" is Never.
@@ -496,13 +526,28 @@ const keyboardSwitcher = new KeyboardSwitcher({
       return;
     }
 
-    // A Space opens on its last used tab; one without tabs only switches the sidebar
-    const tabs = await chrome.tabs.query({ windowId });
-    const lastTabId = findLastUsedTab(tabs, cardId, await readWindowSpaces(windowId));
-    if (lastTabId !== undefined) await setActiveTabAndSpace(lastTabId);
-    else spaceStateManager.setActiveSpace(windowId, cardId);
+    await openSpace(windowId, cardId);
   },
 });
+
+/**
+ * Brings a Space forward the way Arc does: its most recently used tab is
+ * activated, and a Space with no tabs of its own gets a new one. Used by the
+ * Space bar, swipes (OPEN_SPACE) and the Space Switcher.
+ */
+async function openSpace(windowId: number, spaceId: string): Promise<void>
+{
+  const restored = await stateReady;
+  spaceStateManager.setActiveSpace(windowId, spaceId);
+  // Without the restored assignments no tab can be told apart by Space
+  if (!restored) return;
+
+  const tabs = await chrome.tabs.query({ windowId });
+  const lastTabId = findLastUsedTab(tabs, spaceId, await readWindowSpaces(windowId));
+  if (lastTabId !== undefined) await setActiveTabAndSpace(lastTabId);
+  // onCreated registers the new tab to the window's active Space, set above
+  else await chrome.tabs.create({ windowId, active: true });
+}
 
 chrome.windows.onRemoved.addListener((windowId) => keyboardSwitcher.handleWindowRemoved(windowId));
 chrome.tabs.onRemoved.addListener((tabId) => keyboardSwitcher.handleTabRemoved(tabId));
@@ -548,7 +593,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) =>
   }
 
   // Lookup destination space for sidebar switch
-  let destinationSpaceId = await getSpaceForTab(activeInfo.windowId, activeInfo.tabId);
+  let destinationSpaceId = await getSpaceForActivatedTab(activeInfo.windowId, activeInfo.tabId);
 
   if (!destinationSpaceId && currentSpaceId)
   {
@@ -898,6 +943,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) =>
   {
     tabAssociationReadiness.wait().then(() => sendResponse({ ready: true }));
     return true;
+  }
+
+  if (message?.action === SpaceMessageAction.OPEN_SPACE)
+  {
+    void openSpace(message.windowId, message.spaceId);
+    return;
   }
 
   if (message?.action === SwitcherMessageAction.READY)

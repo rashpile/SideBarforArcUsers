@@ -13,6 +13,8 @@
 - New: Space Switcher - the same for Spaces; picking a Space opens its most recently used tab
 - Removed: the Space Navigator window (Cmd+Shift+S) - the Space Switcher replaces it
 - Changed: the extension now requests the `activeTab` permission (no install warning), used to draw the switcher list over the current page
+- Changed: clicking a Space or swiping to it brings that Space's most recently used tab forward; a Space with no tabs opens a new tab
+- Fixed: opening a bookmark no longer switches the sidebar to another Space when its tab had been recorded under the wrong Space
 - Changed: the extension now requests the `alarms` permission (no install warning), used only while "Archive tabs after" is on
 - Fixed: right-clicking the "Create a Space" placeholder header no longer opens an empty menu
 - Fixed: after a browser restart, a reused tab ID no longer gives a pinned page's identity or a Space assignment to an unrelated tab on another site

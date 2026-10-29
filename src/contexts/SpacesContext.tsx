@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useBookmarkTabsContext } from './BookmarkTabsContext';
 import { useBookmarks } from '../hooks/useBookmarks';
-import { Space, ALL_SPACE } from '../utils/spaceMessages';
+import { Space, ALL_SPACE, SpaceMessageAction } from '../utils/spaceMessages';
 import { spaceWindowStateProxy } from '../managers/proxies/spaceWindowStateProxy';
 import { useSpaceWindowState } from '../hooks/useSpaceWindowState';
 import { spaceManagerProxy } from '../managers/proxies/spaceManagerProxy';
@@ -94,7 +94,7 @@ interface SpacesContextValue
   // Per-window state
   activeSpaceId: string;
   setActiveSpaceId: (spaceId: string) => void;  // No tab activation (for code-initiated switches)
-  switchToSpace: (spaceId: string) => void;     // Switch space without tab activation
+  switchToSpace: (spaceId: string) => void;     // User switch: also brings the Space's last used tab forward
 
   // Tab query (uses Chrome tab groups)
   getTabsForSpace: (spaceId: string) => Promise<chrome.tabs.Tab[]>;
@@ -370,13 +370,19 @@ export const SpacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     applyActiveSpace(spaceId, 'navigation');
   }, [applyActiveSpace]);
 
-  // Switch to space (just update active space, no tab activation)
-  // Tab activation happens naturally when user clicks on a tab
-  // Use for: user clicks space bar, swipe gestures, space navigator
+  // Switch to space as the user asked (Space bar click, swipe). Like Arc, the
+  // background then brings the Space's most recently used tab forward, or opens
+  // a new tab when the Space has none. Picking the Space already shown changes
+  // nothing, so a Favorite open over it stays.
   const switchToSpace = useCallback((spaceId: string) =>
   {
+    const alreadyActive = spaceId === windowState.activeSpaceId;
     applyActiveSpace(spaceId, 'user');
-  }, [applyActiveSpace]);
+    if (!windowId || alreadyActive) return;
+
+    chrome.runtime.sendMessage({ action: SpaceMessageAction.OPEN_SPACE, windowId, spaceId })
+      .catch(() => { /* Background may be restarting */ });
+  }, [applyActiveSpace, windowId, windowState.activeSpaceId]);
 
   // Get all tabs assigned to a Space by the internal registry.
   const getTabsForSpace = useCallback(async (spaceId: string): Promise<chrome.tabs.Tab[]> =>
