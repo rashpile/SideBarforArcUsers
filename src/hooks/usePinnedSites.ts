@@ -12,11 +12,10 @@ import { iconRestoresByUrl } from '../utils/favoritesImport';
 // Re-export so existing importers (e.g. PinnedIcon) don't break
 export { getFaviconUrl, fetchFaviconAsBase64 } from '../utils/favicon';
 
-// The pin type lives with the manager contract, since background.ts must not
+// The pin type lives in managers/shared, since background.ts must not
 // import this React module. Re-exported here because most of the UI imports it
 // from the hook.
 export type { PinnedSite } from '../managers/shared/pinnedSitesApi';
-export { PINNED_SITES_STORAGE_KEY } from '../managers/shared/pinnedSitesApi';
 
 type BookmarkNode = chrome.bookmarks.BookmarkTreeNode;
 

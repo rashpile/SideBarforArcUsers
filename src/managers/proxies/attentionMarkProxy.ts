@@ -1,6 +1,6 @@
 // Sidebar-side client for background.ts's AttentionMarkManager.
 //
-// Same mirror pattern as pinnedSitesManagerProxy: optimistic writes, own echo
+// Same mirror pattern as favoriteIconsManagerProxy: optimistic writes, own echo
 // skipped, foreign broadcasts held while this context has writes in flight.
 // Background changes marks on its own (tab closed, bookmark deleted), so the
 // mutations are per-operation, never a whole new state.

@@ -394,14 +394,14 @@ with the live tab's url and index, and the old key's entry is removed.
 
 ### Task 13: Verify acceptance criteria
 
-- [ ] switching Space switches the grid; existing Favorites appear in every Space after the update
-- [ ] no `asd_Favorites` in the Bookmarks tree, filters, Expand All, Open All, folder pickers
-- [ ] `grep -rn "PINNED_SITES_STORAGE_KEY\|'pinnedSites'" src` shows only the migration, the backup
+- [x] switching Space switches the grid; existing Favorites appear in every Space after the update (code check: `usePinnedSites` resolves the active Space with `SpaceFavorites`, migration copies into every Space; in-browser check is Post-Completion)
+- [x] no `asd_Favorites` in the Bookmarks tree, filters, Expand All, Open All, folder pickers
+- [x] `grep -rn "PINNED_SITES_STORAGE_KEY\|'pinnedSites'" src` shows only the migration, the backup
   format and the legacy key definition
-- [ ] ➕ delete `pinnedSitesManager.ts`, `pinnedSitesManagerProxy.ts` and the manager parts of
+- [x] ➕ delete `pinnedSitesManager.ts`, `pinnedSitesManagerProxy.ts` and the manager parts of
   `pinnedSitesApi.ts` (keep `PinnedSite` and `PINNED_SITES_STORAGE_KEY`), drop
   `ManagerId.PINNED_SITES` and its registration in `background.ts` once nothing imports them
-- [ ] run `make lint && make test && make build`
+- [x] run `make lint && make test && make build`
 
 ### Task 14: [Final] Update documentation
 

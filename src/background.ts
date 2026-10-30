@@ -8,7 +8,6 @@ import { TabSpaceRegistry } from './managers/impl/tabSpaceRegistry';
 import { SpaceManager } from './managers/impl/spaceManager';
 import { TabHistoryManager } from './managers/impl/tabHistoryManager';
 import { LastAudibleTracker } from './managers/impl/lastAudibleTracker';
-import { PinnedSitesManager } from './managers/impl/pinnedSitesManager';
 import { FavoriteIconsManager } from './managers/impl/favoriteIconsManager';
 import { allFavoriteBookmarks } from './utils/spaceFavorites';
 import { collectBookmarkIds } from './utils/bookmarkFolderLookup';
@@ -156,7 +155,6 @@ const historyManager = new TabHistoryManager({
   setActiveTabAndSpace,
   getSpaceForTab,
 });
-const pinnedSitesManager = new PinnedSitesManager();
 // Custom icon, emoji, color and cached favicon of each Favorite bookmark, by bookmark id
 const favoriteIconsManager = new FavoriteIconsManager({
   storage: {
@@ -330,7 +328,6 @@ const managerLoadPromise = Promise.all([
   spaceManager.load(),
   historyManager.load(),
   lastAudibleTracker.load(),
-  pinnedSitesManager.load(),
   favoriteIconsManager.load(),
   sameBrowserSession.then((same) => tabSpaceRegistry.load(same)),
   sameBrowserSession.then((same) => attentionMarkManager.load(same)),
@@ -1002,7 +999,6 @@ registerManager(spaceStateManager);
 registerManager(spaceManager);
 registerManager(historyManager);
 registerManager(lastAudibleTracker);
-registerManager(pinnedSitesManager);
 registerManager(favoriteIconsManager);
 registerManager(attentionMarkManager);
 
