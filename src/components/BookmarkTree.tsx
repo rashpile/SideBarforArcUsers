@@ -45,7 +45,8 @@ import {
   ExternalLink,
   SquareStack,
   Link,
-  Sparkles
+  Sparkles,
+  Search
 } from 'lucide-react';
 import { getRandomGroupColor } from '../utils/groupColors';
 import { SpaceFolderIcon } from './SpaceFolderIcon';
@@ -293,15 +294,13 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
   // Whether the bookmark had a tab when a double-click's first press went down, before that click opened one
   const hadTabOnPressRef = useRef(false);
 
-  // Collapsed folders peek their recently used pages on hover, like Arc
-  const folderPeek = useFolderPeek(
-    isFolder
+  // Folders peek their recently used pages from a search button in the row, like Arc
+  const canPeek = isFolder
     && !isSpecialFolder
-    && !expandedState[node.id]
     && bookmarkOpenMode === 'arc'
     && !globalDragActive
-    && !!bookmarkRecency
-  );
+    && !!bookmarkRecency;
+  const folderPeek = useFolderPeek(canPeek);
 
   // Open a page picked in the folder peek, with the same modifiers as the tree's open button
   const handlePeekOpen = (bookmark: chrome.bookmarks.BookmarkTreeNode, e: React.MouseEvent | React.KeyboardEvent) =>
@@ -470,6 +469,21 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
 
   const actions = (
     <div className="flex items-center">
+      {canPeek && (
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          {...folderPeek.triggerHandlers}
+          className={clsx(
+            "arc-folder-collapse-action p-1.5 rounded bg-transparent",
+            // Stays visible while its popover is open and the pointer is over the popover
+            folderPeek.anchorRect ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+          )}
+          title="Search recent pages"
+          aria-label="Search recent pages"
+        >
+          <Search size={14} />
+        </button>
+      )}
       {isFolder && expandedState[node.id] && (
         <button
           onPointerDown={(e) => e.stopPropagation()}
@@ -559,8 +573,6 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
               aria-expanded={isFolder ? !!expandedState[node.id] : undefined}
               onClick={(e) => { folderPeek.close(); handleRowClick(e); }}
               onKeyDown={handleRowKeyDown}
-              onPointerEnter={folderPeek.rowHandlers.onPointerEnter}
-              onPointerLeave={folderPeek.rowHandlers.onPointerLeave}
               onMouseDown={(e) => {
                 if (e.detail === 1) hadTabOnPressRef.current = !!isLoaded;
               }}

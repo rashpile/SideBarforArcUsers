@@ -1,6 +1,7 @@
 /**
- * FolderRecentPopover - Arc-style peek on a collapsed bookmark folder.
- * Lists the folder's bookmarks by last-active time, with a search field.
+ * FolderRecentPopover - Arc-style peek on a bookmark folder, opened from the
+ * search button in the folder row. Lists the folder's bookmarks by last-active
+ * time, with a search field.
  */
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
@@ -16,7 +17,7 @@ import {
   formatRelativeTime,
 } from '../utils/folderRecentItems';
 
-const OPEN_DELAY_MS = 400;
+const OPEN_DELAY_MS = 200;
 const CLOSE_DELAY_MS = 150;
 const VIEWPORT_MARGIN = 8;
 const ANCHOR_GAP = 4;
@@ -30,9 +31,10 @@ export interface FolderPeek
   anchorRect: DOMRect | null;
   /** Attached to the popover so scrolling inside it doesn't close it. */
   popoverRef: React.RefObject<HTMLDivElement>;
-  rowHandlers: {
+  triggerHandlers: {
     onPointerEnter: (e: React.PointerEvent<HTMLElement>) => void;
     onPointerLeave: () => void;
+    onClick: (e: React.MouseEvent<HTMLElement>) => void;
   };
   popoverHandlers: {
     onPointerEnter: () => void;
@@ -42,8 +44,8 @@ export interface FolderPeek
 }
 
 /**
- * Opens after the pointer rests on the folder row, and stays open while the
- * pointer travels between the row and the popover.
+ * Opens after the pointer rests on the trigger button, or at once on a click,
+ * and stays open while the pointer travels between the button and the popover.
  */
 export function useFolderPeek(enabled: boolean): FolderPeek
 {
@@ -80,7 +82,7 @@ export function useFolderPeek(enabled: boolean): FolderPeek
     closeTimer.current = null;
   }, []);
 
-  // Expanding the folder, starting a drag or leaving Arc mode closes the peek
+  // Starting a drag or leaving Arc mode closes the peek
   useEffect(() =>
   {
     if (!enabled) close();
@@ -101,19 +103,36 @@ export function useFolderPeek(enabled: boolean): FolderPeek
 
   useEffect(() => clearTimers, [clearTimers]);
 
-  const rowHandlers: FolderPeek['rowHandlers'] = {
+  // Anchor to the folder row, not the button: a popover hung off a button at
+  // the row's right edge would run off a narrow sidebar
+  const anchorOf = (trigger: HTMLElement) =>
+    trigger.closest<HTMLElement>('[data-bookmark-id]') ?? trigger;
+
+  const triggerHandlers: FolderPeek['triggerHandlers'] = {
     onPointerEnter: (e) =>
     {
       cancelClose();
       if (!enabled || anchorRect || openTimer.current) return;
-      const row = e.currentTarget;
+      const anchor = anchorOf(e.currentTarget);
       openTimer.current = setTimeout(() =>
       {
         openTimer.current = null;
-        setAnchorRect(row.getBoundingClientRect());
+        setAnchorRect(anchor.getBoundingClientRect());
       }, OPEN_DELAY_MS);
     },
     onPointerLeave: scheduleClose,
+    onClick: (e) =>
+    {
+      // The row's click toggles the folder
+      e.stopPropagation();
+      if (!enabled) return;
+      cancelClose();
+      if (openTimer.current) clearTimeout(openTimer.current);
+      openTimer.current = null;
+      // Already open (often from the hover a moment ago): keep it, a toggle would close it
+      if (anchorRect) return;
+      setAnchorRect(anchorOf(e.currentTarget).getBoundingClientRect());
+    },
   };
 
   const popoverHandlers = {
@@ -121,7 +140,7 @@ export function useFolderPeek(enabled: boolean): FolderPeek
     onPointerLeave: scheduleClose,
   };
 
-  return { anchorRect, popoverRef, rowHandlers, popoverHandlers, close };
+  return { anchorRect, popoverRef, triggerHandlers, popoverHandlers, close };
 }
 
 // --- Popover ---
@@ -194,7 +213,10 @@ export const FolderRecentPopover = ({
     else setTop(above >= VIEWPORT_MARGIN ? above : pinnedToBottom);
   }, [anchorRect, items.length, popoverRef]);
 
-  const left = Math.max(VIEWPORT_MARGIN, anchorRect.left);
+  // Right-aligned to the row when the row is wider than the popover, so it sits
+  // under the search button at the row's right edge and the pointer can reach it
+  // within the close delay; a narrower row keeps the popover at the row's left
+  const left = Math.max(VIEWPORT_MARGIN, anchorRect.left, anchorRect.right - MAX_WIDTH);
   const width = Math.min(MAX_WIDTH, window.innerWidth - left - VIEWPORT_MARGIN);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) =>
