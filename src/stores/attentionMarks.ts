@@ -3,11 +3,12 @@
 //
 // A tab mark is a StoredTabRecord: tab IDs don't survive a browser restart, so
 // the record also remembers the tab's URL and position and re-attaches with
-// matchStoredTabs at worker start. Incognito tabs are never marked (their URLs
+// matchStoredTabs after a browser restart. A worker restart keeps IDs exact, so
+// records then stay with their tab ID only. Incognito tabs are never marked (their URLs
 // must not reach persistent storage).
 
 import { matchStoredTabs } from '../utils/storedTabMatcher.ts';
-import type { LiveTabLike, StoredTabIdMatch, StoredTabRecord } from '../utils/storedTabMatcher.ts';
+import type { LiveTabLike, StoredTabRecord } from '../utils/storedTabMatcher.ts';
 
 /** The fields of chrome.tabs.Tab the tab marks read. */
 export interface MarkableTabLike extends LiveTabLike
@@ -117,17 +118,37 @@ export class TabMarks
   }
 
   /**
-   * The marks re-attached to the live tabs at worker start. Each matched record
-   * is rebuilt from its live tab (new ID, window, URL, position), so storage
-   * written from the result holds only IDs of this browser session; records
-   * without a live tab are dropped. Incognito tabs never take a mark.
+   * The marks kept at a worker restart, when stored tab IDs are exact: a record
+   * stays with the live tab of its ID, whatever page or window that tab shows
+   * now, and takes the tab's current page and position. Records of tabs closed
+   * while the worker slept are dropped and never move to another tab on the
+   * same URL.
    */
-  rematched(liveTabs: readonly MarkableTabLike[], idMatch: StoredTabIdMatch): TabMarks
+  keptForLiveTabs(liveTabs: readonly MarkableTabLike[]): TabMarks
+  {
+    const kept = new TabMarks();
+    for (const tab of liveTabs.filter(isMarkable))
+    {
+      if (this.#byTabId.has(tab.id)) kept.#byTabId.set(tab.id, recordOf(tab));
+    }
+    return kept;
+  }
+
+  /**
+   * The marks re-attached to the live tabs after a browser restart or extension
+   * reload, when a stored ID may belong to an unrelated tab: the ID counts only
+   * on the record's site, the rest are found by URL and position. Each matched
+   * record is rebuilt from its live tab (new ID, window, URL, position), so
+   * storage written from the result holds only IDs of this browser session;
+   * records without a live tab are dropped. Incognito tabs never take a mark.
+   */
+  rematched(liveTabs: readonly MarkableTabLike[]): TabMarks
   {
     const rematched = new TabMarks();
     const candidates = liveTabs.filter(isMarkable);
+    const records = Array.from(this.#byTabId.values());
 
-    for (const { tab } of matchStoredTabs(Array.from(this.#byTabId.values()), candidates, { idMatch }))
+    for (const { tab } of matchStoredTabs(records, candidates, { idMatch: 'sameWindowAndSite' }))
     {
       rematched.#byTabId.set(tab.id, recordOf(tab));
     }

@@ -57,6 +57,24 @@ test('a browser-restart load stores the new tab IDs, so a later worker restart d
   assert.equal(afterWorkerRestart.isTabMarked(7), false);
 });
 
+test('a worker-restart load drops the mark of a tab closed while the worker slept instead of giving it to a tab on the same URL', async () =>
+{
+  // Tab 10 was marked and closed (on its own or with its window); tab 20 shows the same page
+  const local = installChrome({
+    stored: {
+      [ATTENTION_MARKED_TABS_KEY]: [record(10, 2, 'https://mail.test/inbox', 0), record(8, 1, 'https://docs.test/', 1)],
+    },
+    liveTabs: [tab(20, 1, 'https://mail.test/inbox', 0), tab(8, 1, 'https://docs.test/', 1)],
+  });
+
+  const manager = new AttentionMarkManager();
+  await manager.load(true);
+
+  assert.equal(manager.isTabMarked(20), false);
+  assert.deepEqual(manager.getState().tabIds, [8]);
+  assert.deepEqual(local[ATTENTION_MARKED_TABS_KEY], [record(8, 1, 'https://docs.test/', 1)]);
+});
+
 test('a tab closed with its window keeps its mark; a tab closed on its own loses it', async () =>
 {
   const marked = [record(7, 1, 'https://mail.test/inbox', 0), record(8, 1, 'https://docs.test/', 1)];

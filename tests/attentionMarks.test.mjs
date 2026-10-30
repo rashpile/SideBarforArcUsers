@@ -6,10 +6,6 @@ import { BookmarkMarks, TabMarks } from '../src/stores/attentionMarks.ts';
 const tab = (id, windowId, url, index, extra = {}) => ({ id, windowId, url, index, ...extra });
 const record = (tabId, windowId, url, index) => ({ tabId, windowId, url, index });
 
-// Stored IDs that may come from an earlier browser session, and IDs of the running one
-const AFTER_RESTART = 'sameWindowAndSite';
-const SAME_SESSION = 'sameWindow';
-
 test('after a browser restart a mark re-attaches by URL and position, not to an unrelated tab reusing the old ID', () =>
 {
   const marks = TabMarks.fromStored([record(5, 1, 'https://a.test/doc', 2)]);
@@ -18,7 +14,7 @@ test('after a browser restart a mark re-attaches by URL and position, not to an 
     tab(12, 1, 'https://a.test/doc', 2),
   ];
 
-  const rematched = marks.rematched(liveTabs, AFTER_RESTART);
+  const rematched = marks.rematched(liveTabs);
 
   assert.equal(rematched.isMarked(5), false);
   assert.equal(rematched.isMarked(12), true);
@@ -33,10 +29,35 @@ test('on a worker restart a mark stays with its tab ID even after the tab left t
     tab(7, 1, 'https://login.test/', 3),
   ];
 
-  const rematched = marks.rematched(liveTabs, SAME_SESSION);
+  const kept = marks.keptForLiveTabs(liveTabs);
 
-  assert.deepEqual(rematched.markedTabIds(), [7]);
-  assert.deepEqual(rematched.toStored(), [record(7, 1, 'https://login.test/', 3)]);
+  assert.deepEqual(kept.markedTabIds(), [7]);
+  assert.deepEqual(kept.toStored(), [record(7, 1, 'https://login.test/', 3)]);
+});
+
+test('on a worker restart a mark follows its tab ID into another window', () =>
+{
+  const marks = TabMarks.fromStored([record(7, 1, 'https://mail.test/inbox', 3)]);
+  const liveTabs = [
+    tab(2, 1, 'https://mail.test/inbox', 3),
+    tab(7, 4, 'https://mail.test/inbox', 0),
+  ];
+
+  assert.deepEqual(marks.keptForLiveTabs(liveTabs).toStored(), [record(7, 4, 'https://mail.test/inbox', 0)]);
+});
+
+test('on a worker restart the mark of a closed tab is dropped, not moved to another tab on its URL', () =>
+{
+  const marks = TabMarks.fromStored([
+    record(5, 1, 'https://a.test/', 0),
+    record(6, 2, 'https://mail.test/inbox', 1),
+  ]);
+  const liveTabs = [
+    tab(5, 1, 'https://a.test/', 0),
+    tab(20, 1, 'https://mail.test/inbox', 1),
+  ];
+
+  assert.deepEqual(marks.keptForLiveTabs(liveTabs).markedTabIds(), [5]);
 });
 
 test('a followed tab stays matchable after it navigated and moved', () =>
@@ -49,7 +70,7 @@ test('a followed tab stays matchable after it navigated and moved', () =>
 
   // After a restart the old position and URL would no longer find the tab
   const rematched = TabMarks.fromStored(marks.toStored())
-    .rematched([tab(1, 2, 'https://a.test/', 0), tab(3, 2, 'https://b.test/page', 4)], AFTER_RESTART);
+    .rematched([tab(1, 2, 'https://a.test/', 0), tab(3, 2, 'https://b.test/page', 4)]);
   assert.deepEqual(rematched.markedTabIds(), [3]);
 });
 
@@ -61,14 +82,14 @@ test('follow leaves unmarked tabs unmarked', () =>
   assert.equal(marks.isMarked(5), false);
 });
 
-test('marks without a live tab are dropped on re-match', () =>
+test('after a browser restart marks without a live tab are dropped', () =>
 {
   const marks = TabMarks.fromStored([
     record(5, 1, 'https://a.test/', 0),
     record(6, 1, 'https://gone.test/', 1),
   ]);
 
-  const rematched = marks.rematched([tab(5, 1, 'https://a.test/', 0)], SAME_SESSION);
+  const rematched = marks.rematched([tab(5, 1, 'https://a.test/', 0)]);
 
   assert.deepEqual(rematched.markedTabIds(), [5]);
 });
@@ -82,7 +103,7 @@ test('incognito tabs are refused and never take a mark on re-match', () =>
   assert.deepEqual(marks.toStored(), []);
 
   const stored = TabMarks.fromStored([record(5, 1, 'https://a.test/', 0)]);
-  const rematched = stored.rematched([tab(9, 3, 'https://a.test/', 0, { incognito: true })], AFTER_RESTART);
+  const rematched = stored.rematched([tab(9, 3, 'https://a.test/', 0, { incognito: true })]);
   assert.deepEqual(rematched.markedTabIds(), []);
 });
 

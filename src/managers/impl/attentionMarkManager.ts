@@ -147,7 +147,7 @@ export class AttentionMarkManager implements RoutedManager, AttentionMarkApi
   async handleTabRemoved(tabId: number, isWindowClosing: boolean): Promise<void>
   {
     // Quitting the browser closes its windows, and the mark has to outlive that. Records of a
-    // window closed for good are dropped at the next worker start, when no live tab matches.
+    // window closed for good are dropped at the next worker restart, which keeps marks by tab ID only.
     if (isWindowClosing) return;
     if (!this.#tabMarks.clear(tabId)) return;
     this.#broadcast();
@@ -189,11 +189,18 @@ export class AttentionMarkManager implements RoutedManager, AttentionMarkApi
     {
       const result = await chrome.storage.local.get(ATTENTION_MARKED_TABS_KEY);
       stored = TabMarks.fromStored(result[ATTENTION_MARKED_TABS_KEY]);
-      // After a browser restart or extension reload a stored ID may belong to an unrelated tab
-      // now, so it counts only on the record's site
-      rematched = stored.markedTabIds().length === 0
-        ? stored
-        : stored.rematched(await chrome.tabs.query({}), sameBrowserSession ? 'sameWindow' : 'sameWindowAndSite');
+      if (stored.markedTabIds().length === 0)
+      {
+        rematched = stored;
+      }
+      else
+      {
+        // On a worker restart IDs are exact, and a closed tab's record must not move to another
+        // tab on its URL (the tab may have closed in the event that woke the worker). After a
+        // browser restart or extension reload IDs are reused, so records are found by site and URL.
+        const liveTabs = await chrome.tabs.query({});
+        rematched = sameBrowserSession ? stored.keptForLiveTabs(liveTabs) : stored.rematched(liveTabs);
+      }
     }
     catch (error)
     {
