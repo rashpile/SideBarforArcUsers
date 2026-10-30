@@ -135,11 +135,11 @@
 - [x] run full checks: `make lint && make test && make build`
 
 ### Task 5: [Final] Update documentation
-- [ ] `README.md`: mention the search button on the Space title in the Bookmarks section
-- [ ] `docs/changelog.md`: a "New:" line under Latest Version
-- [ ] `src/data/changelog.ts`: a What's New line under the current top version
-- [ ] `docs/state-reference.md`: add `src/App.tsx` (Space header peek, read-only) to `bookmarkLastActiveAt` consumers
-- [ ] move this plan to `docs/plans/completed/`
+- [x] `README.md`: mention the search button on the Space title in the Bookmarks section
+- [x] `docs/changelog.md`: a "New:" line under Latest Version
+- [x] `src/data/changelog.ts`: a What's New line under the current top version
+- [x] `docs/state-reference.md`: add `src/App.tsx` (Space header peek, read-only) to `bookmarkLastActiveAt` consumers
+- [x] move this plan to `docs/plans/completed/` (left in place - the orchestrator moves it at the end)
 
 ## Post-Completion
 *Items requiring manual intervention or external systems - no checkboxes, informational only*

@@ -2,6 +2,7 @@
 
 ## Latest Version
 
+- New: the search button on the Space title (hover or click, Arc style) shows the recently used pages of the whole Space folder, newest first, with search, like the button on a folder row
 - Changed: each Space has its own Favorites. They are bookmarks in an `asd_Favorites` folder inside the Space's bookmark folder, so they sync with Chrome bookmarks and survive reinstalling the extension; custom icon, emoji and color stay in local storage (`favoriteIcons`). On update, the old global Favorites are copied once into every Space that has a bookmark folder, and open Favorite tabs keep their Favorite in their own Space. A Space without a bookmark folder shows a hint instead of Favorites. The Bookmarks tree, search, Expand All, Open All and folder pickers hide `asd_Favorites`
 - New: Move to Space in a Favorite's right-click menu - moves it to another Space's Favorites; its open tab moves to that Space too
 - Changed: the Tab Switcher lists a Favorite tab only in its own Space. Auto-archive never closes a tab on the page of any Space's Favorite
