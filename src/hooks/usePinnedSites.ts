@@ -1,48 +1,179 @@
 import { useState, useEffect, useCallback, useRef, useSyncExternalStore } from 'react';
 import { getFaviconUrl, fetchFaviconAsBase64 } from '../utils/favicon';
 import { iconToDataUrl } from '../utils/iconify';
-import { pinnedSitesManagerProxy } from '../managers/proxies/pinnedSitesManagerProxy';
-import { PinnedSite, PinnedSiteFaviconPatch } from '../managers/shared/pinnedSitesApi';
+import { favoriteIconsManagerProxy } from '../managers/proxies/favoriteIconsManagerProxy';
+import type { FavoriteFaviconPatch, FavoriteIconEntry } from '../managers/shared/favoriteIconsApi';
+import type { PinnedSite } from '../managers/shared/pinnedSitesApi';
+import { SpaceFavorites, type FavoritesSpace } from '../utils/spaceFavorites';
+import { ensureFavoritesFolder, type FavoritesBookmarksApi } from '../utils/favoritesFolder';
+import { bookmarkTreeStore, runBatchOperation } from './useBookmarks';
 
 // Re-export so existing importers (e.g. PinnedIcon) don't break
 export { getFaviconUrl, fetchFaviconAsBase64 } from '../utils/favicon';
 
-// The pin type and its storage key now live with the manager contract, since
-// background.ts owns the list and must not import this React module. Re-exported
-// here because most of the UI imports them from the hook.
+// The pin type lives with the manager contract, since background.ts must not
+// import this React module. Re-exported here because most of the UI imports it
+// from the hook.
 export type { PinnedSite } from '../managers/shared/pinnedSitesApi';
 export { PINNED_SITES_STORAGE_KEY } from '../managers/shared/pinnedSitesApi';
 
-const generateId = (): string => {
-  return `pin_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+type BookmarkNode = chrome.bookmarks.BookmarkTreeNode;
+
+const chromeFavoritesBookmarks: FavoritesBookmarksApi = {
+  getChildren: (id) => chrome.bookmarks.getChildren(id),
+  create: (bookmark) => chrome.bookmarks.create(bookmark),
 };
+
+/** A Favorite to create: what the bookmark holds and what the icon store holds. */
+interface NewFavorite
+{
+  url: string;
+  title: string;
+  icons: FavoriteIconEntry;
+}
+
+function iconsOf(site: PinnedSite): FavoriteIconEntry
+{
+  return { favicon: site.favicon, customIconName: site.customIconName, iconColor: site.iconColor, emoji: site.emoji };
+}
+
+function hasIcons(icons: FavoriteIconEntry): boolean
+{
+  return !!(icons.favicon || icons.customIconName || icons.iconColor || icons.emoji);
+}
+
+// Read from Chrome, not the sidebar's tree: that tree lags a create by a debounce
+async function favoriteNodesIn(folderId: string): Promise<BookmarkNode[]>
+{
+  const children = await chrome.bookmarks.getChildren(folderId);
+  return children
+    .filter(child => !!child.url)
+    .sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+}
+
+async function fetchPinFavicon(url: string, faviconUrl?: string): Promise<string | undefined>
+{
+  // Chrome's _favicon API is the most reliable; the tab's own favicon URL is the fallback
+  const favicon = await fetchFaviconAsBase64(getFaviconUrl(url));
+  if (favicon || !faviconUrl) return favicon;
+  return await fetchFaviconAsBase64(faviconUrl);
+}
 
 // Favicon loading strategy: see "Favicon loading" in docs/development.md
 
-export const usePinnedSites = () => {
-  // The list is mirrored by pinnedSitesManagerProxy, outside React state, so a
-  // mutation is visible to the next line that reads it rather than only after
-  // a re-render. See "Mirror store" in docs/development.md.
-  const pinnedSites = useSyncExternalStore(
-    pinnedSitesManagerProxy.store.subscribe,
-    pinnedSitesManagerProxy.store.getSnapshot
-  );
+/**
+ * The Favorites of one Space: the page bookmarks in its `asd_Favorites` folder,
+ * merged with the icon side store. List changes are bookmark calls; icon
+ * fields go through FavoriteIconsManager.
+ */
+export const usePinnedSites = (space: FavoritesSpace) =>
+{
   const [error, setError] = useState<string | null>(null);
 
-  // Mutations go to background and can fail if the service worker is gone.
-  // One place to turn that into the error state this hook has always exposed.
+  // The component re-renders only when this Space's Favorites change, not on
+  // every bookmark or icon change elsewhere: the snapshot is kept while equal.
+  const cachedRef = useRef<SpaceFavorites | null>(null);
+
+  const subscribe = useCallback((onChange: () => void) =>
+  {
+    const unsubscribeTree = bookmarkTreeStore.subscribe(onChange);
+    const unsubscribeIcons = favoriteIconsManagerProxy.store.subscribe(onChange);
+    return () =>
+    {
+      unsubscribeTree();
+      unsubscribeIcons();
+    };
+  }, []);
+
+  // Also what the callbacks below read, so each acts on the stores as they are now
+  const readFavorites = useCallback((): SpaceFavorites =>
+  {
+    const next = SpaceFavorites.resolve(
+      bookmarkTreeStore.getSnapshot().bookmarks,
+      space,
+      favoriteIconsManagerProxy.snapshot
+    );
+    const cached = cachedRef.current;
+    if (cached && cached.sameAs(next)) return cached;
+    cachedRef.current = next;
+    return next;
+  }, [space]);
+
+  const favorites = useSyncExternalStore(subscribe, readFavorites);
+  const pinnedSites = favorites.sites;
+
   const reportFailure = useCallback((context: string, err: unknown) =>
   {
     console.error(`[PinnedSites] ${context} failed:`, err);
     setError(String(err));
   }, []);
 
-  const loadPinnedSites = useCallback(async () => {
+  // An icon write that fails leaves the Favorite itself in place; it only loses its icon
+  const storeIcons = useCallback(async (id: string, icons: FavoriteIconEntry): Promise<void> =>
+  {
+    if (!hasIcons(icons)) return;
+    try
+    {
+      await favoriteIconsManagerProxy.restoreIcons(id, icons);
+    }
+    catch (err)
+    {
+      reportFailure('store icons', err);
+    }
+  }, [reportFailure]);
+
+  /**
+   * Creates Favorites one after another, from `index` on (grid order) or at the
+   * end. One at a time so they keep their order and a new Space gets one
+   * `asd_Favorites`, not one per call. Returns what was created before any failure.
+   */
+  const createFavorites = useCallback(async (
+    context: string,
+    entries: readonly NewFavorite[],
+    atIndex?: number
+  ): Promise<PinnedSite[]> =>
+  {
+    const spaceFolder = readFavorites().spaceFolder;
+    if (!spaceFolder || entries.length === 0) return [];
+
+    const created: PinnedSite[] = [];
+    try
+    {
+      const folder = await ensureFavoritesFolder(chromeFavoritesBookmarks, spaceFolder.id);
+
+      // A grid index is a position among the folder's pages; subfolders in it take bookmark indexes too
+      let bookmarkIndex = atIndex === undefined
+        ? undefined
+        : (await favoriteNodesIn(folder.id))[atIndex]?.index;
+
+      for (const entry of entries)
+      {
+        const node = await chrome.bookmarks.create({
+          parentId: folder.id,
+          title: entry.title,
+          url: entry.url,
+          ...(bookmarkIndex !== undefined && { index: bookmarkIndex }),
+        });
+        if (bookmarkIndex !== undefined) bookmarkIndex++;
+
+        await storeIcons(node.id, entry.icons);
+        created.push({ ...entry.icons, id: node.id, url: node.url ?? entry.url, title: node.title });
+      }
+    }
+    catch (err)
+    {
+      reportFailure(context, err);
+    }
+    return created;
+  }, [readFavorites, storeIcons, reportFailure]);
+
+  const loadIcons = useCallback(async () =>
+  {
     const shouldMeasure = performance.getEntriesByName('sidebar:pinned-sites-load').length === 0;
     if (shouldMeasure) performance.mark('sidebar:pinned-sites-start');
     try
     {
-      await pinnedSitesManagerProxy.load();
+      await favoriteIconsManagerProxy.load();
     }
     catch (err)
     {
@@ -58,9 +189,10 @@ export const usePinnedSites = () => {
     }
   }, [reportFailure]);
 
-  useEffect(() => {
-    void loadPinnedSites();
-  }, [loadPinnedSites]);
+  useEffect(() =>
+  {
+    void loadIcons();
+  }, [loadIcons]);
 
   // Lazy-resolve missing favicons (Scenario 3, 4 above).
   // Runs after import (Arc or our own JSON with missing favicons) and on extension load.
@@ -128,9 +260,9 @@ export const usePinnedSites = () => {
     try
     {
       // Each patch records what it was resolved FOR, so the manager can drop
-      // it if the pin changed while these fetches were in flight - see
-      // PinnedSiteFaviconPatch.
-      const patches: PinnedSiteFaviconPatch[] = [];
+      // it if the Favorite changed while these fetches were in flight - see
+      // FavoriteFaviconPatch.
+      const patches: FavoriteFaviconPatch[] = [];
 
       // One batch, not two: the custom icons come from the Iconify CDN and the
       // favicons from Chrome's local cache, so neither group has any reason to
@@ -169,16 +301,14 @@ export const usePinnedSites = () => {
           patches.map(patch => `${patch.id}${patch.forCustomIconName ? ` (icon ${patch.forCustomIconName})` : ' (site favicon)'}`));
       }
 
-      // No need to re-read the list first: setFavicons patches only the pins
-      // it names, on whatever the manager currently holds, so a pin added or
-      // removed while we were fetching is unaffected.
-      const stored = await pinnedSitesManagerProxy.setFavicons(patches);
+      // setFavicons patches only the Favorites it names, on whatever the
+      // manager currently holds, so one changed meanwhile is unaffected.
+      const stored = await favoriteIconsManagerProxy.setFavicons(patches);
 
       if (import.meta.env.DEV)
       {
-        // What the manager actually kept. A patch listed above but missing
-        // here was dropped by applySetFavicons as stale.
-        const landed = patches.filter(patch => stored.find(site => site.id === patch.id)?.favicon === patch.favicon);
+        // A patch listed above but missing here was dropped as stale
+        const landed = patches.filter(patch => stored[patch.id]?.favicon === patch.favicon);
         console.log(`[PinnedSites] resolve pass: ${landed.length} of ${patches.length} patches landed`);
       }
     }
@@ -198,12 +328,13 @@ export const usePinnedSites = () => {
       if (resolveRequestedRef.current)
       {
         resolveRequestedRef.current = false;
-        void runResolvePass(pinnedSitesManagerProxy.snapshot);
+        void runResolvePass(readFavorites().sites);
       }
     }
-  }, [reportFailure]);
+  }, [reportFailure, readFavorites]);
 
-  useEffect(() => {
+  useEffect(() =>
+  {
     if (isResolvingRef.current)
     {
       resolveRequestedRef.current = true;
@@ -218,78 +349,42 @@ export const usePinnedSites = () => {
   }, [pinnedSites, runResolvePass]);
 
   // Scenario 1a: pin a single tab. Tab is open so Chrome's favicon cache is hot.
+  // Null when the Space has no bookmark folder: it can't hold Favorites.
   const addPin = useCallback(async (
     url: string,
     title: string,
     faviconUrl?: string,
     atIndex?: number
-  ) => {
-    // Prefer Chrome's _favicon API (most reliable), fallback to provided faviconUrl
-    const chromeFaviconUrl = getFaviconUrl(url);
-    let favicon = await fetchFaviconAsBase64(chromeFaviconUrl);
+  ): Promise<PinnedSite | null> =>
+  {
+    if (!readFavorites().hasFolder) return null;
 
-    // If Chrome's cache failed and we have an alternative URL, try that
-    if (!favicon && faviconUrl) {
-      favicon = await fetchFaviconAsBase64(faviconUrl);
-    }
-
-    const newPin: PinnedSite = {
-      id: generateId(),
-      url,
-      title,
-      favicon,
-    };
-
-    try
-    {
-      await pinnedSitesManagerProxy.addPins([newPin], atIndex);
-      return newPin;
-    }
-    catch (err)
-    {
-      reportFailure('addPin', err);
-      return null;
-    }
-  }, [reportFailure]);
+    const favicon = await fetchPinFavicon(url, faviconUrl);
+    const [created] = await createFavorites('addPin', [{ url, title, icons: { favicon } }], atIndex);
+    return created ?? null;
+  }, [readFavorites, createFavorites]);
 
   // Scenario 1b: pin multiple tabs at once (e.g. drag a URL group). Same as addPin.
   const addPins = useCallback(async (
     pins: Array<{ url: string; title: string; faviconUrl?: string }>
-  ) => {
-    // Fetch all favicons in parallel
-    const newPins: PinnedSite[] = await Promise.all(
-      pins.map(async ({ url, title, faviconUrl }) => {
-        const chromeFaviconUrl = getFaviconUrl(url);
-        let favicon = await fetchFaviconAsBase64(chromeFaviconUrl);
+  ): Promise<PinnedSite[]> =>
+  {
+    if (!readFavorites().hasFolder) return [];
 
-        if (!favicon && faviconUrl)
-        {
-          favicon = await fetchFaviconAsBase64(faviconUrl);
-        }
-
-        return {
-          id: generateId(),
-          url,
-          title,
-          favicon,
-        };
-      })
+    const entries: NewFavorite[] = await Promise.all(
+      pins.map(async ({ url, title, faviconUrl }) => ({
+        url,
+        title,
+        icons: { favicon: await fetchPinFavicon(url, faviconUrl) },
+      }))
     );
+    return await runBatchOperation(() => createFavorites('addPins', entries));
+  }, [readFavorites, createFavorites]);
 
-    try
-    {
-      await pinnedSitesManagerProxy.addPins(newPins);
-      return newPins;
-    }
-    catch (err)
-    {
-      reportFailure('addPins', err);
-      return [];
-    }
-  }, [reportFailure]);
-
-  const removePin = useCallback((id: string) => {
-    pinnedSitesManagerProxy.removePins([id]).catch(err => reportFailure('removePin', err));
+  // The icon entry goes with the bookmark: background drops it on bookmarks.onRemoved
+  const removePin = useCallback((id: string) =>
+  {
+    chrome.bookmarks.remove(id).catch(err => reportFailure('removePin', err));
   }, [reportFailure]);
 
   const updatePin = useCallback((
@@ -300,23 +395,39 @@ export const usePinnedSites = () => {
     customIconName?: string,
     iconColor?: string,
     emoji?: string
-  ) => {
-    // The icon fields travel as a set - see PinnedSiteEdit for why absent means
+  ) =>
+  {
+    chrome.bookmarks.update(id, { title, url }).catch(err => reportFailure('updatePin', err));
+    // The icon fields travel as a set - see FavoriteIconEdit for why absent means
     // cleared for those three but "keep" for favicon.
-    pinnedSitesManagerProxy
-      .updatePin(id, { title, url, favicon, customIconName, iconColor, emoji })
-      .catch(err => reportFailure('updatePin', err));
+    favoriteIconsManagerProxy
+      .setIcons(id, { favicon, customIconName, iconColor, emoji })
+      .catch(err => reportFailure('updatePin icons', err));
   }, [reportFailure]);
 
+  // Checked against the bookmark itself, so a slow AI request can't overwrite a later manual edit
   const renamePinIfUnchanged = useCallback(async (
     id: string,
     expectedTitle: string,
     expectedUrl: string,
     newTitle: string
-  ) => {
+  ) =>
+  {
+    let current: BookmarkNode | undefined;
     try
     {
-      await pinnedSitesManagerProxy.renamePinIfUnchanged(id, expectedTitle, expectedUrl, newTitle);
+      [current] = await chrome.bookmarks.get(id);
+    }
+    catch
+    {
+      // Deleted while the request ran: nothing to rename
+      return;
+    }
+    if (!current || current.title !== expectedTitle || current.url !== expectedUrl) return;
+
+    try
+    {
+      await chrome.bookmarks.update(id, { title: newTitle });
     }
     catch (err)
     {
@@ -327,62 +438,119 @@ export const usePinnedSites = () => {
 
   // Scenario 6: user explicitly resets to site favicon via "Reset to site icon".
   // Only works if Chrome has the page cached (site visited at least once).
-  const resetFavicon = useCallback(async (id: string) => {
-    const site = pinnedSitesManagerProxy.snapshot.find(s => s.id === id);
+  const resetFavicon = useCallback(async (id: string) =>
+  {
+    const site = readFavorites().sites.find(s => s.id === id);
     if (!site) return;
 
     const chromeFaviconUrl = getFaviconUrl(site.url);
     const favicon = await fetchFaviconAsBase64(chromeFaviconUrl);
 
-    try { await pinnedSitesManagerProxy.resetFavicon(id, favicon); }
+    try { await favoriteIconsManagerProxy.resetFavicon(id, favicon); }
     catch (err) { reportFailure('resetFavicon', err); }
-  }, [reportFailure]);
+  }, [readFavorites, reportFailure]);
 
   const movePin = useCallback((
     activeId: string,
     overId: string,
     position: 'before' | 'after' = 'before'
-  ) => {
-    pinnedSitesManagerProxy
-      .movePin(activeId, overId, position)
-      .catch(err => reportFailure('movePin', err));
+  ) =>
+  {
+    if (activeId === overId) return;
+
+    void (async () =>
+    {
+      try
+      {
+        const [over] = await chrome.bookmarks.get(overId);
+        if (!over?.parentId || over.index === undefined) return;
+        // Chrome adjusts the index itself for a move within the same parent
+        const index = position === 'after' ? over.index + 1 : over.index;
+        await chrome.bookmarks.move(activeId, { parentId: over.parentId, index });
+      }
+      catch (err)
+      {
+        reportFailure('movePin', err);
+      }
+    })();
   }, [reportFailure]);
 
-  const duplicatePin = useCallback((id: string, liveUrl?: string, liveTitle?: string, liveFavicon?: string) => {
-    // The id is generated here rather than in the manager so this context's
-    // optimistic copy and the stored one are the same pin.
-    pinnedSitesManagerProxy
-      .duplicatePin(id, generateId(), { url: liveUrl, title: liveTitle, favicon: liveFavicon })
-      .catch(err => reportFailure('duplicatePin', err));
-  }, [reportFailure]);
+  /**
+   * Copies a Favorite in just after itself. The live tab may have navigated away
+   * from the Favorite's page; its favicon only replaces a site favicon, since a
+   * custom icon or emoji is the user's explicit choice.
+   */
+  const duplicatePin = useCallback((id: string, liveUrl?: string, liveTitle?: string, liveFavicon?: string) =>
+  {
+    void (async () =>
+    {
+      try
+      {
+        const [original] = await chrome.bookmarks.get(id);
+        if (!original?.url || !original.parentId || original.index === undefined) return;
 
-  // Scenario 2a: replace all pins from our own JSON backup.
+        const copy = await chrome.bookmarks.create({
+          parentId: original.parentId,
+          index: original.index + 1,
+          url: liveUrl || original.url,
+          title: liveTitle || original.title,
+        });
+
+        const source = readFavorites().sites.find(site => site.id === id);
+        if (liveFavicon && !source?.customIconName && !source?.emoji)
+        {
+          await storeIcons(copy.id, { favicon: liveFavicon });
+        }
+        else
+        {
+          await favoriteIconsManagerProxy.copyIcons(id, copy.id);
+        }
+      }
+      catch (err)
+      {
+        reportFailure('duplicatePin', err);
+      }
+    })();
+  }, [readFavorites, storeIcons, reportFailure]);
+
+  // Scenario 2a: replace the active Space's Favorites from our own JSON backup.
   // favicon is already embedded as base64 in the backup — no fetch needed.
   // Sites with missing favicon (old backups) are handled by the lazy-resolve effect.
-  const replacePinnedSites = useCallback((sites: PinnedSite[]) => {
-    const newSites = sites.map(site => ({
-      ...site,
-      id: generateId(),
-    }));
-    pinnedSitesManagerProxy
-      .replaceAll(newSites)
-      .catch(err => reportFailure('replacePinnedSites', err));
-  }, [reportFailure]);
+  const replacePinnedSites = useCallback(async (sites: PinnedSite[]): Promise<void> =>
+  {
+    if (!readFavorites().hasFolder) return;
 
-  // Scenario 2b / 3: append pins from our own JSON backup or Arc import.
+    await runBatchOperation(async () =>
+    {
+      try
+      {
+        for (const site of readFavorites().sites)
+        {
+          await chrome.bookmarks.remove(site.id);
+        }
+      }
+      catch (err)
+      {
+        reportFailure('replacePinnedSites', err);
+        return;
+      }
+      await createFavorites('replacePinnedSites', sites.map(site => ({ url: site.url, title: site.title, icons: iconsOf(site) })));
+    });
+  }, [readFavorites, createFavorites, reportFailure]);
+
+  // Scenario 2b / 3: append Favorites from our own JSON backup or Arc import.
   // Same as replacePinnedSites — favicon already in backup, or lazy-resolve handles it.
-  const appendPinnedSites = useCallback((sites: PinnedSite[]) => {
-    const newSites = sites.map(site => ({
-      ...site,
-      id: generateId(),
-    }));
-    pinnedSitesManagerProxy
-      .addPins(newSites)
-      .catch(err => reportFailure('appendPinnedSites', err));
-  }, [reportFailure]);
+  const appendPinnedSites = useCallback(async (sites: PinnedSite[]): Promise<void> =>
+  {
+    await runBatchOperation(() =>
+      createFavorites('appendPinnedSites', sites.map(site => ({ url: site.url, title: site.title, icons: iconsOf(site) })))
+    );
+  }, [createFavorites]);
 
   return {
     pinnedSites,
+    /** The grid explains that this Space has no bookmark folder, so no Favorites. */
+    needsFolderHint: favorites.needsFolderHint,
     addPin,
     addPins,
     removePin,
@@ -393,7 +561,7 @@ export const usePinnedSites = () => {
     duplicatePin,
     replacePinnedSites,
     appendPinnedSites,
-    refresh: loadPinnedSites,
+    refresh: loadIcons,
     error,
   };
 };

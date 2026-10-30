@@ -14,6 +14,7 @@ import { DragData, DragFormat, DropData, DropPosition, acceptsFormats, getItemsB
 interface PinnedBarProps
 {
   pinnedSites: readonly PinnedSite[];
+  needsFolderHint?: boolean;
   removePin: (id: string) => void;
   updatePin: (id: string,
               title: string,
@@ -35,6 +36,7 @@ interface PinnedBarProps
 
 export const PinnedBar = ({
   pinnedSites,
+  needsFolderHint = false,
   updatePin,
   resetFavicon,
   movePin,
@@ -209,6 +211,15 @@ export const PinnedBar = ({
 
   if (visiblePinnedSites.length === 0)
   {
+    // Favorites live in the Space's bookmark folder; without one, pinning does nothing, so say why
+    if (needsFolderHint && !hasFilters)
+    {
+      return (
+        <div className="px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+          Favorites need a bookmark folder for this Space
+        </div>
+      );
+    }
     return null;
   }
 

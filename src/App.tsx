@@ -634,7 +634,9 @@ const AppContainer: React.FC<AppContainerProps> = ({ useSpaceColor, spaceColorAl
   );
 };
 
-function App() {
+// Runs inside the Space and tab providers: the Favorites grid follows the active Space
+function Sidebar() {
+  const { activeSpace } = useSpacesContext();
   const [fontSize, setFontSize] = useLocalStorage('sidebar-font-size-px', 14, {
     parse: (v) => parseInt(v, 10),
     serialize: (v) => v.toString()
@@ -856,7 +858,8 @@ function App() {
     duplicatePin,
     replacePinnedSites,
     appendPinnedSites,
-  } = usePinnedSites();
+    needsFolderHint: favoritesNeedFolderHint,
+  } = usePinnedSites(activeSpace);
   const { tabs, refreshTabs } = useTabs();
 
   const handleApplySettings = (newSettings: SettingsValues) => {
@@ -1177,8 +1180,6 @@ function App() {
   {
     try
     {
-      // App() sits outside SpacesProvider, so there is no context windowId to
-      // read - resolve this window inline instead.
       const { id: windowId } = await chrome.windows.getCurrent();
       if (windowId === undefined) return;
 
@@ -1188,8 +1189,7 @@ function App() {
       if (targetTabId !== undefined)
       {
         // Background switches space and sends an explicit TAB_ACTIVATED, which
-        // scrolls the tab (or its bookmark row) into view - App() sits outside
-        // the providers, so it cannot route the scroll itself
+        // scrolls the tab (or its bookmark row) into view
         await chrome.runtime.sendMessage({
           action: 'set-active-tab-and-space',
           tabId: targetTabId,
@@ -1204,8 +1204,6 @@ function App() {
   const handleOpenAudioDialog = useCallback(async () => {
     try
     {
-      // Same as handleJumpToAudioTab: no context windowId out here, so this
-      // window is resolved inline.
       const { id: windowId } = await chrome.windows.getCurrent();
       if (windowId === undefined) return;
 
@@ -1262,8 +1260,6 @@ function App() {
 
   return (
     <FontSizeContext.Provider value={fontSize}>
-      <BookmarkTabsProvider>
-      <SpacesProvider>
       <SelectionProvider>
       <UnifiedDndProvider>
       <AppContainer useSpaceColor={useSpaceColor} spaceColorAlpha={spaceColorAlpha} fontSize={fontSize} followActiveTab={followActiveTab} tabAgeHighlight={shownTabAgeHighlight} attentionMarkStyle={attentionMarkStyle}>
@@ -1499,6 +1495,7 @@ function App() {
       {/* Pinned Sites */}
       <PinnedBar
         pinnedSites={pinnedSites}
+        needsFolderHint={favoritesNeedFolderHint}
         removePin={removePin}
         updatePin={updatePin}
         resetFavicon={resetFavicon}
@@ -1579,9 +1576,18 @@ function App() {
       </AppContainer>
       </UnifiedDndProvider>
       </SelectionProvider>
-      </SpacesProvider>
-      </BookmarkTabsProvider>
     </FontSizeContext.Provider>
+  );
+}
+
+function App()
+{
+  return (
+    <BookmarkTabsProvider>
+      <SpacesProvider>
+        <Sidebar />
+      </SpacesProvider>
+    </BookmarkTabsProvider>
   );
 }
 

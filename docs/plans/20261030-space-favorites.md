@@ -302,16 +302,23 @@ with the live tab's url and index, and the old key's entry is removed.
 - Modify: `src/hooks/usePinnedSites.ts`, `src/components/PinnedBar.tsx`,
   `src/components/PinnedIcon.tsx`, `src/App.tsx`, `src/components/TabList.tsx` (pin action)
 
-- [ ] the hook takes the active Space, derives the list with `SpaceFavorites` from the bookmark
+- [x] the hook takes the active Space, derives the list with `SpaceFavorites` from the bookmark
   tree (via `useBookmarks()` or `getTree` plus bookmark events; there is no shared tree context, do
   not build one) plus the icon proxy, and keeps its public functions: add/addPins (create in
   `ensureFavoritesFolder`, store icons), remove, update (bookmark title/url + icon edit), rename if
   unchanged, reset favicon, move (`chrome.bookmarks.move` within the folder), duplicate (bookmark
   copy + `copyIcons`), replace/append (import); lazy favicon resolver kept
-- [ ] Space without folder: grid shows a short hint, add/drop/pin do nothing
-- [ ] Chrome API errors go to the hook's error state (`createChromeErrorHandler` where the call is
-  callback-style)
-- [ ] `make lint && make test && make build` - must pass before next task
+- [x] Space without folder: grid shows a short hint, add/drop/pin do nothing
+- [x] Chrome API errors go to the hook's error state (`createChromeErrorHandler` where the call is
+  callback-style; the hook uses only promise-style calls, so `reportFailure` sets the error)
+- [x] `make lint && make test && make build` - must pass before next task
+- ➕ `App` became a wrapper around `BookmarkTabsProvider` / `SpacesProvider` and the old body moved
+  into `Sidebar`, so the hook can read the active Space from the Spaces context
+- ➕ the hook reads the shared bookmark tree through `bookmarkTreeStore` (exported from
+  `useBookmarks.ts`) and keeps its `SpaceFavorites` snapshot while `sameAs` holds, so the sidebar
+  doesn't re-render on unrelated bookmark changes; `needsFolderHint` stays false until the tree is read
+- ⚠️ until Task 8, unpin still goes through `DeletePinnedSiteAction` and the old pinned-sites proxy,
+  so it does not remove the bookmark
 
 ### Task 8: undo of a Favorite delete on bookmarks
 

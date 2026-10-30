@@ -60,6 +60,12 @@ const sharedBookmarkStore = new SharedBookmarkStore(
 
 const refreshAll = () => sharedBookmarkStore.refresh();
 
+/**
+ * Read handle on the shared tree, for a hook that derives a small part of it and
+ * should not re-render its component on every bookmark change (usePinnedSites).
+ */
+export const bookmarkTreeStore: Pick<SharedBookmarkStore, 'subscribe' | 'getSnapshot'> = sharedBookmarkStore;
+
 export { refreshAll as refreshAllBookmarks };
 
 // Wrap an async operation in batch mode to suppress intermediate refetches

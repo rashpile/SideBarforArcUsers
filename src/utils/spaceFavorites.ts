@@ -40,12 +40,15 @@ export class SpaceFavorites
   /** The Space's bookmark folder, or null when the Space has none or it can't be found. */
   readonly spaceFolder: BookmarkNode | null;
   readonly sites: readonly PinnedSite[];
+  // Chrome's tree always has roots; none means the sidebar hasn't read it yet
+  readonly #treeRead: boolean;
 
-  private constructor(spaceId: string, spaceFolder: BookmarkNode | null, sites: PinnedSite[])
+  private constructor(spaceId: string, spaceFolder: BookmarkNode | null, sites: PinnedSite[], treeRead: boolean)
   {
     this.spaceId = spaceId;
     this.spaceFolder = spaceFolder;
     this.sites = sites;
+    this.#treeRead = treeRead;
   }
 
   static resolve(roots: BookmarkNode[], space: FavoritesSpace, icons: FavoriteIcons): SpaceFavorites
@@ -57,7 +60,7 @@ export class SpaceFavorites
       url: bookmark.url!,
       title: bookmark.title,
     }));
-    return new SpaceFavorites(space.id, spaceFolder, sites);
+    return new SpaceFavorites(space.id, spaceFolder, sites, roots.length > 0);
   }
 
   /** False when the Space has no bookmark folder: it can't hold Favorites. True with no Favorites yet too. */
@@ -68,11 +71,23 @@ export class SpaceFavorites
 
   /**
    * The grid tells the user why a Space can't hold Favorites. Not for the internal
-   * "no Space yet" state, which isn't a Space the user picked.
+   * "no Space yet" state, which isn't a Space the user picked, nor before the tree is read.
    */
   get needsFolderHint(): boolean
   {
-    return !this.hasFolder && this.spaceId !== ALL_SPACE.id;
+    return this.#treeRead && !this.hasFolder && this.spaceId !== ALL_SPACE.id;
+  }
+
+  /**
+   * Same Space, same Space folder and the same Favorites with the same icons. Lets the
+   * sidebar keep its list when an unrelated bookmark or icon changes.
+   */
+  sameAs(other: SpaceFavorites): boolean
+  {
+    return this.spaceId === other.spaceId
+      && this.spaceFolder?.id === other.spaceFolder?.id
+      && this.#treeRead === other.#treeRead
+      && JSON.stringify(this.sites) === JSON.stringify(other.sites);
   }
 }
 
