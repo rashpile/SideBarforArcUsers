@@ -216,6 +216,8 @@ interface ItemProps extends HTMLAttributes<HTMLDivElement>
 {
   children: ReactNode;
   danger?: boolean;
+  // BaseItem skips onSelect when disabled, so a disabled item never closes the menu.
+  disabled?: boolean;
   onSelect?: () => void;
 }
 

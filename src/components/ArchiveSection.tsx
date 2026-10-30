@@ -7,20 +7,22 @@
  */
 import { useState, useCallback, useMemo, useEffect, useRef, KeyboardEvent } from 'react';
 import { Search, Trash, X } from 'lucide-react';
-import { useBookmarks } from '../hooks/useBookmarks';
 import { useInView } from '../hooks/useInView';
 import { Space, useSpacesContext } from '../contexts/SpacesContext';
 import { useFontSize } from '../contexts/FontSizeContext';
 import { UndoableAction } from '../actions/types';
 import { DeleteBookmarkAction } from '../actions/deleteBookmarkAction';
+import { runBatchOperation, useBookmarks } from '../hooks/useBookmarks';
+import { ClearArchiveAction, ClearArchiveBookmarksApi } from '../actions/clearArchiveAction';
 import { createChromeErrorHandler } from '../utils/chromeError';
 import { findArchiveFolder } from '../utils/archiveFolder';
-import { ArchiveItems } from '../utils/archiveItems';
+import { ArchiveClearOption, ArchiveItems } from '../utils/archiveItems';
 import { formatRelativeTime } from '../utils/folderRecentItems';
 import { getIndentPadding } from '../utils/indent';
 import { SectionHeader } from './SectionHeader';
 import { TreeRow } from './TreeRow';
 import { BookmarkFavicon } from './BookmarkFavicon';
+import { Dialog } from './Dialog';
 import * as ContextMenu from './menu/ContextMenu';
 
 // --- Item row ---
@@ -193,6 +195,86 @@ const ArchiveSearchField = ({ value, onChange }: ArchiveSearchFieldProps) =>
   );
 };
 
+// --- Clear menu ---
+
+interface ArchiveClearMenuProps
+{
+  items: ArchiveItems;
+  onClear: (option: ArchiveClearOption) => void;
+}
+
+/**
+ * The header menu's Clear submenu. It mounts when the menu opens, so the counts use the time
+ * of opening rather than the section's last render, which may be hours old in an idle sidebar.
+ * Counts cover the whole archive: clearing ignores the toolbar filter and the Archive search.
+ */
+const ArchiveClearMenu = ({ items, onClear }: ArchiveClearMenuProps) =>
+{
+  const [openedAt] = useState(() => Date.now());
+
+  return (
+    <ContextMenu.Sub>
+      <ContextMenu.SubTrigger>
+        <Trash size={14} className="mr-2" /> Clear
+      </ContextMenu.SubTrigger>
+      <ContextMenu.SubContent>
+        {ArchiveClearOption.MENU_ORDER.map((option) =>
+        {
+          const count = items.clearable(option, openedAt).length;
+          return (
+            <ContextMenu.Item key={option.label} disabled={count === 0} onSelect={() => onClear(option)}>
+              {option.label} ({count})
+            </ContextMenu.Item>
+          );
+        })}
+      </ContextMenu.SubContent>
+    </ContextMenu.Sub>
+  );
+};
+
+interface ClearAllDialogProps
+{
+  pageCount: number | null;  // null: closed
+  onConfirm: () => void;
+  onClose: () => void;
+}
+
+const ClearAllDialog = ({ pageCount, onConfirm, onClose }: ClearAllDialogProps) =>
+{
+  const pages = pageCount === 1 ? 'the 1 archived page' : `all ${pageCount} archived pages`;
+
+  return (
+    <Dialog isOpen={pageCount !== null} onClose={onClose} title="Clear Archive" maxWidth="max-w-xs">
+      <div className="flex flex-col">
+        <p className="p-4 text-gray-700 dark:text-gray-300">
+          Remove {pages} from this Space's Archive? You can undo this.
+        </p>
+        <div className="flex justify-end gap-2 p-3 border-t border-gray-200 dark:border-gray-700">
+          <button
+            onClick={onClose}
+            className="px-3 py-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-md"
+          >
+            Clear
+          </button>
+        </div>
+      </div>
+    </Dialog>
+  );
+};
+
+// Promise-based chrome.bookmarks for ClearArchiveAction, which keeps chrome.* out of its module
+const chromeArchiveBookmarks: ClearArchiveBookmarksApi = {
+  getSubTree: (id) => chrome.bookmarks.getSubTree(id),
+  remove: (id) => chrome.bookmarks.remove(id),
+  create: (bookmark) => chrome.bookmarks.create(bookmark),
+};
+
 // --- Section ---
 
 interface ArchiveSectionProps
@@ -219,6 +301,7 @@ export const ArchiveSection = ({
   const fontSize = useFontSize();
   const [error, setError] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
+  const [clearAllCount, setClearAllCount] = useState<number | null>(null);
   const handleError = useMemo(() => createChromeErrorHandler('Archive', setError), []);
 
   // The active Space's archive: the first asd_Archive child of its bookmark folder (items in
@@ -269,6 +352,50 @@ export const ArchiveSection = ({
     }
   }, [onPerformAction]);
 
+  // The action re-reads the folder by id when it runs, so a page moved out of the archive
+  // since this render is never removed
+  const archiveFolderId = archiveFolder?.id;
+  const handleClear = useCallback((option: ArchiveClearOption) =>
+  {
+    if (!archiveFolderId) return;
+    const action = new ClearArchiveAction(chromeArchiveBookmarks, archiveFolderId, option, Date.now, runBatchOperation);
+    if (onPerformAction)
+    {
+      onPerformAction(action);
+    }
+    else
+    {
+      action.do();
+    }
+  }, [archiveFolderId, onPerformAction]);
+
+  // Age options run at once (Undo covers them); Clear All asks first
+  const handleSelectClearOption = useCallback((option: ArchiveClearOption) =>
+  {
+    if (option === ArchiveClearOption.ALL)
+    {
+      setClearAllCount(items.clearable(option, Date.now()).length);
+    }
+    else
+    {
+      handleClear(option);
+    }
+  }, [items, handleClear]);
+
+  const closeClearAllDialog = useCallback(() => setClearAllCount(null), []);
+
+  const confirmClearAll = useCallback(() =>
+  {
+    setClearAllCount(null);
+    handleClear(ArchiveClearOption.ALL);
+  }, [handleClear]);
+
+  // A dialog left open while the archive emptied elsewhere must not pop up again later
+  useEffect(() =>
+  {
+    if (isHidden) setClearAllCount(null);
+  }, [isHidden]);
+
   if (isHidden) return null;
 
   const now = Date.now();
@@ -277,8 +404,8 @@ export const ArchiveSection = ({
     <div>
       <SectionHeader
         label="Archive"
-        menuContent={null}
-        showMenuButton={false}
+        menuContent={<ArchiveClearMenu items={items} onClear={handleSelectClearOption} />}
+        menuTitle="Archive options"
         fontSize={fontSize}
         labelClassName="font-medium"
         className="arc-space-title"
@@ -309,6 +436,8 @@ export const ArchiveSection = ({
       {error && (
         <p className="text-red-500 text-sm px-2 py-1 text-center">{error}</p>
       )}
+
+      <ClearAllDialog pageCount={clearAllCount} onConfirm={confirmClearAll} onClose={closeClearAllDialog} />
 
       <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
     </div>
