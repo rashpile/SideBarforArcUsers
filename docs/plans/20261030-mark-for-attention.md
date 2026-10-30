@@ -191,12 +191,12 @@ Issue: https://github.com/rashpile/SideBarforArcUsers/issues/14
 - [x] run `make lint` and `make build`
 
 ### Task 9: [Final] Update documentation
-- [ ] update `README.md`: Mark for Attention, the `-` button, bulk close skips marked tabs, auto-archive keeps them
-- [ ] update `docs/changelog.md` and add a `src/data/changelog.ts` What's New entry
-- [ ] update `docs/state-reference.md` with `attentionMarkedTabs` and `attentionMarkedBookmarks` (owner `AttentionMarkManager`, lifespan)
-- [ ] add `AttentionMarkManager` to the manager table in `docs/development.md`
-- [ ] update `PRIVACY.md` and `docs/chrome-web-store-info.md` where they list stored data (URLs of marked tabs)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] update `README.md`: Mark for Attention, the `-` button, bulk close skips marked tabs, auto-archive keeps them
+- [x] update `docs/changelog.md` and add a `src/data/changelog.ts` What's New entry
+- [x] update `docs/state-reference.md` with `attentionMarkedTabs` and `attentionMarkedBookmarks` (owner `AttentionMarkManager`, lifespan)
+- [x] add `AttentionMarkManager` to the manager table in `docs/development.md`
+- [x] update `PRIVACY.md` and `docs/chrome-web-store-info.md` where they list stored data (URLs of marked tabs)
+- [x] move this plan to `docs/plans/completed/` (left in place - the orchestrator moves it at the end)
 
 ## Post-Completion
 *Items requiring manual intervention or external systems - no checkboxes, informational only*

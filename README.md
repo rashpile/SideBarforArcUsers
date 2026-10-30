@@ -33,7 +33,7 @@ Coming from Arc? **Import from Arc Browser...** in the sidebar menu reads Arc's 
 - **Tabs** below the bookmarks are the Space's other open tabs.
 - **Archive** keeps tabs you stopped using, if you turn auto-archive on.
 
-Everything is stored in Chrome: bookmarks for Spaces, pinned pages and the archive, and the extension's local storage for settings and Favorites. Nothing goes to a server. See [PRIVACY.md](PRIVACY.md).
+Everything is stored in Chrome: bookmarks for Spaces, pinned pages and the archive, and the extension's local storage for settings, Favorites and marks. Nothing goes to a server. See [PRIVACY.md](PRIVACY.md).
 
 ## Features
 
@@ -57,7 +57,7 @@ Everything is stored in Chrome: bookmarks for Spaces, pinned pages and the archi
 - Links you open from a bookmark or Favorite page (`Cmd+Click`) land at the top of the Tab list
 - Drag and drop to organize. Drag a tab onto the tree to bookmark it
 - `...` menu: New Folder, New Bookmark, Sort by Name/Date, Edit, Duplicate, Delete, Pin, Move to New Window, Expand All, Open as Tab Group
-- Right-click a bookmark: Copy Link, Share, AI Rename, Edit, Mute/Unmute, Duplicate, Move to..., Remove Pin. **Edit** opens a submenu: **Replace Pinned URL with Current** (when the page is open) saves the tab's current address as the bookmark's URL and keeps its title; **Edit Pinned Page** opens the dialog to change title and URL
+- Right-click a bookmark: Copy Link, Share, AI Rename, Edit, Mute/Unmute, Duplicate, Move to..., Remove Pin, Mark for Attention. **Edit** opens a submenu: **Replace Pinned URL with Current** (when the page is open) saves the tab's current address as the bookmark's URL and keeps its title; **Edit Pinned Page** opens the dialog to change title and URL
 - A speaker icon for pages playing audio, an X on hover to close the tab
 
 ### Tabs
@@ -70,9 +70,19 @@ Everything is stored in Chrome: bookmarks for Spaces, pinned pages and the archi
 - A dot at the left edge marks a tab opened in the background (`Cmd+Click`, "Open link in new tab") until you first switch to it. Turn it off with **Mark unvisited tabs** in Settings
 - Drag to reorder, click to switch, X on hover to close
 - "+ New Tab" row at the bottom, with **Clear** (close the list's tabs) and **Archive** (save them to the Archive, then close). Both can be undone
-- Right-click: Pin to Sidebar, Add to Group, Add to Bookmark, Move to New Window, Duplicate, Close, Close Tabs Before / After / Other Tabs
+- Right-click: Pin to Sidebar, Add to Group, Add to Bookmark, Move to New Window, Duplicate, Mark for Attention, Close, Close Tabs Before / After / Other Tabs
 - Sort by domain, then title (A-Z or Z-A)
 - Chrome tab groups show with their color and title. Group menu: New Tab, Sort by Domain, Save to Bookmarks, Rename, Change Color, Close All. Drag tabs in and out of groups, reorder groups, drop a group on the bookmark tree to save it as a folder
+
+### Mark for Attention
+
+Right-click a tab or a bookmark and pick **Mark for Attention** to flag it for later. A marked row gets a green ring. On a marked row the item reads **Clear Mark**.
+
+- With several tabs or bookmarks selected, one item applies to all of them: if any is unmarked it marks them all, otherwise it clears them all. Folders can't be marked
+- On a marked tab the close button shows `-` instead of `x`. Click it to clear the mark; the tab stays open
+- Commands that close many tabs at once leave marked tabs open: Close Tabs Before / After, Close Other Tabs, closing a multi-selection, Close Tabs in Group, Clear and Archive on the "+ New Tab" row, and Close All Tabs In Space. A tab's own **Close** still closes it
+- Auto-archive never closes a marked tab. A marked bookmark doesn't keep its open tab from being archived
+- Marks survive closing the sidebar, an extension restart and a browser restart. Incognito tabs can't be marked
 
 ### Spaces
 
@@ -93,7 +103,7 @@ Off by default. Turn it on with **Archive tabs after** in Settings: 12 hours, 24
 - Tabs from the Tab list that you haven't used for that long are saved as bookmarks in an `asd_Archive` folder inside the Space's folder, then closed
 - Open pinned pages unused for that long are closed. Their bookmark stays. If the tab had moved on to another page, that page is archived first
 - Empty pages (New Tab, `about:blank`) close without a bookmark
-- Never closed: the active tab of each window and the tab next to it in split view, tabs playing audio, Chrome-pinned tabs, Favorites and tabs showing a Favorite's page, incognito tabs, and tabs with no Space or whose Space has no folder
+- Never closed: the active tab of each window and the tab next to it in split view, tabs playing audio, Chrome-pinned tabs, tabs marked for attention, Favorites and tabs showing a Favorite's page, incognito tabs, and tabs with no Space or whose Space has no folder
 - "Unused" counts from the moment you switched away, including while Chrome is closed or the computer sleeps
 - Turning the setting on starts every tab's clock at that moment, so nothing closes right away
 - Archiving a URL again replaces the older item. Archived items are never deleted automatically

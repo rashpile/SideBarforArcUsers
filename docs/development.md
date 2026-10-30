@@ -84,6 +84,7 @@ sidebar                                  background.ts
 | `TabSpaceRegistry` | `bg_tabSpaces` (session) |
 | `LastAudibleTracker` | `bg_lastAudibleTabIds` (session) |
 | `PinnedSitesManager` | `pinnedSites` (local) |
+| `AttentionMarkManager` | `attentionMarkedTabs`, `attentionMarkedBookmarks` (local) |
 
 Code lives in `src/managers/`: `impl/` has the managers (background only), `proxies/` the sidebar clients, `shared/` the API interfaces both sides import. A manager implements `XApi`, its proxy implements `Remote<XApi>`, the same methods returning promises. Adding a method to one side and forgetting the other fails the type check.
 

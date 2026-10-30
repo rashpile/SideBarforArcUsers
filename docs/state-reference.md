@@ -137,7 +137,7 @@ Marker that the startup restore matched the stored tab records to this browser s
 true
 ```
 - Owner: `src/background.ts` through `BrowserSessionMarker` (`src/stores/browserSessionMarker.ts`): reads it once at worker start and writes it after `restoreTabAssociationBackup` succeeded
-- Consumers: `TabSpaceRegistry.load` (`tabSpaceAssignments`) and `restoreTabAssociationBackup` (`tabAssociations_${windowId}`) - present: worker restart, stored tab and window IDs are exact, records match by tab ID and window only (a stored URL may lag a navigation made while the worker slept); absent (browser restart, extension reload or update): ID matches also need the record's site, see the two keys
+- Consumers: `TabSpaceRegistry.load` (`tabSpaceAssignments`), `AttentionMarkManager.load` (`attentionMarkedTabs`) and `restoreTabAssociationBackup` (`tabAssociations_${windowId}`) - present: worker restart, stored tab and window IDs are exact, records match by tab ID and window only (a stored URL may lag a navigation made while the worker slept); absent (browser restart, extension reload or update): ID matches also need the record's site, see the two keys
 - Separate from `tabActivitySessionStarted`, which `TabActivityTracker` writes for its own records
 - Instances: 1 per extension
 
@@ -282,6 +282,32 @@ Record<tabId, {
 - Unreadable value: the tracker logs it, ignores it (starts empty) and overwrites it on the next load; the sidebar shows no `leftAt` times (logged in DEV builds), grades rows by `lastAccessed` and shows no unvisited dots
 - Instances: 1 per extension
 
+### `attentionMarkedTabs`
+Tabs marked for attention (Mark for Attention)
+```typescript
+Array<{ tabId: number, windowId: number, url: string, index: number }>
+```
+- Owner: `src/managers/impl/attentionMarkManager.ts` (`AttentionMarkManager`, background, the only writer; writes serialized); the model is `TabMarks` in `src/stores/attentionMarks.ts`
+- Consumers: `src/managers/proxies/attentionMarkProxy.ts` → `src/hooks/useAttentionMarks.ts` (sidebar mirror; `TabList.tsx` draws the ring and the `-` button and leaves marked tabs out of bulk close; `App.tsx` and `SpaceBar.tsx` leave them out of Close All Tabs In Space); `src/services/tabAutoArchiver.ts` (`isTabMarked`, never closes a marked tab)
+- Updates: the user's Mark for Attention / Clear Mark / `-` button (`markTabs` reads each tab with `chrome.tabs.get`; incognito or closed tabs are skipped); `tabs.onRemoved` drops the record unless its window is closing (quitting the browser closes windows); `onUpdated` with a new URL, `onMoved` and `onAttached` move the records of the window's marked tabs to their current URL, index and window
+- Recovery: at worker start the records are re-matched with `matchStoredTabs` (`src/utils/storedTabMatcher.ts`): on a worker restart (`tabRestoreSessionStarted` present) by tab ID and window; after a browser restart or an extension reload/update an ID counts only on the record's site, then by URL plus nearest index. Incognito tabs are left out of the match, records that match no live tab are dropped, and matched records are rebuilt from their live tab and written back before the session marker is set, so a later worker restart matches against this session's IDs only
+- Unreadable value: logged, tab marks start empty, events don't write the key and auto-archive skips its runs until the user's next tab mark change writes it
+- Incognito tabs are never stored
+- Lifespan: persistent; records of tabs that no longer exist go at the next worker start
+- Instances: 1 per extension
+
+### `attentionMarkedBookmarks`
+Bookmarks marked for attention
+```typescript
+string[]  // bookmark ids
+```
+- Owner: `src/managers/impl/attentionMarkManager.ts` (`AttentionMarkManager`, background, the only writer); the model is `BookmarkMarks` in `src/stores/attentionMarks.ts`
+- Consumers: `src/managers/proxies/attentionMarkProxy.ts` → `src/hooks/useAttentionMarks.ts` → `src/components/BookmarkTree.tsx` (ring and menu item); not read by auto-archive
+- Updates: the user's Mark for Attention / Clear Mark (bookmarks only, never folders); `bookmarks.onRemoved` drops the removed id and, for a folder, every descendant id; worker start drops ids missing from the bookmark tree
+- Unreadable value (or a failed `getTree`): logged, bookmark marks start empty and the key is not written until the user's next bookmark mark change
+- Lifespan: persistent
+- Instances: 1 per extension
+
 ### `sectionCollapsedState`
 Collapse state of the Bookmarks and Archive sections, per Space
 ```typescript
@@ -369,6 +395,8 @@ Lost on page reload or service worker restart.
 │  ├─ tabAgeHighlight                 (tab age highlight look)    │
 │  ├─ markUnvisitedTabs               (unvisited tab marker)      │
 │  ├─ tabLastUsedAt                   (tab last-use times)        │
+│  ├─ attentionMarkedTabs             (marked tabs)               │
+│  ├─ attentionMarkedBookmarks        (marked bookmarks)          │
 │  └─ sectionCollapsedState           (per Space)                 │
 ├─────────────────────────────────────────────────────────────────┤
 │  browser localStorage (survives browser restart)                │
