@@ -129,10 +129,10 @@ Issue: https://github.com/rashpile/SideBarforArcUsers/issues/14
 - Create: `src/managers/proxies/attentionMarkProxy.ts`
 - Create: `src/hooks/useAttentionMarks.ts`
 
-- [ ] create `attentionMarkProxy` implementing `Remote<AttentionMarkApi>` with an `ExternalStore` mirror, `load()` from `getState`, optimistic writes, own-broadcast skip, in-flight write counter and re-read after failure (as `pinnedSitesManagerProxy`)
-- [ ] create `useAttentionMarks()` returning `isTabMarked(tabId)`, `isBookmarkMarked(id)` and the mutators, reading the mirror with `useSyncExternalStore`
-- [ ] load the proxy where other proxies load in the sidebar
-- [ ] no new tests (plumbing); run `make test`, `make lint`, `make build` - must pass before task 4
+- [x] create `attentionMarkProxy` implementing `Remote<AttentionMarkApi>` with an `ExternalStore` mirror, `load()` from `getState`, optimistic writes, own-broadcast skip, in-flight write counter and re-read after failure (as `pinnedSitesManagerProxy`)
+- [x] create `useAttentionMarks()` returning `isTabMarked(tabId)`, `isBookmarkMarked(id)` and the mutators, reading the mirror with `useSyncExternalStore`
+- [x] load the proxy where other proxies load in the sidebar (in `useAttentionMarks`' mount effect, as `usePinnedSites` loads its proxy)
+- [x] no new tests (plumbing); run `make test`, `make lint`, `make build` - must pass before task 4
 
 ### Task 4: Auto-archive keeps marked tabs
 
