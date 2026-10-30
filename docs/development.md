@@ -174,7 +174,7 @@ Not published to the Chrome Web Store yet. [tools/prepare-release-instructions.m
 
 1. Plan the change in `docs/plans/YYYYMMDD-<name>.md`, including what was decided with the user. A finished plan moves to `docs/plans/completed/`.
 2. Implement on a branch, with tests for the decisions that matter.
-3. Review with revmux. The project profile is `.revmux/profile.md` (not committed).
+3. Review with revmux. The project profile is `.revmux/profile.md`; run data under `.revmux/` stays untracked.
 4. Open a PR against `main` of this repo. This fork does not send changes upstream.
 
 When behaviour changes, update the README for users, [docs/state-reference.md](state-reference.md) for new storage keys, `docs/changelog.md` and, for features worth announcing, `src/data/changelog.ts`.

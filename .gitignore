@@ -22,4 +22,9 @@ sidebar-backup-2026-01-31.json
 svelte-ver/dist-chrome
 git-commit-msg.txt
 sidebar-backup-many-spaces.json
-.revmux
+/.revmux/*
+!/.revmux/profile.md
+/.worktrees/
+/.tasks-loop/last-session
+/.tasks-loop/launcher
+/.tasks-loop/briefs/
