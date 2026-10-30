@@ -82,17 +82,17 @@
 **Files:**
 - Modify: `src/contexts/BookmarkTabsContext.tsx`
 
-- [ ] hold a `UrlRecoveryGate` in a ref, created lazily in `rebuildAssociations` for its `windowId` argument, backed by `chrome.storage.session`
-- [ ] run the deferred `recoverFixedTabAssociations` block through `gate.runOnce(...)`, independent of `persistentItemsLoaded`; drop the flag if unused
-- [ ] in the `hasUnresolvedParkedTab` branch call `recoverParkedTabAssociations(allTabs, { ...associations, ...recovered }, bookmarkRoots, pinnedSites)`; remove the `recoverFixedTabAssociations` import only if unused
-- [ ] fix the comment above `rebuildAssociations` to say when URL matching runs
-- [ ] run `make lint && make test && make build` - must pass before task 3
+- [x] hold a `UrlRecoveryGate` in a ref, created lazily in `rebuildAssociations` for its `windowId` argument, backed by `chrome.storage.session`
+- [x] run the deferred `recoverFixedTabAssociations` block through `gate.runOnce(...)`, independent of `persistentItemsLoaded`; drop the flag if unused
+- [x] in the `hasUnresolvedParkedTab` branch call `recoverParkedTabAssociations(allTabs, { ...associations, ...recovered }, bookmarkRoots, pinnedSites)`; remove the `recoverFixedTabAssociations` import only if unused
+- [x] fix the comment above `rebuildAssociations` to say when URL matching runs
+- [x] run `make lint && make test && make build` - must pass before task 3
 
 ### Task 3: Verify acceptance criteria
-- [ ] walk the issue's repro against the code: a hand-opened tab on a bookmarked URL is not associated by later rebuilds in the same session; after a restart / extension reload the first rebuild still re-links open bookmark pages; park pages still heal on every rebuild
-- [ ] confirm the known limitations below still describe the code (incl. a bookmark tab dragged into an existing window)
-- [ ] check the invariants: one writer for `urlRecoveryDone_{windowId}` (the window's sidebar), the archive folder skip and root handling in `buildPersistentItemUrlIndex` untouched
-- [ ] run full suite: `make lint && make test && make build`
+- [x] walk the issue's repro against the code: a hand-opened tab on a bookmarked URL is not associated by later rebuilds in the same session; after a restart / extension reload the first rebuild still re-links open bookmark pages; park pages still heal on every rebuild
+- [x] confirm the known limitations below still describe the code (incl. a bookmark tab dragged into an existing window)
+- [x] check the invariants: one writer for `urlRecoveryDone_{windowId}` (the window's sidebar), the archive folder skip and root handling in `buildPersistentItemUrlIndex` untouched
+- [x] run full suite: `make lint && make test && make build`
 
 ### Task 4: [Final] Update documentation
 - [ ] `README.md` (Bookmarks and pinned pages section): a tab you open yourself on a bookmarked or Favorite URL stays in the Tab list; it becomes the bookmark's page only when you click the bookmark, drag the tab onto the tree or use "Add to bookmark". Tabs reopened from the Archive land in the Tab list
