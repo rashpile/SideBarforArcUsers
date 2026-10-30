@@ -1,7 +1,7 @@
 /**
  * FolderRecentPopover - Arc-style peek on a bookmark folder, opened from the
- * search button in the folder row. Lists the folder's bookmarks by last-active
- * time, with a search field.
+ * search button in a folder row or the Space header. Lists the folder's
+ * bookmarks by last-active time, with a search field.
  */
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
@@ -27,7 +27,7 @@ const MAX_WIDTH = 360;
 
 export interface FolderPeek
 {
-  /** Folder row rect while the popover is open, null when closed. */
+  /** Anchor row rect (folder row or Space header row) while the popover is open, null when closed. */
   anchorRect: DOMRect | null;
   /** Attached to the popover so scrolling inside it doesn't close it. */
   popoverRef: React.RefObject<HTMLDivElement>;
@@ -227,7 +227,7 @@ export const FolderRecentPopover = ({
     setHighlightIndex(0);
   }, [query]);
 
-  // Below the folder row; flip above it when the panel has no room below
+  // Below the anchor row; flip above it when the panel has no room below
   useLayoutEffect(() =>
   {
     const height = popoverRef.current?.getBoundingClientRect().height ?? 0;
@@ -276,7 +276,7 @@ export const FolderRecentPopover = ({
       style={{ top, left, width, fontSize: `${fontSize}px` }}
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
-      // React bubbles portal events to the folder row's ancestors - keep clicks here
+      // React bubbles portal events to the anchor row's ancestors - keep clicks here
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
