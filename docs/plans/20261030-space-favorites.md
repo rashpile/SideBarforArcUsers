@@ -379,15 +379,18 @@ with the live tab's url and index, and the old key's entry is removed.
 - Modify: `src/utils/backupRestore.ts`, `src/components/ExportDialog.tsx`,
   `src/components/ImportDialog.tsx`, `src/components/ArcImportDialog.tsx`, `src/utils/arcImport.ts`
 
-- [ ] export writes the active Space's Favorites under `pinnedSites` (format unchanged, icons
+- [x] export writes the active Space's Favorites under `pinnedSites` (format unchanged, icons
   included); dialogs say "active Space"
-- [ ] import order per Solution Overview: bookmarks first; with bookmarks imported, `pinnedSites`
+- [x] import order per Solution Overview: bookmarks first; with bookmarks imported, `pinnedSites`
   only restores icons by URL onto the active Space's Favorites (`restoreIcons`), adding nothing;
   without bookmarks, replace/append into the active Space's `asd_Favorites`
-- [ ] Arc import: Top Apps go into every Space the import creates, else into the active Space
-- [ ] write test (only if the import decision lives in a pure helper): backup with bookmarks and
+  (icons-only only when bookmarks are imported with "Replace all bookmarks" and the backup's
+  bookmarks hold an `asd_Favorites`; a subfolder import or a pre-update backup writes
+  `pinnedSites` as before, since nothing else would bring those Favorites back)
+- [x] Arc import: Top Apps go into every Space the import creates, else into the active Space
+- [x] write test (only if the import decision lives in a pure helper): backup with bookmarks and
   `pinnedSites` imported together adds no second copy of the active Space's Favorites
-- [ ] `make lint && make test && make build` - must pass before next task
+- [x] `make lint && make test && make build` - must pass before next task
 
 ### Task 13: Verify acceptance criteria
 

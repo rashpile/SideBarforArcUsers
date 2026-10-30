@@ -7,6 +7,7 @@ import type { PinnedSite } from '../managers/shared/pinnedSitesApi';
 import { SpaceFavorites, favoritesMoveTargets, favoritesSpaceFolder, type FavoritesSpace } from '../utils/spaceFavorites';
 import { ensureFavoritesFolder, type FavoritesBookmarksApi } from '../utils/favoritesFolder';
 import { bookmarkTreeStore, runBatchOperation } from './useBookmarks';
+import { iconRestoresByUrl } from '../utils/favoritesImport';
 
 // Re-export so existing importers (e.g. PinnedIcon) don't break
 export { getFaviconUrl, fetchFaviconAsBase64 } from '../utils/favicon';
@@ -125,21 +126,23 @@ export const usePinnedSites = (space: FavoritesSpace) =>
   /**
    * Creates Favorites one after another, from `index` on (grid order) or at the
    * end. One at a time so they keep their order and a new Space gets one
-   * `asd_Favorites`, not one per call. Returns what was created before any failure.
+   * `asd_Favorites`, not one per call. Into this Space unless another Space
+   * folder is given. Returns what was created before any failure.
    */
   const createFavorites = useCallback(async (
     context: string,
     entries: readonly NewFavorite[],
-    atIndex?: number
+    atIndex?: number,
+    spaceFolderId?: string
   ): Promise<PinnedSite[]> =>
   {
-    const spaceFolder = readFavorites().spaceFolder;
-    if (!spaceFolder || entries.length === 0) return [];
+    const targetFolderId = spaceFolderId ?? readFavorites().spaceFolder?.id;
+    if (!targetFolderId || entries.length === 0) return [];
 
     const created: PinnedSite[] = [];
     try
     {
-      const folder = await ensureFavoritesFolder(chromeFavoritesBookmarks, spaceFolder.id);
+      const folder = await ensureFavoritesFolder(chromeFavoritesBookmarks, targetFolderId);
 
       // A grid index is a position among the folder's pages; subfolders in it take bookmark indexes too
       let bookmarkIndex = atIndex === undefined
@@ -576,6 +579,36 @@ export const usePinnedSites = (space: FavoritesSpace) =>
     );
   }, [createFavorites]);
 
+  // Arc import: Top Apps into a Space folder the import just created
+  const addPinnedSitesToSpaceFolder = useCallback(async (spaceFolderId: string, sites: PinnedSite[]): Promise<void> =>
+  {
+    await runBatchOperation(() =>
+      createFavorites('addPinnedSitesToSpaceFolder', sites.map(site => ({ url: site.url, title: site.title, icons: iconsOf(site) })), undefined, spaceFolderId)
+    );
+  }, [createFavorites]);
+
+  /**
+   * JSON import whose bookmarks brought this Space's Favorites back: puts the
+   * backup's icons onto them by URL and adds no Favorite. Reads Chrome's tree,
+   * since the sidebar's lags the import by a debounce.
+   */
+  const restorePinnedSiteIcons = useCallback(async (sites: readonly PinnedSite[]): Promise<void> =>
+  {
+    try
+    {
+      const roots = (await chrome.bookmarks.getTree())[0]?.children ?? [];
+      const restored = SpaceFavorites.resolve(roots, space, favoriteIconsManagerProxy.snapshot).sites;
+      for (const { id, icons } of iconRestoresByUrl(sites, restored))
+      {
+        await favoriteIconsManagerProxy.restoreIcons(id, icons);
+      }
+    }
+    catch (err)
+    {
+      reportFailure('restorePinnedSiteIcons', err);
+    }
+  }, [space, reportFailure]);
+
   return {
     pinnedSites,
     /** The grid explains that this Space has no bookmark folder, so no Favorites. */
@@ -592,6 +625,8 @@ export const usePinnedSites = (space: FavoritesSpace) =>
     movePinToSpace,
     replacePinnedSites,
     appendPinnedSites,
+    addPinnedSitesToSpaceFolder,
+    restorePinnedSiteIcons,
     refresh: loadIcons,
     error,
   };

@@ -11,15 +11,17 @@ import {
   FullBackup,
   ImportOptions,
   ImportResult,
+  FavoritesImportTarget,
 } from '../utils/backupRestore';
 import { PinnedSite } from '../hooks/usePinnedSites';
+import { favoritesImportAction } from '../utils/favoritesImport';
 import { Space } from '../contexts/SpacesContext';
 
 interface ImportDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  replacePinnedSites: (sites: PinnedSite[]) => void;
-  appendPinnedSites: (sites: PinnedSite[]) => void;
+  /** The active Space's Favorites, where the backup's pinned sites go. */
+  favorites: FavoritesImportTarget;
   replaceSpaces: (spaces: Space[]) => Promise<void>;
   appendSpaces: (spaces: Space[]) => Promise<void>;
   existingSpaces: readonly Space[];
@@ -39,8 +41,7 @@ interface ParsedData {
 export function ImportDialog({
   isOpen,
   onClose,
-  replacePinnedSites,
-  appendPinnedSites,
+  favorites,
   replaceSpaces,
   appendSpaces,
   existingSpaces,
@@ -178,8 +179,7 @@ export function ImportDialog({
       const result = await importFullBackup(
         parsedData.backup,
         options,
-        replacePinnedSites,
-        appendPinnedSites,
+        favorites,
         replaceSpaces,
         appendSpaces,
         existingSpaces.map(s => s.name)
@@ -193,6 +193,14 @@ export function ImportDialog({
       setDialogState('preview');
     }
   };
+
+  const favoritesOnlyRestoreIcons = !!parsedData && favoritesImportAction({
+    importFavorites: importPinnedSitesFlag,
+    favoritesMode: pinnedSitesMode,
+    backupFavorites: parsedData.backup.pinnedSites ?? [],
+    bookmarksRestoredInPlace: importBookmarksFlag && parsedData.hasBookmarks && bookmarkMode === 'replace',
+    backupBookmarks: parsedData.backup.bookmarks ?? [],
+  }) === 'restore-icons';
 
   const nothingSelected = !importPinnedSitesFlag && !importBookmarksFlag && !importTabGroups && !importSpacesFlag;
 
@@ -300,7 +308,7 @@ export function ImportDialog({
               </div>
               <ul className="text-gray-600 dark:text-gray-400 ml-7 space-y-1">
                 {importResult.pinnedSitesCount > 0 && (
-                  <li>{importResult.pinnedSitesCount} pinned sites</li>
+                  <li>{importResult.pinnedSitesCount} Favorites into the active Space</li>
                 )}
                 {importResult.bookmarksCount > 0 && (
                   <li>{importResult.bookmarksCount} bookmarks</li>
@@ -323,11 +331,11 @@ export function ImportDialog({
                 Exported: {new Date(parsedData.backup.exportedAt).toLocaleDateString()}
               </p>
 
-              {/* Single data type - Pinned sites only */}
+              {/* Single data type - Favorites only */}
               {parsedData.dataTypeCount === 1 && parsedData.hasPinnedSites && (
                 <div className="space-y-2">
                   <p className="text-gray-700 dark:text-gray-300">
-                    {parsedData.backup.pinnedSites?.length} pinned sites
+                    {parsedData.backup.pinnedSites?.length} Favorites, into the active Space
                   </p>
                   <div className="ml-2 space-y-1">
                     <label className="flex items-center gap-2 text-gray-600 dark:text-gray-400 cursor-pointer">
@@ -338,7 +346,7 @@ export function ImportDialog({
                         onChange={() => setPinnedSitesMode('replace')}
                         disabled={dialogState === 'importing'}
                       />
-                      Replace existing pinned sites
+                      Replace the active Space's Favorites
                     </label>
                     <label className="flex items-center gap-2 text-gray-600 dark:text-gray-400 cursor-pointer">
                       <input
@@ -457,7 +465,7 @@ export function ImportDialog({
                     Select data to import:
                   </p>
 
-                  {/* Pinned sites import */}
+                  {/* Favorites import */}
                   {parsedData.hasPinnedSites && (
                     <div>
                       <label className="flex items-center gap-2 text-gray-700 dark:text-gray-300 cursor-pointer">
@@ -468,7 +476,7 @@ export function ImportDialog({
                           className="rounded border-gray-300 dark:border-gray-600"
                           disabled={dialogState === 'importing'}
                         />
-                        Pinned sites ({parsedData.backup.pinnedSites?.length})
+                        Favorites for the active Space ({parsedData.backup.pinnedSites?.length})
                       </label>
                       {importPinnedSitesFlag && (
                         <div className="ml-5 mt-1 space-y-1">
@@ -492,6 +500,11 @@ export function ImportDialog({
                             />
                             Append to existing
                           </label>
+                          {favoritesOnlyRestoreIcons && (
+                            <p className="text-gray-500 dark:text-gray-500 ml-5 text-xs">
+                              Replaced bookmarks bring back each Space's Favorites; only their icons come from here
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>
