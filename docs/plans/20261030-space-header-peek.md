@@ -128,11 +128,11 @@
 - [x] run `make lint && make test` - must pass before task 4
 
 ### Task 4: Verify acceptance criteria
-- [ ] code check: the button renders only when `canPeek` (`spaceRoot`, `arc` mode, no drag) and sits in `.arc-space-title`, whose hover rule shows it; the `aria-expanded="true"` rule keeps it visible while the popover is open
-- [ ] code check: the popover gets `folder={spaceRoot}`, so `collectFolderBookmarks` lists every subfolder and skips `asd_Archive` / `asd_Favorites`
-- [ ] code check: both popovers open picks through `openPeekBookmark`
-- [ ] code check: the button's click and pointerdown stop propagation, so it does not toggle the Bookmarks section
-- [ ] run full checks: `make lint && make test && make build`
+- [x] code check: the button renders only when `canPeek` (`spaceRoot`, `arc` mode, no drag) and sits in `.arc-space-title`, whose hover rule shows it; the `aria-expanded="true"` rule keeps it visible while the popover is open
+- [x] code check: the popover gets `folder={spaceRoot}`, so `collectFolderBookmarks` lists every subfolder and skips `asd_Archive` / `asd_Favorites`
+- [x] code check: both popovers open picks through `openPeekBookmark`
+- [x] code check: the button's click and pointerdown stop propagation, so it does not toggle the Bookmarks section
+- [x] run full checks: `make lint && make test && make build`
 
 ### Task 5: [Final] Update documentation
 - [ ] `README.md`: mention the search button on the Space title in the Bookmarks section
