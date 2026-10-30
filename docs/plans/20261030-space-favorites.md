@@ -170,15 +170,15 @@ with the live tab's url and index, and the old key's entry is removed.
 - Modify: `src/utils/archiveFolder.ts`
 - Create: `tests/favoritesFolder.test.mjs`
 
-- [ ] add `FAVORITES_FOLDER_TITLE = 'asd_Favorites'`, `isFavoritesFolder(node)`,
+- [x] add `FAVORITES_FOLDER_TITLE = 'asd_Favorites'`, `isFavoritesFolder(node)`,
   `findFavoritesFolder(children)` (lowest index wins) and `ensureFavoritesFolder(spaceFolderId)`
   (find or create, injected bookmarks API, the way `SpaceArchive` creates the archive)
-- [ ] add `isSystemFolder(node)` (archive or favorites) next to `isArchiveFolder`, importable by
+- [x] add `isSystemFolder(node)` (archive or favorites) next to `isArchiveFolder`, importable by
   Node tests (`.ts` extensions)
-- [ ] write tests: a URL bookmark titled `asd_Favorites` is not a system folder; lowest-index
+- [x] write tests: a URL bookmark titled `asd_Favorites` is not a system folder; lowest-index
   `asd_Favorites` is picked; `ensureFavoritesFolder` reuses an existing folder instead of creating a
   second
-- [ ] run `make test` - must pass before next task
+- [x] run `make test` - must pass before next task
 
 ### Task 2: skip both system folders at every walk site
 
