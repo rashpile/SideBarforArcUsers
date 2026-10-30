@@ -100,11 +100,11 @@ Issue: https://github.com/rashpile/SideBarforArcUsers/issues/14
 - Create: `src/stores/attentionMarks.ts`
 - Create: `tests/attentionMarks.test.mjs`
 
-- [ ] create `TabMarks` in `src/stores/attentionMarks.ts`: `fromStored(value)` (throws on a malformed value or entry), `toStored()`, `isMarked(tabId)`, `markedTabIds()`, `mark(tab)` (refuses incognito and tabs without id), `clear(tabId)` → changed flag, `follow(tab)` → changed flag (only for marked tabs; takes url, index, windowId), `rematched(liveTabs, idMatch)` via `matchStoredTabs`: incognito live tabs left out, each matched record rebuilt from its live tab (its `id`, `windowId`, `url`, `index`)
-- [ ] create `BookmarkMarks`: `fromStored` / `toStored`, `isMarked(id)`, `markedIds()`, `mark(ids)`, `clear(ids)` → changed flag, `keptIn(existingIds)`
-- [ ] write tests for `TabMarks`: browser-restart re-match by URL/position (an unrelated tab reusing the old ID gets no mark) and the rebuilt record carries the new tab's ID, worker-restart ID match, `follow` keeps a navigated/moved tab matchable, unmatched records dropped, incognito refused (also as a re-match target), malformed stored value throws
-- [ ] write tests for `BookmarkMarks.keptIn`
-- [ ] run `make test` - must pass before task 2
+- [x] create `TabMarks` in `src/stores/attentionMarks.ts`: `fromStored(value)` (throws on a malformed value or entry), `toStored()`, `isMarked(tabId)`, `markedTabIds()`, `mark(tab)` (refuses incognito and tabs without id), `clear(tabId)` → changed flag, `follow(tab)` → changed flag (only for marked tabs; takes url, index, windowId), `rematched(liveTabs, idMatch)` via `matchStoredTabs`: incognito live tabs left out, each matched record rebuilt from its live tab (its `id`, `windowId`, `url`, `index`)
+- [x] create `BookmarkMarks`: `fromStored` / `toStored`, `isMarked(id)`, `markedIds()`, `mark(ids)`, `clear(ids)` → changed flag, `keptIn(existingIds)`
+- [x] write tests for `TabMarks`: browser-restart re-match by URL/position (an unrelated tab reusing the old ID gets no mark) and the rebuilt record carries the new tab's ID, worker-restart ID match, `follow` keeps a navigated/moved tab matchable, unmatched records dropped, incognito refused (also as a re-match target), malformed stored value throws
+- [x] write tests for `BookmarkMarks.keptIn`
+- [x] run `make test` - must pass before task 2
 
 ### Task 2: AttentionMarkManager in background
 
