@@ -4,14 +4,14 @@
 
 export type AttentionMarkColour = 'green' | 'blue' | 'orange' | 'red' | 'purple' | 'yellow' | 'accent';
 
-// Normal strength has no suffix, so the default 'green' reads as the look before the setting existed
+// Normal strength has no suffix
 export type AttentionMarkStyle = AttentionMarkColour | `${AttentionMarkColour}-dim` | `${AttentionMarkColour}-bright`;
 
 // chrome.storage.local key, raw string (the Settings dialog stores it with
 // serialize: v => v). Written by the Settings dialog, read by App.tsx.
 export const ATTENTION_MARK_STYLE_KEY = 'attentionMarkStyle';
 
-export const DEFAULT_ATTENTION_MARK_STYLE: AttentionMarkStyle = 'green';
+export const DEFAULT_ATTENTION_MARK_STYLE: AttentionMarkStyle = 'accent-dim';
 
 const COLOURS: readonly { colour: AttentionMarkColour; label: string }[] = [
   { colour: 'green', label: 'Green' },

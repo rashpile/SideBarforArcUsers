@@ -352,8 +352,8 @@ html, body, #root {
  * An overlay inside a marked tab or bookmark row, so the row's own background
  * and box-shadow keep the active, selected and age styles. data-attention-style
  * on the theme root is "<colour>", "<colour>-dim" or "<colour>-bright"; the
- * colour rules match its start, the strength rules its end. The fallbacks are
- * the default look, green at normal strength.
+ * colour rules match its start, the strength rules its end. The fallbacks
+ * (green, normal strength) apply only without the attribute; App always sets it.
  */
 .arc-attention-ring {
   position: absolute;

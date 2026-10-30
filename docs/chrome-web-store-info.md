@@ -19,7 +19,7 @@ I missed Arc's sidebar after switching to Chrome in how Arc puts favorites, book
 
 - Unvisited Tab Marker - A dot marks tabs you opened in the background until you first switch to them. On by default; turn it off in Settings.
 
-- Mark for Attention - Flag tabs and bookmarks from the right-click menu; marked rows get a green ring. Auto-archive and bulk close commands leave marked tabs open, and marks survive a browser restart.
+- Mark for Attention - Flag tabs and bookmarks from the right-click menu; marked rows get a ring in the Space's colour (colour and strength set in Settings). Auto-archive and bulk close commands leave marked tabs open, and marks survive a browser restart.
 
 - IDE-Style Tab History - Navigate by usage order like VS Code. Keyboard shortcuts: Cmd+Shift+< / >
 

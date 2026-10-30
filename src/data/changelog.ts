@@ -3,7 +3,7 @@
 // Entries are shown in the "What's New" dialog when the user upgrades past them.
 export const CHANGELOG: Record<string, string[]> = {
   '1.0.352': [
-    'New: Mark for Attention in the tab and bookmark right-click menu - marked rows get a green ring, auto-archive and bulk close leave marked tabs open, and the - button on a marked tab clears the mark; pick the ring\'s colour and strength in Settings > Appearance',
+    'New: Mark for Attention in the tab and bookmark right-click menu - marked rows get a ring in the Space colour, auto-archive and bulk close leave marked tabs open, and the - button on a marked tab clears the mark; pick the ring\'s colour and strength in Settings > Appearance',
     'New: Edit submenu in the bookmark right-click menu - "Replace Pinned URL with Current" saves the open tab\'s address as the bookmark URL; "Edit Pinned Page" opens the edit dialog',
     'New: "Archive tabs after" setting (Settings > Behaviour, off by default) - unused tabs are saved to the space\'s Archive and closed; unused open bookmark pages close and keep their bookmark',
     'New: Archive section between Bookmarks and Tabs - expand it to list and search archived tabs, click one to reopen it',

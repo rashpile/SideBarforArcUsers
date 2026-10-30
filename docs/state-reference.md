@@ -262,12 +262,12 @@ number  // epoch millis
 ### `attentionMarkStyle`
 "Mark for Attention colour" setting: colour and strength of the ring on rows marked for attention
 ```typescript
-// raw string, not JSON; default 'green'
+// raw string, not JSON; default 'accent-dim'
 '<colour>' | '<colour>-dim' | '<colour>-bright'  // colour: 'green' | 'blue' | 'orange' | 'red' | 'purple' | 'yellow' | 'accent'
 ```
 - Owner: `src/App.tsx` (via `useChromeLocalStorage` with `serialize: v => v`), set from `src/components/SettingsDialog.tsx` (Appearance tab)
 - Consumers: `src/App.tsx` (sets `data-attention-style` on the `.arc-theme` root; `src/index.css` turns it into the `.arc-attention-ring` look in `TabList.tsx` and `BookmarkTree.tsx`; `'accent'` follows the active Space's colour through `--arc-attention-space-rgb`, set for every Space whether or not the sidebar tint is on; theme violet in the All view), `src/components/SettingsDialog.tsx`; not read by background
-- Parsing: `parseAttentionMarkStyle` (`src/utils/attentionMarkStyle.ts`); absent or unknown values read as `'green'`
+- Parsing: `parseAttentionMarkStyle` (`src/utils/attentionMarkStyle.ts`); absent or unknown values read as `'accent-dim'`
 - Instances: 1 per extension (shared across windows)
 
 ### `tabLastUsedAt`
