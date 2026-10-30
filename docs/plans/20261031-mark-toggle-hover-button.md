@@ -56,12 +56,12 @@ Edit both row components in place. No new state, storage or handlers. The hover 
 **Files:**
 - Modify: `src/components/BookmarkTree.tsx`
 
-- [ ] remove the hover Pin button
-- [ ] add the Flag/FlagOff toggle in its place for `!isFolder && node.url && onToggleMark`, calling `onToggleMark(node.id)`, hover-only; import `Flag`, `FlagOff`
-- [ ] add **Pin to Sidebar** (`Pin` icon) to the single-bookmark menu (`!isFolder && node.url` block), calling `onPin(node.url, node.title, getFaviconUrl(node.url))` when `onPin` is set
-- [ ] add **Pin to Sidebar** to the all-bookmarks multi-selection menu when `onPin` is set (pins every selected bookmark via `handlePinSelectedBookmarks`)
-- [ ] keep the mixed multi-selection menu's `hasSelectedBookmarks && onPin` item
-- [ ] run `make lint && make test && make build` - must pass before task 3
+- [x] remove the hover Pin button
+- [x] add the Flag/FlagOff toggle in its place for `!isFolder && node.url && onToggleMark`, calling `onToggleMark(node.id)`, hover-only; import `Flag`, `FlagOff`
+- [x] add **Pin to Sidebar** (`Pin` icon) to the single-bookmark menu (`!isFolder && node.url` block), calling `onPin(node.url, node.title, getFaviconUrl(node.url))` when `onPin` is set
+- [x] add **Pin to Sidebar** to the all-bookmarks multi-selection menu when `onPin` is set (pins every selected bookmark via `handlePinSelectedBookmarks`)
+- [x] keep the mixed multi-selection menu's `hasSelectedBookmarks && onPin` item
+- [x] run `make lint && make test && make build` - must pass before task 3
 
 ### Task 3: Verify acceptance criteria
 - [ ] hovering a tab or bookmark shows a flag button instead of the pin; none on folders or incognito tabs
