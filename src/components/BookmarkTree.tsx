@@ -76,7 +76,7 @@ import {
   resolveBookmarkRowKeyIntent,
 } from '../utils/bookmarkTreeVisibility';
 import { resolveArcFolderIconState } from '../utils/folderIconState';
-import { isArchiveFolder } from '../utils/archiveFolder';
+import { isSystemFolder } from '../utils/archiveFolder';
 import { resolveItemDoubleClick } from '../utils/itemDoubleClick';
 import { useAttentionMarks } from '../hooks/useAttentionMarks';
 
@@ -1199,8 +1199,9 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
     {
       const isFolder = !node.url;
 
-      // Archive folders never show up in filter results; the Archive section filters them
-      if (isArchiveFolder(node))
+      // System folders never show up in filter results; the Archive section and the Favorites grid
+      // filter their own items
+      if (isSystemFolder(node))
       {
         return acc;
       }
@@ -1627,8 +1628,8 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
   const handleExpandAll = useCallback((folderId: string) => {
     const collectFolderIds = (node: chrome.bookmarks.BookmarkTreeNode): string[] => {
       const ids: string[] = [];
-      if (!node.url) {
-        // It's a folder
+      // System folders are hidden from the tree, so there is nothing of theirs to expand
+      if (!node.url && !isSystemFolder(node)) {
         ids.push(node.id);
         if (node.children) {
           for (const child of node.children) {

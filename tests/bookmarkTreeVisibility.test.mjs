@@ -125,6 +125,42 @@ test('a Space asd_Archive folder and its bookmarks stay out of the bookmark sect
   assert.deepEqual(ids(getVisibleBookmarkChildren(space, false, () => true)), ['docs']);
 });
 
+test('a Space asd_Favorites folder stays out of the bookmark section at the Space root and at depth', () =>
+{
+  const nested = {
+    id: 'folder-work',
+    title: 'Work',
+    children: [
+      { id: 'report', title: 'Report', url: 'https://report.example.com' },
+      {
+        id: 'work-favorites',
+        title: 'asd_Favorites',
+        children: [{ id: 'work-favorite', title: 'Mail', url: 'https://mail.example.com' }],
+      },
+    ],
+  };
+  const space = {
+    id: 'space-root',
+    title: 'Home',
+    children: [
+      {
+        id: 'favorites',
+        title: 'asd_Favorites',
+        children: [{ id: 'favorite', title: 'Calendar', url: 'https://calendar.example.com' }],
+      },
+      { id: 'docs', title: 'Docs', url: 'https://docs.example.com' },
+      nested,
+    ],
+  };
+  const ids = (children) => children.map(({ node }) => node.id);
+
+  assert.deepEqual(getVisibleSpaceRootItems(space).map((node) => node.id), ['docs', 'folder-work']);
+  assert.deepEqual(ids(getVisibleBookmarkChildren(space, true, () => true)), ['docs', 'folder-work']);
+  assert.deepEqual(ids(getVisibleBookmarkChildren(nested, true, () => true)), ['report']);
+  // Collapsed, an open Favorite tab is not lifted into the bookmark section as a peek row
+  assert.deepEqual(ids(getVisibleBookmarkChildren(space, false, () => true)), ['docs', 'report']);
+});
+
 test('a plain click on a folder row toggles it; a modifier click still only selects', () =>
 {
   assert.equal(resolveBookmarkRowClickIntent(true, false), 'toggle-folder');

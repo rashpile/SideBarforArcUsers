@@ -2,7 +2,7 @@
  * Shared bookmark operations for drag-and-drop and other bookmark management.
  */
 
-import { isArchiveFolder } from './archiveFolder';
+import { isSystemFolder } from './archiveFolder';
 
 /**
  * Filter out tabs that shouldn't be bookmarked (empty new tabs, chrome:// pages, etc.)
@@ -145,7 +145,7 @@ export async function getAllBookmarkItemsInFolder(
 
   const children = await chrome.bookmarks.getChildren(folderId);
 
-  // Collect bookmarks, walking into subfolders; a Space's archive folder is left out
+  // Collect bookmarks, walking into subfolders; a Space's archive and Favorites folders are left out
   for (const child of children)
   {
     if (child.url)
@@ -153,7 +153,7 @@ export async function getAllBookmarkItemsInFolder(
       const tabId = getTabIdForBookmark?.(child.id);
       results.push({ url: child.url, tabId: tabId ?? null });
     }
-    else if (!isArchiveFolder(child))
+    else if (!isSystemFolder(child))
     {
       const subItems = await getAllBookmarkItemsInFolder(child.id, getTabIdForBookmark);
       results.push(...subItems);

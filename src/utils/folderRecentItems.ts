@@ -1,7 +1,7 @@
 // Row selection for the collapsed-folder recent popover.
 
 import { matchesFilter } from './searchParser.ts';
-import { isArchiveFolder } from './archiveFolder.ts';
+import { isSystemFolder } from './archiveFolder.ts';
 import type { BookmarkRecency } from '../stores/bookmarkRecencyStore.ts';
 
 export const RECENT_ROW_LIMIT = 10;
@@ -15,7 +15,7 @@ export interface FolderRecentItem
 
 /**
  * All bookmark pages (not folders) under a folder, recursively, in tree order.
- * Archive folders below `folder` are skipped; `folder` itself may be an archive
+ * System folders (archive, Favorites) below `folder` are skipped; `folder` itself may be an archive
  * folder (ArchiveItems lists the Archive section's items from it).
  */
 export function collectFolderBookmarks(
@@ -30,7 +30,7 @@ export function collectFolderBookmarks(
     for (const child of node.children ?? [])
     {
       if (child.url) bookmarks.push(child);
-      else if (!isArchiveFolder(child)) walk(child);
+      else if (!isSystemFolder(child)) walk(child);
     }
   };
 

@@ -1,4 +1,4 @@
-import { isArchiveFolder } from './archiveFolder.ts';
+import { isSystemFolder } from './archiveFolder.ts';
 
 export interface BookmarkTreeNodeLike {
   id: string;
@@ -23,17 +23,18 @@ export type BookmarkRowKeyIntent =
 
 /**
  * The Space's root bookmark folder only sets the scope and is not a visible row in the sidebar.
- * The Space's archive folder is shown only by the Archive section.
+ * The Space's archive and Favorites folders are shown only by the Archive section and the
+ * Favorites grid.
  */
 export const getVisibleSpaceRootItems = <TNode extends BookmarkTreeNodeLike>(
   spaceRoot: TNode,
 ): TNode[] =>
-  (spaceRoot.children ?? []).filter(node => !isArchiveFolder(node)) as TNode[];
+  (spaceRoot.children ?? []).filter(node => !isSystemFolder(node)) as TNode[];
 
 /**
  * The open bookmarks among the nodes and everything inside them, in tree order:
  * what a collapsed folder - or the collapsed Bookmarks section -
- * still shows. Archive folders are skipped, with everything inside them.
+ * still shows. System folders (archive, Favorites) are skipped, with everything inside them.
  */
 export const collectOpenBookmarks = <TNode extends BookmarkTreeNodeLike>(
   nodes: readonly TNode[],
@@ -47,7 +48,7 @@ export const collectOpenBookmarks = <TNode extends BookmarkTreeNodeLike>(
     // Depth-first, to keep the bookmark tree's order
     for (const node of level)
     {
-      if (isArchiveFolder(node)) continue;
+      if (isSystemFolder(node)) continue;
 
       if (node.url && isOpen(node.id))
       {
@@ -69,7 +70,7 @@ export const collectOpenBookmarks = <TNode extends BookmarkTreeNodeLike>(
  * A collapsed folder still shows every open pinned tab below it: the folder stays collapsed, but
  * the user sees which pages are open and which folder holds the current page. The active item is
  * still marked by the row's own active style.
- * Archive folders are skipped in both modes, with everything inside them.
+ * System folders (archive, Favorites) are skipped in both modes, with everything inside them.
  */
 export const getVisibleBookmarkChildren = <TNode extends BookmarkTreeNodeLike>(
   folder: TNode,
@@ -82,7 +83,7 @@ export const getVisibleBookmarkChildren = <TNode extends BookmarkTreeNodeLike>(
   if (isExpanded)
   {
     return children
-      .filter((node) => !isArchiveFolder(node))
+      .filter((node) => !isSystemFolder(node))
       .map((node) => ({ node, isPeek: false }));
   }
 

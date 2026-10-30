@@ -189,16 +189,17 @@ with the live tab's url and index, and the old key's entry is removed.
 - Modify: `tests/bookmarkTreeVisibility.test.mjs`, `tests/folderRecentItems.test.mjs`
 - Modify: `CLAUDE.md`, `docs/development.md` (if it states the skip rule)
 
-- [ ] replace `isArchiveFolder` with `isSystemFolder` at each walk site above (tree visibility,
+- [x] replace `isArchiveFolder` with `isSystemFolder` at each walk site above (tree visibility,
   BookmarkTree hiding, folder picker, recent items, Open All / tab group, Expand All, URL index);
   keep `isArchiveFolder` in `ArchiveSection.tsx` and `clearArchiveAction.ts`
-- [ ] grep for other walks of a Space folder's descendants that skip neither (filters, Expand All)
-  and cover them too
-- [ ] CLAUDE.md invariant "Skip the archive folder" → "Skip the system folders" (`asd_Archive`,
-  `asd_Favorites`, `isSystemFolder`); the same in `docs/development.md` where present
-- [ ] write tests: tree visibility hides `asd_Favorites` at the Space root and at depth; recent
+- [x] grep for other walks of a Space folder's descendants that skip neither (filters, Expand All)
+  and cover them too (Expand All in `BookmarkTree.tsx` now skips them too)
+- [x] CLAUDE.md invariant "Skip the archive folder" → "Skip the system folders" (`asd_Archive`,
+  `asd_Favorites`, `isSystemFolder`); the same in `docs/development.md` where present (it does
+  not state the rule, nothing to change)
+- [x] write tests: tree visibility hides `asd_Favorites` at the Space root and at depth; recent
   items never list a Favorite
-- [ ] run `make test` - must pass before next task
+- [x] run `make test` - must pass before next task
 
 ### Task 3: FavoriteIconsManager owns the icon side store
 

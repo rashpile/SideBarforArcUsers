@@ -1,4 +1,4 @@
-import { isArchiveFolder } from './archiveFolder.ts';
+import { isSystemFolder } from './archiveFolder.ts';
 
 interface TabLike
 {
@@ -134,7 +134,8 @@ function recoverAssociations<TTab extends TabLike>(
 
 /**
  * Favorites take priority in Arc, so a Favorite wins over a bookmark with the same URL.
- * Archive folders are left out: a tab on an archived URL stays a regular tab.
+ * System folders are left out: a tab on an archived URL stays a regular tab, and a Favorite
+ * never becomes a `bookmark-<id>` tab.
  */
 function buildPersistentItemUrlIndex(
   bookmarkRoots: readonly BookmarkNodeLike[],
@@ -154,7 +155,7 @@ function buildPersistentItemUrlIndex(
     // Depth-first, keeping the first bookmark found, as the Space resolution already assumes.
     for (const node of nodes)
     {
-      if (isArchiveFolder(node)) continue;
+      if (isSystemFolder(node)) continue;
 
       if (node.url)
       {
