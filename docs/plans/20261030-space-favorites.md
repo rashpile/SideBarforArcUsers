@@ -129,18 +129,22 @@ and App keep using it.
 ### Migration flow (`src/services/favoritesMigration.ts`, injected bookmarks + storage)
 
 1. Read `favoritesMigration`; `done` → stop.
-2. Read `pinnedSites`. Empty or missing → write `done: true` and stop.
+2. Read `pinnedSites`. No pin with a URL that parses → write `done: true` (listing every
+   well-formed pin in `rekey`, see step 5) and stop.
 3. Spaces with a resolvable bookmark folder (no hard-coded roots). None → stop without `done`
-   (retry on the next trigger), so the old Favorites never vanish with nowhere to go.
-4. For each such Space, the pins with no `rekey[oldPinId][spaceId]` yet. Its folder has an
-   `asd_Favorites` this device didn't create (not in `createdIn`) → it came by sync from a device
-   that migrated first: match the pins to its bookmarks by URL, record `rekey` and restore this
-   device's icons for each match, create nothing. Else (no folder, or one this device created)
-   match by URL the same way, then create the unmatched pins at the end, in order (create
-   `asd_Favorites` first if missing and add the Space to `createdIn` at once); record
-   `rekey[oldPinId][spaceId] = newBookmarkId` and hand each pin's icon fields to
-   `FavoriteIconsManager` under the new id. A pin whose create fails is logged and the rest go on.
-   Pins whose URL doesn't parse (`new URL`) are left behind: Chrome would reject them on every retry.
+   (retry on the next trigger), so the old Favorites never vanish with nowhere to go. A Space whose
+   folder appears only after another Space was migrated gets no copy.
+4. For each such Space, the pins with no `rekey[oldPinId][spaceId]` yet. If the Space has an
+   `asd_Favorites` (synced from a device that migrated first, or this device's own half-filled one),
+   match the pins to its bookmarks no other pin claimed by URL, record `rekey` and restore this
+   device's icons for each match. Then create the unmatched pins at the end, in order (create
+   `asd_Favorites` first if missing); record `rekey[oldPinId][spaceId] = newBookmarkId` and hand
+   each pin's icon fields to `FavoriteIconsManager` under the new id. `pinnedSites` is per device,
+   so a second synced device appends the pins the first one didn't have. A pin whose create fails
+   is logged and the rest go on. Pins whose URL doesn't parse (`new URL`) are left behind: Chrome
+   would reject them on every retry.
+   [known-limitation]: a Favorite device A deleted between its migration and device B's comes back
+   on B if B's old list had it.
 5. Merge each Space's `rekey` entries into the stored record at once, even after a failure, so a
    retry resumes from them. Every Space done → set `done: true` and list every old pin in `rekey`,
    those with no copy under no Space, so their open tabs become regular tabs. A failure leaves

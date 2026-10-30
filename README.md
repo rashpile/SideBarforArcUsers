@@ -42,7 +42,7 @@ Everything is stored in Chrome: bookmarks for Spaces, pinned pages, the archive 
 - Icon grid at the top of the panel. Tile height follows the **Pinned icon size** setting (12-48px)
 - Each Space has its own Favorites, stored as bookmarks in an `asd_Favorites` folder inside the Space's folder, so they sync with Chrome bookmarks and survive reinstalling the extension. Custom icon, emoji and color stay in the extension's local storage
 - A Space without a bookmark folder has no Favorites; the grid says so and pinning does nothing there
-- After the update from global Favorites, the old list is copied once into every Space that has a bookmark folder
+- After the update from global Favorites, the old list is copied once into every Space that has a bookmark folder. With bookmark sync, a second computer adds only the old Favorites the first one didn't have
 - Pin a bookmark or a tab, drag to reorder
 - Custom icon, emoji and color per Favorite
 - Click opens it as an Arc-style tab. `Cmd/Ctrl+Click` opens a background tab, `Shift+Click` a new window

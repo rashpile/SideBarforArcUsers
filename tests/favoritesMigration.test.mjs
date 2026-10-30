@@ -162,7 +162,7 @@ test('copies the old Favorites into every Space with a folder, in order, with ic
   assert.equal(state.rekey.bookmarkIdFor('p1', 'nofolder'), undefined);
 });
 
-test('a Space whose folder already has asd_Favorites is skipped', async () =>
+test('an existing empty asd_Favorites gets the old Favorites, and no second folder', async () =>
 {
   const { bookmarks, storage, migration } = setup({
     folders: ['Work', 'Home'],
@@ -173,13 +173,13 @@ test('a Space whose folder already has asd_Favorites is skipped', async () =>
   await migration.run();
 
   assert.equal(bookmarks.favoritesFolders('Home').length, 1);
-  assert.deepEqual(bookmarks.favorites('Home'), []);
+  assert.deepEqual(bookmarks.favorites('Home'), [['Mail', 'https://mail.example/'], ['Docs', 'https://docs.example/']]);
   assert.equal(bookmarks.favorites('Work').length, 2);
   assert.equal(storage.migrationState().done, true);
-  assert.equal(storage.migrationState().rekey.bookmarkIdFor('p1', 'home'), undefined);
+  assert.equal(storage.migrationState().rekey.bookmarkIdFor('p1', 'home'), bookmarks.favoriteIds('Home')[0]);
 });
 
-test('a synced asd_Favorites gets this device\'s icons and rekey entries by URL, and no duplicates', async () =>
+test('a synced asd_Favorites gets this device\'s icons by URL, no duplicates, and its own unmatched pins appended', async () =>
 {
   const { bookmarks, storage, restored, migration } = setup({
     folders: ['Work'],
@@ -192,17 +192,37 @@ test('a synced asd_Favorites gets this device\'s icons and rekey entries by URL,
   await migration.run();
 
   assert.equal(bookmarks.favoritesFolders('Work').length, 1);
-  assert.deepEqual(bookmarks.favoriteIds('Work'), [syncedDocs, syncedMail]);
+  assert.deepEqual(bookmarks.favorites('Work'),
+    [['Docs', 'https://docs.example/'], ['Mail', 'https://mail.example/'], ['Local', 'https://only-here.example/']]);
+  const [docsId, mailId, localId] = bookmarks.favoriteIds('Work');
+  assert.deepEqual([docsId, mailId], [syncedDocs, syncedMail]);
   assert.equal(restored.get(syncedMail).emoji, '📮');
   assert.equal(restored.get(syncedDocs).customIconName, 'FileText');
+  assert.ok(restored.has(localId));
 
   const state = storage.migrationState();
   assert.equal(state.done, true);
   assert.equal(state.rekey.bookmarkIdFor('p1', 'work'), syncedMail);
   assert.equal(state.rekey.bookmarkIdFor('p2', 'work'), syncedDocs);
-  // Listed with no copy, so its open tab becomes a regular tab instead of keeping a dead key
-  assert.equal(state.rekey.hasPin('p3'), true);
-  assert.equal(state.rekey.bookmarkIdFor('p3', 'work'), undefined);
+  assert.equal(state.rekey.bookmarkIdFor('p3', 'work'), localId);
+});
+
+test('a synced bookmark claimed by one pin is not matched again by a second pin of the same URL', async () =>
+{
+  const { bookmarks, storage, migration } = setup({
+    folders: ['Work'],
+    spaces: [space('work', 'Work')],
+    pins: [{ id: 'a', url: 'https://mail.example/', title: 'Mail' }, { id: 'b', url: 'https://mail.example/', title: 'Mail 2' }],
+  });
+  await bookmarks.addSyncedFavorites('Work', [['Mail', 'https://mail.example/']]);
+
+  await migration.run();
+
+  const ids = bookmarks.favoriteIds('Work');
+  assert.equal(ids.length, 2);
+  const state = storage.migrationState();
+  assert.notEqual(state.rekey.bookmarkIdFor('a', 'work'), state.rekey.bookmarkIdFor('b', 'work'));
+  assert.deepEqual(new Set([state.rekey.bookmarkIdFor('a', 'work'), state.rekey.bookmarkIdFor('b', 'work')]), new Set(ids));
 });
 
 test('an old pin whose URL does not parse is left behind and the rest are copied', async () =>
@@ -216,7 +236,27 @@ test('an old pin whose URL does not parse is left behind and the rest are copied
   await migration.run();
 
   assert.deepEqual(bookmarks.favorites('Work'), [['Mail', 'https://mail.example/'], ['Docs', 'https://docs.example/']]);
-  assert.equal(storage.migrationState().done, true);
+  const state = storage.migrationState();
+  assert.equal(state.done, true);
+  // Listed with no copy, so its open tab becomes a regular tab instead of keeping a dead key
+  assert.equal(state.rekey.hasPin('bad'), true);
+  assert.equal(state.rekey.bookmarkIdFor('bad', 'work'), undefined);
+});
+
+test('only unparsable old pins: done, with their tabs released, and no folder created', async () =>
+{
+  const { bookmarks, storage, migration } = setup({
+    folders: ['Work'],
+    spaces: [space('work', 'Work')],
+    pins: [{ id: 'bad', url: 'mail example', title: 'Typed' }, { id: 7, url: 'https://x.example/' }],
+  });
+
+  await migration.run();
+
+  const state = storage.migrationState();
+  assert.equal(state.done, true);
+  assert.equal(state.rekey.hasPin('bad'), true);
+  assert.equal(bookmarks.favoritesFolders('Work').length, 0);
 });
 
 test('a pin that fails to copy does not stop the next ones, and a rerun copies only it', async () =>

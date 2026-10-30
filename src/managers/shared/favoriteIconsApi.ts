@@ -112,11 +112,6 @@ export class FavoriteIcons
     return this.#entries[id];
   }
 
-  hasEntry(id: string): boolean
-  {
-    return id in this.#entries;
-  }
-
   toStored(): FavoriteIconsRecord
   {
     return { ...this.#entries };
