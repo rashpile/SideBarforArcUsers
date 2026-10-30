@@ -98,7 +98,7 @@ Off by default. Turn it on with **Archive tabs after** in Settings: 12 hours, 24
 - Turning the setting on starts every tab's clock at that moment, so nothing closes right away
 - Archiving a URL again replaces the older item. Archived items are never deleted automatically
 
-The **Archive** section sits between Bookmarks and Tabs. Hover the header for the newest items and a search box. Click it to list everything, newest first, with the time each was archived. Click an item to reopen it in the active Space. Right-click to delete it (with Undo).
+The **Archive** section sits between Bookmarks and Tabs. Click the header to list everything, newest first, with the time each was archived. While it is expanded, a search field in the header row narrows the list. Click an item to reopen it in the active Space. Right-click to delete it (with Undo).
 
 The extension hides `asd_Archive` in the sidebar, search and folder pickers. Chrome's bookmark bar and Bookmark Manager still show it.
 

@@ -149,13 +149,13 @@
 - [x] run `make lint` and `make build`
 
 ### Task 5: [Final] Update documentation
-- [ ] `README.md` Archive paragraph: no hover; expand to list everything, newest first, and search it
+- [x] `README.md` Archive paragraph: no hover; expand to list everything, newest first, and search it
   from the header row
-- [ ] `docs/changelog.md` "Latest Version" Archive entry: edit in place (expand to list and search,
+- [x] `docs/changelog.md` "Latest Version" Archive entry: edit in place (expand to list and search,
   instead of hover)
-- [ ] `src/data/changelog.ts` 1.0.352 Archive entry: edit in place the same way
-- [ ] no new storage keys, so `docs/state-reference.md` stays unchanged
-- [ ] move this plan to `docs/plans/completed/`
+- [x] `src/data/changelog.ts` 1.0.352 Archive entry: edit in place the same way
+- [x] no new storage keys, so `docs/state-reference.md` stays unchanged
+- [x] move this plan to `docs/plans/completed/` (left in place - the orchestrator moves it at the end)
 
 ## Post-Completion
 *Items requiring manual intervention or external systems - no checkboxes, informational only*
