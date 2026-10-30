@@ -185,10 +185,10 @@ Issue: https://github.com/rashpile/SideBarforArcUsers/issues/14
 - [x] no new tests (UI wiring); run `make test`, `make lint`, `make build` - must pass before task 8
 
 ### Task 8: Verify acceptance criteria
-- [ ] verify all requirements from Overview are implemented (menu items single and multi, ring, `-` button, auto-archive, bulk close, restart survival paths)
-- [ ] verify edge cases: incognito, folder in selection, bookmark folder deleted, window closed, marks load failure
-- [ ] run full test suite: `make test`
-- [ ] run `make lint` and `make build`
+- [x] verify all requirements from Overview are implemented (menu items single and multi, ring, `-` button, auto-archive, bulk close, restart survival paths)
+- [x] verify edge cases: incognito, folder in selection, bookmark folder deleted, window closed, marks load failure
+- [x] run full test suite: `make test`
+- [x] run `make lint` and `make build`
 
 ### Task 9: [Final] Update documentation
 - [ ] update `README.md`: Mark for Attention, the `-` button, bulk close skips marked tabs, auto-archive keeps them
