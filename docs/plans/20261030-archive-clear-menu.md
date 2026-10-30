@@ -140,12 +140,12 @@ constructor(api, archiveFolderId: string, option: ArchiveClearOption, now: () =>
 - Create: `src/actions/clearArchiveAction.ts`
 - Create: `tests/clearArchiveAction.test.mjs`
 
-- [ ] create `ClearArchiveAction` with the injected `ClearArchiveBookmarksApi`, archive folder id, option, clock and batch runner (Technical Details)
-- [ ] `do()`: re-read with `getSubTree`, refuse a node that is not an archive folder, remove the selected pages, snapshot the removed ones, set the description
-- [ ] `undo()`: recreate snapshots oldest-original first at index 0 of their parent; skip and log failed creates
-- [ ] write tests with an in-memory bookmarks fake: a Space folder with regular bookmarks, the archive (with a user subfolder) and another Space's archive → only this archive's pages older than the cutoff are removed; regular bookmarks, the other archive and the user subfolder stay
-- [ ] write tests: a page moved out of the archive after the menu rendered is not removed; folder id that is not an archive folder (renamed) → nothing removed; a missing folder (fake `getSubTree` rejects, as Chrome does) → `do()` rejects and nothing is removed; a failed remove is skipped and not restored by undo; undo puts pages back into their parents with the original relative order (newest-original at index 0)
-- [ ] run `make test` - must pass before task 3
+- [x] create `ClearArchiveAction` with the injected `ClearArchiveBookmarksApi`, archive folder id, option, clock and batch runner (Technical Details)
+- [x] `do()`: re-read with `getSubTree`, refuse a node that is not an archive folder, remove the selected pages, snapshot the removed ones, set the description
+- [x] `undo()`: recreate snapshots oldest-original first at index 0 of their parent; skip and log failed creates
+- [x] write tests with an in-memory bookmarks fake: a Space folder with regular bookmarks, the archive (with a user subfolder) and another Space's archive → only this archive's pages older than the cutoff are removed; regular bookmarks, the other archive and the user subfolder stay
+- [x] write tests: a page moved out of the archive after the menu rendered is not removed; folder id that is not an archive folder (renamed) → nothing removed; a missing folder (fake `getSubTree` rejects, as Chrome does) → `do()` rejects and nothing is removed; a failed remove is skipped and not restored by undo; undo puts pages back into their parents with the original relative order (newest-original at index 0)
+- [x] run `make test` - must pass before task 3
 
 ### Task 3: Disabled menu items
 
