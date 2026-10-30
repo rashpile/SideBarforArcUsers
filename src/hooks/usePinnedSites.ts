@@ -544,18 +544,28 @@ export const usePinnedSites = (space: FavoritesSpace) =>
     }
   }, [reportFailure]);
 
+  // Imports run right after a bulk bookmark rewrite (Replace all bookmarks gives every
+  // Space folder a new id), which the sidebar's tree shows only after a debounce
+  const readCurrentFavorites = useCallback(async (): Promise<SpaceFavorites> =>
+  {
+    const roots = (await chrome.bookmarks.getTree())[0]?.children ?? [];
+    return SpaceFavorites.resolve(roots, space, favoriteIconsManagerProxy.snapshot);
+  }, [space]);
+
   // Scenario 2a: replace the active Space's Favorites from our own JSON backup.
   // favicon is already embedded as base64 in the backup — no fetch needed.
   // Sites with missing favicon (old backups) are handled by the lazy-resolve effect.
   const replacePinnedSites = useCallback(async (sites: PinnedSite[]): Promise<void> =>
   {
-    if (!readFavorites().hasFolder) return;
-
     await runBatchOperation(async () =>
     {
+      let spaceFolderId: string;
       try
       {
-        for (const site of readFavorites().sites)
+        const current = await readCurrentFavorites();
+        if (!current.spaceFolder) return;
+        spaceFolderId = current.spaceFolder.id;
+        for (const site of current.sites)
         {
           await chrome.bookmarks.remove(site.id);
         }
@@ -565,18 +575,30 @@ export const usePinnedSites = (space: FavoritesSpace) =>
         reportFailure('replacePinnedSites', err);
         return;
       }
-      await createFavorites('replacePinnedSites', sites.map(site => ({ url: site.url, title: site.title, icons: iconsOf(site) })));
+      await createFavorites('replacePinnedSites', sites.map(site => ({ url: site.url, title: site.title, icons: iconsOf(site) })), undefined, spaceFolderId);
     });
-  }, [readFavorites, createFavorites, reportFailure]);
+  }, [readCurrentFavorites, createFavorites, reportFailure]);
 
   // Scenario 2b / 3: append Favorites from our own JSON backup or Arc import.
   // Same as replacePinnedSites — favicon already in backup, or lazy-resolve handles it.
   const appendPinnedSites = useCallback(async (sites: PinnedSite[]): Promise<void> =>
   {
-    await runBatchOperation(() =>
-      createFavorites('appendPinnedSites', sites.map(site => ({ url: site.url, title: site.title, icons: iconsOf(site) })))
-    );
-  }, [createFavorites]);
+    await runBatchOperation(async () =>
+    {
+      let spaceFolderId: string | undefined;
+      try
+      {
+        spaceFolderId = (await readCurrentFavorites()).spaceFolder?.id;
+      }
+      catch (err)
+      {
+        reportFailure('appendPinnedSites', err);
+        return;
+      }
+      if (!spaceFolderId) return;
+      await createFavorites('appendPinnedSites', sites.map(site => ({ url: site.url, title: site.title, icons: iconsOf(site) })), undefined, spaceFolderId);
+    });
+  }, [readCurrentFavorites, createFavorites, reportFailure]);
 
   // Arc import: Top Apps into a Space folder the import just created
   const addPinnedSitesToSpaceFolder = useCallback(async (spaceFolderId: string, sites: PinnedSite[]): Promise<void> =>
@@ -588,15 +610,13 @@ export const usePinnedSites = (space: FavoritesSpace) =>
 
   /**
    * JSON import whose bookmarks brought this Space's Favorites back: puts the
-   * backup's icons onto them by URL and adds no Favorite. Reads Chrome's tree,
-   * since the sidebar's lags the import by a debounce.
+   * backup's icons onto them by URL and adds no Favorite.
    */
   const restorePinnedSiteIcons = useCallback(async (sites: readonly PinnedSite[]): Promise<void> =>
   {
     try
     {
-      const roots = (await chrome.bookmarks.getTree())[0]?.children ?? [];
-      const restored = SpaceFavorites.resolve(roots, space, favoriteIconsManagerProxy.snapshot).sites;
+      const restored = (await readCurrentFavorites()).sites;
       for (const { id, icons } of iconRestoresByUrl(sites, restored))
       {
         await favoriteIconsManagerProxy.restoreIcons(id, icons);
@@ -606,7 +626,7 @@ export const usePinnedSites = (space: FavoritesSpace) =>
     {
       reportFailure('restorePinnedSiteIcons', err);
     }
-  }, [space, reportFailure]);
+  }, [readCurrentFavorites, reportFailure]);
 
   return {
     pinnedSites,

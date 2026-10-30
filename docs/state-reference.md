@@ -224,11 +224,13 @@ State of the one-time copy of the legacy global `pinnedSites` into every Space's
 ```typescript
 {
   done: boolean,
-  rekey: Record<oldPinId, Record<spaceId, bookmarkId>>  // where each old pin went in each Space
+  rekey: Record<oldPinId, Record<spaceId, bookmarkId>>,  // where each old pin went in each Space; {} for a pin with no copy
+  createdIn: spaceId[]  // Spaces whose asd_Favorites this device's migration created
 }
 ```
 - Owner: `src/services/favoritesMigration.ts` (`FavoritesMigration`, background, the only writer). Runs at worker start, on a `spaces` change and on bookmark created/moved events until `done`; serialized
-- `done` stays unset while a Space with a folder failed or no Space has a resolvable folder yet, so the next trigger retries. Each Space's `rekey` entries are merged in as soon as that Space is copied
+- `done` stays unset while a pin failed to copy into a Space with a folder or no Space has a resolvable folder yet, so the next trigger copies the pins still missing from `rekey`. Each Space's `rekey` entries are merged in as soon as that Space is copied, even after a failure
+- An `asd_Favorites` not in `createdIn` came by sync from a device that migrated first: the old pins are matched to its bookmarks by URL (this device's icons, `rekey` entries) and nothing is created. On `done` every old pin is listed in `rekey`, so a tab of a pin with no copy becomes a regular tab
 - Consumers: `src/contexts/BookmarkTabsContext.tsx` reads `rekey` on rebuild and on change of the key, and re-keys open `pinned-<oldPinId>` tabs to the copy in their own Space (`rekeyFavoriteAssociations`, `src/utils/favoriteRekey.ts`)
 - Instances: 1 per extension
 

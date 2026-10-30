@@ -7,6 +7,7 @@ import { DeletePinnedSiteAction } from '../actions/deletePinnedSiteAction';
 import { useBookmarkTabsContext } from '../contexts/BookmarkTabsContext';
 import { useSpacesContext, type Space } from '../contexts/SpacesContext';
 import { tabSpaceRegistryProxy } from '../managers/proxies/tabSpaceRegistryProxy';
+import { FAVORITE_ITEM_KEY_PREFIX, findTabsForItemKey } from '../utils/tabAssociations';
 import { useUnifiedDnd, DropHandler } from '../contexts/UnifiedDndContext';
 import { BookmarkOpenMode } from './SettingsDialog';
 import { matchesFilter } from '../utils/searchParser';
@@ -86,22 +87,23 @@ export const PinnedBar = ({
 
   const getPinMoveTargets = useCallback(() => getMoveTargets(allSpaces), [getMoveTargets, allSpaces]);
 
-  // The open tab follows its Favorite, or it would stay hidden in this Space
+  // The open tabs follow their Favorite, or they would stay hidden in this Space.
+  // Every window's: the Favorite may be open in another window too.
   const handleMovePinToSpace = useCallback(async (pinnedId: string, target: Space) =>
   {
-    const tabId = getTabIdForPinned(pinnedId);
     const moved = await movePinToSpace(pinnedId, target);
-    if (!moved || tabId === undefined || windowId === null) return;
+    if (!moved) return;
 
     try
     {
-      await tabSpaceRegistryProxy.register(windowId, tabId, target.id);
+      const tabs = await findTabsForItemKey(`${FAVORITE_ITEM_KEY_PREFIX}${pinnedId}`);
+      await Promise.all(tabs.map(tab => tabSpaceRegistryProxy.register(tab.windowId, tab.tabId, target.id)));
     }
     catch (err)
     {
       console.error('[PinnedBar] register moved Favorite tab failed:', err);
     }
-  }, [getTabIdForPinned, movePinToSpace, windowId]);
+  }, [movePinToSpace]);
 
   // Handle unpin: create undoable action and either perform (with undo toast) or just do()
   const handleRemovePin = useCallback((pinnedId: string) =>

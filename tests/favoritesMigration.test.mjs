@@ -17,6 +17,8 @@ class FakeBookmarkTree
   #nextId = 1;
   /** Creating a bookmark under one of these parent folder ids throws. */
   failParents = new Set();
+  /** Creating a bookmark of one of these URLs throws, wherever it goes. */
+  failUrls = new Set();
 
   constructor(spaceFolderTitles)
   {
@@ -50,7 +52,7 @@ class FakeBookmarkTree
   create = async ({ parentId, title, url }) =>
   {
     const ownerTitle = this.#nodes.get(this.#nodes.get(parentId).parentId)?.title;
-    if (url && this.failParents.has(ownerTitle)) throw new Error('create failed');
+    if (url && (this.failParents.has(ownerTitle) || this.failUrls.has(url))) throw new Error('create failed');
 
     const node = { id: `n${this.#nextId++}`, title, url };
     this.#add(node, parentId);
@@ -60,6 +62,16 @@ class FakeBookmarkTree
   addFavoritesFolder(spaceTitle)
   {
     return this.create({ parentId: `space-${spaceTitle}`, title: FAVORITES_FOLDER_TITLE });
+  }
+
+  /** An asd_Favorites with these [title, url] pages, as bookmark sync brings it from another device. */
+  async addSyncedFavorites(spaceTitle, pages)
+  {
+    const folder = await this.addFavoritesFolder(spaceTitle);
+    for (const [title, url] of pages)
+    {
+      await this.create({ parentId: folder.id, title, url });
+    }
   }
 
   favoritesFolders(spaceTitle)
@@ -167,6 +179,66 @@ test('a Space whose folder already has asd_Favorites is skipped', async () =>
   assert.equal(storage.migrationState().rekey.bookmarkIdFor('p1', 'home'), undefined);
 });
 
+test('a synced asd_Favorites gets this device\'s icons and rekey entries by URL, and no duplicates', async () =>
+{
+  const { bookmarks, storage, restored, migration } = setup({
+    folders: ['Work'],
+    spaces: [space('work', 'Work')],
+    pins: [...LEGACY_PINS, { id: 'p3', url: 'https://only-here.example/', title: 'Local' }],
+  });
+  await bookmarks.addSyncedFavorites('Work', [['Docs', 'https://docs.example/'], ['Mail', 'https://mail.example/']]);
+  const [syncedDocs, syncedMail] = bookmarks.favoriteIds('Work');
+
+  await migration.run();
+
+  assert.equal(bookmarks.favoritesFolders('Work').length, 1);
+  assert.deepEqual(bookmarks.favoriteIds('Work'), [syncedDocs, syncedMail]);
+  assert.equal(restored.get(syncedMail).emoji, '📮');
+  assert.equal(restored.get(syncedDocs).customIconName, 'FileText');
+
+  const state = storage.migrationState();
+  assert.equal(state.done, true);
+  assert.equal(state.rekey.bookmarkIdFor('p1', 'work'), syncedMail);
+  assert.equal(state.rekey.bookmarkIdFor('p2', 'work'), syncedDocs);
+  // Listed with no copy, so its open tab becomes a regular tab instead of keeping a dead key
+  assert.equal(state.rekey.hasPin('p3'), true);
+  assert.equal(state.rekey.bookmarkIdFor('p3', 'work'), undefined);
+});
+
+test('an old pin whose URL does not parse is left behind and the rest are copied', async () =>
+{
+  const { bookmarks, storage, migration } = setup({
+    folders: ['Work'],
+    spaces: [space('work', 'Work')],
+    pins: [{ id: 'bad', url: 'mail example', title: 'Typed' }, ...LEGACY_PINS],
+  });
+
+  await migration.run();
+
+  assert.deepEqual(bookmarks.favorites('Work'), [['Mail', 'https://mail.example/'], ['Docs', 'https://docs.example/']]);
+  assert.equal(storage.migrationState().done, true);
+});
+
+test('a pin that fails to copy does not stop the next ones, and a rerun copies only it', async () =>
+{
+  const { bookmarks, storage, migration } = setup({ folders: ['Work'], spaces: [space('work', 'Work')] });
+  bookmarks.failUrls.add('https://mail.example/');
+
+  await migration.run();
+
+  assert.deepEqual(bookmarks.favorites('Work'), [['Docs', 'https://docs.example/']]);
+  assert.equal(storage.migrationState().done, false);
+
+  bookmarks.failUrls.clear();
+  await migration.run();
+
+  assert.equal(bookmarks.favoritesFolders('Work').length, 1);
+  assert.deepEqual(bookmarks.favorites('Work'), [['Docs', 'https://docs.example/'], ['Mail', 'https://mail.example/']]);
+  const state = storage.migrationState();
+  assert.equal(state.done, true);
+  assert.equal(state.rekey.bookmarkIdFor('p1', 'work'), bookmarks.favoriteIds('Work')[1]);
+});
+
 test('a rerun after done does nothing, even for a Space added later', async () =>
 {
   const { bookmarks, storage, migration } = setup({ folders: ['Work', 'Home'], spaces: [space('work', 'Work')] });
@@ -226,10 +298,13 @@ test('one Space failing leaves done unset; a rerun does not duplicate the others
 
   assert.equal(bookmarks.favoritesFolders('Work').length, 1);
   assert.deepEqual(bookmarks.favoriteIds('Work'), workIds);
+  assert.equal(bookmarks.favoritesFolders('Home').length, 1);
+  assert.deepEqual(bookmarks.favorites('Home'), [['Mail', 'https://mail.example/'], ['Docs', 'https://docs.example/']]);
   const state = storage.migrationState();
   assert.equal(state.done, true);
   assert.equal(state.rekey.bookmarkIdFor('p1', 'work'), workIds[0]);
   assert.equal(state.rekey.bookmarkIdFor('p2', 'work'), workIds[1]);
+  assert.equal(state.rekey.bookmarkIdFor('p1', 'home'), bookmarks.favoriteIds('Home')[0]);
 });
 
 test('triggers that arrive during a run share one rerun and never copy twice', async () =>

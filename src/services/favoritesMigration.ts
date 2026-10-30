@@ -12,6 +12,7 @@ import { findFolderBySegments } from '../utils/bookmarkFolderLookup.ts';
 import { FAVORITES_FOLDER_TITLE, findFavoritesFolder } from '../utils/favoritesFolder.ts';
 import type { FavoritesBookmarkNode } from '../utils/favoritesFolder.ts';
 import type { FavoritesSpace } from '../utils/spaceFavorites.ts';
+import { pairFavoritesByUrl } from '../utils/favoritesImport.ts';
 
 type BookmarkNode = chrome.bookmarks.BookmarkTreeNode;
 
@@ -78,6 +79,18 @@ export class FavoriteRekeyMap
     return new FavoriteRekeyMap(entries);
   }
 
+  /**
+   * Lists every old pin, those that got no copy anywhere with no Space: the re-key
+   * then turns their open tabs into regular tabs instead of leaving them on a key
+   * no Favorite has.
+   */
+  withPins(oldPinIds: readonly string[]): FavoriteRekeyMap
+  {
+    const missing = oldPinIds.filter(id => !this.hasPin(id));
+    if (missing.length === 0) return this;
+    return new FavoriteRekeyMap({ ...this.#entries, ...Object.fromEntries(missing.map(id => [id, {}])) });
+  }
+
   toStored(): RekeyRecord
   {
     return Object.fromEntries(Object.entries(this.#entries).map(([id, bySpace]) => [id, { ...bySpace }]));
@@ -89,32 +102,54 @@ export class FavoritesMigrationState
 {
   readonly done: boolean;
   readonly rekey: FavoriteRekeyMap;
+  /** Spaces whose asd_Favorites this device's migration created. */
+  readonly #createdIn: readonly string[];
 
-  constructor(done: boolean, rekey: FavoriteRekeyMap)
+  constructor(done: boolean, rekey: FavoriteRekeyMap, createdIn: readonly string[] = [])
   {
     this.done = done;
     this.rekey = rekey;
+    this.#createdIn = createdIn;
   }
 
   static fromStored(raw: unknown): FavoritesMigrationState
   {
-    const record = raw && typeof raw === 'object' ? raw as { done?: unknown; rekey?: unknown } : {};
-    return new FavoritesMigrationState(record.done === true, FavoriteRekeyMap.fromStored(record.rekey));
+    const record = raw && typeof raw === 'object' ? raw as { done?: unknown; rekey?: unknown; createdIn?: unknown } : {};
+    const createdIn = Array.isArray(record.createdIn)
+      ? record.createdIn.filter((id): id is string => typeof id === 'string')
+      : [];
+    return new FavoritesMigrationState(record.done === true, FavoriteRekeyMap.fromStored(record.rekey), createdIn);
+  }
+
+  /**
+   * False for an asd_Favorites that came by sync from a device that migrated first:
+   * its bookmarks are already the copies.
+   */
+  createdFolderIn(spaceId: string): boolean
+  {
+    return this.#createdIn.includes(spaceId);
+  }
+
+  withFolderCreatedIn(spaceId: string): FavoritesMigrationState
+  {
+    if (this.createdFolderIn(spaceId)) return this;
+    return new FavoritesMigrationState(this.done, this.rekey, [...this.#createdIn, spaceId]);
   }
 
   withSpaceCopies(spaceId: string, copies: ReadonlyMap<string, string>): FavoritesMigrationState
   {
-    return new FavoritesMigrationState(this.done, this.rekey.withSpaceCopies(spaceId, copies));
+    return new FavoritesMigrationState(this.done, this.rekey.withSpaceCopies(spaceId, copies), this.#createdIn);
   }
 
-  markedDone(): FavoritesMigrationState
+  /** Done, with every old pin listed in the rekey map (see FavoriteRekeyMap.withPins). */
+  markedDone(oldPinIds: readonly string[] = []): FavoritesMigrationState
   {
-    return new FavoritesMigrationState(true, this.rekey);
+    return new FavoritesMigrationState(true, this.rekey.withPins(oldPinIds), this.#createdIn);
   }
 
-  toStored(): { done: boolean; rekey: RekeyRecord }
+  toStored(): { done: boolean; rekey: RekeyRecord; createdIn: string[] }
   {
-    return { done: this.done, rekey: this.rekey.toStored() };
+    return { done: this.done, rekey: this.rekey.toStored(), createdIn: [...this.#createdIn] };
   }
 }
 
@@ -135,12 +170,28 @@ export interface FavoritesMigrationDeps
   getSpaces: () => readonly FavoritesSpace[];
 }
 
+// The old Edit dialog saved URLs as typed; bookmarks.create rejects one that doesn't
+// parse, and it would fail the same way on every retry
+function isBookmarkableUrl(url: string): boolean
+{
+  try
+  {
+    new URL(url);
+    return true;
+  }
+  catch
+  {
+    return false;
+  }
+}
+
 // Only pins the old list could show; anything malformed is left behind
 function readLegacyPins(raw: unknown): PinnedSite[]
 {
   if (!Array.isArray(raw)) return [];
   return raw.filter((pin): pin is PinnedSite =>
-    !!pin && typeof pin === 'object' && typeof pin.id === 'string' && typeof pin.url === 'string' && pin.url !== '');
+    !!pin && typeof pin === 'object' && typeof pin.id === 'string' && typeof pin.url === 'string'
+    && isBookmarkableUrl(pin.url));
 }
 
 function iconEntryOf(pin: PinnedSite): FavoriteIconEntry
@@ -211,17 +262,21 @@ export class FavoritesMigration
     for (const { space, folder } of targets)
     {
       const copies = new Map<string, string>();
+      let succeeded = false;
       try
       {
-        await this.#copyInto(folder.id, pins, copies);
+        succeeded = await this.#copyInto(space.id, folder.id, pins, state, copies, async () =>
+        {
+          state = state.withFolderCreatedIn(space.id);
+          await this.#store(state);
+        });
       }
       catch (error)
       {
-        allSucceeded = false;
         console.error(`[FavoritesMigration] copying into Space ${space.id} failed:`, error);
       }
-      // Stored right away, even after a failure: the next run skips this Space
-      // because its asd_Favorites exists, so these entries would never be written
+      if (!succeeded) allSucceeded = false;
+      // Stored right away, even after a failure: the next run resumes from them
       if (copies.size > 0)
       {
         state = state.withSpaceCopies(space.id, copies);
@@ -231,25 +286,73 @@ export class FavoritesMigration
 
     if (allSucceeded)
     {
-      await this.#store(state.markedDone());
+      await this.#store(state.markedDone(pins.map(pin => pin.id)));
       this.#done = true;
     }
   }
 
-  // A Space that already has asd_Favorites is skipped: a synced device migrated it
-  // first, or an earlier run here did
-  async #copyInto(spaceFolderId: string, pins: readonly PinnedSite[], copies: Map<string, string>): Promise<void>
+  /**
+   * Copies the pins this Space has no copy of yet into its asd_Favorites. An
+   * asd_Favorites this device didn't create came by sync from a device that
+   * migrated first: its bookmarks are the copies, so the pins are matched to them
+   * by URL for their local icons and open tabs, and nothing is created. False when
+   * a pin couldn't be copied; the next trigger retries it.
+   */
+  async #copyInto(
+    spaceId: string,
+    spaceFolderId: string,
+    pins: readonly PinnedSite[],
+    state: FavoritesMigrationState,
+    copies: Map<string, string>,
+    onFolderCreated: () => Promise<void>
+  ): Promise<boolean>
   {
     const { bookmarks } = this.#deps;
-    if (findFavoritesFolder(await bookmarks.getChildren(spaceFolderId))) return;
+    const { rekey } = state;
+    const pending = pins.filter(pin => rekey.bookmarkIdFor(pin.id, spaceId) === undefined);
+    if (pending.length === 0) return true;
 
-    const favoritesFolder = await bookmarks.create({ parentId: spaceFolderId, title: FAVORITES_FOLDER_TITLE });
-    for (const pin of pins)
+    let favoritesFolder: FavoritesBookmarkNode | undefined = findFavoritesFolder(await bookmarks.getChildren(spaceFolderId));
+    const synced = favoritesFolder !== undefined && !state.createdFolderIn(spaceId);
+
+    let unmatched = pending;
+    if (favoritesFolder)
     {
-      const bookmark = await bookmarks.create({ parentId: favoritesFolder.id, title: pin.title ?? '', url: pin.url });
-      copies.set(pin.id, bookmark.id);
-      this.#deps.restoreIcons(bookmark.id, iconEntryOf(pin));
+      const claimed = new Set(pins.map(pin => rekey.bookmarkIdFor(pin.id, spaceId)));
+      const existing = (await bookmarks.getChildren(favoritesFolder.id))
+        .filter((node): node is FavoritesBookmarkNode & { url: string } => !!node.url && !claimed.has(node.id));
+      const pairs = pairFavoritesByUrl(pending, existing);
+      for (const { saved, favorite } of pairs)
+      {
+        copies.set(saved.id, favorite.id);
+        this.#deps.restoreIcons(favorite.id, iconEntryOf(saved));
+      }
+      const matched = new Set(pairs.map(({ saved }) => saved.id));
+      unmatched = pending.filter(pin => !matched.has(pin.id));
     }
+    if (synced || unmatched.length === 0) return true;
+
+    if (!favoritesFolder)
+    {
+      favoritesFolder = await bookmarks.create({ parentId: spaceFolderId, title: FAVORITES_FOLDER_TITLE });
+      await onFolderCreated();
+    }
+    let allCopied = true;
+    for (const pin of unmatched)
+    {
+      try
+      {
+        const bookmark = await bookmarks.create({ parentId: favoritesFolder.id, title: pin.title ?? '', url: pin.url });
+        copies.set(pin.id, bookmark.id);
+        this.#deps.restoreIcons(bookmark.id, iconEntryOf(pin));
+      }
+      catch (error)
+      {
+        allCopied = false;
+        console.error(`[FavoritesMigration] copying ${pin.url} into Space ${spaceId} failed:`, error);
+      }
+    }
+    return allCopied;
   }
 
   async #store(state: FavoritesMigrationState): Promise<void>

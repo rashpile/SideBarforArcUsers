@@ -54,18 +54,25 @@ function hasIcons(icons: FavoriteIconEntry): boolean
   return !!(icons.favicon || icons.customIconName || icons.iconColor || icons.emoji);
 }
 
+/** A saved Favorite and the current Favorite bookmark of the same page it stands for. */
+export interface FavoriteUrlPair<S extends Pick<PinnedSite, 'url'>, F extends Pick<PinnedSite, 'id' | 'url'>>
+{
+  saved: S;
+  favorite: F;
+}
+
 /**
- * Pairs each restored Favorite with a backup entry of the same URL, in order, each
- * backup entry used once, so two Favorites of one page keep their own icons.
+ * Pairs each current Favorite with a saved entry of the same URL, in order, each
+ * saved entry used once, so two Favorites of one page keep their own entries.
  * Never yields a Favorite that isn't in `current`.
  */
-export function iconRestoresByUrl(
-  backupFavorites: readonly PinnedSite[],
-  current: readonly Pick<PinnedSite, 'id' | 'url'>[]
-): FavoriteIconRestore[]
+export function pairFavoritesByUrl<S extends Pick<PinnedSite, 'url'>, F extends Pick<PinnedSite, 'id' | 'url'>>(
+  saved: readonly S[],
+  current: readonly F[]
+): FavoriteUrlPair<S, F>[]
 {
-  const unused = [...backupFavorites];
-  const restores: FavoriteIconRestore[] = [];
+  const unused = [...saved];
+  const pairs: FavoriteUrlPair<S, F>[] = [];
 
   for (const favorite of current)
   {
@@ -73,8 +80,18 @@ export function iconRestoresByUrl(
     if (match === -1) continue;
 
     const [site] = unused.splice(match, 1);
-    const icons = iconsOf(site);
-    if (hasIcons(icons)) restores.push({ id: favorite.id, icons });
+    pairs.push({ saved: site, favorite });
   }
-  return restores;
+  return pairs;
+}
+
+/** The backup's icons for the restored Favorites of the same pages (see pairFavoritesByUrl). */
+export function iconRestoresByUrl(
+  backupFavorites: readonly PinnedSite[],
+  current: readonly Pick<PinnedSite, 'id' | 'url'>[]
+): FavoriteIconRestore[]
+{
+  return pairFavoritesByUrl(backupFavorites, current)
+    .map(({ saved, favorite }) => ({ id: favorite.id, icons: iconsOf(saved) }))
+    .filter(restore => hasIcons(restore.icons));
 }

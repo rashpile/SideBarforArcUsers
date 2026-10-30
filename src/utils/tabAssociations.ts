@@ -62,6 +62,31 @@ export async function getTabAssociations(windowId: number): Promise<Record<numbe
   return tabAssociationSessionStore.read(windowId);
 }
 
+/** A tab associated with an item, in whichever window holds it. */
+export interface AssociatedTab
+{
+  windowId: number;
+  tabId: number;
+}
+
+/**
+ * Every open tab associated with the item, across windows: associations are per
+ * window, and one Favorite or bookmark can be open in several windows at once.
+ */
+export async function findTabsForItemKey(itemKey: string): Promise<AssociatedTab[]>
+{
+  const windows = await chrome.windows.getAll();
+  const found = await Promise.all(windows.map(async ({ id: windowId }) =>
+  {
+    if (windowId === undefined) return [];
+    const associations = await getTabAssociations(windowId);
+    return Object.entries(associations)
+      .filter(([, key]) => key === itemKey)
+      .map(([tabIdText]) => ({ windowId, tabId: Number(tabIdText) }));
+  }));
+  return found.flat();
+}
+
 // Check if a tab is managed (has an association)
 export async function isManagedTab(windowId: number, tabId: number): Promise<boolean>
 {

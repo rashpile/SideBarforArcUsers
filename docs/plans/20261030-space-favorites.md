@@ -132,14 +132,21 @@ and App keep using it.
 2. Read `pinnedSites`. Empty or missing → write `done: true` and stop.
 3. Spaces with a resolvable bookmark folder (no hard-coded roots). None → stop without `done`
    (retry on the next trigger), so the old Favorites never vanish with nowhere to go.
-4. For each such Space: its folder already has an `asd_Favorites` → skip (a synced device migrated
-   first; this also keeps a retry from duplicating). Else create `asd_Favorites` at the end of the
-   Space folder and create one bookmark per pin, in order; record `rekey[oldPinId][spaceId] =
-   newBookmarkId` and hand each pin's icon fields to `FavoriteIconsManager` under the new id.
-5. After each Space succeeds, merge its `rekey` entries into the stored record at once (a later
-   retry skips that Space, so its entries would otherwise never be written). Every Space done →
-   set `done: true`. A failure for a Space leaves `done` unset and the rest is retried later.
-   [known-limitation]: a folder half filled by a crash mid-copy stays half filled; two devices that
+4. For each such Space, the pins with no `rekey[oldPinId][spaceId]` yet. Its folder has an
+   `asd_Favorites` this device didn't create (not in `createdIn`) → it came by sync from a device
+   that migrated first: match the pins to its bookmarks by URL, record `rekey` and restore this
+   device's icons for each match, create nothing. Else (no folder, or one this device created)
+   match by URL the same way, then create the unmatched pins at the end, in order (create
+   `asd_Favorites` first if missing and add the Space to `createdIn` at once); record
+   `rekey[oldPinId][spaceId] = newBookmarkId` and hand each pin's icon fields to
+   `FavoriteIconsManager` under the new id. A pin whose create fails is logged and the rest go on.
+   Pins whose URL doesn't parse (`new URL`) are left behind: Chrome would reject them on every retry.
+5. Merge each Space's `rekey` entries into the stored record at once, even after a failure, so a
+   retry resumes from them. Every Space done → set `done: true` and list every old pin in `rekey`,
+   those with no copy under no Space, so their open tabs become regular tabs. A failure leaves
+   `done` unset and the missing pins are retried later.
+   [known-limitation]: a crash between creating a bookmark and storing its `rekey` entry leaves the
+   pin to be matched by URL on retry; two devices that
    both migrate before sync delivers, or two adds racing `ensureFavoritesFolder` on a new Space,
    end with two `asd_Favorites` in a Space (lowest index wins, the other stays hidden).
 6. Triggers: worker start after the managers loaded, `SPACES_CHANGED`, bookmark created/moved

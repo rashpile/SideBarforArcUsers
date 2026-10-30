@@ -35,16 +35,18 @@ async function loadSpaceOfTab(windowId: number): Promise<(tabId: number) => stri
   return tabId => assignments[tabId];
 }
 
+// Takes the whole getTree() result, like the bookmark recovery it runs beside; Space
+// folders are looked up from the roots under its single untitled node
 async function loadFavoriteUrlMatcher(
   windowId: number,
-  bookmarkRoots: chrome.bookmarks.BookmarkTreeNode[]
+  bookmarkTree: chrome.bookmarks.BookmarkTreeNode[]
 ): Promise<FavoriteUrlMatcher>
 {
   const [spaces, spaceOfTab] = await Promise.all([
     spaceManagerProxy.getSpaces(),
     loadSpaceOfTab(windowId),
   ]);
-  return new FavoriteUrlMatcher(allFavoriteBookmarks(bookmarkRoots, spaces), spaceOfTab);
+  return new FavoriteUrlMatcher(allFavoriteBookmarks(bookmarkTree[0]?.children ?? [], spaces), spaceOfTab);
 }
 
 async function loadFavoriteRekeyMap(): Promise<FavoriteRekeyMap>
