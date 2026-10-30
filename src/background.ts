@@ -471,7 +471,6 @@ const tabAutoArchiver = new TabAutoArchiver({
   tracker: tabActivityTracker,
   spaceRegistry: tabSpaceRegistry,
   getSpaces: () => spaceManager.getSpaces(),
-  getPinnedSites: () => pinnedSitesManager.getPinnedSites(),
   isTabMarked: (tabId) => attentionMarkManager.isTabMarked(tabId),
   tabMarksLoaded: () => attentionMarkManager.tabMarksLoaded,
 });

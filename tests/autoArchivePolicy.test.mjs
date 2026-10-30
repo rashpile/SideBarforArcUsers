@@ -7,6 +7,7 @@ import {
   selectTabsToClose,
   tabChangedDuringRun,
 } from '../src/utils/autoArchivePolicy.ts';
+import { allFavoriteUrls } from '../src/utils/spaceFavorites.ts';
 
 const HOUR = 60 * 60 * 1000;
 const PERIOD = 12 * HOUR;
@@ -142,6 +143,41 @@ test('a tab on a Favorite\'s page stays open, associated or not; an unassociated
   });
 
   assert.deepEqual(result, { archive: [3], closeOnly: [] });
+});
+
+test('a tab in Space B on the page of a Space A Favorite stays open', () =>
+{
+  // Space A's folder holds the Favorite; Space B's folder has no asd_Favorites
+  const roots = [{
+    id: 'bar',
+    title: 'Bookmarks Bar',
+    children: [
+      { id: 'a', title: 'A', children: [
+        { id: 'a-fav', title: 'asd_Favorites', index: 0, children: [{ id: 'f1', url: 'https://chat.test/', index: 0 }] },
+      ] },
+      { id: 'b', title: 'B', children: [] },
+    ],
+  }];
+  const spaces = [
+    { id: 'space-a', bookmarkFolderSegments: ['Bookmarks Bar', 'A'] },
+    { id: 'space-b', bookmarkFolderSegments: ['Bookmarks Bar', 'B'] },
+  ];
+  const associationsByWindow = new TabAssociationsByWindow();
+  associationsByWindow.setWindow(1, {});
+
+  // Tab 1 belongs to Space B (no association: it is an ordinary tab there); tab 2 is on another page
+  const { archive, closeOnly } = selectTabsToClose({
+    tabs: [tab(1, { url: 'https://chat.test/' }), tab(2)],
+    associationsByWindow,
+    savedPages: SavedPages.fromTree(roots, allFavoriteUrls(roots, spaces).map(url => ({ url }))),
+    activity: { lastUsedAt: () => LONG_AGO },
+    isMarked: () => false,
+    enabledAt: 0,
+    now: NOW,
+    periodMs: PERIOD,
+  });
+
+  assert.deepEqual({ archive: archive.map(({ id }) => id), closeOnly: closeOnly.map(({ id }) => id) }, { archive: [2], closeOnly: [] });
 });
 
 test('a tab in a Chrome tab group is archived', () =>

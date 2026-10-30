@@ -369,9 +369,9 @@ with the live tab's url and index, and the old key's entry is removed.
 - Modify: `src/services/tabAutoArchiver.ts`, `src/background.ts`
 - Modify: `tests/autoArchive.test.mjs` or `tests/autoArchivePolicy.test.mjs`
 
-- [ ] `getPinnedSites` dep becomes the URLs of every Space's `asd_Favorites` (`allFavoriteUrls`)
-- [ ] write test: a tab in Space B on the page of a Space A Favorite is not closed
-- [ ] run `make test` - must pass before next task
+- [x] `getPinnedSites` dep becomes the URLs of every Space's `asd_Favorites` (`allFavoriteUrls`)
+- [x] write test: a tab in Space B on the page of a Space A Favorite is not closed
+- [x] run `make test` - must pass before next task
 
 ### Task 12: JSON import/export and Arc import
 
