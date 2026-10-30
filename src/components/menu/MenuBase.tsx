@@ -17,14 +17,16 @@ interface ItemProps extends HTMLAttributes<HTMLDivElement>
 {
   children: ReactNode;
   danger?: boolean;
+  disabled?: boolean;
   onSelect?: () => void;
 }
 
 export const Item = forwardRef<HTMLDivElement, ItemProps>(
-  ({ children, className, danger, onSelect, onClick, ...props }, ref) =>
+  ({ children, className, danger, disabled, onSelect, onClick, ...props }, ref) =>
   {
     const handleClick = (e: ReactMouseEvent<HTMLDivElement>) =>
     {
+      if (disabled) return;
       onClick?.(e);
       onSelect?.();
     };
@@ -32,12 +34,17 @@ export const Item = forwardRef<HTMLDivElement, ItemProps>(
     return (
       <div
         ref={ref}
+        aria-disabled={disabled || undefined}
         className={clsx(
-          "flex items-center w-full px-3 py-1.5 text-left cursor-pointer outline-none",
-          "hover:bg-gray-100 dark:hover:bg-gray-700",
-          danger
-            ? "text-red-500 dark:text-red-400"
-            : "text-gray-700 dark:text-gray-200",
+          "flex items-center w-full px-3 py-1.5 text-left outline-none",
+          disabled
+            ? "cursor-default text-gray-400 dark:text-gray-500"
+            : clsx(
+              "cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700",
+              danger
+                ? "text-red-500 dark:text-red-400"
+                : "text-gray-700 dark:text-gray-200"
+            ),
           className
         )}
         onClick={handleClick}
