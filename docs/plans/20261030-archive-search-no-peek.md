@@ -102,13 +102,15 @@
 **Files:**
 - Modify: `src/components/SectionHeader.tsx`
 
-- [ ] add optional prop `trailing?: ReactNode` (with a short field comment like the other props)
-- [ ] render it in the header row after the chevron+label toggle span and before the "..." menu button,
+- [x] add optional prop `trailing?: ReactNode` (with a short field comment like the other props)
+- [x] render it in the header row after the chevron+label toggle span and before the "..." menu button,
   in all three render paths (no menu, right-click menu, button menu) - they share `renderHeaderRow`
-- [ ] when `trailing` is given, drop `flex-1` from BOTH the toggle span (`flex flex-1 min-w-0`) and the
+- [x] when `trailing` is given, drop `flex-1` from BOTH the toggle span (`flex flex-1 min-w-0`) and the
   inner label span (`arc-section-label flex-1`), so chevron+label keep their natural width, and the
   trailing wrapper is `flex-1 min-w-0`; without `trailing` the layout is unchanged for every other header
-- [ ] no unit test (UI wiring, per project rules); run `make test` - must pass before task 3
+  (the toggle span also gets `flex-shrink-0` instead of `min-w-0`, so a narrow sidebar shrinks the
+  trailing content rather than the label)
+- [x] no unit test (UI wiring, per project rules); run `make test` - must pass before task 3
 
 ### Task 3: Remove the Archive peek, add the search input
 

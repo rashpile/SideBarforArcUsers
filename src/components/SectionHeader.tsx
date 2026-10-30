@@ -16,6 +16,7 @@ interface SectionHeaderProps
   className?: string;  // Semantic class name for the visual theme
   collapsed?: boolean;  // Collapsible section: chevron before the label, right = collapsed, down = expanded
   onToggleCollapsed?: () => void;  // Row click / Enter / Space toggles the section; omit for a display-only chevron
+  trailing?: ReactNode;  // Optional content between the label and the "..." button; takes the remaining width
 }
 
 export const SectionHeader: React.FC<SectionHeaderProps> = ({
@@ -30,6 +31,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
   className,
   collapsed,
   onToggleCollapsed,
+  trailing,
 }) =>
 {
   const menuJustClosedRef = useRef(false);
@@ -86,6 +88,11 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
       }
     : {};
 
+  // With trailing content the label keeps its natural width and never shrinks, so a narrow
+  // sidebar squeezes the trailing content instead of truncating the label
+  const toggleSpanLayout = trailing ? 'flex-shrink-0' : 'flex-1 min-w-0';
+  const labelLayout = trailing ? '' : 'flex-1';
+
   // Row shared by both menu styles; menuButton is the trailing "..." button, if any
   const renderHeaderRow = (menuButton?: ReactNode) => (
     <div
@@ -99,7 +106,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
     >
       <span
         {...toggleButtonProps}
-        className="flex flex-1 min-w-0 items-center rounded outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        className={`flex ${toggleSpanLayout} items-center rounded outline-none focus-visible:ring-2 focus-visible:ring-blue-500`}
       >
         {collapsed !== undefined && (
           <span className="flex-shrink-0 mr-1 flex items-center" aria-hidden="true">
@@ -111,10 +118,15 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
             {icon}
           </span>
         )}
-        <span className={`arc-section-label flex-1 ${labelClassName ?? ''}`}>
+        <span className={`arc-section-label ${labelLayout} ${labelClassName ?? ''}`}>
           {label}
         </span>
       </span>
+      {trailing && (
+        <div className="flex-1 min-w-0">
+          {trailing}
+        </div>
+      )}
       {menuButton}
     </div>
   );
