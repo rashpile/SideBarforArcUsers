@@ -76,7 +76,7 @@ Everything is stored in Chrome: bookmarks for Spaces, pinned pages and the archi
 
 ### Mark for Attention
 
-Right-click a tab or a bookmark and pick **Mark for Attention** to flag it for later. A marked row gets a green ring. On a marked row the item reads **Clear Mark**.
+Right-click a tab or a bookmark and pick **Mark for Attention** to flag it for later. A marked row gets a green ring; pick another colour or strength with **Mark for Attention colour** in Settings. The Space colour option takes the colour of the active Space (theme violet in the All view). On a marked row the item reads **Clear Mark**.
 
 - With several tabs or bookmarks selected, one item applies to all of them: if any is unmarked it marks them all, otherwise it clears them all. Folders can't be marked
 - On a marked tab the close button shows `-` instead of `x`. Click it to clear the mark; the tab stays open
@@ -141,6 +141,7 @@ Gear menu → Settings:
 - **Archive tabs after**: Never, or 12 hours to 30 days
 - **Highlight tabs by last use**: Off, White (default), Accent, Cooling or Trail
 - **Mark unvisited tabs**: a dot on tabs opened in the background that you haven't switched to yet. On by default
+- **Mark for Attention colour**: the ring around marked tabs and bookmarks - green (default), blue, orange, red, purple, yellow or the Space colour, each dim, normal or bright. Space colour follows the active Space whether or not the Space colour tints the sidebar; in the All view it is the theme violet
 - Space color tint
 - **AI naming**: rename Favorites and pinned pages with an OpenAI-compatible API you configure (endpoint, model, prompt, automatic or manual)
 

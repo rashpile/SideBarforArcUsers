@@ -198,6 +198,33 @@ Issue: https://github.com/rashpile/SideBarforArcUsers/issues/14
 - [x] update `PRIVACY.md` and `docs/chrome-web-store-info.md` where they list stored data (URLs of marked tabs)
 - [x] move this plan to `docs/plans/completed/` (left in place - the orchestrator moves it at the end)
 
+### Task 10: ➕ Attention mark colour setting
+
+Added after review at the user's request: one select of presets in Settings → Appearance for the attention ring's colour and strength. Decided with the user: one combined select, not two controls.
+
+Calls made (for review):
+- Key `attentionMarkStyle` in `chrome.storage.local`, raw string through `useChromeLocalStorage` with `{ parse, serialize: v => v }` (same pattern as `tabAgeHighlight`; background doesn't read it, but the raw form keeps settings uniform). Unknown or missing value → default `green`.
+- Values `<colour>` (normal strength), `<colour>-dim`, `<colour>-bright` for colours `green`, `blue`, `orange`, `red`, `purple`, `yellow`, `accent` (the active Space's colour: `AppContainer` sets `--arc-attention-space-rgb` for every Space other than All, independent of the background tint that drives `--arc-tab-age-accent`; theme violet in the All view - changed after review, the label promises the Space colour). Default `green` = today's look. Labels "Green - dim", "Green", "Green - bright", …, "Space colour - dim", "Space colour", "Space colour - bright".
+- Label "Mark for Attention colour", description "Colour and strength of the border around tabs and bookmarks marked for attention."
+- Look moves from Tailwind `ring-green-500` to a CSS class `arc-attention-ring` (in `src/index.css`) whose colour, width and opacity come from CSS variables set by `data-attention-style` on the theme root (`AppContainer` in `src/App.tsx`), as `data-tab-age-style` does. Normal = 2px inset ring at full colour (today's `ring-2 ring-green-500`); Dim = 1px at ~50% opacity; Bright = 2px at full colour plus a soft inner glow. Corner radius matches the row (`TreeRow`).
+- Parse helper `src/utils/attentionMarkStyle.ts` (`ATTENTION_MARK_STYLE_KEY`, `DEFAULT_ATTENTION_MARK_STYLE`, `parseAttentionMarkStyle`, the option list for the select). No tests: a parse helper and CSS (CLAUDE.md: no tests for trivial helpers, wording or UI wiring).
+
+**Files:**
+- Create: `src/utils/attentionMarkStyle.ts`
+- Modify: `src/index.css`
+- Modify: `src/App.tsx`
+- Modify: `src/components/SettingsDialog.tsx`
+- Modify: `src/components/TabList.tsx`
+- Modify: `src/components/BookmarkTree.tsx`
+- Modify: `README.md`, `docs/changelog.md`, `docs/state-reference.md`, `src/data/changelog.ts`
+
+- [x] create `src/utils/attentionMarkStyle.ts` with the key, default, parse and the preset list
+- [x] add the `attentionMarkStyle` setting in `App.tsx` (raw-string `useChromeLocalStorage`), pass it through Settings save/load, and set `data-attention-style` on the theme root in `AppContainer`
+- [x] add the select to `SettingsDialog.tsx` (Appearance, next to "Highlight tabs by last use")
+- [x] add `.arc-attention-ring` and the per-preset variables to `src/index.css`; replace the Tailwind ring overlay in `TabList.tsx` and `BookmarkTree.tsx` with the class
+- [x] update `README.md` (Mark for Attention section and Settings list), `docs/changelog.md`, the `src/data/changelog.ts` entry for the feature, and `docs/state-reference.md` (new key `attentionMarkStyle`)
+- [x] run `make test`, `make lint`, `make build` - must pass
+
 ## Post-Completion
 *Items requiring manual intervention or external systems - no checkboxes, informational only*
 

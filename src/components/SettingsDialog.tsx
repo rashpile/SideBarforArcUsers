@@ -3,6 +3,7 @@ import { Dialog } from './Dialog';
 import { FollowActiveTabMode } from '../utils/followActiveTab';
 import { AutoArchivePeriod } from '../utils/autoArchive';
 import { TabAgeHighlightStyle } from '../utils/tabAgeHighlight';
+import { AttentionMarkStyle, ATTENTION_MARK_STYLE_OPTIONS } from '../utils/attentionMarkStyle';
 import { UnvisitedTabMarkerSetting } from '../utils/unvisitedTabMarker';
 import { Eye, EyeOff } from 'lucide-react';
 import {
@@ -28,6 +29,7 @@ export interface SettingsValues {
   followActiveTab: FollowActiveTabMode;
   autoArchiveAfter: AutoArchivePeriod;
   tabAgeHighlight: TabAgeHighlightStyle;
+  attentionMarkStyle: AttentionMarkStyle;
   markUnvisitedTabs: UnvisitedTabMarkerSetting;
   aiSettings: AiRenameSettings;
 }
@@ -60,6 +62,7 @@ export function SettingsDialog({
   const [tempFollowActiveTab, setTempFollowActiveTab] = useState(settings.followActiveTab);
   const [tempAutoArchiveAfter, setTempAutoArchiveAfter] = useState(settings.autoArchiveAfter);
   const [tempTabAgeHighlight, setTempTabAgeHighlight] = useState(settings.tabAgeHighlight);
+  const [tempAttentionMarkStyle, setTempAttentionMarkStyle] = useState(settings.attentionMarkStyle);
   const [tempMarkUnvisitedTabs, setTempMarkUnvisitedTabs] = useState(settings.markUnvisitedTabs);
   const [tempAiSettings, setTempAiSettings] = useState(settings.aiSettings);
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
@@ -97,6 +100,7 @@ export function SettingsDialog({
       setTempFollowActiveTab(settings.followActiveTab);
       setTempAutoArchiveAfter(settings.autoArchiveAfter);
       setTempTabAgeHighlight(settings.tabAgeHighlight);
+      setTempAttentionMarkStyle(settings.attentionMarkStyle);
       setTempMarkUnvisitedTabs(settings.markUnvisitedTabs);
       setTempAiSettings(settings.aiSettings);
       setShowApiKey(false);
@@ -123,6 +127,7 @@ export function SettingsDialog({
       followActiveTab: tempFollowActiveTab,
       autoArchiveAfter: tempAutoArchiveAfter,
       tabAgeHighlight: tempTabAgeHighlight,
+      attentionMarkStyle: tempAttentionMarkStyle,
       markUnvisitedTabs: tempMarkUnvisitedTabs,
       aiSettings: tempAiSettings,
     });
@@ -328,6 +333,25 @@ export function SettingsDialog({
               </select>
               <p className="mt-1 text-gray-500 dark:text-gray-400">
                 Recently used tabs in the Tab list get a stronger background
+              </p>
+            </div>
+
+            {/* Mark for Attention colour */}
+            <div>
+              <label className="block font-medium mb-1 text-gray-700 dark:text-gray-300">
+                Mark for Attention colour
+              </label>
+              <select
+                value={tempAttentionMarkStyle}
+                onChange={(e) => setTempAttentionMarkStyle(e.target.value as AttentionMarkStyle)}
+                className="w-full px-2 py-1 border rounded dark:bg-gray-900 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+              >
+                {ATTENTION_MARK_STYLE_OPTIONS.map(option => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-gray-500 dark:text-gray-400">
+                Colour and strength of the border around tabs and bookmarks marked for attention
               </p>
             </div>
 

@@ -611,7 +611,7 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
             >
               {/* Overlay so the row's own background and shadow keep the active and selected styles */}
               {showMark && !showDropInto && (
-                <div className="absolute inset-0 rounded-md ring-2 ring-inset ring-green-500 pointer-events-none" />
+                <div className="arc-attention-ring" />
               )}
               <DropIndicators showBefore={showDropBefore} showAfter={showDropAfter} beforeIndentPx={beforeIndentPx} afterIndentPx={afterIndentPx} />
             </TreeRow>

@@ -259,6 +259,17 @@ number  // epoch millis
 - Parsing: `parseUnvisitedTabMarker` (`src/utils/unvisitedTabMarker.ts`); absent or unknown values read as `'on'`
 - Instances: 1 per extension (shared across windows)
 
+### `attentionMarkStyle`
+"Mark for Attention colour" setting: colour and strength of the ring on rows marked for attention
+```typescript
+// raw string, not JSON; default 'green'
+'<colour>' | '<colour>-dim' | '<colour>-bright'  // colour: 'green' | 'blue' | 'orange' | 'red' | 'purple' | 'yellow' | 'accent'
+```
+- Owner: `src/App.tsx` (via `useChromeLocalStorage` with `serialize: v => v`), set from `src/components/SettingsDialog.tsx` (Appearance tab)
+- Consumers: `src/App.tsx` (sets `data-attention-style` on the `.arc-theme` root; `src/index.css` turns it into the `.arc-attention-ring` look in `TabList.tsx` and `BookmarkTree.tsx`; `'accent'` follows the active Space's colour through `--arc-attention-space-rgb`, set for every Space whether or not the sidebar tint is on; theme violet in the All view), `src/components/SettingsDialog.tsx`; not read by background
+- Parsing: `parseAttentionMarkStyle` (`src/utils/attentionMarkStyle.ts`); absent or unknown values read as `'green'`
+- Instances: 1 per extension (shared across windows)
+
 ### `tabLastUsedAt`
 Last-use times of each open tab (auto-archive and tab age highlight), and which tabs were opened in the background and never activated (unvisited tab marker). Last use is the moment the tab stopped being active
 ```typescript
@@ -394,6 +405,7 @@ Lost on page reload or service worker restart.
 │  ├─ autoArchiveEnabledAt            (auto-archive switch-on)    │
 │  ├─ tabAgeHighlight                 (tab age highlight look)    │
 │  ├─ markUnvisitedTabs               (unvisited tab marker)      │
+│  ├─ attentionMarkStyle              (attention ring look)       │
 │  ├─ tabLastUsedAt                   (tab last-use times)        │
 │  ├─ attentionMarkedTabs             (marked tabs)               │
 │  ├─ attentionMarkedBookmarks        (marked bookmarks)          │

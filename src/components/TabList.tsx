@@ -312,7 +312,7 @@ const TabRow = forwardRef<HTMLDivElement, DraggableTabProps>(({
               )}
               {/* Overlay so the row's own background and shadow keep the active, selected and age styles */}
               {isMarked && (
-                <div className="absolute inset-0 rounded-md ring-2 ring-inset ring-green-500 pointer-events-none" />
+                <div className="arc-attention-ring" />
               )}
               <DropIndicators showBefore={showDropBefore} showAfter={showDropAfter} beforeIndentPx={beforeIndentPx} afterIndentPx={afterIndentPx} />
             </TreeRow>
