@@ -13,6 +13,7 @@ import { UndoableAction } from './actions/types';
 import { usePinnedSites, PinnedSite } from './hooks/usePinnedSites';
 import { useTabs } from './hooks/useTabs';
 import { useBookmarks, refreshAllBookmarks } from './hooks/useBookmarks';
+import { useAttentionMarks } from './hooks/useAttentionMarks';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useChromeLocalStorage } from './hooks/useChromeLocalStorage';
 import { useSectionCollapseState } from './hooks/useSectionCollapseState';
@@ -331,6 +332,7 @@ const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({
   const { activeSpace, activeSpaceId, getTabIdsInSpace, windowId } = useSpacesContext();
   const { getItemKeyForTab, restoreItemAssociation } = useBookmarkTabsContext();
   const { findFolderBySegments, createFolder } = useBookmarks();
+  const { isTabMarked } = useAttentionMarks();
   const [confirmCloseAllDialog, setConfirmCloseAllDialog] = useState<{
     isOpen: boolean;
     tabIds: number[];
@@ -369,7 +371,8 @@ const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({
   {
     if (!windowId) return;
 
-    const tabIds = await getTabIdsInSpace(space);
+    // Marked tabs stay open; filtered before the whole-window check so it sees what really closes
+    const tabIds = (await getTabIdsInSpace(space)).filter(id => !isTabMarked(id));
     if (tabIds.length === 0) return;
 
     // Check if this would close all tabs in the window
@@ -391,7 +394,7 @@ const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({
     {
       action.do();
     }
-  }, [onPerformAction, windowId, getTabIdsInSpace, getItemKeyForTab, restoreItemAssociation]);
+  }, [onPerformAction, windowId, getTabIdsInSpace, isTabMarked, getItemKeyForTab, restoreItemAssociation]);
 
   // Confirm close all tabs in window (no undo — window will close)
   const handleConfirmCloseAll = useCallback(() =>

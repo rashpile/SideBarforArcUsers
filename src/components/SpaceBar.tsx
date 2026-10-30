@@ -12,6 +12,7 @@ import { CloseTabAction } from '../actions/closeTabAction';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import { BookmarkCreateFolderModal } from './BookmarkCreateFolderModal';
 import { useBookmarks } from '../hooks/useBookmarks';
+import { useAttentionMarks } from '../hooks/useAttentionMarks';
 import * as DropdownMenu from './menu/DropdownMenu';
 import type { UndoableAction } from '../actions/types';
 
@@ -35,6 +36,7 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
   const { spaces, activeSpace, activeSpaceId, switchToSpace, moveSpace, getTabIdsInSpace, windowId } = useSpacesContext();
   const { findFolderBySegments, createFolder } = useBookmarks();
   const { getItemKeyForTab, restoreItemAssociation } = useBookmarkTabsContext();
+  const { isTabMarked } = useAttentionMarks();
   const { activeDragData, overId, dropPosition, registerDropHandler, unregisterDropHandler } = useUnifiedDnd();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [confirmCloseAllDialog, setConfirmCloseAllDialog] = useState<{
@@ -91,7 +93,8 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
   {
     if (!windowId) return;
 
-    const tabIds = await getTabIdsInSpace(space);
+    // Marked tabs stay open; filtered before the whole-window check so it sees what really closes
+    const tabIds = (await getTabIdsInSpace(space)).filter(id => !isTabMarked(id));
     if (tabIds.length === 0) return;
 
     // Check if this would close all tabs in the window
@@ -113,7 +116,7 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
     {
       action.do();
     }
-  }, [onPerformAction, windowId, getTabIdsInSpace, getItemKeyForTab, restoreItemAssociation]);
+  }, [onPerformAction, windowId, getTabIdsInSpace, isTabMarked, getItemKeyForTab, restoreItemAssociation]);
 
   // Confirm close all tabs in window (no undo — window will close)
   const handleConfirmCloseAll = useCallback(() =>

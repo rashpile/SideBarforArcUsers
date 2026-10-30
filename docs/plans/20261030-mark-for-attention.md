@@ -167,11 +167,11 @@ Issue: https://github.com/rashpile/SideBarforArcUsers/issues/14
 - Modify: `src/App.tsx`
 - Modify: `src/components/SpaceBar.tsx`
 
-- [ ] in `TabList.tsx` filter marked tabs out of `closeTabsBefore`, `closeTabsAfter`, `closeOthers`, `handleCloseSelectedFromMenu`, `closeGroup`, `handleCloseAllTabs`, and the `selectedItems.length > 1` branch of `handleCloseSelectedTabs`; its `performClose([clickedTabId])` branch (row `x` and single-tab menu `Close`, both `onClose`) stays unfiltered
-- [ ] Archive tabs button (`handleArchiveAllTabs`): filter `archiveTabs` by `isTabMarked(tab.id)` before the length check and `closesWholeWindow`
-- [ ] Space context menu Close All Tabs: filter in `App.tsx` `handleCloseAllTabs` (~368) and `SpaceBar.tsx` `handleCloseAllTabsInSpace` (~90), before the `remaining.length === 0` check and the confirm dialog
-- [ ] every filter runs before the whole-window check; an empty list after filtering does nothing (no dialog, no action)
-- [ ] no new tests (each is a one-line filter in UI handlers); run `make test`, `make lint`, `make build` - must pass before task 7
+- [x] in `TabList.tsx` filter marked tabs out of `closeTabsBefore`, `closeTabsAfter`, `closeOthers`, `handleCloseSelectedFromMenu`, `closeGroup`, `handleCloseAllTabs`, and the `selectedItems.length > 1` branch of `handleCloseSelectedTabs`; its `performClose([clickedTabId])` branch (row `x` and single-tab menu `Close`, both `onClose`) stays unfiltered
+- [x] Archive tabs button (`handleArchiveAllTabs`): filter `archiveTabs` by `isTabMarked(tab.id)` before the length check and `closesWholeWindow`
+- [x] Space context menu Close All Tabs: filter in `App.tsx` `handleCloseAllTabs` (~368) and `SpaceBar.tsx` `handleCloseAllTabsInSpace` (~90), before the `remaining.length === 0` check and the confirm dialog
+- [x] every filter runs before the whole-window check; an empty list after filtering does nothing (no dialog, no action)
+- [x] no new tests (each is a one-line filter in UI handlers); run `make test`, `make lint`, `make build` - must pass before task 7
 
 ### Task 7: Bookmark mark UI
 
