@@ -178,11 +178,11 @@ Issue: https://github.com/rashpile/SideBarforArcUsers/issues/14
 **Files:**
 - Modify: `src/components/BookmarkTree.tsx`
 
-- [ ] pass `isMarked` / `onToggleMark` into `BookmarkRow` (bookmarks only, never folders)
-- [ ] draw the green ring overlay on marked bookmark rows (not while `showDropInto`)
-- [ ] single bookmark context menu: `Mark for Attention` / `Clear Mark`
-- [ ] multi-selection menu, `allSelectedAreBookmarks` branch only: one item with the any/all rule over `getSelectedBookmarkItems()`
-- [ ] no new tests (UI wiring); run `make test`, `make lint`, `make build` - must pass before task 8
+- [x] pass `isMarked` / `onToggleMark` into `BookmarkRow` (bookmarks only, never folders)
+- [x] draw the green ring overlay on marked bookmark rows (not while `showDropInto`)
+- [x] single bookmark context menu: `Mark for Attention` / `Clear Mark`
+- [x] multi-selection menu, `allSelectedAreBookmarks` branch only: one item with the any/all rule over `getSelectedBookmarkItems()`
+- [x] no new tests (UI wiring); run `make test`, `make lint`, `make build` - must pass before task 8
 
 ### Task 8: Verify acceptance criteria
 - [ ] verify all requirements from Overview are implemented (menu items single and multi, ring, `-` button, auto-archive, bulk close, restart survival paths)

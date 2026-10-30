@@ -77,6 +77,7 @@ import {
 import { resolveArcFolderIconState } from '../utils/folderIconState';
 import { isArchiveFolder } from '../utils/archiveFolder';
 import { resolveItemDoubleClick } from '../utils/itemDoubleClick';
+import { useAttentionMarks } from '../hooks/useAttentionMarks';
 
 // Storage key for persisting folder expand/collapse state across restarts (keyed by space only)
 const getExpandedStateKey = (spaceId: string) =>
@@ -150,6 +151,7 @@ interface BookmarkRowProps {
   checkIsAudible?: (bookmarkId: string) => boolean;
   checkIsMuted?: (bookmarkId: string) => boolean;
   checkIsActive?: (bookmarkId: string) => boolean;
+  checkIsMarked?: (bookmarkId: string) => boolean;
   getLiveTitle?: (bookmarkId: string) => string | undefined;
   onOpenBookmark?: (bookmarkId: string, url: string, options?: OpenItemTabOptions) => void;
   onCloseBookmark?: (bookmarkId: string) => void;
@@ -191,6 +193,10 @@ interface BookmarkRowProps {
   onRemovePin?: (bookmarkId: string) => void;
   onRemoveSelectedPins?: () => void;
   isMuted?: boolean;
+  isMarked?: boolean;  // Marked for attention; folders carry no mark
+  onToggleMark?: (bookmarkId: string) => void;
+  selectionMarkAction?: 'mark' | 'clear';  // Undefined when the selection holds no bookmark
+  onToggleSelectionMark?: () => void;
   isPeek?: boolean;  // Open bookmark surfaced from inside a collapsed folder
   hasPeek?: boolean; // Collapsed folder currently surfacing open descendants
   hasActivePeek?: boolean; // ...and one of them is the active page
@@ -265,6 +271,10 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
   onRemovePin,
   onRemoveSelectedPins,
   isMuted,
+  isMarked,
+  onToggleMark,
+  selectionMarkAction,
+  onToggleSelectionMark,
   isPeek,
   hasPeek,
   hasActivePeek,
@@ -279,6 +289,7 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
   const isFolder = !node.url;
   const dndId = `bookmark-${node.id}`;
   const isSpecialFolder = isPermanentRootFolder(node);
+  const showMark = !isFolder && !!isMarked;
   // Whether the bookmark had a tab when a double-click's first press went down, before that click opened one
   const hadTabOnPressRef = useRef(false);
 
@@ -598,6 +609,10 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
               actions={actions}
               leadingIndicator={leadingIndicator}
             >
+              {/* Overlay so the row's own background and shadow keep the active and selected styles */}
+              {showMark && !showDropInto && (
+                <div className="absolute inset-0 rounded-md ring-2 ring-inset ring-green-500 pointer-events-none" />
+              )}
               <DropIndicators showBefore={showDropBefore} showAfter={showDropAfter} beforeIndentPx={beforeIndentPx} afterIndentPx={afterIndentPx} />
             </TreeRow>
           </ContextMenu.Trigger>
@@ -628,6 +643,11 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
               {selectedLiveBookmarkCount > 0 && (
                 <ContextMenu.Item onSelect={onToggleSelectedBookmarksMuted}>
                   {allSelectedLiveBookmarksMuted ? 'Unmute' : 'Mute'}
+                </ContextMenu.Item>
+              )}
+              {selectionMarkAction && onToggleSelectionMark && (
+                <ContextMenu.Item onSelect={onToggleSelectionMark}>
+                  {selectionMarkAction === 'mark' ? 'Mark for Attention' : 'Clear Mark'}
                 </ContextMenu.Item>
               )}
               <ContextMenu.Separator />
@@ -774,6 +794,11 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
               {isLoaded && (
                 <ContextMenu.Item onSelect={() => onToggleBookmarkMuted?.(node.id)}>
                   {isMuted ? 'Unmute' : 'Mute'}
+                </ContextMenu.Item>
+              )}
+              {onToggleMark && (
+                <ContextMenu.Item onSelect={() => onToggleMark(node.id)}>
+                  {showMark ? 'Clear Mark' : 'Mark for Attention'}
                 </ContextMenu.Item>
               )}
               <ContextMenu.Separator />
@@ -942,6 +967,7 @@ const BookmarkItem = (props: BookmarkRowProps) => {
     checkIsAudible,
     checkIsMuted,
     checkIsActive,
+    checkIsMarked,
     getLiveTitle,
     getMatchingSpace,
     checkIsSelected,
@@ -1007,6 +1033,7 @@ const BookmarkItem = (props: BookmarkRowProps) => {
                 isAudible={checkIsAudible ? checkIsAudible(child.id) : false}
                 isMuted={checkIsMuted ? checkIsMuted(child.id) : false}
                 isActive={checkIsActive ? checkIsActive(child.id) : false}
+                isMarked={checkIsMarked ? checkIsMarked(child.id) : false}
                 liveTitle={getLiveTitle ? getLiveTitle(child.id) : undefined}
                 isSelected={checkIsSelected ? checkIsSelected(child.id) : false}
                 onSelectionClick={onChildSelectionClick
@@ -1049,6 +1076,7 @@ interface BookmarkTreeProps {
 export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false, externalDropTarget, bookmarkOpenMode = 'arc', arcSingleClickOpensTab = true, onResolverReady, filterLiveTabs = false, filterText = '', activeSpace, onShowToast, onPerformAction, useSpaces = true, onAiRename, onBookmarkCreated, isCollapsed = false }: BookmarkTreeProps) => {
   const { bookmarks, updateBookmark, updateBookmarkUrl, createFolder, createBookmark, sortBookmarks, moveBookmark, duplicateBookmark, findFolderBySegments, getAllBookmarksInFolder, getBookmarkSegments, getBookmarkFolderLocation, getBookmark, error } = useBookmarks();
   const { openBookmarkTab, closeBookmarkTab, isBookmarkLoaded, isBookmarkAudible, isBookmarkMuted, isBookmarkActive, getBookmarkLiveTitle, deassociateBookmarkTab, getTabIdForBookmark, getItemKeyForTab, restoreItemAssociation, associateExistingTab } = useBookmarkTabsContext();
+  const { isBookmarkMarked, markBookmarks, clearBookmarks } = useAttentionMarks();
   const { spaces, updateSpace, updateSpaceFolderPaths, windowId } = useSpacesContext();
   const findSpaceForFolder = useFindSpaceForFolder(getBookmarkFolderLocation, spaces);
 
@@ -2080,6 +2108,38 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
     }));
   }, [getSelectedLiveBookmarkIds, getTabIdForBookmark, isBookmarkMuted]);
 
+  const toggleBookmarkMark = useCallback((bookmarkId: string) =>
+  {
+    if (isBookmarkMarked(bookmarkId))
+    {
+      clearBookmarks([bookmarkId]);
+    }
+    else
+    {
+      markBookmarks([bookmarkId]);
+    }
+  }, [isBookmarkMarked, markBookmarks, clearBookmarks]);
+
+  // One mark item for the selected bookmarks: any unmarked one marks all, all marked clears all
+  const selectedMarkableBookmarkIds = selectionCount > 1 && allSelectedItemsAreBookmarks()
+    ? getSelectedBookmarkItems().map(item => item.id)
+    : [];
+  const selectionMarkAction: 'mark' | 'clear' | undefined = selectedMarkableBookmarkIds.length === 0
+    ? undefined
+    : selectedMarkableBookmarkIds.some(id => !isBookmarkMarked(id)) ? 'mark' : 'clear';
+  const toggleSelectionMark = () =>
+  {
+    if (selectionMarkAction === 'mark')
+    {
+      markBookmarks(selectedMarkableBookmarkIds);
+    }
+    else if (selectionMarkAction === 'clear')
+    {
+      clearBookmarks(selectedMarkableBookmarkIds);
+    }
+    clearSelection();
+  };
+
   const handleDuplicateSelectedBookmarks = useCallback(async () =>
   {
     for (const item of getSelectedBookmarkItems())
@@ -2659,12 +2719,15 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
               isAudible={isBookmarkAudible(node.id)}
               isMuted={isBookmarkMuted(node.id)}
               isActive={isBookmarkActive(node.id)}
+              isMarked={isBookmarkMarked(node.id)}
               liveTitle={getBookmarkLiveTitle(node.id)}
               isSelected={isBookmarkSelected(node.id)}
               checkIsLoaded={isBookmarkLoaded}
               checkIsAudible={isBookmarkAudible}
               checkIsMuted={isBookmarkMuted}
               checkIsActive={isBookmarkActive}
+              checkIsMarked={isBookmarkMarked}
+              onToggleMark={toggleBookmarkMark}
               getLiveTitle={getBookmarkLiveTitle}
               onOpenBookmark={(bookmarkId, url, options) => openBookmarkTab(bookmarkId, url, activeSpace?.id, options)}
               onCloseBookmark={handleCloseBookmarkTab}
@@ -2708,6 +2771,8 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
               allSelectedAreBookmarks={allSelectedItemsAreBookmarks()}
               selectedLiveBookmarkCount={getSelectedLiveBookmarkIds().length}
               allSelectedLiveBookmarksMuted={allSelectedLiveBookmarksAreMuted()}
+              selectionMarkAction={selectionMarkAction}
+              onToggleSelectionMark={toggleSelectionMark}
               windowId={windowId ?? undefined}
             />
           );
