@@ -46,12 +46,3 @@ test('the Archive search narrows the items together with the toolbar filter', ()
   // A search that matches nothing leaves no items
   assert.deepEqual(ids(items.matching('', 'nothing-like-this')), []);
 });
-
-test('the archive time of each item feeds the recent popover; an item without one gets none', () =>
-{
-  const recency = ArchiveItems.fromFolder(archiveFolder).toRecency();
-
-  assert.equal(recency.lastActiveAt('b'), 3000);
-  assert.equal(recency.lastActiveAt('a'), 2000);
-  assert.equal(recency.wasEverActive('d'), false);
-});

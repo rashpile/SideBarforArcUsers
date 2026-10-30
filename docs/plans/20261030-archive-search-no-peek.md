@@ -120,33 +120,33 @@
 - Modify: `src/utils/archiveItems.ts`
 - Modify: `tests/archiveItems.test.mjs`
 
-- [ ] remove `useFolderPeek`, `FolderRecentPopover`, the pointer-handler wrapper `div` around
+- [x] remove `useFolderPeek`, `FolderRecentPopover`, the pointer-handler wrapper `div` around
   `SectionHeader`, the `recency` memo, `closePeek()` in `handleRestore` (and its dependency), and
   `useUnifiedDnd` / `dragActiveId`
-- [ ] remove `ArchiveItems.toRecency()` (its only caller is gone; confirm with grep), the now unused
+- [x] remove `ArchiveItems.toRecency()` (its only caller is gone; confirm with grep), the now unused
   `BookmarkRecency` / `BookmarkRecencyRecord` imports in `src/utils/archiveItems.ts`, and the `toRecency`
   test in `tests/archiveItems.test.mjs`
-- [ ] add `searchText` state; clear it when `isCollapsed` becomes true
-- [ ] compute `isHidden` from the toolbar filter only and the rows from `items.matching(filterText, searchText)`;
+- [x] add `searchText` state; clear it when `isCollapsed` becomes true
+- [x] compute `isHidden` from the toolbar filter only and the rows from `items.matching(filterText, searchText)`;
   show "No matching pages" (muted, like other empty-state text in the sidebar) when the search leaves no rows
-- [ ] render the search input in `SectionHeader`'s `trailing` slot only while expanded: Search icon,
+- [x] render the search input in `SectionHeader`'s `trailing` slot only while expanded: Search icon,
   "Search Archive..." placeholder, clear (x) button while non-empty and visible even when the header is
   not hovered (override the `.arc-space-title button` opacity rule), Escape clears or blurs and does not
   propagate to the document, click and pointer-down do not toggle the section, accessible names on input
   and x (see Technical Details); styled to fit the header row in light and dark themes
-- [ ] update the file header comment (no hover peek; expanded header has a search field) and the
+- [x] update the file header comment (no hover peek; expanded header has a search field) and the
   `App.tsx` comment on `key={activeSpaceId}` (a Space switch now resets the Archive search)
-- [ ] no unit test (UI wiring, per project rules); run `make test` and `make lint` - must pass before task 4
+- [x] no unit test (UI wiring, per project rules); run `make test` and `make lint` - must pass before task 4
 
 ### Task 4: Verify acceptance criteria
-- [ ] hovering the collapsed Archive header opens nothing; `FolderRecentPopover` is still used by
+- [x] hovering the collapsed Archive header opens nothing; `FolderRecentPopover` is still used by
   `BookmarkTree.tsx` only
-- [ ] expanded Archive shows the search input in its header row; collapsed shows none
-- [ ] search narrows rows together with the toolbar filter; a no-match search keeps the section visible
+- [x] expanded Archive shows the search input in its header row; collapsed shows none
+- [x] search narrows rows together with the toolbar filter; a no-match search keeps the section visible
   with "No matching pages"
-- [ ] clicking or typing (including Space/Enter) in the input never toggles the section
-- [ ] run full test suite: `make test`
-- [ ] run `make lint` and `make build`
+- [x] clicking or typing (including Space/Enter) in the input never toggles the section
+- [x] run full test suite: `make test`
+- [x] run `make lint` and `make build`
 
 ### Task 5: [Final] Update documentation
 - [ ] `README.md` Archive paragraph: no hover; expand to list everything, newest first, and search it
