@@ -237,18 +237,19 @@ with the live tab's url and index, and the old key's entry is removed.
 - Create: `src/utils/spaceFavorites.ts`
 - Create: `tests/spaceFavorites.test.mjs`
 
-- [ ] class `SpaceFavorites` (pure): given bookmark roots, a Space and the icon store, finds the
+- [x] class `SpaceFavorites` (pure): given bookmark roots, a Space and the icon store, finds the
   Space folder (segments + `bookmarkFolderInAccount`, existing lookup helpers), its
   `asd_Favorites`, and returns the merged `PinnedSite[]` of its direct URL children in index order;
   `hasFolder` tells "no Space folder" from "no Favorites yet"
-- [ ] `allFavoriteUrls(roots, spaces)` / `allFavoriteBookmarks(roots, spaces)` for the archiver,
-  favicon update and URL recovery (every Space)
-- [ ] ➕ replace the local `favoriteBookmarksOfAllSpaces` in `src/background.ts` (favicon update,
+- [x] `allFavoriteUrls(roots, spaces)` / `allFavoriteBookmarks(roots, spaces)` for the archiver,
+  favicon update and URL recovery (every Space); `allFavoriteBookmarks` returns `{ spaceId, bookmark }`
+  so URL recovery (Task 6) can match per Space; a folder shared by Spaces is listed once, under the first
+- [x] ➕ replace the local `favoriteBookmarksOfAllSpaces` in `src/background.ts` (favicon update,
   Task 3) with `allFavoriteBookmarks`
-- [ ] write tests: the right Space's folder when two Spaces have same-titled folders in different
+- [x] write tests: the right Space's folder when two Spaces have same-titled folders in different
   roots (account vs device); subfolders inside `asd_Favorites` ignored; a Space without folder gives
   `hasFolder: false` (ALL_SPACE gives an empty list; the grid shows no hint for it)
-- [ ] run `make test` - must pass before next task
+- [x] run `make test` - must pass before next task
 
 ### Task 5: one-time migration in background
 

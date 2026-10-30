@@ -10,8 +10,8 @@ import { TabHistoryManager } from './managers/impl/tabHistoryManager';
 import { LastAudibleTracker } from './managers/impl/lastAudibleTracker';
 import { PinnedSitesManager } from './managers/impl/pinnedSitesManager';
 import { FavoriteIconsManager } from './managers/impl/favoriteIconsManager';
-import { findFavoritesFolder } from './utils/favoritesFolder';
-import { collectBookmarkIds, findFolderBySegments } from './utils/bookmarkFolderLookup';
+import { allFavoriteBookmarks } from './utils/spaceFavorites';
+import { collectBookmarkIds } from './utils/bookmarkFolderLookup';
 import { AttentionMarkManager } from './managers/impl/attentionMarkManager';
 import { TabAssociationReadiness } from './utils/tabAssociationReadiness';
 import { resolveActiveSpaceId } from './utils/spaceSelection';
@@ -841,7 +841,8 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) =>
       // Match by hostname across every Space's Favorites, only those showing no icon of any kind.
       // The manager gets a patch, not a rewritten store, and re-checks each entry's eligibility.
       const icons = favoriteIconsManager.icons;
-      const matchingFavorites = (await favoriteBookmarksOfAllSpaces()).filter(bookmark =>
+      const roots = (await chrome.bookmarks.getTree())[0]?.children ?? [];
+      const matchingFavorites = allFavoriteBookmarks(roots, spaceManager.getSpaces()).map(({ bookmark }) => bookmark).filter(bookmark =>
       {
         const entry = icons.entryFor(bookmark.id);
         if (entry?.favicon || entry?.customIconName || entry?.emoji) return false;
@@ -873,18 +874,6 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) =>
     catch { /* tab may have been closed */ }
   }
 });
-
-// The URL bookmarks directly inside each Space's asd_Favorites folder
-async function favoriteBookmarksOfAllSpaces(): Promise<chrome.bookmarks.BookmarkTreeNode[]>
-{
-  const roots = (await chrome.bookmarks.getTree())[0]?.children ?? [];
-  return spaceManager.getSpaces().flatMap(space =>
-  {
-    const spaceFolder = findFolderBySegments(roots, space.bookmarkFolderSegments ?? [], space.bookmarkFolderInAccount);
-    const favoritesFolder = spaceFolder ? findFavoritesFolder(spaceFolder.children ?? []) : undefined;
-    return (favoritesFolder?.children ?? []).filter(child => child.url);
-  });
-}
 
 // A tab opened from a link in a bookmark's or Favorite's tab goes to the top of the Tab list.
 // Chrome puts it next to its opener, which the Tab list doesn't show, so it would land at a
