@@ -64,8 +64,8 @@ const WhatsNewDialog = React.lazy(() => import('./components/WhatsNewDialog').th
 // Inner component that renders content for a single space
 interface SidebarContentProps
 {
-  onPin: (url: string, title: string, faviconUrl?: string, tabId?: number) => void;
-  onPinMultiple: (pins: Array<{ url: string; title: string; faviconUrl?: string }>) => void;
+  onPin: (url: string, title: string, faviconUrl?: string, tabId?: number) => Promise<PinnedSite | null>;
+  onPinMultiple: (pins: Array<{ url: string; title: string; faviconUrl?: string }>) => Promise<PinnedSite[]>;
   hideOtherBookmarks: boolean;
   externalDropTarget: ExternalDropTarget | null;
   bookmarkOpenMode: BookmarkOpenMode;
@@ -1074,6 +1074,7 @@ function App() {
     {
       void handleAiRenamePin(newPin, undefined, false);
     }
+    return newPin;
   }, [addPin, aiSettings.autoRename, handleAiRenamePin]);
 
   const handlePinFromSidebar = useCallback(async (
@@ -1088,6 +1089,7 @@ function App() {
     {
       void handleAiRenamePin(newPin, tabId, false);
     }
+    return newPin;
   }, [addPin, aiSettings.autoRename, handleAiRenamePin]);
 
   const handleAddPins = useCallback(async (
@@ -1103,6 +1105,7 @@ function App() {
         void handleAiRenamePin(pin, undefined, false);
       }
     }
+    return newPins;
   }, [addPins, aiSettings.autoRename, handleAiRenamePin]);
 
   const handleBookmarkCreated = useCallback((

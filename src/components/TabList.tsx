@@ -41,6 +41,7 @@ import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import { CloseTabAction } from '../actions/closeTabAction';
 import { ArchiveTabsAction } from '../actions/archiveTabsAction';
 import type { UndoableAction } from '../actions/types';
+import type { PinnedSite } from '../hooks/usePinnedSites';
 import { TabArchiveBatch } from '../utils/tabArchiveBatch';
 import type { ArchivableTab } from '../utils/tabArchiveBatch';
 import type { ArchiveBookmarksApi } from '../utils/archiveFolder';
@@ -915,8 +916,9 @@ const isArchivableTab = (tab: chrome.tabs.Tab): tab is chrome.tabs.Tab & Archiva
 type CloseAllMode = 'close' | 'archive';
 
 interface TabListProps {
-  onPin?: (url: string, title: string, faviconUrl?: string, tabId?: number) => void;
-  onPinMultiple?: (pins: Array<{ url: string; title: string; faviconUrl?: string }>) => void;
+  // Both resolve to the created Favorites, in the order of the request
+  onPin?: (url: string, title: string, faviconUrl?: string, tabId?: number) => Promise<PinnedSite | null>;
+  onPinMultiple?: (pins: Array<{ url: string; title: string; faviconUrl?: string }>) => Promise<PinnedSite[]>;
   tabGroupDisplayOrder?: TabGroupDisplayOrder;
   onTabGroupDisplayOrderChange?: (order: TabGroupDisplayOrder) => void;
   onExternalDropTargetChange?: (target: ExternalDropTarget | null) => void;
@@ -938,7 +940,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
   const { tabs, closeTabs, activateTab, moveTab, groupTab, ungroupTab, createGroupWithTab, createTabInGroup, createTab, duplicateTab, sortTabs, sortGroupTabs, error } = useTabs(windowId ?? undefined);
   const { tabGroups, updateGroup, moveGroup } = useTabGroups();
   const tabSpaceAssignments = useTabSpaceAssignments(windowId);
-  const { getManagedTabIds, associateExistingTab, getItemKeyForTab, restoreItemAssociation, deassociateBookmarkTab, getTabIdForBookmark, deassociatePinnedTab, getTabIdForPinned } = useBookmarkTabsContext();
+  const { getManagedTabIds, associateExistingTab, associateExistingPinnedTab, getItemKeyForTab, restoreItemAssociation, deassociateBookmarkTab, getTabIdForBookmark, deassociatePinnedTab, getTabIdForPinned } = useBookmarkTabsContext();
   const { findFolderInParent, findFolderBySegments, createFolder, createBookmark, createBookmarksBatch, getChildren, clearFolder, getBookmarkSegments, getBookmarkFolderLocation } = useBookmarks();
 
   // Use prop if provided, otherwise use context
@@ -2392,8 +2394,9 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     }
   }, [getSelectedItems, isTabMarked, performClose, clearSelection]);
 
-  // Pin selected tabs to sidebar (or single tab if not in selection)
-  const handlePinSelectedTabs = useCallback((
+  // Pin selected tabs to sidebar (or single tab if not in selection). In Arc style each tab
+  // becomes its new Favorite's tab, as "Add to bookmark" makes it the bookmark's tab
+  const handlePinSelectedTabs = useCallback(async (
     clickedUrl: string,
     clickedTitle: string,
     clickedFaviconUrl?: string,
@@ -2416,15 +2419,29 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
         title: tab.title || tab.url!,
         faviconUrl: tab.favIconUrl,
       }));
-      onPinMultiple(pins);
+      const creation = onPinMultiple(pins);
       clearSelection();
+      const newPins = await creation;
+      if (!arcStyleEnabled) return;
+      for (let i = 0; i < newPins.length; i++)
+      {
+        const tabId = selectedTabsToPin[i]?.id;
+        if (tabId !== undefined)
+        {
+          await associateExistingPinnedTab(tabId, newPins[i].id);
+        }
+      }
     }
     else
     {
       // Single tab - pin directly
-      onPin(clickedUrl, clickedTitle, clickedFaviconUrl, clickedTabId);
+      const newPin = await onPin(clickedUrl, clickedTitle, clickedFaviconUrl, clickedTabId);
+      if (arcStyleEnabled && newPin && clickedTabId !== undefined)
+      {
+        await associateExistingPinnedTab(clickedTabId, newPin.id);
+      }
     }
-  }, [onPin, onPinMultiple, getSelectedItems, visibleTabs, clearSelection]);
+  }, [onPin, onPinMultiple, getSelectedItems, visibleTabs, clearSelection, arcStyleEnabled, associateExistingPinnedTab]);
 
   // Confirm multi-close
   // Get selection info for multi-selection actions
@@ -2479,12 +2496,18 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
   {
     const { selectedTabs, selectedGroups } = getTabSelectionInfo();
 
-    // Create bookmarks for individual tabs
+    // Create bookmarks for individual tabs. In Arc style each tab becomes its bookmark's tab,
+    // as with "Add to bookmark" on one tab
+    const targetSpace = arcStyleEnabled ? await findSpaceForFolder(folderId) : undefined;
     for (const tab of selectedTabs)
     {
       if (tab.url && tab.title)
       {
         const { node } = await createBookmark(folderId, tab.title, tab.url);
+        if (arcStyleEnabled && node && tab.id)
+        {
+          await associateExistingTab(tab.id, node.id, targetSpace?.id);
+        }
         if (node) onBookmarkCreated?.(node, tab.id);
       }
     }
@@ -2511,7 +2534,8 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     clearSelection();
     setAddToBookmarkMultiDialog({ isOpen: false });
     showToast('Added to bookmarks');
-  }, [getTabSelectionInfo, visibleTabs, createBookmark, createFolder, saveLastSelectedBookmarkFolder, clearSelection, showToast, onBookmarkCreated]);
+  }, [getTabSelectionInfo, visibleTabs, createBookmark, createFolder, saveLastSelectedBookmarkFolder, clearSelection, showToast, onBookmarkCreated,
+    arcStyleEnabled, findSpaceForFolder, associateExistingTab]);
 
   // Open move to space dialog for multi-selection
   const openMoveSelectedToSpaceDialog = useCallback(() =>

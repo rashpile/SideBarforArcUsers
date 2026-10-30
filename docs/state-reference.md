@@ -104,6 +104,16 @@ Tab → bookmark/pinned site mapping (Record: tabId → itemKey, `bookmark-{id}`
 - Backup indices: refreshed on tab create, move, remove, attach and detach, so index + domain matching finds the tabs after a browser restart
 - Instances: 1 per window
 
+### `urlRecoveryDone_${windowId}`
+Marker that the sidebar's URL pass, which binds open tabs to bookmarks and Favorites by URL, already ran in this window in this browser session
+```typescript
+true
+```
+- Owner: `src/contexts/BookmarkTabsContext.tsx` through `UrlRecoveryGate` (`src/utils/urlRecoveryGate.ts`): `rebuildAssociations` writes it after `recoverFixedTabAssociations` finished; a failed pass leaves it unset, so the next rebuild retries
+- Consumers: the same window's sidebar (`UrlRecoveryGate.runOnce`) - present: the pass is skipped, so a tab opened by hand on a bookmarked URL stays a regular tab; absent (browser restart, extension reload or update, or a window whose sidebar hasn't run it yet): the pass runs once. Park pages are matched by URL on every rebuild regardless of the marker
+- Never removed: entries of closed windows stay until the browser session ends
+- Instances: 1 per window
+
 ### `bookmarkExpandedState_${windowId}`
 Folder expand/collapse state (Record: folderId → boolean)
 - Owner: `src/components/BookmarkTree.tsx`
@@ -423,6 +433,7 @@ Lost on page reload or service worker restart.
 │  ├─ spaceWindowState_{winId}        (per window)                │
 │  ├─ tabAssociations_{winId}         (per window)                │
 │  ├─ bookmarkExpandedState_{winId}   (per window)                │
+│  ├─ urlRecoveryDone_{winId}         (per window)                │
 │  ├─ tabActivityActiveTabs           (active tab per window)     │
 │  ├─ tabActivitySessionStarted       (browser session marker)    │
 │  ├─ tabRestoreSessionStarted        (browser session marker)    │

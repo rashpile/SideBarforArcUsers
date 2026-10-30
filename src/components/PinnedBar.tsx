@@ -24,7 +24,7 @@ interface PinnedBarProps
   resetFavicon: (id: string) => void;
   movePin: (activeId: string, overId: string, position?: 'before' | 'after') => void;
   duplicatePin: (id: string, liveUrl?: string, liveTitle?: string, liveFavicon?: string) => void;
-  addPin: (url: string, title: string, faviconUrl?: string, atIndex?: number) => void;
+  addPin: (url: string, title: string, faviconUrl?: string, atIndex?: number) => Promise<PinnedSite | null>;
   iconSize: number;
   bookmarkOpenMode?: BookmarkOpenMode;
   filterLiveTabs?: boolean;
@@ -48,7 +48,7 @@ export const PinnedBar = ({
   onAiRename,
 }: PinnedBarProps) =>
 {
-  const { openPinnedTab, closePinnedTab, isPinnedLoaded, isPinnedActive, isPinnedAudible, getTabIdForPinned, deassociatePinnedTab, restoreItemAssociation } = useBookmarkTabsContext();
+  const { openPinnedTab, closePinnedTab, isPinnedLoaded, isPinnedActive, isPinnedAudible, getTabIdForPinned, associateExistingPinnedTab, deassociatePinnedTab, restoreItemAssociation } = useBookmarkTabsContext();
   const { windowId, activeSpace } = useSpacesContext();
   const { activeDragData, overId, dropPosition, registerDropHandler, unregisterDropHandler } = useUnifiedDnd();
 
@@ -168,7 +168,17 @@ export const PinnedBar = ({
           {
             if (item.url)
             {
-              addPin(item.url.url, item.url.title || item.url.url, item.url.faviconUrl, insertIndex);
+              // In Arc style a dropped Tab list tab becomes its new Favorite's tab. A bookmark's
+              // tab (dragged from the tree) stays with its bookmark
+              const sourceTabId = bookmarkOpenMode === 'arc' && !item.bookmark ? item.tab?.tabId : undefined;
+              void addPin(item.url.url, item.url.title || item.url.url, item.url.faviconUrl, insertIndex)
+                .then(newPin =>
+                {
+                  if (newPin && sourceTabId !== undefined)
+                  {
+                    return associateExistingPinnedTab(sourceTabId, newPin.id);
+                  }
+                });
               if (insertIndex !== undefined) insertIndex++;
             }
           }
@@ -176,7 +186,7 @@ export const PinnedBar = ({
         break;
       }
     }
-  }, [movePin, addPin, pinnedSites]);
+  }, [movePin, addPin, pinnedSites, bookmarkOpenMode, associateExistingPinnedTab]);
 
   // Register drop handler
   useEffect(() =>

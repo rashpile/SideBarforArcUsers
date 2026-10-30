@@ -22,6 +22,7 @@ import {
   recoverFixedTabAssociations,
   recoverParkedTabAssociations,
 } from '../utils/parkedTabAssociation';
+import { UrlRecoveryGate } from '../utils/urlRecoveryGate';
 
 // Helper to create item keys
 const makeBookmarkKey = (bookmarkId: string) => `bookmark-${bookmarkId}`;
@@ -54,6 +55,7 @@ interface BookmarkTabsContextValue
   isPinnedActive: (pinnedId: string) => boolean;
   getTabIdForPinned: (pinnedId: string) => number | undefined;
   getPinnedLiveTitle: (pinnedId: string) => string | undefined;
+  associateExistingPinnedTab: (tabId: number, pinnedId: string) => Promise<void>;
   deassociatePinnedTab: (pinnedId: string) => Promise<void>;
   // Active item tracking
   getActiveItemKey: () => string | null;
@@ -99,6 +101,7 @@ export const BookmarkTabsProvider = ({ children }: BookmarkTabsProviderProps) =>
   const [isInitialized, setIsInitialized] = useState(false);
 
   const isRebuilding = useRef(false);
+  const urlRecoveryGate = useRef<{ windowId: number; gate: UrlRecoveryGate } | null>(null);
 
   // Get current window ID on mount
   useEffect(() =>
@@ -114,8 +117,9 @@ export const BookmarkTabsProvider = ({ children }: BookmarkTabsProviderProps) =>
 
   const handleError = useMemo(() => createChromeErrorHandler('BookmarkTabs', setError), []);
 
-  // Rebuild associations from storage on init
-  // Just validates that stored tabIds still exist - no URL matching
+  // Rebuilds associations from storage: keeps stored tab IDs that still exist. URL matching runs
+  // for park pages on every rebuild, and for other tabs once per browser session per window
+  // (UrlRecoveryGate), so a tab opened by hand on a bookmarked URL stays a regular tab.
   const rebuildAssociations = useCallback(async (windowId: number) =>
   {
     if (isRebuilding.current) return;
@@ -144,7 +148,6 @@ export const BookmarkTabsProvider = ({ children }: BookmarkTabsProviderProps) =>
       // only when that association is lost, read bookmarks and Favorites and heal it from the
       // park page's original URL.
       let recovered = recoverParkedTabAssociations(allTabs, associations);
-      let persistentItemsLoaded = false;
       const hasUnresolvedParkedTab = allTabs.some(tab =>
         tab.id !== undefined
         && parseParkedTabUrl(tab.url) !== null
@@ -157,11 +160,10 @@ export const BookmarkTabsProvider = ({ children }: BookmarkTabsProviderProps) =>
           chrome.bookmarks.getTree(),
           chrome.storage.local.get([PINNED_SITES_STORAGE_KEY]),
         ]);
-        persistentItemsLoaded = true;
         const pinnedSites = (pinnedResult[PINNED_SITES_STORAGE_KEY] as PinnedSite[] | undefined) ?? [];
         recovered = {
           ...recovered,
-          ...recoverFixedTabAssociations(
+          ...recoverParkedTabAssociations(
             allTabs,
             { ...associations, ...recovered },
             bookmarkRoots,
@@ -207,38 +209,46 @@ export const BookmarkTabsProvider = ({ children }: BookmarkTabsProviderProps) =>
       setMutedTabs(restored.mutedTabs);
       setIsInitialized(true);
 
-      if (!persistentItemsLoaded)
+      if (urlRecoveryGate.current?.windowId !== windowId)
       {
-        // Runs after the first state commit: pinned identities fill in shortly, without bringing
-        // back the blank wait on first open.
-        void Promise.all([
+        urlRecoveryGate.current = {
+          windowId,
+          gate: new UrlRecoveryGate({
+            get: key => chrome.storage.session.get(key),
+            set: values => chrome.storage.session.set(values),
+          }, windowId),
+        };
+      }
+      // Runs after the first state commit: pinned identities fill in shortly, without bringing
+      // back the blank wait on first open.
+      void urlRecoveryGate.current.gate.runOnce(async () =>
+      {
+        const [bookmarkRoots, pinnedResult] = await Promise.all([
           chrome.bookmarks.getTree(),
           chrome.storage.local.get([PINNED_SITES_STORAGE_KEY]),
-        ]).then(async ([bookmarkRoots, pinnedResult]) =>
-        {
-          const latestAssociations = await getTabAssociations(windowId);
-          const pinnedSites = (pinnedResult[PINNED_SITES_STORAGE_KEY] as PinnedSite[] | undefined) ?? [];
-          const fixedAssociations = recoverFixedTabAssociations(
-            allTabs,
-            latestAssociations,
-            bookmarkRoots,
-            pinnedSites
-          );
-          if (Object.keys(fixedAssociations).length === 0) return;
+        ]);
+        const latestAssociations = await getTabAssociations(windowId);
+        const pinnedSites = (pinnedResult[PINNED_SITES_STORAGE_KEY] as PinnedSite[] | undefined) ?? [];
+        const fixedAssociations = recoverFixedTabAssociations(
+          allTabs,
+          latestAssociations,
+          bookmarkRoots,
+          pinnedSites
+        );
+        if (Object.keys(fixedAssociations).length === 0) return;
 
-          await setTabAssociations(windowId, { ...latestAssociations, ...fixedAssociations });
-          await Promise.all(Object.entries(fixedAssociations).map(([tabIdText, itemKey]) =>
-          {
-            const tab = tabsById.get(Number(tabIdText));
-            if (!tab) return Promise.resolve();
-            return saveTabAssociationBackup(windowId, itemKey, {
-              tabId: Number(tabIdText),
-              url: getEffectiveTabUrl(tab.url),
-              tabIndex: tab.index,
-            });
-          }));
-        }).catch(err => console.error('Failed to recover fixed tab associations:', err));
-      }
+        await setTabAssociations(windowId, { ...latestAssociations, ...fixedAssociations });
+        await Promise.all(Object.entries(fixedAssociations).map(([tabIdText, itemKey]) =>
+        {
+          const tab = tabsById.get(Number(tabIdText));
+          if (!tab) return Promise.resolve();
+          return saveTabAssociationBackup(windowId, itemKey, {
+            tabId: Number(tabIdText),
+            url: getEffectiveTabUrl(tab.url),
+            tabIndex: tab.index,
+          });
+        }));
+      }).catch(err => console.error('Failed to recover fixed tab associations:', err));
     }
     catch (err)
     {
@@ -824,6 +834,13 @@ export const BookmarkTabsProvider = ({ children }: BookmarkTabsProviderProps) =>
     return tabId !== undefined ? tabTitles.get(tabId) : undefined;
   }, [itemToTab, tabTitles]);
 
+  // Links the tab a Favorite was just made from. The URL pass runs once per browser session,
+  // so without this the tab would stay in the Tab list and the Favorite would open a second one.
+  const associateExistingPinnedTab = useCallback(async (tabId: number, pinnedId: string): Promise<void> =>
+  {
+    await restoreItemAssociation(tabId, makePinnedKey(pinnedId));
+  }, [restoreItemAssociation]);
+
   // Deassociate a pinned site from its tab (tab stays alive, becomes unmanaged).
   // Remove the association first, then background makes it a regular tab of the current Space.
   const deassociatePinnedTab = useCallback(async (pinnedId: string): Promise<void> =>
@@ -891,6 +908,7 @@ export const BookmarkTabsProvider = ({ children }: BookmarkTabsProviderProps) =>
     isPinnedActive,
     getTabIdForPinned,
     getPinnedLiveTitle,
+    associateExistingPinnedTab,
     deassociatePinnedTab,
     getActiveItemKey,
     getManagedTabIds,
@@ -916,6 +934,7 @@ export const BookmarkTabsProvider = ({ children }: BookmarkTabsProviderProps) =>
     isPinnedActive,
     getTabIdForPinned,
     getPinnedLiveTitle,
+    associateExistingPinnedTab,
     deassociatePinnedTab,
     getActiveItemKey,
     getManagedTabIds,
