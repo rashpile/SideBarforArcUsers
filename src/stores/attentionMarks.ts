@@ -136,8 +136,9 @@ export class TabMarks
 
   /**
    * The marks re-attached to the live tabs after a browser restart or extension
-   * reload, when a stored ID may belong to an unrelated tab: the ID counts only
-   * on the record's site, the rest are found by URL and position. Each matched
+   * reload, when a stored ID may belong to an unrelated tab: a tab on the
+   * record's URL wins, an ID tab on another page of the record's site is the
+   * last resort, an ID on another site never counts. Each matched
    * record is rebuilt from its live tab (new ID, window, URL, position), so
    * storage written from the result holds only IDs of this browser session;
    * records without a live tab are dropped. Incognito tabs never take a mark.

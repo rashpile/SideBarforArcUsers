@@ -21,6 +21,19 @@ test('after a browser restart a mark re-attaches by URL and position, not to an 
   assert.deepEqual(rematched.toStored(), [record(12, 1, 'https://a.test/doc', 2)]);
 });
 
+test('after a browser restart a mark goes to the tab on its page, not to another page of the site reusing the old ID', () =>
+{
+  const marks = TabMarks.fromStored([record(5, 1, 'https://docs.test/document-a', 0)]);
+  const liveTabs = [
+    tab(5, 1, 'https://docs.test/document-b', 0),
+    tab(12, 1, 'https://docs.test/document-a', 1),
+  ];
+
+  const rematched = marks.rematched(liveTabs);
+
+  assert.deepEqual(rematched.markedTabIds(), [12]);
+});
+
 test('on a worker restart a mark stays with its tab ID even after the tab left the site', () =>
 {
   const marks = TabMarks.fromStored([record(7, 1, 'https://mail.test/inbox', 3)]);

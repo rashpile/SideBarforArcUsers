@@ -13,14 +13,45 @@ const matchedIds = matches => matches.map(({ record, tab }) => [record.tabId, ta
 const AFTER_RESTART = { idMatch: 'sameWindowAndSite' };
 const SAME_SESSION = { idMatch: 'sameWindow' };
 
-test('a record keeps the tab with the same ID in the same window after it navigated within the site', () =>
+test('browser restart: a record keeps the tab with the same ID in the same window after it navigated within the site', () =>
 {
   const records = [record(5, 1, 'https://a.test/start', 0)];
   const tabs = [
-    tab(2, 1, 'https://a.test/start', 0),
+    tab(2, 1, 'https://a.test/elsewhere', 0),
     tab(5, 1, 'https://a.test/other', 3),
   ];
   assert.deepEqual(matchedIds(matchStoredTabs(records, tabs, AFTER_RESTART)), [[5, 5]]);
+});
+
+test('browser restart: a tab on the stored URL beats a reused ID on another page of the site', () =>
+{
+  // document-a reopened as tab 12; Chrome gave the old ID 5 to document-b
+  const records = [record(5, 1, 'https://docs.test/document-a', 0)];
+  const tabs = [
+    tab(5, 1, 'https://docs.test/document-b', 0),
+    tab(12, 1, 'https://docs.test/document-a', 1),
+  ];
+  assert.deepEqual(matchedIds(matchStoredTabs(records, tabs, AFTER_RESTART)), [[5, 12]]);
+});
+
+test('browser restart: an ID on the stored URL is kept before the URL pass', () =>
+{
+  const records = [record(5, 1, 'https://a.test/doc', 4)];
+  const tabs = [
+    tab(3, 1, 'https://a.test/doc', 4),
+    tab(5, 1, 'https://a.test/doc', 0),
+  ];
+  assert.deepEqual(matchedIds(matchStoredTabs(records, tabs, AFTER_RESTART)), [[5, 5]]);
+});
+
+test('browser restart: a same-site ID tab another record took by URL is not given twice', () =>
+{
+  const records = [
+    record(5, 1, 'https://a.test/x', 0),
+    record(8, 1, 'https://a.test/y', 1),
+  ];
+  const tabs = [tab(5, 1, 'https://a.test/y', 0)];
+  assert.deepEqual(matchedIds(matchStoredTabs(records, tabs, AFTER_RESTART)), [[8, 5]]);
 });
 
 test('an ID reused by a page of another site is not an exact match (browser restart)', () =>

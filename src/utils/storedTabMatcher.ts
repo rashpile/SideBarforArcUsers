@@ -30,10 +30,12 @@ export interface LiveTabLike
  *   record's tab, whatever page it shows now. For IDs of the running browser
  *   session (worker restart): they are exact, while the stored URL may lag a
  *   navigation that happened while the worker slept.
- * - 'sameWindowAndSite': as 'sameWindow', but only when the tab is on the
- *   record's site (isSameSite). For IDs that may come from an earlier browser
- *   session (browser restart, extension reload or update), so an ID reused by
- *   an unrelated page is not taken.
+ * - 'sameWindowAndSite': for IDs that may come from an earlier browser session
+ *   (browser restart, extension reload or update). The ID's tab is taken first
+ *   only when it shows the stored URL. A tab elsewhere showing the stored URL
+ *   beats an ID that is only on the record's site (isSameSite), since Chrome
+ *   may have reused the ID for another page of that site; the same-site ID is
+ *   tried last. An ID on another site is never taken.
  */
 export type StoredTabIdMatch = 'off' | 'sameWindow' | 'sameWindowAndSite';
 
@@ -72,6 +74,16 @@ export function isSameSite(storedUrl: string, liveUrl: string): boolean
   return host ? host === hostOf(liveUrl) : storedUrl === liveUrl;
 }
 
+/** What the URL of the stored ID's tab must be for claimById to take it. */
+type IdTabUrl = 'any' | 'sameUrl' | 'sameSite';
+
+function urlAccepted(rule: IdTabUrl, storedUrl: string, liveUrl: string): boolean
+{
+  if (rule === 'sameUrl') return storedUrl === liveUrl;
+  if (rule === 'sameSite') return isSameSite(storedUrl, liveUrl);
+  return true;
+}
+
 /** Live tabs not yet given to a record. Each tab is handed out at most once. */
 class UnclaimedTabs<T extends LiveTabLike>
 {
@@ -82,13 +94,13 @@ class UnclaimedTabs<T extends LiveTabLike>
     this.#tabs = liveTabs.filter((tab): tab is T & { id: number } => tab.id !== undefined);
   }
 
-  /** The tab with the record's ID in its window (and, if asked, on its site), if still unclaimed. */
-  claimById(record: StoredTabRecord, requireSameSite: boolean): (T & { id: number }) | undefined
+  /** The tab with the record's ID in its window whose URL passes the rule, if still unclaimed. */
+  claimById(record: StoredTabRecord, rule: IdTabUrl): (T & { id: number }) | undefined
   {
     const position = this.#tabs.findIndex(tab =>
       tab.id === record.tabId &&
       tab.windowId === record.windowId &&
-      (!requireSameSite || isSameSite(record.url, tab.url ?? '')));
+      urlAccepted(rule, record.url, tab.url ?? ''));
     return this.#take(position);
   }
 
@@ -122,11 +134,12 @@ class UnclaimedTabs<T extends LiveTabLike>
 }
 
 /**
- * Pair stored records with live tabs. Unless idMatch is 'off', records whose tab
- * ID still exists in the same window (on the same site for 'sameWindowAndSite')
- * keep that tab first; the remaining records then take the unclaimed tab on the
- * same URL with the nearest index. Records without a matching tab are dropped.
- * Pairs come back in record order.
+ * Pair stored records with live tabs. With 'sameWindow', records whose tab ID
+ * still exists in the same window keep that tab first. With 'sameWindowAndSite',
+ * only an ID tab on the stored URL is kept first; a same-site ID tab is tried
+ * after the URL pass. The URL pass gives each remaining record the unclaimed tab
+ * on the same URL with the nearest index. Records without a matching tab are
+ * dropped. Pairs come back in record order.
  */
 export function matchStoredTabs<R extends StoredTabRecord, T extends LiveTabLike>(
   records: readonly R[],
@@ -137,22 +150,23 @@ export function matchStoredTabs<R extends StoredTabRecord, T extends LiveTabLike
   const unclaimed = new UnclaimedTabs(liveTabs);
   const matchedTabs: Array<(T & { id: number }) | undefined> = new Array(records.length);
 
-  // Pass 1: exact tab ID in the same window, so a stale record earlier in the list can't take the tab by URL
-  if (options.idMatch !== 'off')
+  const claimForUnmatched = (claim: (record: R) => (T & { id: number }) | undefined): void =>
   {
-    const requireSameSite = options.idMatch === 'sameWindowAndSite';
     records.forEach((record, position) =>
     {
-      matchedTabs[position] = unclaimed.claimById(record, requireSameSite);
+      if (!matchedTabs[position]) matchedTabs[position] = claim(record);
     });
-  }
+  };
 
-  // Pass 2: records still without a tab look for the same URL nearest to their old position
-  records.forEach((record, position) =>
-  {
-    if (matchedTabs[position]) return;
-    matchedTabs[position] = unclaimed.claimNearestByUrl(record.url, record.index);
-  });
+  // ID passes run before the URL pass, so a stale record earlier in the list can't take the tab by URL
+  if (options.idMatch === 'sameWindow') claimForUnmatched(record => unclaimed.claimById(record, 'any'));
+  if (options.idMatch === 'sameWindowAndSite') claimForUnmatched(record => unclaimed.claimById(record, 'sameUrl'));
+
+  claimForUnmatched(record => unclaimed.claimNearestByUrl(record.url, record.index));
+
+  // After a browser restart a same-site ID is the weakest hint: Chrome may have reused it for another
+  // page of the site while the record's page reopened under a new ID, which the URL pass found
+  if (options.idMatch === 'sameWindowAndSite') claimForUnmatched(record => unclaimed.claimById(record, 'sameSite'));
 
   return records.flatMap((record, position) =>
   {

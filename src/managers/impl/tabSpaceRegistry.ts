@@ -136,9 +136,9 @@ export class TabSpaceRegistry implements RoutedManager, TabSpaceRegistryApi
 
     // Re-attach each stored assignment. On a worker restart a record keeps the tab with its ID in
     // its window whatever page that tab shows now: the stored URL lags a navigation that happened
-    // while the worker slept. After a browser restart or an extension reload/update the ID counts
-    // only on the record's site, since Chrome hands out low IDs again. The rest are found by URL
-    // and position.
+    // while the worker slept. After a browser restart or an extension reload/update Chrome hands
+    // out low IDs again, so the URL and position come first and an ID counts only on the record's
+    // site, after a tab on the stored URL.
     const idMatch = sameBrowserSession ? 'sameWindow' : 'sameWindowAndSite';
     for (const { record, tab } of matchStoredTabs(data, tabs, { idMatch }))
     {
