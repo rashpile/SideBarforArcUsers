@@ -115,13 +115,13 @@ Issue: https://github.com/rashpile/SideBarforArcUsers/issues/14
 - Modify: `src/background.ts`
 - Create: `tests/attentionMarkManager.test.mjs`
 
-- [ ] create `attentionMarkApi.ts`: `AttentionMarkApi` interface (`markTabs`, `clearTabs`, `markBookmarks`, `clearBookmarks`, `getState`), `AttentionMarksState`, `ATTENTION_MARKS_CHANGED`
-- [ ] add `ManagerId.ATTENTION_MARKS` to `messageRouting.ts`
-- [ ] create `AttentionMarkManager` (`RoutedManager`, `AttentionMarkApi`; `.ts` sibling imports so tests can load it): `dispatch`, serialized writes, broadcast with `senderId`, `load(sameBrowserSession)` (rematch tabs against `chrome.tabs.query({})` and await writing the rebuilt records back when they differ from storage; drop bookmark ids missing from `chrome.bookmarks.getTree()`; each side's failure caught and logged, per the `tabMarksLoaded` rule under "Calls made while planning"), `isTabMarked(tabId)`, `tabMarksLoaded`
-- [ ] add event methods: `handleTabRemoved(tabId, isWindowClosing)` (keeps the mark when the window is closing), `handleTabChanged(tab)` (follow), `handleBookmarksRemoved(ids)`
-- [ ] wire in `background.ts`: build the manager, add `sameBrowserSession.then(same => attentionMarkManager.load(same))` to `managerLoadPromise`, `registerManager`, call the event methods from `tabs.onRemoved`, `onUpdated` (when `changeInfo.url`), `onMoved` (a move shifts other tabs' indexes: refresh every marked tab of that window), `onAttached`, `bookmarks.onRemoved` (ids from the existing `collectBookmarkIds`)
-- [ ] write `tests/attentionMarkManager.test.mjs` with a fake `globalThis.chrome` (as `tests/tabSpaceRegistry.test.mjs`): (a) a browser-restart `load(false)` writes the new tab IDs, so a later `load(true)` doesn't give the mark to a tab reusing the old ID; (b) `handleTabRemoved` with `isWindowClosing` keeps the record, without it clears it; (c) `handleBookmarksRemoved` with a folder's subtree ids drops the nested bookmarks' marks; (d) after a malformed stored tab value, a tab event doesn't overwrite the stored value
-- [ ] run `make test`, `make lint`, `make build` - must pass before task 3
+- [x] create `attentionMarkApi.ts`: `AttentionMarkApi` interface (`markTabs`, `clearTabs`, `markBookmarks`, `clearBookmarks`, `getState`), `AttentionMarksState`, `ATTENTION_MARKS_CHANGED`
+- [x] add `ManagerId.ATTENTION_MARKS` to `messageRouting.ts`
+- [x] create `AttentionMarkManager` (`RoutedManager`, `AttentionMarkApi`; `.ts` sibling imports so tests can load it): `dispatch`, serialized writes, broadcast with `senderId`, `load(sameBrowserSession)` (rematch tabs against `chrome.tabs.query({})` and await writing the rebuilt records back when they differ from storage; drop bookmark ids missing from `chrome.bookmarks.getTree()`; each side's failure caught and logged, per the `tabMarksLoaded` rule under "Calls made while planning"), `isTabMarked(tabId)`, `tabMarksLoaded`
+- [x] add event methods: `handleTabRemoved(tabId, isWindowClosing)` (keeps the mark when the window is closing), `handleTabChanged(tab)` (follow), `handleBookmarksRemoved(ids)`
+- [x] wire in `background.ts`: build the manager, add `sameBrowserSession.then(same => attentionMarkManager.load(same))` to `managerLoadPromise`, `registerManager`, call the event methods from `tabs.onRemoved`, `onUpdated` (when `changeInfo.url`), `onMoved` (a move shifts other tabs' indexes: refresh every marked tab of that window), `onAttached`, `bookmarks.onRemoved` (ids from the existing `collectBookmarkIds`)
+- [x] write `tests/attentionMarkManager.test.mjs` with a fake `globalThis.chrome` (as `tests/tabSpaceRegistry.test.mjs`): (a) a browser-restart `load(false)` writes the new tab IDs, so a later `load(true)` doesn't give the mark to a tab reusing the old ID; (b) `handleTabRemoved` with `isWindowClosing` keeps the record, without it clears it; (c) `handleBookmarksRemoved` with a folder's subtree ids drops the nested bookmarks' marks; (d) after a malformed stored tab value, a tab event doesn't overwrite the stored value
+- [x] run `make test`, `make lint`, `make build` - must pass before task 3
 
 ### Task 3: Sidebar proxy and hook
 
