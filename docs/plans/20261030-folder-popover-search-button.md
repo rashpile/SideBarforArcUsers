@@ -61,19 +61,19 @@
 - Modify: `src/components/FolderRecentPopover.tsx`
 - Modify: `src/components/BookmarkTree.tsx`
 
-- [ ] in `FolderRecentPopover.tsx` rename `rowHandlers` to `triggerHandlers`, anchor to the trigger's closest `[data-bookmark-id]` row, add the `onClick` handler (open at once, no-op when open or disabled, stops propagation)
-- [ ] set `OPEN_DELAY_MS` to 200; update the file header and hook comments (no longer "on a collapsed folder" / "rests on the folder row") and the effect comment "Expanding the folder, starting a drag or leaving Arc mode closes the peek" (expanding no longer disables it)
-- [ ] in `FolderRecentPopover` set `left` to `Math.max(VIEWPORT_MARGIN, Math.min(anchorRect.left, anchorRect.right - MAX_WIDTH))` with a why-comment (popover under the right-edge button on a wide sidebar)
-- [ ] in `BookmarkTree.tsx` move the peek condition into a `canPeek` const without `!expandedState[node.id]`, pass it to `useFolderPeek`, and update the comment above it
-- [ ] remove the row's `onPointerEnter` / `onPointerLeave` peek handlers from `TreeRow`
-- [ ] add the `Search` button first in `actions`, shown only when `canPeek`, hover-visible, kept visible while the popover is open, with `triggerHandlers` and `onPointerDown` stopping propagation; import `Search` from `lucide-react`
-- [ ] run `make lint && make test && make build` - must pass before task 2
+- [x] in `FolderRecentPopover.tsx` rename `rowHandlers` to `triggerHandlers`, anchor to the trigger's closest `[data-bookmark-id]` row, add the `onClick` handler (open at once, no-op when open or disabled, stops propagation)
+- [x] set `OPEN_DELAY_MS` to 200; update the file header and hook comments (no longer "on a collapsed folder" / "rests on the folder row") and the effect comment "Expanding the folder, starting a drag or leaving Arc mode closes the peek" (expanding no longer disables it)
+- [x] in `FolderRecentPopover` set `left` to `Math.max(VIEWPORT_MARGIN, Math.min(anchorRect.left, anchorRect.right - MAX_WIDTH))` with a why-comment (popover under the right-edge button on a wide sidebar)
+- [x] in `BookmarkTree.tsx` move the peek condition into a `canPeek` const without `!expandedState[node.id]`, pass it to `useFolderPeek`, and update the comment above it
+- [x] remove the row's `onPointerEnter` / `onPointerLeave` peek handlers from `TreeRow`
+- [x] add the `Search` button first in `actions`, shown only when `canPeek`, hover-visible, kept visible while the popover is open, with `triggerHandlers` and `onPointerDown` stopping propagation; import `Search` from `lucide-react`
+- [x] run `make lint && make test && make build` - must pass before task 2
 
 ### Task 2: Verify acceptance criteria
-- [ ] verify by reading the wiring: no pointer handler on the folder row opens the popover; only the button's handlers call the open path
-- [ ] verify the button stops `pointerdown` and `click` propagation (no folder toggle, no drag start) and is hidden for special folders, outside Arc mode and during a drag
-- [ ] verify the pointer handoff: leaving the button schedules a close that entering the popover cancels
-- [ ] run full checks: `make lint && make test && make build`
+- [x] verify by reading the wiring: no pointer handler on the folder row opens the popover; only the button's handlers call the open path
+- [x] verify the button stops `pointerdown` and `click` propagation (no folder toggle, no drag start) and is hidden for special folders, outside Arc mode and during a drag
+- [x] verify the pointer handoff: leaving the button schedules a close that entering the popover cancels
+- [x] run full checks: `make lint && make test && make build`
 
 ### Task 3: [Final] Update documentation
 - [ ] `README.md` line 54: hover or click the search button on a folder row to see its recently used pages, newest first, with search
