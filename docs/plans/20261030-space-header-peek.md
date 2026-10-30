@@ -120,12 +120,12 @@
 - Modify: `src/App.tsx`
 - Modify: `src/index.css`
 
-- [ ] pass `bookmarkOpenMode` from `App` to `SpaceTitleWrapper` (new prop)
-- [ ] in `SpaceTitleWrapper`: read recency read-only (`useChromeLocalStorage` + `BookmarkRecency`), drag state from `useUnifiedDndOptional()`, compute `canPeek`, call `useFolderPeek(canPeek)`, get `openBookmarkTab` from `useBookmarkTabsContext`
-- [ ] build the search button (folder row's handlers, `...` button's style, `aria-expanded={!!peek.anchorRect}`) and pass it through `SpaceTitle` to `SectionHeader`'s `actions` when `canPeek`
-- [ ] in `src/index.css`, add `.arc-space-title button[aria-expanded="true"] { opacity: 1; }` beside the `.arc-space-title:hover button` rule
-- [ ] render `FolderRecentPopover` for `spaceRoot` (keyed by `spaceRoot.id`) while `peek.anchorRect` is set; picking a page closes the peek and calls `openPeekBookmark` with `openBookmarkTab(id, url, activeSpace.id)`
-- [ ] run `make lint && make test` - must pass before task 4
+- [x] pass `bookmarkOpenMode` from `App` to `SpaceTitleWrapper` (new prop)
+- [x] in `SpaceTitleWrapper`: read recency read-only (`useChromeLocalStorage` + `BookmarkRecency`), drag state from `useUnifiedDndOptional()`, compute `canPeek`, call `useFolderPeek(canPeek)`, get `openBookmarkTab` from `useBookmarkTabsContext`
+- [x] build the search button (folder row's handlers, `...` button's style, `aria-expanded={!!peek.anchorRect}`) and pass it through `SpaceTitle` to `SectionHeader`'s `actions` when `canPeek`
+- [x] in `src/index.css`, add `.arc-space-title button[aria-expanded="true"] { opacity: 1; }` beside the `.arc-space-title:hover button` rule
+- [x] render `FolderRecentPopover` for `spaceRoot` (keyed by `spaceRoot.id`) while `peek.anchorRect` is set; picking a page closes the peek and calls `openPeekBookmark` with `openBookmarkTab(id, url, activeSpace.id)`
+- [x] run `make lint && make test` - must pass before task 4
 
 ### Task 4: Verify acceptance criteria
 - [ ] code check: the button renders only when `canPeek` (`spaceRoot`, `arc` mode, no drag) and sits in `.arc-space-title`, whose hover rule shows it; the `aria-expanded="true"` rule keeps it visible while the popover is open

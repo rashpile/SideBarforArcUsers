@@ -27,13 +27,15 @@ import { ConfirmDeleteDialog } from './components/ConfirmDeleteDialog';
 import { BookmarkCreateFolderModal } from './components/BookmarkCreateFolderModal';
 import { SpacesProvider, Space, useSpacesContext } from './contexts/SpacesContext';
 import { SelectionProvider } from './contexts/SelectionContext';
-import { UnifiedDndProvider } from './contexts/UnifiedDndContext';
+import { UnifiedDndProvider, useUnifiedDndOptional } from './contexts/UnifiedDndContext';
 import { UnifiedDragOverlay } from './components/UnifiedDragOverlay';
 import { SpaceDialogs } from './components/SpaceDialogs';
 import { useFontSize } from './contexts/FontSizeContext';
 import { getSpaceBgColor, getSpaceAccentRgb } from './utils/groupColors';
-import { Settings, Info, Upload, Download, RefreshCw, Undo2, Sparkles } from 'lucide-react';
+import { Settings, Info, Upload, Download, RefreshCw, Undo2, Sparkles, Search } from 'lucide-react';
 import { SectionHeader } from './components/SectionHeader';
+import { FolderRecentPopover, useFolderPeek, openPeekBookmark } from './components/FolderRecentPopover';
+import { BookmarkRecency, BookmarkRecencyRecord, BOOKMARK_RECENCY_KEY } from './stores/bookmarkRecencyStore';
 import { SpaceContextMenuContent } from './components/SpaceContextMenuContent';
 import { lastAudibleTrackerProxy } from './managers/proxies/lastAudibleTrackerProxy';
 import { useFollowActiveTab } from './hooks/useFollowActiveTab';
@@ -266,9 +268,10 @@ interface SpaceTitleProps
   onCreateFolder?: () => void;
   bookmarksCollapsed: boolean;  // Bookmarks section as shown (chevron direction)
   onToggleBookmarks?: () => void;  // Omitted while the text filter shows the section expanded
+  peekButton?: React.ReactNode;  // Search recent pages of the Space folder, before the "..." button
 }
 
-const SpaceTitle: React.FC<SpaceTitleProps> = ({ onEditSpace, onDeleteSpace, onCloseAllTabs, onCreateFolder, bookmarksCollapsed, onToggleBookmarks }) =>
+const SpaceTitle: React.FC<SpaceTitleProps> = ({ onEditSpace, onDeleteSpace, onCloseAllTabs, onCreateFolder, bookmarksCollapsed, onToggleBookmarks, peekButton }) =>
 {
   const { spaces, activeSpace } = useSpacesContext();
   const fontSize = useFontSize();
@@ -309,6 +312,7 @@ const SpaceTitle: React.FC<SpaceTitleProps> = ({ onEditSpace, onDeleteSpace, onC
       className="arc-space-title"
       collapsed={bookmarksCollapsed}
       onToggleCollapsed={onToggleBookmarks}
+      actions={peekButton}
     />
   );
 };
@@ -321,6 +325,7 @@ interface SpaceTitleWrapperProps
   onPerformAction?: (action: UndoableAction) => Promise<void>;
   sectionCollapseState: SectionCollapseState;  // As shown (see App)
   onToggleSection?: ToggleSection;  // Undefined while the text filter shows every section expanded
+  bookmarkOpenMode: BookmarkOpenMode;
 }
 
 const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({
@@ -329,10 +334,12 @@ const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({
   onPerformAction,
   sectionCollapseState,
   onToggleSection,
+  bookmarkOpenMode,
 }) =>
 {
   const { activeSpace, activeSpaceId, getTabIdsInSpace, windowId } = useSpacesContext();
-  const { getItemKeyForTab, restoreItemAssociation } = useBookmarkTabsContext();
+  const { getItemKeyForTab, restoreItemAssociation, openBookmarkTab } = useBookmarkTabsContext();
+  const fontSize = useFontSize();
   const { findFolderBySegments, createFolder } = useBookmarks();
   const { isTabMarked } = useAttentionMarks();
   const [confirmCloseAllDialog, setConfirmCloseAllDialog] = useState<{
@@ -343,6 +350,35 @@ const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({
 
   // Root folder of the active space - target for "New Folder" in the space menu
   const spaceRoot = findFolderBySegments(activeSpace.bookmarkFolderSegments ?? [], activeSpace.bookmarkFolderInAccount);
+
+  // Read-only: background is the only writer of recency
+  const [recencyRecord] = useChromeLocalStorage<BookmarkRecencyRecord>(BOOKMARK_RECENCY_KEY, {});
+  const recency = useMemo(() => new BookmarkRecency(recencyRecord), [recencyRecord]);
+  const dragActive = !!useUnifiedDndOptional()?.activeId;
+
+  // The Space header peeks its folder's recent pages, like a folder row does
+  const canPeek = !!spaceRoot && bookmarkOpenMode === 'arc' && !dragActive;
+  const peek = useFolderPeek(canPeek);
+  const peekIconSize = Math.max(fontSize, 14);
+
+  const handlePeekOpen = (bookmark: chrome.bookmarks.BookmarkTreeNode, e: React.MouseEvent | React.KeyboardEvent) =>
+  {
+    peek.close();
+    openPeekBookmark(bookmark, e, windowId, (id, url) => openBookmarkTab(id, url, activeSpace.id));
+  };
+
+  const peekButton = canPeek ? (
+    <button
+      onPointerDown={(e) => e.stopPropagation()}
+      {...peek.triggerHandlers}
+      className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"
+      title="Search recent pages"
+      aria-label="Search recent pages"
+      aria-expanded={!!peek.anchorRect}
+    >
+      <Search size={peekIconSize} />
+    </button>
+  ) : undefined;
 
   // The Space title toggles the Bookmarks section; keyed like SidebarContent's tree
   const bookmarksCollapsed = sectionCollapseState.isCollapsed(activeSpaceId, 'bookmarks');
@@ -417,7 +453,21 @@ const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({
         onCreateFolder={spaceRoot ? handleCreateFolder : undefined}
         bookmarksCollapsed={bookmarksCollapsed}
         onToggleBookmarks={onToggleSection && handleToggleBookmarks}
+        peekButton={peekButton}
       />
+      {peek.anchorRect && spaceRoot && (
+        <FolderRecentPopover
+          key={spaceRoot.id}
+          folder={spaceRoot}
+          anchorRect={peek.anchorRect}
+          popoverRef={peek.popoverRef}
+          recency={recency}
+          onOpenBookmark={handlePeekOpen}
+          onClose={peek.close}
+          onPointerEnter={peek.popoverHandlers.onPointerEnter}
+          onPointerLeave={peek.popoverHandlers.onPointerLeave}
+        />
+      )}
       <BookmarkCreateFolderModal
         isOpen={creatingFolderParentId !== null}
         parentId={creatingFolderParentId}
@@ -1537,6 +1587,7 @@ function Sidebar() {
         onPerformAction={performAction}
         sectionCollapseState={sectionCollapseState}
         onToggleSection={toggleShownSection}
+        bookmarkOpenMode={bookmarkOpenMode}
       />
 
       {/* Content with 2-finger swipe navigation */}
