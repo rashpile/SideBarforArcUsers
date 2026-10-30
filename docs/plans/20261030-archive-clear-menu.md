@@ -129,10 +129,10 @@ constructor(api, archiveFolderId: string, option: ArchiveClearOption, now: () =>
 - Modify: `src/utils/archiveItems.ts`
 - Modify: `tests/archiveItems.test.mjs`
 
-- [ ] add `ArchiveClearOption` (label, `maxAgeMs`, four statics, ordered list) to `src/utils/archiveItems.ts`
-- [ ] add `ArchiveItems.clearable(option, now)`: all pages for `ALL`; `dateAdded <= now - maxAgeMs` for age options; pages without `dateAdded` only for `ALL`
-- [ ] write tests: cutoff boundary (exactly at the cutoff, just newer, older), pages without `dateAdded`, subfolder pages included, a nested `asd_Archive` folder's pages excluded
-- [ ] run `make test` - must pass before task 2
+- [x] add `ArchiveClearOption` (label, `maxAgeMs`, four statics, ordered list) to `src/utils/archiveItems.ts`
+- [x] add `ArchiveItems.clearable(option, now)`: all pages for `ALL`; `dateAdded <= now - maxAgeMs` for age options; pages without `dateAdded` only for `ALL`
+- [x] write tests: cutoff boundary (exactly at the cutoff, just newer, older), pages without `dateAdded`, subfolder pages included, a nested `asd_Archive` folder's pages excluded
+- [x] run `make test` - must pass before task 2
 
 ### Task 2: ClearArchiveAction
 
