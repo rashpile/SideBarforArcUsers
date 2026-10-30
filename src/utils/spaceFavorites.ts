@@ -117,3 +117,29 @@ export function allFavoriteUrls(roots: BookmarkNode[], spaces: readonly Favorite
 {
   return allFavoriteBookmarks(roots, spaces).map(({ bookmark }) => bookmark.url!);
 }
+
+/**
+ * The Spaces a Favorite of `from` can move to: those with a bookmark folder of their
+ * own. A Space that shares the source's folder is left out, since moving there
+ * changes nothing (see "One folder, one Space" in CLAUDE.md).
+ */
+export function favoritesMoveTargets<S extends FavoritesSpace>(
+  roots: BookmarkNode[],
+  spaces: readonly S[],
+  from: FavoritesSpace
+): S[]
+{
+  const sourceFolderId = findSpaceFolder(roots, from)?.id;
+  return spaces.filter(space =>
+  {
+    if (space.id === from.id) return false;
+    const folder = findSpaceFolder(roots, space);
+    return folder !== null && folder.id !== sourceFolderId;
+  });
+}
+
+/** The bookmark folder of a Space, or null when it has none or it can't be found. */
+export function favoritesSpaceFolder(roots: BookmarkNode[], space: FavoritesSpace): BookmarkNode | null
+{
+  return findSpaceFolder(roots, space);
+}

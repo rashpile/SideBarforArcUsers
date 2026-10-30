@@ -856,6 +856,8 @@ function Sidebar() {
     resetFavicon,
     movePin,
     duplicatePin,
+    getMoveTargets,
+    movePinToSpace,
     replacePinnedSites,
     appendPinnedSites,
     needsFolderHint: favoritesNeedFolderHint,
@@ -1502,6 +1504,8 @@ function Sidebar() {
         movePin={movePin}
         duplicatePin={duplicatePin}
         addPin={handleAddPin}
+        getMoveTargets={getMoveTargets}
+        movePinToSpace={movePinToSpace}
         iconSize={pinnedIconSize}
         bookmarkOpenMode={bookmarkOpenMode}
         filterLiveTabs={showFilterArea && filterLiveTabs}

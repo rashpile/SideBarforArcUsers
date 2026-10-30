@@ -4,7 +4,7 @@ import { iconToDataUrl } from '../utils/iconify';
 import { favoriteIconsManagerProxy } from '../managers/proxies/favoriteIconsManagerProxy';
 import type { FavoriteFaviconPatch, FavoriteIconEntry } from '../managers/shared/favoriteIconsApi';
 import type { PinnedSite } from '../managers/shared/pinnedSitesApi';
-import { SpaceFavorites, type FavoritesSpace } from '../utils/spaceFavorites';
+import { SpaceFavorites, favoritesMoveTargets, favoritesSpaceFolder, type FavoritesSpace } from '../utils/spaceFavorites';
 import { ensureFavoritesFolder, type FavoritesBookmarksApi } from '../utils/favoritesFolder';
 import { bookmarkTreeStore, runBatchOperation } from './useBookmarks';
 
@@ -513,6 +513,35 @@ export const usePinnedSites = (space: FavoritesSpace) =>
     })();
   }, [readFavorites, storeIcons, reportFailure]);
 
+  /** The Spaces a Favorite of this Space can move to, as the bookmark tree is now. */
+  const getMoveTargets = useCallback(<S extends FavoritesSpace>(spaces: readonly S[]): S[] =>
+  {
+    return favoritesMoveTargets(bookmarkTreeStore.getSnapshot().bookmarks, spaces, space);
+  }, [space]);
+
+  /**
+   * Moves a Favorite to the end of another Space's Favorites. A move keeps the
+   * bookmark id, so its icon entry and tab association stay with it. False when
+   * nothing moved.
+   */
+  const movePinToSpace = useCallback(async (id: string, target: FavoritesSpace): Promise<boolean> =>
+  {
+    const targetFolder = favoritesSpaceFolder(bookmarkTreeStore.getSnapshot().bookmarks, target);
+    if (!targetFolder) return false;
+
+    try
+    {
+      const favoritesFolder = await ensureFavoritesFolder(chromeFavoritesBookmarks, targetFolder.id);
+      await chrome.bookmarks.move(id, { parentId: favoritesFolder.id });
+      return true;
+    }
+    catch (err)
+    {
+      reportFailure('movePinToSpace', err);
+      return false;
+    }
+  }, [reportFailure]);
+
   // Scenario 2a: replace the active Space's Favorites from our own JSON backup.
   // favicon is already embedded as base64 in the backup — no fetch needed.
   // Sites with missing favicon (old backups) are handled by the lazy-resolve effect.
@@ -559,6 +588,8 @@ export const usePinnedSites = (space: FavoritesSpace) =>
     resetFavicon,
     movePin,
     duplicatePin,
+    getMoveTargets,
+    movePinToSpace,
     replacePinnedSites,
     appendPinnedSites,
     refresh: loadIcons,

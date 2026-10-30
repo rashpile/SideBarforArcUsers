@@ -340,12 +340,15 @@ with the live tab's url and index, and the old key's entry is removed.
 **Files:**
 - Modify: `src/components/PinnedIcon.tsx` (context menu), `src/hooks/usePinnedSites.ts`
 
-- [ ] "Move to Space ▸" submenu listing the other Spaces that have a bookmark folder; moves the
+- [x] "Move to Space ▸" submenu listing the other Spaces that have a bookmark folder; moves the
   bookmark into the target's `asd_Favorites` (`ensureFavoritesFolder`), keeping id, icon entry and
   tab association
-- [ ] an open tab of the moved Favorite is registered in the target Space (`tabSpaceRegistryProxy`),
+- [x] an open tab of the moved Favorite is registered in the target Space (`tabSpaceRegistryProxy`),
   so it does not stay hidden in the source Space
-- [ ] `make lint && make build` - must pass before next task
+- [x] `make lint && make build` - must pass before next task
+- ➕ the target list comes from `favoritesMoveTargets` (`src/utils/spaceFavorites.ts`): other Spaces
+  whose bookmark folder resolves and differs from the source's; read when the menu opens. The
+  Favorite goes to the end of the target's Favorites
 
 ### Task 10: keyboard switcher treats Favorite tabs as tabs of their Space
 

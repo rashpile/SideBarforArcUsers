@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, useState, useRef, useCallback } from 'react';
-import { Globe, Pencil, Trash, X, RotateCcw, Copy, ExternalLink, Link, ArrowRightFromLine, Sparkles } from 'lucide-react';
+import { Globe, Pencil, Trash, X, RotateCcw, Copy, ExternalLink, Link, ArrowRightFromLine, Sparkles, FolderInput } from 'lucide-react';
 import { Dialog } from './Dialog';
 import { PinnedSite, getFaviconUrl, fetchFaviconAsBase64 } from '../hooks/usePinnedSites';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
@@ -9,6 +9,7 @@ import { PINNED_SITE_COLORS, DEFAULT_ICON_COLOR } from '../utils/iconPickerOptio
 import { iconToDataUrl } from '../utils/iconify';
 import { createPinDragData, DropData, DropPosition, DragFormat, acceptsFormats } from '../types/dragDrop';
 import { resolveItemDoubleClick } from '../utils/itemDoubleClick';
+import type { Space } from '../utils/spaceMessages';
 
 const IconColorPicker = lazy(() =>
   import('./IconColorPicker').then(module => ({ default: module.IconColorPicker }))
@@ -73,6 +74,9 @@ interface PinnedIconProps
   onClose?: (id: string) => void;
   onMoveToNewWindow?: (id: string) => void;
   onMoveToTabs?: (id: string) => void;
+  // Read when the menu opens, so the list follows bookmark folder changes
+  getMoveTargets?: () => Space[];
+  onMoveToSpace?: (id: string, target: Space) => void;
   isLoaded?: boolean;
   isActive?: boolean;
   isAudible?: boolean;
@@ -95,6 +99,8 @@ export const PinnedIcon = ({
   onClose,
   onMoveToNewWindow,
   onMoveToTabs,
+  getMoveTargets,
+  onMoveToSpace,
   isLoaded,
   isActive,
   isAudible,
@@ -370,6 +376,12 @@ export const PinnedIcon = ({
                 )}
               </>
             )}
+            {getMoveTargets && onMoveToSpace && (
+              <MoveToSpaceSubmenu
+                getTargets={getMoveTargets}
+                onSelect={(target) => onMoveToSpace(site.id, target)}
+              />
+            )}
             <ContextMenu.Separator />
             {onAiRename && (
               <ContextMenu.Item onSelect={onAiRename}>
@@ -459,6 +471,38 @@ export const PinnedIcon = ({
           </Suspense>
         </div>
       </Dialog>
+    </>
+  );
+};
+
+interface MoveToSpaceSubmenuProps
+{
+  getTargets: () => Space[];
+  onSelect: (target: Space) => void;
+}
+
+// Its own component so the targets are read each time the menu opens: the menu
+// content mounts on open, and this render runs then
+const MoveToSpaceSubmenu = ({ getTargets, onSelect }: MoveToSpaceSubmenuProps) =>
+{
+  const targets = getTargets();
+  if (targets.length === 0) return null;
+
+  return (
+    <>
+      <ContextMenu.Separator />
+      <ContextMenu.Sub>
+        <ContextMenu.SubTrigger>
+          <FolderInput size={14} className="mr-2" /> Move to Space
+        </ContextMenu.SubTrigger>
+        <ContextMenu.SubContent>
+          {targets.map(target => (
+            <ContextMenu.Item key={target.id} onSelect={() => onSelect(target)}>
+              {target.name}
+            </ContextMenu.Item>
+          ))}
+        </ContextMenu.SubContent>
+      </ContextMenu.Sub>
     </>
   );
 };
