@@ -4,6 +4,7 @@ task-workflow: .tasks-loop/workflow.md
 agent-driver: js-claude-agterm
 agent-driver-cmd: ~/.config/agent-driver/js-claude-agterm/claude-agterm
 slots: 2
+orchestrator-model: opus:medium
 skill-rev: 557ba17
 driver-rev: c9e2c27
 ---
