@@ -13,6 +13,7 @@ import { UndoableAction } from './actions/types';
 import { usePinnedSites, PinnedSite } from './hooks/usePinnedSites';
 import { useTabs } from './hooks/useTabs';
 import { useBookmarks, refreshAllBookmarks } from './hooks/useBookmarks';
+import { useAttentionMarks } from './hooks/useAttentionMarks';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useChromeLocalStorage } from './hooks/useChromeLocalStorage';
 import { useSectionCollapseState } from './hooks/useSectionCollapseState';
@@ -38,6 +39,7 @@ import { useFollowActiveTab } from './hooks/useFollowActiveTab';
 import { FollowActiveTabMode, FOLLOW_ACTIVE_TAB_KEY, DEFAULT_FOLLOW_ACTIVE_TAB_MODE, parseFollowActiveTabMode } from './utils/followActiveTab';
 import { AutoArchivePeriod, AUTO_ARCHIVE_AFTER_KEY, DEFAULT_AUTO_ARCHIVE_PERIOD, parseAutoArchivePeriod } from './utils/autoArchive';
 import { TabAgeHighlightStyle, TAB_AGE_HIGHLIGHT_KEY, DEFAULT_TAB_AGE_HIGHLIGHT_STYLE, parseTabAgeHighlightStyle } from './utils/tabAgeHighlight';
+import { AttentionMarkStyle, ATTENTION_MARK_STYLE_KEY, DEFAULT_ATTENTION_MARK_STYLE, parseAttentionMarkStyle } from './utils/attentionMarkStyle';
 import { UnvisitedTabMarkerSetting, UNVISITED_TAB_MARKER_KEY, DEFAULT_UNVISITED_TAB_MARKER, parseUnvisitedTabMarker } from './utils/unvisitedTabMarker';
 import * as DropdownMenu from './components/menu/DropdownMenu';
 import {
@@ -331,6 +333,7 @@ const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({
   const { activeSpace, activeSpaceId, getTabIdsInSpace, windowId } = useSpacesContext();
   const { getItemKeyForTab, restoreItemAssociation } = useBookmarkTabsContext();
   const { findFolderBySegments, createFolder } = useBookmarks();
+  const { isTabMarked } = useAttentionMarks();
   const [confirmCloseAllDialog, setConfirmCloseAllDialog] = useState<{
     isOpen: boolean;
     tabIds: number[];
@@ -369,7 +372,8 @@ const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({
   {
     if (!windowId) return;
 
-    const tabIds = await getTabIdsInSpace(space);
+    // Marked tabs stay open; filtered before the whole-window check so it sees what really closes
+    const tabIds = (await getTabIdsInSpace(space)).filter(id => !isTabMarked(id));
     if (tabIds.length === 0) return;
 
     // Check if this would close all tabs in the window
@@ -391,7 +395,7 @@ const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({
     {
       action.do();
     }
-  }, [onPerformAction, windowId, getTabIdsInSpace, getItemKeyForTab, restoreItemAssociation]);
+  }, [onPerformAction, windowId, getTabIdsInSpace, isTabMarked, getItemKeyForTab, restoreItemAssociation]);
 
   // Confirm close all tabs in window (no undo — window will close)
   const handleConfirmCloseAll = useCallback(() =>
@@ -558,10 +562,11 @@ interface AppContainerProps
   fontSize: number;
   followActiveTab: FollowActiveTabMode;
   tabAgeHighlight: TabAgeHighlightStyle;
+  attentionMarkStyle: AttentionMarkStyle;
   children: React.ReactNode;
 }
 
-const AppContainer: React.FC<AppContainerProps> = ({ useSpaceColor, spaceColorAlpha, fontSize, followActiveTab, tabAgeHighlight, children }) =>
+const AppContainer: React.FC<AppContainerProps> = ({ useSpaceColor, spaceColorAlpha, fontSize, followActiveTab, tabAgeHighlight, attentionMarkStyle, children }) =>
 {
   const { activeSpace } = useSpacesContext();
   useFollowActiveTab(followActiveTab);
@@ -601,22 +606,28 @@ const AppContainer: React.FC<AppContainerProps> = ({ useSpaceColor, spaceColorAl
   const spaceBgColor = applySpaceColor
     ? getSpaceBgColor(activeSpace.color, isDark, spaceColorAlpha / 100)
     : null;
+  const spaceAccentRgb = activeSpace.id !== 'all' ? getSpaceAccentRgb(activeSpace.color, isDark) : null;
   // --arc-sidebar-bg lets row hover actions repaint the sidebar colour (see index.css);
   // --arc-tab-age-accent tints the Accent and Trail tab age looks and the unvisited tab dot (theme violet otherwise)
   const bgStyle = spaceBgColor
     ? {
         backgroundColor: spaceBgColor,
         '--arc-sidebar-bg': spaceBgColor,
-        '--arc-tab-age-accent': getSpaceAccentRgb(activeSpace.color, isDark),
+        '--arc-tab-age-accent': spaceAccentRgb,
       } as React.CSSProperties
+    : {};
+  // The "Space colour" attention ring is labelled as the Space's colour, so it follows the Space even with the background tint off
+  const attentionStyle = spaceAccentRgb
+    ? { '--arc-attention-space-rgb': spaceAccentRgb } as React.CSSProperties
     : {};
   const bgClass = applySpaceColor ? '' : 'arc-neutral-background';
 
   return (
     <div
       className={`arc-theme relative flex flex-col h-screen ${bgClass} text-gray-900 dark:text-gray-100 overflow-hidden`}
-      style={{ fontSize: `${fontSize}px`, ...bgStyle }}
+      style={{ fontSize: `${fontSize}px`, ...bgStyle, ...attentionStyle }}
       data-tab-age-style={tabAgeHighlight === 'off' ? undefined : tabAgeHighlight}
+      data-attention-style={attentionMarkStyle}
     >
       {children}
     </div>
@@ -713,6 +724,12 @@ function App() {
   );
   // Off until the stored look is known, so a sidebar opening doesn't flash the default look
   const shownTabAgeHighlight: TabAgeHighlightStyle = tabAgeHighlightLoaded ? tabAgeHighlight : 'off';
+  // Raw string like the other appearance settings in chrome.storage.local; only the sidebar reads it
+  const [attentionMarkStyle, setAttentionMarkStyle] = useChromeLocalStorage<AttentionMarkStyle>(
+    ATTENTION_MARK_STYLE_KEY,
+    DEFAULT_ATTENTION_MARK_STYLE,
+    { parse: parseAttentionMarkStyle, serialize: (v) => v }
+  );
   // Raw string, not JSON: background.ts reads it to decide whether to mark tabs opened in the background
   const [markUnvisitedTabs, setMarkUnvisitedTabs, markUnvisitedTabsLoaded] = useChromeLocalStorage<UnvisitedTabMarkerSetting>(
     UNVISITED_TAB_MARKER_KEY,
@@ -855,6 +872,7 @@ function App() {
     setFollowActiveTab(newSettings.followActiveTab);
     setAutoArchiveAfter(newSettings.autoArchiveAfter);
     setTabAgeHighlight(newSettings.tabAgeHighlight);
+    setAttentionMarkStyle(newSettings.attentionMarkStyle);
     setMarkUnvisitedTabs(newSettings.markUnvisitedTabs);
     setAiSettings(newSettings.aiSettings);
     setShowSettings(false);
@@ -1245,7 +1263,7 @@ function App() {
       <SpacesProvider>
       <SelectionProvider>
       <UnifiedDndProvider>
-      <AppContainer useSpaceColor={useSpaceColor} spaceColorAlpha={spaceColorAlpha} fontSize={fontSize} followActiveTab={followActiveTab} tabAgeHighlight={shownTabAgeHighlight}>
+      <AppContainer useSpaceColor={useSpaceColor} spaceColorAlpha={spaceColorAlpha} fontSize={fontSize} followActiveTab={followActiveTab} tabAgeHighlight={shownTabAgeHighlight} attentionMarkStyle={attentionMarkStyle}>
       <Suspense fallback={null}>
         {showSettings && (
           <SettingsDialog
@@ -1264,6 +1282,7 @@ function App() {
               followActiveTab,
               autoArchiveAfter,
               tabAgeHighlight,
+              attentionMarkStyle,
               markUnvisitedTabs,
               aiSettings,
             }}

@@ -143,6 +143,8 @@ export interface TabsToCloseQuery<T extends AutoArchiveTabLike>
   associationsByWindow: TabAssociationsByWindow;
   savedPages: SavedPages;
   activity: TabLastUseTimes;
+  /** True for a tab marked for attention; a marked tab never auto-closes. */
+  isMarked: (tabId: number) => boolean;
   /** Epoch millis auto-archive was switched on from 'never'. */
   enabledAt: number;
   now: number;
@@ -251,14 +253,14 @@ function isOverdue(lastUsedAt: number | undefined, enabledAt: number, now: numbe
 /** Pick the tabs to close now: regular tabs to archive first, the rest to close only. */
 export function selectTabsToClose<T extends AutoArchiveTabLike>(query: TabsToCloseQuery<T>): TabsToClose<T>
 {
-  const { tabs, associationsByWindow, savedPages, activity, enabledAt, now, periodMs } = query;
+  const { tabs, associationsByWindow, savedPages, activity, isMarked, enabledAt, now, periodMs } = query;
   const selection: TabsToClose<T> = { archive: [], closeOnly: [] };
   const splitViewsOnScreen = SplitViewsOnScreen.of(tabs);
 
   // Sort each overdue, closable tab into archive or close-only; every other tab stays open
   for (const tab of tabs)
   {
-    if (tab.id === undefined || isAlwaysKept(tab, splitViewsOnScreen)) continue;
+    if (tab.id === undefined || isAlwaysKept(tab, splitViewsOnScreen) || isMarked(tab.id)) continue;
 
     const pageUrl = tabPageUrl(tab);
     const kind = tabKind(associationsByWindow.itemKey(tab.windowId, tab.id), pageUrl, savedPages);

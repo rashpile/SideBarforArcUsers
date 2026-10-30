@@ -49,7 +49,7 @@ import { AddToGroupDialog } from './AddToGroupDialog';
 import { ChangeGroupColorDialog } from './ChangeGroupColorDialog';
 import { ExportConflictDialog, ExportConflictMode } from './ExportConflictDialog';
 import { RenameGroupDialog } from './RenameGroupDialog';
-import { Globe, Volume2, Pin, Plus, X, Archive, ArrowDown, ArrowDownAZ, ArrowDownZA, Edit, Palette, FolderPlus, Copy, SquareStack, Bookmark, ExternalLink, Link, Check } from 'lucide-react';
+import { Globe, Volume2, Pin, Plus, X, Minus, Flag, FlagOff, Archive, ArrowDown, ArrowDownAZ, ArrowDownZA, Edit, Palette, FolderPlus, Copy, SquareStack, Bookmark, ExternalLink, Link, Check } from 'lucide-react';
 import { getArcTabSectionItems } from '../utils/arcTabSection';
 import { getIndentPadding } from '../utils/indent';
 import { matchesFilter } from '../utils/searchParser';
@@ -60,6 +60,7 @@ import { DropIndicators } from './DropIndicators';
 import * as ContextMenu from './menu/ContextMenu';
 import { useInView } from '../hooks/useInView';
 import { useTabActivityView } from '../hooks/useTabActivityView';
+import { useAttentionMarks } from '../hooks/useAttentionMarks';
 import { useClock } from '../hooks/useClock';
 import { TAB_AGE_REGRADE_INTERVAL_MS, tabAgeGrade, tabLastUseForHighlight } from '../utils/tabAgeHighlight';
 import { useChromeLocalStorage } from '../hooks/useChromeLocalStorage';
@@ -89,6 +90,8 @@ interface DraggableTabProps {
   isSelected?: boolean;
   ageGrade?: number;  // Tab age highlight grade; not shown on the active or a selected row
   isUnvisited?: boolean;  // Opened in the background and not activated since; no dot on the active row
+  isMarked?: boolean;
+  onToggleMark?: (tabId: number) => void;
   onClose: (id: number) => void;
   onActivate: (id: number) => void;
   onDuplicate?: (id: number) => void;
@@ -111,6 +114,8 @@ interface DraggableTabProps {
   onMoveSelectedToNewWindow?: () => void;
   onCopyUrl?: (url: string) => void;
   onCopyUrls?: () => void;
+  selectionMarkAction?: 'mark' | 'clear';  // Undefined when the selection holds no tab that can be marked
+  onToggleSelectionMark?: () => void;
   // Drag attributes
   attributes?: DraggableAttributes;
   listeners?: SyntheticListenerMap;
@@ -131,6 +136,8 @@ const TabRow = forwardRef<HTMLDivElement, DraggableTabProps>(({
   isSelected,
   ageGrade,
   isUnvisited,
+  isMarked,
+  onToggleMark,
   onClose,
   onActivate,
   onDuplicate,
@@ -152,6 +159,8 @@ const TabRow = forwardRef<HTMLDivElement, DraggableTabProps>(({
   onMoveSelectedToNewWindow,
   onCopyUrl,
   onCopyUrls,
+  selectionMarkAction,
+  onToggleSelectionMark,
   attributes,
   listeners,
 }, ref) => {
@@ -179,20 +188,40 @@ const TabRow = forwardRef<HTMLDivElement, DraggableTabProps>(({
           <Pin size={14} className="text-gray-700 dark:text-gray-200" />
         </button>
       )}
-      <button
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={(e) =>
-        {
-          e.stopPropagation();
-          if (tab.id) onClose(tab.id);
-        }}
-        className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 active:bg-gray-300 dark:active:bg-gray-500 rounded"
-        aria-label="Close tab"
-      >
-        <X size={14} className="text-gray-700 dark:text-gray-200" />
-      </button>
+      {isMarked && onToggleMark ? (
+        // A marked tab is kept open: its close button only clears the mark
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) =>
+          {
+            e.stopPropagation();
+            if (tab.id) onToggleMark(tab.id);
+          }}
+          className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 active:bg-gray-300 dark:active:bg-gray-500 rounded"
+          title="Clear mark"
+          aria-label="Clear mark"
+        >
+          <Minus size={14} className="text-gray-700 dark:text-gray-200" />
+        </button>
+      ) : (
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) =>
+          {
+            e.stopPropagation();
+            if (tab.id) onClose(tab.id);
+          }}
+          className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 active:bg-gray-300 dark:active:bg-gray-500 rounded"
+          aria-label="Close tab"
+        >
+          <X size={14} className="text-gray-700 dark:text-gray-200" />
+        </button>
+      )}
     </div>
   );
+
+  // Incognito tabs get no mark: their URLs must not reach persistent storage
+  const showMarkItem = !!onToggleMark && tab.id !== undefined && !tab.incognito;
 
   const badges = (
     <div className="flex items-center gap-1">
@@ -281,6 +310,10 @@ const TabRow = forwardRef<HTMLDivElement, DraggableTabProps>(({
                   (isOpen && !isSelected) ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                 )} />
               )}
+              {/* Overlay so the row's own background and shadow keep the active, selected and age styles */}
+              {isMarked && (
+                <div className="arc-attention-ring" />
+              )}
               <DropIndicators showBefore={showDropBefore} showAfter={showDropAfter} beforeIndentPx={beforeIndentPx} afterIndentPx={afterIndentPx} />
             </TreeRow>
           </ContextMenu.Trigger>
@@ -299,7 +332,14 @@ const TabRow = forwardRef<HTMLDivElement, DraggableTabProps>(({
                   <Link size={14} className="mr-2" /> Copy URLs
                 </ContextMenu.Item>
               )}
-              {hasSelectedTabs && (onPin || onCopyUrls) && (
+              {selectionMarkAction && onToggleSelectionMark && (
+                <ContextMenu.Item onSelect={onToggleSelectionMark}>
+                  {selectionMarkAction === 'mark'
+                    ? <><Flag size={14} className="mr-2" /> Mark for Attention</>
+                    : <><FlagOff size={14} className="mr-2" /> Clear Mark</>}
+                </ContextMenu.Item>
+              )}
+              {((hasSelectedTabs && (onPin || onCopyUrls)) || (selectionMarkAction && onToggleSelectionMark)) && (
                 <ContextMenu.Separator />
               )}
               {onAddSelectedToBookmark && (
@@ -340,8 +380,15 @@ const TabRow = forwardRef<HTMLDivElement, DraggableTabProps>(({
               <Link size={14} className="mr-2" /> Copy URL
             </ContextMenu.Item>
           )}
+          {showMarkItem && (
+            <ContextMenu.Item onSelect={() => onToggleMark!(tab.id!)}>
+              {isMarked
+                ? <><FlagOff size={14} className="mr-2" /> Clear Mark</>
+                : <><Flag size={14} className="mr-2" /> Mark for Attention</>}
+            </ContextMenu.Item>
+          )}
           {/* Separator after Pin/Duplicate section - only if items exist above AND below */}
-          {((onPin && tab.url && !tab.pinned) || (onDuplicate && tab.url)) &&
+          {((onPin && tab.url && !tab.pinned) || (onDuplicate && tab.url) || showMarkItem) &&
            (onAddToBookmark || onOpenAddToGroupDialog || onOpenMoveToSpaceDialog || onMoveToNewWindow ||
             onCloseTabsBefore || onCloseTabsAfter || onCloseOthers) && (
             <ContextMenu.Separator />
@@ -387,7 +434,7 @@ const TabRow = forwardRef<HTMLDivElement, DraggableTabProps>(({
             </ContextMenu.Item>
           )}
           {/* Separator before Close - only if items exist above */}
-          {((onPin && tab.url && !tab.pinned) || (onDuplicate && tab.url) ||
+          {((onPin && tab.url && !tab.pinned) || (onDuplicate && tab.url) || showMarkItem ||
             onAddToBookmark || onOpenAddToGroupDialog || onOpenMoveToSpaceDialog || onMoveToNewWindow ||
             onCloseTabsBefore || onCloseTabsAfter || onCloseOthers) && (
             <ContextMenu.Separator />
@@ -902,6 +949,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
   // Tab age highlight and unvisited dot: the background's records, plus the leave this list
   // just saw. Ages are re-graded every 15 s; no grades until the records are read
   const [tabActivity, tabActivityLoaded] = useTabActivityView(highlightTabAge || markUnvisitedTabs, activeTabId);
+  const { isTabMarked, markTabs, clearTabs } = useAttentionMarks();
   const now = useClock(highlightTabAge, TAB_AGE_REGRADE_INTERVAL_MS);
   // lastAccessed (Chrome 121+) is missing from @types/chrome, so the tab is typed by the fields read
   const tabAgeGradeOf = (tab: { id?: number; lastAccessed?: number }): number | undefined =>
@@ -976,14 +1024,14 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     }
   }, [closesWholeWindow, onPerformAction, windowId, getItemKeyForTab, restoreItemAssociation]);
 
-  // Space-aware close all tabs - closes only visible tabs
+  // Space-aware close all tabs - closes only visible tabs; marked tabs stay open
   const handleCloseAllTabs = useCallback(() =>
   {
     const tabIds = visibleTabs
       .map(tab => tab.id!)
-      .filter(id => id !== undefined);
+      .filter(id => id !== undefined && !isTabMarked(id));
     performClose(tabIds);
-  }, [visibleTabs, performClose]);
+  }, [visibleTabs, isTabMarked, performClose]);
 
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const [expandedGroupsLoaded, setExpandedGroupsLoaded] = useState(false);
@@ -2261,7 +2309,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
 
   const closeGroup = (groupTabs: chrome.tabs.Tab[]) =>
   {
-    const tabIds = groupTabs.map(tab => tab.id).filter((id): id is number => id !== undefined);
+    const tabIds = groupTabs.map(tab => tab.id).filter((id): id is number => id !== undefined && !isTabMarked(id));
     performClose(tabIds);
   };
 
@@ -2271,7 +2319,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     chrome.windows.create({ tabId });
   }, []);
 
-  // Close tabs before/after/others (bounded to group if tab is grouped)
+  // Close tabs before/after/others (bounded to group if tab is grouped); marked tabs stay open
   const closeTabsBefore = useCallback((tabId: number) =>
   {
     const targetTab = visibleTabs.find(t => t.id === tabId);
@@ -2286,9 +2334,9 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     if (index <= 0) return;
     const tabIds = scopedTabs.slice(0, index)
       .map(t => t.id)
-      .filter((id): id is number => id !== undefined);
+      .filter((id): id is number => id !== undefined && !isTabMarked(id));
     performClose(tabIds);
-  }, [visibleTabs, performClose]);
+  }, [visibleTabs, isTabMarked, performClose]);
 
   const closeTabsAfter = useCallback((tabId: number) =>
   {
@@ -2303,9 +2351,9 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     if (index < 0 || index >= scopedTabs.length - 1) return;
     const tabIds = scopedTabs.slice(index + 1)
       .map(t => t.id)
-      .filter((id): id is number => id !== undefined);
+      .filter((id): id is number => id !== undefined && !isTabMarked(id));
     performClose(tabIds);
-  }, [visibleTabs, performClose]);
+  }, [visibleTabs, isTabMarked, performClose]);
 
   const closeOthers = useCallback((tabId: number) =>
   {
@@ -2319,9 +2367,9 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     const tabIds = scopedTabs
       .filter(t => t.id !== tabId)
       .map(t => t.id)
-      .filter((id): id is number => id !== undefined);
+      .filter((id): id is number => id !== undefined && !isTabMarked(id));
     performClose(tabIds);
-  }, [visibleTabs, performClose]);
+  }, [visibleTabs, isTabMarked, performClose]);
 
   // Close selected tabs (or single tab if not in selection)
   const handleCloseSelectedTabs = useCallback((clickedTabId: number) =>
@@ -2329,20 +2377,20 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     const selectedItems = getSelectedItems();
     if (selectedItems.length > 1)
     {
-      // Multiple selected - close directly (undo via toast)
+      // Multiple selected - close directly (undo via toast); marked tabs stay open
       const tabIds = selectedItems
         .filter(item => item.type === 'tab')
         .map(item => parseInt(item.id, 10))
-        .filter(id => !isNaN(id));
+        .filter(id => !isNaN(id) && !isTabMarked(id));
       performClose(tabIds);
       clearSelection();
     }
     else
     {
-      // Single tab - close directly
+      // Single tab - close directly, even when marked: closing one tab is an explicit act on it
       performClose([clickedTabId]);
     }
-  }, [getSelectedItems, performClose, clearSelection]);
+  }, [getSelectedItems, isTabMarked, performClose, clearSelection]);
 
   // Pin selected tabs to sidebar (or single tab if not in selection)
   const handlePinSelectedTabs = useCallback((
@@ -2501,13 +2549,13 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
   // Close selected tabs/groups (without requiring a clicked tab ID)
   const handleCloseSelectedFromMenu = useCallback(() =>
   {
-    const { allTabIds } = getTabSelectionInfo();
-    if (allTabIds.length > 0)
+    const tabIds = getTabSelectionInfo().allTabIds.filter(id => !isTabMarked(id));
+    if (tabIds.length > 0)
     {
-      performClose(allTabIds);
+      performClose(tabIds);
       clearSelection();
     }
-  }, [getTabSelectionInfo, performClose, clearSelection]);
+  }, [getTabSelectionInfo, isTabMarked, performClose, clearSelection]);
 
   // The Archive button's action: save the tabs into the Space's archive, then close them through CloseTabAction
   const createArchiveTabsAction = useCallback((archiveTabs: ArchivableTab[], spaceFolderId: string, targetWindowId: number) =>
@@ -2535,11 +2583,12 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     }
   }, []);
 
-  // Archive button: archives and closes the tabs Clear would close (the visible ones, active and audible included)
+  // Archive button: archives and closes the tabs Clear would close (the visible ones, active and audible included,
+  // marked ones left open)
   const handleArchiveAllTabs = useCallback(() =>
   {
     if (!activeSpaceFolderId || !windowId || archiveRunningRef.current) return;
-    const archiveTabs = visibleTabs.filter(isArchivableTab);
+    const archiveTabs = visibleTabs.filter(isArchivableTab).filter(tab => !isTabMarked(tab.id));
     if (archiveTabs.length === 0) return;
 
     const tabIds = archiveTabs.map(tab => tab.id);
@@ -2554,7 +2603,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
       ? () => onPerformAction(action)
       : () => action.do().catch(error => console.error('[TabList] Failed to archive tabs:', error)));
     clearSelection();
-  }, [activeSpaceFolderId, windowId, visibleTabs, closesWholeWindow, createArchiveTabsAction, runArchiveOnce, onPerformAction, clearSelection]);
+  }, [activeSpaceFolderId, windowId, visibleTabs, isTabMarked, closesWholeWindow, createArchiveTabsAction, runArchiveOnce, onPerformAction, clearSelection]);
 
   // Archive after the close-all confirmation: runs without Undo, since the window closes.
   // Tabs whose archive item fails stay open, and then the window and the toast survive
@@ -2650,6 +2699,42 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     return hasTabs;
   }, [getTabSelectionInfo]);
 
+  const toggleTabMark = useCallback((tabId: number) =>
+  {
+    if (isTabMarked(tabId))
+    {
+      clearTabs([tabId]);
+    }
+    else
+    {
+      markTabs([tabId]);
+    }
+  }, [isTabMarked, markTabs, clearTabs]);
+
+  // One mark item for the selected tabs: any unmarked one marks all, all marked clears all.
+  // Incognito tabs are left out, as they are never marked
+  const selectedMarkableTabIds = isMultiSelection
+    ? getTabSelectionInfo().selectedTabs
+      .filter(tab => !tab.incognito)
+      .map(tab => tab.id)
+      .filter((id): id is number => id !== undefined)
+    : [];
+  const selectionMarkAction: 'mark' | 'clear' | undefined = selectedMarkableTabIds.length === 0
+    ? undefined
+    : selectedMarkableTabIds.some(id => !isTabMarked(id)) ? 'mark' : 'clear';
+  const toggleSelectionMark = () =>
+  {
+    if (selectionMarkAction === 'mark')
+    {
+      markTabs(selectedMarkableTabIds);
+    }
+    else if (selectionMarkAction === 'clear')
+    {
+      clearTabs(selectedMarkableTabIds);
+    }
+    clearSelection();
+  };
+
   // Check if only groups are selected
   const onlyGroupsSelected = useCallback((): boolean =>
   {
@@ -2739,6 +2824,8 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
                   isSelected={isTabSelected(tabId)}
                   ageGrade={tabAgeGradeOf(item.tab)}
                   isUnvisited={isTabUnvisited(item.tab)}
+                  isMarked={item.tab.id !== undefined && isTabMarked(item.tab.id)}
+                  onToggleMark={toggleTabMark}
                   onClose={handleCloseSelectedTabs}
                   onActivate={activateTab}
                   onDuplicate={duplicateTab}
@@ -2760,6 +2847,8 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
                   onMoveSelectedToNewWindow={handleMoveSelectedToNewWindow}
                   onCopyUrl={handleCopyUrl}
                   onCopyUrls={handleCopyUrls}
+                  selectionMarkAction={selectionMarkAction}
+                  onToggleSelectionMark={toggleSelectionMark}
                 />
               );
             }
@@ -2789,6 +2878,8 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
                           isSelected={isTabSelected(tabId)}
                           ageGrade={tabAgeGradeOf(tab)}
                           isUnvisited={isTabUnvisited(tab)}
+                          isMarked={tab.id !== undefined && isTabMarked(tab.id)}
+                          onToggleMark={toggleTabMark}
                           onClose={handleCloseSelectedTabs}
                           onActivate={activateTab}
                           onDuplicate={duplicateTab}
@@ -2810,6 +2901,8 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
                           onMoveSelectedToNewWindow={handleMoveSelectedToNewWindow}
                           onCopyUrl={handleCopyUrl}
                           onCopyUrls={handleCopyUrls}
+                          selectionMarkAction={selectionMarkAction}
+                          onToggleSelectionMark={toggleSelectionMark}
                         />
                       );
                     })}
@@ -2896,6 +2989,8 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
                         isSelected={isTabSelected(tabId)}
                         ageGrade={tabAgeGradeOf(tab)}
                         isUnvisited={isTabUnvisited(tab)}
+                        isMarked={tab.id !== undefined && isTabMarked(tab.id)}
+                        onToggleMark={toggleTabMark}
                         onClose={handleCloseSelectedTabs}
                         onActivate={activateTab}
                         onDuplicate={duplicateTab}
@@ -2917,6 +3012,8 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
                         onMoveSelectedToNewWindow={handleMoveSelectedToNewWindow}
                         onCopyUrl={handleCopyUrl}
                         onCopyUrls={handleCopyUrls}
+                        selectionMarkAction={selectionMarkAction}
+                        onToggleSelectionMark={toggleSelectionMark}
                       />
                     );
                   })}

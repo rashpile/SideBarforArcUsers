@@ -9,6 +9,7 @@ import { SpaceManager } from './managers/impl/spaceManager';
 import { TabHistoryManager } from './managers/impl/tabHistoryManager';
 import { LastAudibleTracker } from './managers/impl/lastAudibleTracker';
 import { PinnedSitesManager } from './managers/impl/pinnedSitesManager';
+import { AttentionMarkManager } from './managers/impl/attentionMarkManager';
 import { TabAssociationReadiness } from './utils/tabAssociationReadiness';
 import { resolveActiveSpaceId } from './utils/spaceSelection';
 import { findParkedReplacementTab, getEffectiveTabUrl, parseParkedTabUrl } from './utils/parkedTabAssociation';
@@ -152,6 +153,8 @@ const historyManager = new TabHistoryManager({
   getSpaceForTab,
 });
 const pinnedSitesManager = new PinnedSitesManager();
+// Mark for Attention on tabs and bookmarks; auto-archive keeps marked tabs open
+const attentionMarkManager = new AttentionMarkManager();
 // Reads the history manager's activation order, so it has to come after it.
 const lastAudibleTracker = new LastAudibleTracker(historyManager);
 // The Space of a bookmark's tab, from the bookmark's folder (getSpaceForActivatedTab)
@@ -317,6 +320,7 @@ const managerLoadPromise = Promise.all([
   lastAudibleTracker.load(),
   pinnedSitesManager.load(),
   sameBrowserSession.then((same) => tabSpaceRegistry.load(same)),
+  sameBrowserSession.then((same) => attentionMarkManager.load(same)),
   loadTabActivity()
 ])
   .then(normalizeLoadedWindowSpaces)
@@ -398,6 +402,10 @@ chrome.bookmarks.onRemoved.addListener((id, removeInfo) =>
   const ids = removeInfo.node ? collectBookmarkIds(removeInfo.node) : [id];
   bookmarkRecencyStore.forget(ids)
     .catch((error) => console.error('[BookmarkRecency] failed to forget removed bookmarks:', error));
+  // After the marks load, so the load can't bring back a mark this removal dropped
+  void stateReady
+    .then(() => attentionMarkManager.handleBookmarksRemoved(ids))
+    .catch((error) => console.error('[AttentionMarkManager] failed to drop marks of removed bookmarks:', error));
 });
 
 // =============================================================================
@@ -412,6 +420,8 @@ const tabAutoArchiver = new TabAutoArchiver({
   spaceRegistry: tabSpaceRegistry,
   getSpaces: () => spaceManager.getSpaces(),
   getPinnedSites: () => pinnedSitesManager.getPinnedSites(),
+  isTabMarked: (tabId) => attentionMarkManager.isTabMarked(tabId),
+  tabMarksLoaded: () => attentionMarkManager.tabMarksLoaded,
 });
 
 // Registered at top level so the alarm wakes the worker
@@ -646,6 +656,8 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) =>
   await stateReady;
   historyManager.remove(removeInfo.windowId, tabId);
   lastAudibleTracker.clearIfMatches(tabId);
+  attentionMarkManager.handleTabRemoved(tabId, removeInfo.isWindowClosing)
+    .catch((error) => console.error('[AttentionMarkManager] failed to drop a closed tab\'s mark:', error));
   await tabSpaceRegistry.unregister(removeInfo.windowId, tabId);
 
   if (!removeInfo.isWindowClosing)
@@ -696,6 +708,8 @@ chrome.windows.onRemoved.addListener(async (windowId) =>
 chrome.tabs.onMoved.addListener(async (_tabId, moveInfo) =>
 {
   await stateReady;
+  attentionMarkManager.refreshWindowTabs(moveInfo.windowId)
+    .catch((error) => console.error('[AttentionMarkManager] failed to refresh marked tabs after a move:', error));
   await Promise.all([
     refreshBackupIndices(moveInfo.windowId),
     tabSpaceRegistry.refreshWindowMetadata(moveInfo.windowId),
@@ -730,6 +744,9 @@ chrome.tabs.onAttached.addListener(async (tabId, attachInfo) =>
   const spaceId = detachedTabSpaces.get(tabId)
     ?? resolveActiveSpaceId(spaceManager.getSpaces(), spaceStateManager.getActiveSpace(attachInfo.newWindowId));
   detachedTabSpaces.delete(tabId);
+  // Covers the attached tab's new window and position and the tabs it pushed right
+  attentionMarkManager.refreshWindowTabs(attachInfo.newWindowId)
+    .catch((error) => console.error('[AttentionMarkManager] failed to refresh marked tabs after an attach:', error));
   if (spaceId)
   {
     await tabSpaceRegistry.register(attachInfo.newWindowId, tabId, spaceId);
@@ -764,6 +781,12 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) =>
   {
     tabActivityTracker.followUrl(tab)
       .catch((error) => console.error('[TabActivityTracker] failed to follow an unvisited tab\'s URL:', error));
+  }
+
+  if (changeInfo.url && tab)
+  {
+    attentionMarkManager.handleTabChanged(tab)
+      .catch((error) => console.error('[AttentionMarkManager] failed to follow a marked tab\'s URL:', error));
   }
 
   if (tab && parseParkedTabUrl(tab.url))
@@ -939,6 +962,7 @@ registerManager(spaceManager);
 registerManager(historyManager);
 registerManager(lastAudibleTracker);
 registerManager(pinnedSitesManager);
+registerManager(attentionMarkManager);
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) =>
 {

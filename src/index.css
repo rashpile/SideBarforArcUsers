@@ -347,6 +347,42 @@ html, body, #root {
   pointer-events: none;
 }
 
+/*
+ * Mark for Attention ring (Settings: "Mark for Attention colour").
+ * An overlay inside a marked tab or bookmark row, so the row's own background
+ * and box-shadow keep the active, selected and age styles. data-attention-style
+ * on the theme root is "<colour>", "<colour>-dim" or "<colour>-bright"; the
+ * colour rules match its start, the strength rules its end. The fallbacks
+ * (green, normal strength) apply only without the attribute; App always sets it.
+ */
+.arc-attention-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 var(--arc-attention-width, 2px) rgba(var(--arc-attention-rgb, 34, 197, 94), var(--arc-attention-alpha, 1)),
+    inset 0 0 8px 1px rgba(var(--arc-attention-rgb, 34, 197, 94), var(--arc-attention-glow-alpha, 0));
+}
+
+.arc-theme[data-attention-style^="green"] { --arc-attention-rgb: 34, 197, 94; }
+.arc-theme[data-attention-style^="blue"] { --arc-attention-rgb: 59, 130, 246; }
+.arc-theme[data-attention-style^="orange"] { --arc-attention-rgb: 249, 115, 22; }
+.arc-theme[data-attention-style^="red"] { --arc-attention-rgb: 239, 68, 68; }
+.arc-theme[data-attention-style^="purple"] { --arc-attention-rgb: 168, 85, 247; }
+.arc-theme[data-attention-style^="yellow"] { --arc-attention-rgb: 234, 179, 8; }
+/* App sets --arc-attention-space-rgb on the theme root for every Space, tint or not; the All view has none and takes the theme violet */
+.arc-theme[data-attention-style^="accent"] { --arc-attention-rgb: var(--arc-attention-space-rgb, var(--arc-tab-age-accent)); }
+
+.arc-theme[data-attention-style$="-dim"] {
+  --arc-attention-width: 1px;
+  --arc-attention-alpha: 0.5;
+}
+
+.arc-theme[data-attention-style$="-bright"] {
+  --arc-attention-glow-alpha: 0.45;
+}
+
 .arc-space-root-drop-target {
   min-height: 10px;
 }

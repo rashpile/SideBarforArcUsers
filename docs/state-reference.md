@@ -137,7 +137,7 @@ Marker that the startup restore matched the stored tab records to this browser s
 true
 ```
 - Owner: `src/background.ts` through `BrowserSessionMarker` (`src/stores/browserSessionMarker.ts`): reads it once at worker start and writes it after `restoreTabAssociationBackup` succeeded
-- Consumers: `TabSpaceRegistry.load` (`tabSpaceAssignments`) and `restoreTabAssociationBackup` (`tabAssociations_${windowId}`) - present: worker restart, stored tab and window IDs are exact, records match by tab ID and window only (a stored URL may lag a navigation made while the worker slept); absent (browser restart, extension reload or update): ID matches also need the record's site, see the two keys
+- Consumers: `TabSpaceRegistry.load` (`tabSpaceAssignments`), `AttentionMarkManager.load` (`attentionMarkedTabs`) and `restoreTabAssociationBackup` (`tabAssociations_${windowId}`) - present: worker restart, stored tab and window IDs are exact, records match by tab ID and window only (`AttentionMarkManager`: by tab ID alone, with no URL fallback; a stored URL may lag a navigation made while the worker slept); absent (browser restart, extension reload or update): ID matches also need the record's site, see the two keys
 - Separate from `tabActivitySessionStarted`, which `TabActivityTracker` writes for its own records
 - Instances: 1 per extension
 
@@ -163,7 +163,7 @@ Array<{ windowId, tabId, spaceId, url, index }>
 ```
 - Owner: `src/managers/impl/tabSpaceRegistry.ts`
 - Consumers: background tab activation/new-tab handling, `useTabSpaceAssignments`, Space move/delete actions, `src/services/tabAutoArchiver.ts` (the Space whose `asd_Archive` a tab is saved to)
-- Recovery: `matchStoredTabs` (`src/utils/storedTabMatcher.ts`): every record first tries its stored tab ID in the same window. On a worker restart within the browser session (`tabRestoreSessionStarted` present) that tab is the record's tab whatever page it shows now; after a browser restart or an extension reload/update it counts only on the record's site (an ID reused by another page is not taken). Then the remaining records take the tab on the same URL with the nearest index
+- Recovery: `matchStoredTabs` (`src/utils/storedTabMatcher.ts`): every record first tries its stored tab ID in the same window. On a worker restart within the browser session (`tabRestoreSessionStarted` present) that tab is the record's tab whatever page it shows now; after a browser restart or an extension reload/update the ID's tab is kept first only on the stored URL, then the remaining records take the tab on the same URL with the nearest index, and only then an ID tab on another page of the record's site (Chrome may reuse the ID for another page while the record's page reopened under a new ID; an ID on another site is never taken). On a worker restart the remaining records then take the tab on the same URL with the nearest index
 - Migration: legacy session registry and existing Space-named native groups are read once to seed internal assignments
 - Invariant: Chrome native groups are user-owned presentation and never determine or mutate Space identity
 
@@ -259,6 +259,17 @@ number  // epoch millis
 - Parsing: `parseUnvisitedTabMarker` (`src/utils/unvisitedTabMarker.ts`); absent or unknown values read as `'on'`
 - Instances: 1 per extension (shared across windows)
 
+### `attentionMarkStyle`
+"Mark for Attention colour" setting: colour and strength of the ring on rows marked for attention
+```typescript
+// raw string, not JSON; default 'accent-dim'
+'<colour>' | '<colour>-dim' | '<colour>-bright'  // colour: 'green' | 'blue' | 'orange' | 'red' | 'purple' | 'yellow' | 'accent'
+```
+- Owner: `src/App.tsx` (via `useChromeLocalStorage` with `serialize: v => v`), set from `src/components/SettingsDialog.tsx` (Appearance tab)
+- Consumers: `src/App.tsx` (sets `data-attention-style` on the `.arc-theme` root; `src/index.css` turns it into the `.arc-attention-ring` look in `TabList.tsx` and `BookmarkTree.tsx`; `'accent'` follows the active Space's colour through `--arc-attention-space-rgb`, set for every Space whether or not the sidebar tint is on; theme violet in the All view), `src/components/SettingsDialog.tsx`; not read by background
+- Parsing: `parseAttentionMarkStyle` (`src/utils/attentionMarkStyle.ts`); absent or unknown values read as `'accent-dim'`
+- Instances: 1 per extension (shared across windows)
+
 ### `tabLastUsedAt`
 Last-use times of each open tab (auto-archive and tab age highlight), and which tabs were opened in the background and never activated (unvisited tab marker). Last use is the moment the tab stopped being active
 ```typescript
@@ -280,6 +291,32 @@ Record<tabId, {
 - A record's `url` is the tab's committed URL, or its `pendingUrl` while a new tab has not committed one yet
 - Incognito tabs and tabs in popup/app windows are never recorded
 - Unreadable value: the tracker logs it, ignores it (starts empty) and overwrites it on the next load; the sidebar shows no `leftAt` times (logged in DEV builds), grades rows by `lastAccessed` and shows no unvisited dots
+- Instances: 1 per extension
+
+### `attentionMarkedTabs`
+Tabs marked for attention (Mark for Attention)
+```typescript
+Array<{ tabId: number, windowId: number, url: string, index: number }>
+```
+- Owner: `src/managers/impl/attentionMarkManager.ts` (`AttentionMarkManager`, background, the only writer; writes serialized); the model is `TabMarks` in `src/stores/attentionMarks.ts`
+- Consumers: `src/managers/proxies/attentionMarkProxy.ts` → `src/hooks/useAttentionMarks.ts` (sidebar mirror; `TabList.tsx` draws the ring and the `-` button and leaves marked tabs out of bulk close; `App.tsx` and `SpaceBar.tsx` leave them out of Close All Tabs In Space); `src/services/tabAutoArchiver.ts` (`isTabMarked`, never closes a marked tab)
+- Updates: the user's Mark for Attention / Clear Mark / `-` button (`markTabs` reads each tab with `chrome.tabs.get`; incognito or closed tabs are skipped); `tabs.onRemoved` drops the record unless its window is closing (quitting the browser closes windows); `onUpdated` with a new URL, `onMoved` and `onAttached` move the records of the window's marked tabs to their current URL, index and window
+- Recovery: on a worker restart (`tabRestoreSessionStarted` present) a record stays with the live tab of its ID, in whatever window, and records of tabs closed while the worker slept are dropped, never moved to another tab on the same URL (`TabMarks.keptForLiveTabs`). After a browser restart or an extension reload/update the records are re-matched with `matchStoredTabs` (`src/utils/storedTabMatcher.ts`): an ID tab on the stored URL first, then URL plus nearest index, then an ID tab on another page of the record's site; an ID on another site never counts. Incognito tabs are left out, records that match no live tab are dropped, and matched records are rebuilt from their live tab and written back before the session marker is set, so a later worker restart matches against this session's IDs only
+- Unreadable value: logged, tab marks start empty, events don't write the key and auto-archive skips its runs until the user's next tab mark change writes it
+- Incognito tabs are never stored
+- Lifespan: persistent; records of tabs that no longer exist go at the next worker start
+- Instances: 1 per extension
+
+### `attentionMarkedBookmarks`
+Bookmarks marked for attention
+```typescript
+string[]  // bookmark ids
+```
+- Owner: `src/managers/impl/attentionMarkManager.ts` (`AttentionMarkManager`, background, the only writer); the model is `BookmarkMarks` in `src/stores/attentionMarks.ts`
+- Consumers: `src/managers/proxies/attentionMarkProxy.ts` → `src/hooks/useAttentionMarks.ts` → `src/components/BookmarkTree.tsx` (ring and menu item); not read by auto-archive
+- Updates: the user's Mark for Attention / Clear Mark (bookmarks only, never folders); `bookmarks.onRemoved` drops the removed id and, for a folder, every descendant id; worker start drops ids missing from the bookmark tree
+- Unreadable value (or a failed `getTree`): logged, bookmark marks start empty and the key is not written until the user's next bookmark mark change
+- Lifespan: persistent
 - Instances: 1 per extension
 
 ### `sectionCollapsedState`
@@ -368,7 +405,10 @@ Lost on page reload or service worker restart.
 │  ├─ autoArchiveEnabledAt            (auto-archive switch-on)    │
 │  ├─ tabAgeHighlight                 (tab age highlight look)    │
 │  ├─ markUnvisitedTabs               (unvisited tab marker)      │
+│  ├─ attentionMarkStyle              (attention ring look)       │
 │  ├─ tabLastUsedAt                   (tab last-use times)        │
+│  ├─ attentionMarkedTabs             (marked tabs)               │
+│  ├─ attentionMarkedBookmarks        (marked bookmarks)          │
 │  └─ sectionCollapsedState           (per Space)                 │
 ├─────────────────────────────────────────────────────────────────┤
 │  browser localStorage (survives browser restart)                │

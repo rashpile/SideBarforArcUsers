@@ -27,7 +27,7 @@ const tab = (id, fields = {}) => ({
 
 // Run the policy over window 1; every tab was last used LONG_AGO unless lastUsedAt says otherwise.
 // bookmarks: { [id]: url } in one folder; favorites: URLs of pinned sites
-function select({ tabs, associations = {}, bookmarks = {}, favorites = [], lastUsedAt = {}, enabledAt = 0, now = NOW })
+function select({ tabs, associations = {}, bookmarks = {}, favorites = [], lastUsedAt = {}, marked = [], enabledAt = 0, now = NOW })
 {
   const associationsByWindow = new TabAssociationsByWindow();
   associationsByWindow.setWindow(1, associations);
@@ -38,6 +38,7 @@ function select({ tabs, associations = {}, bookmarks = {}, favorites = [], lastU
     associationsByWindow,
     savedPages: SavedPages.fromTree(tree, favorites.map(url => ({ url }))),
     activity: { lastUsedAt: (id) => id in lastUsedAt ? lastUsedAt[id] : LONG_AGO },
+    isMarked: (id) => marked.includes(id),
     enabledAt,
     now,
     periodMs: PERIOD,
@@ -60,6 +61,18 @@ test('active, audible, Chrome-pinned and incognito tabs and tabs with an unknown
   });
 
   assert.deepEqual(result, { archive: [1], closeOnly: [] });
+});
+
+test('an overdue marked tab stays open, an overdue unmarked one is still closed', () =>
+{
+  const result = select({
+    tabs: [tab(1), tab(2), tab(3), tab(4)],
+    associations: { 3: 'bookmark-b3', 4: 'bookmark-b4' },
+    bookmarks: { b3: 'https://site3.test/', b4: 'https://site4.test/' },
+    marked: [1, 3],
+  });
+
+  assert.deepEqual(result, { archive: [2], closeOnly: [4] });
 });
 
 test('bookmark tabs close without archiving, regular tabs are archived, Favorites and unknown kinds stay open', () =>

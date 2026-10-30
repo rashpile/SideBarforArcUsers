@@ -49,6 +49,10 @@ export interface TabAutoArchiverDeps
   getSpaces: () => readonly Space[];
   /** Favorites (pinned sites); a tab on a Favorite's page is never closed. */
   getPinnedSites: () => readonly { url: string }[];
+  /** True for a tab marked for attention (AttentionMarkManager); a marked tab is never closed. */
+  isTabMarked: (tabId: number) => boolean;
+  /** False when the stored tab marks failed to load: marked tabs are unknown, so a run closes nothing. */
+  tabMarksLoaded: () => boolean;
 }
 
 /** The stored setting, as one run reads it. */
@@ -254,6 +258,16 @@ export class TabAutoArchiver
       return null;
     }
 
+    // With the marks unknown, any overdue tab could be one the user marked
+    if (!this.#deps.tabMarksLoaded())
+    {
+      if (import.meta.env.DEV)
+      {
+        console.log('[TabAutoArchiver] skipped: tab attention marks failed to load');
+      }
+      return null;
+    }
+
     const settings = await this.#readSettings();
     const periodMs = autoArchivePeriodMs(settings.period);
     if (periodMs === null) return null;
@@ -288,6 +302,7 @@ export class TabAutoArchiver
       associationsByWindow,
       savedPages: SavedPages.fromTree(roots, this.#deps.getPinnedSites()),
       activity,
+      isMarked: (tabId) => this.#deps.isTabMarked(tabId),
       enabledAt: settings.enabledAt,
       now: Date.now(),
       periodMs: settings.periodMs,
@@ -364,6 +379,16 @@ export class TabAutoArchiver
   // that is gone or changed meanwhile (tabChangedDuringRun) stays open until the next run
   async #stillClosable(snapshot: OpenTab, runStartedAt: number): Promise<boolean>
   {
+    // Archiving a tab takes bookmark writes; the user may mark it meanwhile
+    if (this.#deps.isTabMarked(snapshot.id))
+    {
+      if (import.meta.env.DEV)
+      {
+        console.log(`[TabAutoArchiver] kept tab ${snapshot.id}: marked for attention during the run`);
+      }
+      return false;
+    }
+
     let current: chrome.tabs.Tab;
     try
     {
