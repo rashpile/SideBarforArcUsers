@@ -25,6 +25,7 @@ import { ChevronRight } from 'lucide-react';
 import { useFontSize } from '../../contexts/FontSizeContext';
 import { Item as BaseItem, Separator, Overlay, useEscapeKey, menuContainerClass } from './MenuBase';
 import { placeMenuAtPoint, placeSubmenu, MenuPoint } from '../../utils/menuPosition';
+import { SubmenuHoverTimer } from '../../utils/submenuHoverTimer';
 
 // Re-export Separator (Item is wrapped below to add close behavior)
 export { Separator };
@@ -235,16 +236,10 @@ export const Item = forwardRef<HTMLDivElement, ItemProps>(
 Item.displayName = 'ContextMenu.Item';
 
 // --- Submenu ---
-// Long enough for the pointer to cross from the trigger row to the panel,
-// short enough that hovering another row of the parent menu closes it promptly.
-const SUBMENU_CLOSE_DELAY_MS = 150;
-
 interface SubMenuState
 {
   isOpen: boolean;
-  open: () => void;
-  scheduleClose: () => void;
-  cancelClose: () => void;
+  hoverTimer: SubmenuHoverTimer;
   triggerRef: MutableRefObject<HTMLDivElement | null>;
 }
 
@@ -269,39 +264,17 @@ export const Sub = ({ children }: SubProps) =>
 {
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLDivElement | null>(null);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const cancelClose = useCallback(() =>
-  {
-    if (closeTimerRef.current !== null)
-    {
-      clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
-  }, []);
-
-  const open = useCallback(() =>
-  {
-    cancelClose();
-    setIsOpen(true);
-  }, [cancelClose]);
-
-  const scheduleClose = useCallback(() =>
-  {
-    cancelClose();
-    closeTimerRef.current = setTimeout(() =>
-    {
-      closeTimerRef.current = null;
-      setIsOpen(false);
-    }, SUBMENU_CLOSE_DELAY_MS);
-  }, [cancelClose]);
+  const [hoverTimer] = useState(() => new SubmenuHoverTimer(setIsOpen, {
+    setTimeout: (callback, ms) => window.setTimeout(callback, ms),
+    clearTimeout: (handle) => window.clearTimeout(handle as number)
+  }));
 
   // The root menu unmounts its content on close; a pending timer must not
   // fire into an unmounted Sub.
-  useEffect(() => cancelClose, [cancelClose]);
+  useEffect(() => () => hoverTimer.cancelPending(), [hoverTimer]);
 
   return (
-    <SubMenuContext.Provider value={{ isOpen, open, scheduleClose, cancelClose, triggerRef }}>
+    <SubMenuContext.Provider value={{ isOpen, hoverTimer, triggerRef }}>
       {children}
     </SubMenuContext.Provider>
   );
@@ -315,21 +288,21 @@ interface SubTriggerProps extends Omit<HTMLAttributes<HTMLDivElement>, 'onSelect
 
 export const SubTrigger = ({ children, className, onMouseEnter, onMouseLeave, ...props }: SubTriggerProps) =>
 {
-  const { isOpen, open, scheduleClose, triggerRef } = useSubMenuState();
+  const { isOpen, hoverTimer, triggerRef } = useSubMenuState();
 
   return (
     <BaseItem
       ref={triggerRef}
-      // Opens the submenu and leaves the root menu open, unlike ContextMenu.Item.
-      onSelect={open}
+      // Opens the submenu at once and leaves the root menu open, unlike ContextMenu.Item.
+      onSelect={() => hoverTimer.openNow()}
       onMouseEnter={(e) =>
       {
-        open();
+        hoverTimer.pointerEnteredTrigger();
         onMouseEnter?.(e);
       }}
       onMouseLeave={(e) =>
       {
-        scheduleClose();
+        hoverTimer.pointerLeft();
         onMouseLeave?.(e);
       }}
       aria-haspopup="menu"
@@ -366,7 +339,7 @@ SubContent.displayName = 'ContextMenu.SubContent';
 
 const SubPanel = ({ children, className, style, onMouseEnter, onMouseLeave, ...props }: SubContentProps) =>
 {
-  const { cancelClose, scheduleClose, triggerRef } = useSubMenuState();
+  const { hoverTimer, triggerRef } = useSubMenuState();
   const fontSize = useFontSize();
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [position, setPosition] = useState<MenuPoint | null>(null);
@@ -400,12 +373,12 @@ const SubPanel = ({ children, className, style, onMouseEnter, onMouseLeave, ...p
       }}
       onMouseEnter={(e) =>
       {
-        cancelClose();
+        hoverTimer.pointerEnteredPanel();
         onMouseEnter?.(e);
       }}
       onMouseLeave={(e) =>
       {
-        scheduleClose();
+        hoverTimer.pointerLeft();
         onMouseLeave?.(e);
       }}
       {...props}
