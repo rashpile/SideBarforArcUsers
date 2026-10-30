@@ -1,4 +1,4 @@
-import { SpaceMessageAction } from './utils/spaceMessages';
+import { SpaceMessageAction, SPACES_STORAGE_KEY } from './utils/spaceMessages';
 import { FOLLOW_ACTIVE_TAB_KEY, parseFollowActiveTabMode } from './utils/followActiveTab';
 import { getTabAssociations, storeTabAssociation, removeTabAssociation, saveTabAssociationBackup, removeTabAssociationBackup, updateTabAssociationBackupIndices, removeWindowAssociationBackup, restoreTabAssociationBackup, WAIT_FOR_TAB_ASSOCIATIONS_READY, BOOKMARK_ITEM_KEY_PREFIX, FAVORITE_ITEM_KEY_PREFIX } from './utils/tabAssociations';
 import { fetchFaviconAsBase64, getFaviconUrl } from './utils/favicon';
@@ -20,6 +20,7 @@ import { BookmarkRecencyStore } from './stores/bookmarkRecencyStore';
 import { BrowserSessionMarker } from './stores/browserSessionMarker';
 import { TabActivityTracker } from './stores/tabActivityTracker';
 import { queryOpenTabs, readTabActivityRecording, TabAutoArchiver } from './services/tabAutoArchiver';
+import { FavoritesMigration } from './services/favoritesMigration';
 import { AUTO_ARCHIVE_AFTER_KEY } from './utils/autoArchive';
 import { TAB_AGE_HIGHLIGHT_KEY } from './utils/tabAgeHighlight';
 import { isOpenedUnvisited, RecentWindows, UNVISITED_TAB_MARKER_KEY } from './utils/unvisitedTabMarker';
@@ -416,6 +417,47 @@ chrome.bookmarks.onRemoved.addListener((id, removeInfo) =>
   void stateReady
     .then(() => favoriteIconsManager.removeIcons(ids))
     .catch((error) => console.error('[FavoriteIconsManager] failed to drop icons of removed bookmarks:', error));
+});
+
+// =============================================================================
+// Favorites migration - copies the legacy global Favorites into every Space's
+// asd_Favorites once. Retried on the triggers below until it is done.
+// =============================================================================
+
+const favoritesMigration = new FavoritesMigration({
+  bookmarks: {
+    getTree: () => chrome.bookmarks.getTree(),
+    getChildren: (id) => chrome.bookmarks.getChildren(id),
+    create: (bookmark) => chrome.bookmarks.create(bookmark),
+  },
+  storage: {
+    get: (key) => chrome.storage.local.get(key),
+    set: (values) => chrome.storage.local.set(values),
+  },
+  restoreIcons: (id, entry) => favoriteIconsManager.restoreIcons(id, entry),
+  getSpaces: () => spaceManager.getSpaces(),
+});
+
+// managerLoadPromise, not stateReady: a failed tab restore doesn't matter here, but the
+// icon store must have loaded, or restoring icons would overwrite the stored ones
+function runFavoritesMigration(): void
+{
+  managerLoadPromise
+    .then(() => favoritesMigration.run())
+    .catch((error) => console.error('[FavoritesMigration] failed:', error));
+}
+
+runFavoritesMigration();
+
+// A Space gained a folder, or its folder arrived by sync
+chrome.bookmarks.onCreated.addListener(() => runFavoritesMigration());
+chrome.bookmarks.onMoved.addListener(() => runFavoritesMigration());
+
+// SPACES_CHANGED is broadcast with runtime.sendMessage, which doesn't reach background's
+// own listeners; the stored Space list changes at the same moment
+chrome.storage.onChanged.addListener((changes, areaName) =>
+{
+  if (areaName === 'local' && SPACES_STORAGE_KEY in changes) runFavoritesMigration();
 });
 
 // =============================================================================

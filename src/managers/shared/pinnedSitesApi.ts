@@ -10,7 +10,7 @@
 // there, and the service worker must not import a React hook module. The hook
 // re-exports it, so existing importers are unaffected.
 
-import { ManagerId, makeManagerActionId } from '../proxies/messageRouting';
+import { ManagerId, makeManagerActionId } from '../proxies/messageRouting.ts';
 
 export interface PinnedSite
 {

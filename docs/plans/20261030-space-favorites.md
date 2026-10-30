@@ -258,15 +258,19 @@ with the live tab's url and index, and the old key's entry is removed.
 - Modify: `src/background.ts`
 - Create: `tests/favoritesMigration.test.mjs` (reuse `tests/fakeArchiveBookmarks.mjs` or extend it)
 
-- [ ] `FavoritesMigration` per "Migration flow" above, injected bookmarks API, storage, icon
+- [x] `FavoritesMigration` per "Migration flow" above, injected bookmarks API, storage, icon
   manager and Space list; serialized runs
-- [ ] wire triggers in background (after managers load, `SPACES_CHANGED`, bookmark
+- [x] wire triggers in background (after managers load, `SPACES_CHANGED`, bookmark
   created/moved) until `done`
-- [ ] write tests: copies into every Space with a folder, in order, with icons under the new ids;
+- [x] write tests: copies into every Space with a folder, in order, with icons under the new ids;
   skips a Space whose folder already has `asd_Favorites`; rerun after `done` does nothing; no Space
   with a folder → nothing written and `done` stays unset; one Space failing leaves `done` unset, a
   rerun does not duplicate the other Spaces and their `rekey` entries survive the rerun
-- [ ] run `make test` - must pass before next task
+- [x] run `make test` - must pass before next task
+- ➕ the `SPACES_CHANGED` trigger listens to `chrome.storage.onChanged` for `spaces`: background's
+  own `runtime.sendMessage` broadcast never reaches its own listeners
+- ➕ `FavoriteRekeyMap` / `FAVORITES_MIGRATION_STORAGE_KEY` live in `src/services/favoritesMigration.ts`
+  for Task 6 to import; a Space that fails mid-copy still stores the rekey entries it made
 
 ### Task 6: Favorite tabs - URL recovery and re-keying
 
