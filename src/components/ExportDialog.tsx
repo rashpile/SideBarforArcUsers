@@ -139,7 +139,7 @@ export function ExportDialog({
   return (
     <Dialog isOpen={isOpen} onClose={onClose} title="Export" maxWidth="max-w-xs" zIndex={60}>
       <div className="p-3 space-y-3">
-        {/* Pinned sites export */}
+        {/* Favorites export */}
         <label className="flex items-center gap-2 text-gray-700 dark:text-gray-300 cursor-pointer">
           <input
             type="checkbox"
@@ -147,7 +147,7 @@ export function ExportDialog({
             onChange={(e) => setExportPinnedSites(e.target.checked)}
             className="rounded border-gray-300 dark:border-gray-600"
           />
-          Pinned sites ({pinnedSites.length})
+          Favorites of the active Space ({pinnedSites.length})
         </label>
 
         {/* Bookmarks export */}

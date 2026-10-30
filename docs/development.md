@@ -83,7 +83,7 @@ sidebar                                  background.ts
 | `TabHistoryManager` | `bg_windowTabHistory` (session) |
 | `TabSpaceRegistry` | `bg_tabSpaces` (session) |
 | `LastAudibleTracker` | `bg_lastAudibleTabIds` (session) |
-| `PinnedSitesManager` | `pinnedSites` (local) |
+| `FavoriteIconsManager` | `favoriteIcons` (local) |
 | `AttentionMarkManager` | `attentionMarkedTabs`, `attentionMarkedBookmarks` (local) |
 
 Code lives in `src/managers/`: `impl/` has the managers (background only), `proxies/` the sidebar clients, `shared/` the API interfaces both sides import. A manager implements `XApi`, its proxy implements `Remote<XApi>`, the same methods returning promises. Adding a method to one side and forgetting the other fails the type check.
@@ -116,13 +116,15 @@ A failed write re-reads the state from background instead of rolling back, since
 
 Spaces are written as a whole list (`updateSpaces(spaces)`). That is safe only because the sidebars are the only writers.
 
-Pinned sites also have a background writer that nobody asked for, the favicon patcher. A whole-list reorder built from a mirror that hasn't received the favicon yet would drop it. So `PinnedSitesApi` names the change: `removePins(ids)`, `movePin(...)`, `setFavicons(patches)`. The manager applies it to its own list, and two writers collide only when they touch the same pin. Each operation is a pure function in `managers/shared/pinnedSitesApi.ts`, used by the manager for the real list and by the proxy for the optimistic write.
+Favorite icons also have a background writer that nobody asked for, the favicon patcher. A whole-store write built from a mirror that hasn't received the favicon yet would drop it. So `FavoriteIconsApi` names the change: `setIcons(id, fields)`, `setFavicons(patches)`, `removeIcons(ids)` and so on. The manager applies it to its own store, and two writers collide only when they touch the same Favorite. Each operation is a method of the immutable `FavoriteIcons` class in `managers/shared/favoriteIconsApi.ts`, used by the manager for the real store and by the proxy for the optimistic write.
 
-A favicon patch records what it was resolved for: the site icon or one `customIconName`. The manager drops a patch whose pin has changed icons since.
+The Favorites list itself (which bookmarks, their order, url and title) is the Space's `asd_Favorites` bookmark folder. The sidebar changes it with `chrome.bookmarks` calls, like any other bookmark; only the icon fields go through the manager.
+
+A favicon patch records what it was resolved for: the site icon or one `customIconName`. The manager drops a patch whose Favorite has changed icons since.
 
 ### Broadcasts that arrive mid-write
 
-The `senderId` check only skips a context's own echo. A broadcast from another writer that arrives while this context has a write in flight can bring back something the user just removed. `pinnedSitesManagerProxy` counts in-flight writes, drops foreign broadcasts while the count is above zero, and re-reads the list when the last write returns.
+The `senderId` check only skips a context's own echo. A broadcast from another writer that arrives while this context has a write in flight can bring back something the user just removed. `favoriteIconsManagerProxy` counts in-flight writes, drops foreign broadcasts while the count is above zero, and re-reads the store when the last write returns.
 
 `spaceManagerProxy` has the same gap and no counter yet. Hitting it takes two windows editing Spaces within milliseconds, and the next edit repairs it.
 
@@ -134,13 +136,13 @@ Tab ↔ bookmark/Favorite associations (`tabAssociations_{windowId}` in session,
 
 ## Favicon loading
 
-`PinnedSite.favicon` is a base64 data URL, fetched once and stored. Chrome's `_favicon` API returns a grey globe for pages it hasn't cached. `favicon.ts` detects that and discards it.
+`PinnedSite.favicon` is a base64 data URL, fetched once and stored in `favoriteIcons` under the Favorite's bookmark id. Chrome's `_favicon` API returns a grey globe for pages it hasn't cached. `favicon.ts` detects that and discards it.
 
 1. Pin an open tab. Chrome has the icon cached, so the fetch succeeds. The caller's `faviconUrl` is the fallback.
 2. Import our own backup. It already carries `favicon`. Old backups without it go through scenario 4.
 3. Import from Arc. Only `url`, `title`, `emoji` and `customIconName` come over, so scenario 4 fills in icons.
 4. Lazy resolve in `usePinnedSites.ts` when the list changes. A `customIconName` without `favicon` is fetched from Iconify. A pin with no icon at all retries Chrome's cache on every change until the page has been visited.
-5. A tab reports a new `favIconUrl` (`tabs.onUpdated` in `background.ts`). Pins on the same hostname without `favicon`, `customIconName` or `emoji` get it. This runs in background because `tabs.onUpdated` doesn't fire reliably in the side panel.
+5. A tab reports a new `favIconUrl` (`tabs.onUpdated` in `background.ts`). Favorites of every Space (all `asd_Favorites` folders) on the same hostname without `favicon`, `customIconName` or `emoji` get it. This runs in background because `tabs.onUpdated` doesn't fire reliably in the side panel.
 6. "Reset to site icon" in Edit Pin re-fetches from Chrome's cache.
 
 ## Chrome API rules

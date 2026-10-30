@@ -5,7 +5,9 @@ import { PinnedSite } from '../hooks/usePinnedSites';
 import { UndoableAction } from '../actions/types';
 import { DeletePinnedSiteAction } from '../actions/deletePinnedSiteAction';
 import { useBookmarkTabsContext } from '../contexts/BookmarkTabsContext';
-import { useSpacesContext } from '../contexts/SpacesContext';
+import { useSpacesContext, type Space } from '../contexts/SpacesContext';
+import { tabSpaceRegistryProxy } from '../managers/proxies/tabSpaceRegistryProxy';
+import { FAVORITE_ITEM_KEY_PREFIX, findTabsForItemKey } from '../utils/tabAssociations';
 import { useUnifiedDnd, DropHandler } from '../contexts/UnifiedDndContext';
 import { BookmarkOpenMode } from './SettingsDialog';
 import { matchesFilter } from '../utils/searchParser';
@@ -14,6 +16,7 @@ import { DragData, DragFormat, DropData, DropPosition, acceptsFormats, getItemsB
 interface PinnedBarProps
 {
   pinnedSites: readonly PinnedSite[];
+  needsFolderHint?: boolean;
   removePin: (id: string) => void;
   updatePin: (id: string,
               title: string,
@@ -25,6 +28,8 @@ interface PinnedBarProps
   movePin: (activeId: string, overId: string, position?: 'before' | 'after') => void;
   duplicatePin: (id: string, liveUrl?: string, liveTitle?: string, liveFavicon?: string) => void;
   addPin: (url: string, title: string, faviconUrl?: string, atIndex?: number) => Promise<PinnedSite | null>;
+  getMoveTargets: (spaces: readonly Space[]) => Space[];
+  movePinToSpace: (id: string, target: Space) => Promise<boolean>;
   iconSize: number;
   bookmarkOpenMode?: BookmarkOpenMode;
   filterLiveTabs?: boolean;
@@ -35,11 +40,14 @@ interface PinnedBarProps
 
 export const PinnedBar = ({
   pinnedSites,
+  needsFolderHint = false,
   updatePin,
   resetFavicon,
   movePin,
   duplicatePin,
   addPin,
+  getMoveTargets,
+  movePinToSpace,
   iconSize,
   bookmarkOpenMode = 'arc',
   filterLiveTabs = false,
@@ -49,7 +57,7 @@ export const PinnedBar = ({
 }: PinnedBarProps) =>
 {
   const { openPinnedTab, closePinnedTab, isPinnedLoaded, isPinnedActive, isPinnedAudible, getTabIdForPinned, associateExistingPinnedTab, deassociatePinnedTab, restoreItemAssociation } = useBookmarkTabsContext();
-  const { windowId, activeSpace } = useSpacesContext();
+  const { windowId, activeSpace, allSpaces } = useSpacesContext();
   const { activeDragData, overId, dropPosition, registerDropHandler, unregisterDropHandler } = useUnifiedDnd();
 
   // Move pinned tab to a new window
@@ -76,6 +84,26 @@ export const PinnedBar = ({
       duplicatePin(pinnedId);
     }
   }, [getTabIdForPinned, duplicatePin]);
+
+  const getPinMoveTargets = useCallback(() => getMoveTargets(allSpaces), [getMoveTargets, allSpaces]);
+
+  // The open tabs follow their Favorite, or they would stay hidden in this Space.
+  // Every window's: the Favorite may be open in another window too.
+  const handleMovePinToSpace = useCallback(async (pinnedId: string, target: Space) =>
+  {
+    const moved = await movePinToSpace(pinnedId, target);
+    if (!moved) return;
+
+    try
+    {
+      const tabs = await findTabsForItemKey(`${FAVORITE_ITEM_KEY_PREFIX}${pinnedId}`);
+      await Promise.all(tabs.map(tab => tabSpaceRegistryProxy.register(tab.windowId, tab.tabId, target.id)));
+    }
+    catch (err)
+    {
+      console.error('[PinnedBar] register moved Favorite tab failed:', err);
+    }
+  }, [movePinToSpace]);
 
   // Handle unpin: create undoable action and either perform (with undo toast) or just do()
   const handleRemovePin = useCallback((pinnedId: string) =>
@@ -209,6 +237,15 @@ export const PinnedBar = ({
 
   if (visiblePinnedSites.length === 0)
   {
+    // Favorites live in the Space's bookmark folder; without one, pinning does nothing, so say why
+    if (needsFolderHint && !hasFilters)
+    {
+      return (
+        <div className="px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+          Favorites need a bookmark folder for this Space
+        </div>
+      );
+    }
     return null;
   }
 
@@ -255,6 +292,8 @@ export const PinnedBar = ({
           onClose={bookmarkOpenMode === 'arc' ? closePinnedTab : undefined}
           onMoveToNewWindow={bookmarkOpenMode === 'arc' ? movePinnedToNewWindow : undefined}
           onMoveToTabs={bookmarkOpenMode === 'arc' ? deassociatePinnedTab : undefined}
+          getMoveTargets={getPinMoveTargets}
+          onMoveToSpace={handleMovePinToSpace}
           isLoaded={bookmarkOpenMode === 'arc' ? isPinnedLoaded(site.id) : false}
           isActive={bookmarkOpenMode === 'arc' ? isPinnedActive(site.id) : false}
           isAudible={bookmarkOpenMode === 'arc' ? isPinnedAudible(site.id) : false}

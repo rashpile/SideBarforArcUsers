@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, Suspense } from 'react';
 import { BookmarkTree } from './components/BookmarkTree';
 import { ArchiveSection } from './components/ArchiveSection';
 import { TabList, ExternalDropTarget, ResolveBookmarkDropTarget } from './components/TabList';
@@ -11,6 +11,7 @@ import { AudioTabsDropdown } from './components/AudioTabsDropdown';
 import { Toast } from './components/Toast';
 import { UndoableAction } from './actions/types';
 import { usePinnedSites, PinnedSite } from './hooks/usePinnedSites';
+import type { FavoritesImportTarget } from './utils/backupRestore';
 import { useTabs } from './hooks/useTabs';
 import { useBookmarks, refreshAllBookmarks } from './hooks/useBookmarks';
 import { useAttentionMarks } from './hooks/useAttentionMarks';
@@ -522,8 +523,7 @@ interface ImportDialogWrapperProps
 {
   isOpen: boolean;
   onClose: () => void;
-  replacePinnedSites: (sites: PinnedSite[]) => void;
-  appendPinnedSites: (sites: PinnedSite[]) => void;
+  favorites: FavoritesImportTarget;
 }
 
 const ImportDialogWrapper: React.FC<ImportDialogWrapperProps> = (props) =>
@@ -540,7 +540,16 @@ const ImportDialogWrapper: React.FC<ImportDialogWrapperProps> = (props) =>
 };
 
 // Wrapper for ArcImportDialog that uses spaces from context
-const ArcImportDialogWrapper: React.FC<ImportDialogWrapperProps> = (props) =>
+interface ArcImportDialogWrapperProps
+{
+  isOpen: boolean;
+  onClose: () => void;
+  replacePinnedSites: (sites: PinnedSite[]) => Promise<number>;
+  appendPinnedSites: (sites: PinnedSite[]) => Promise<number>;
+  addPinnedSitesToSpaceFolder: (spaceFolderId: string, sites: PinnedSite[]) => Promise<number>;
+}
+
+const ArcImportDialogWrapper: React.FC<ArcImportDialogWrapperProps> = (props) =>
 {
   const { spaces, replaceSpaces, appendSpaces } = useSpacesContext();
   return (
@@ -634,7 +643,9 @@ const AppContainer: React.FC<AppContainerProps> = ({ useSpaceColor, spaceColorAl
   );
 };
 
-function App() {
+// Runs inside the Space and tab providers: the Favorites grid follows the active Space
+function Sidebar() {
+  const { activeSpace } = useSpacesContext();
   const [fontSize, setFontSize] = useLocalStorage('sidebar-font-size-px', 14, {
     parse: (v) => parseInt(v, 10),
     serialize: (v) => v.toString()
@@ -854,9 +865,19 @@ function App() {
     resetFavicon,
     movePin,
     duplicatePin,
+    getMoveTargets,
+    movePinToSpace,
     replacePinnedSites,
     appendPinnedSites,
-  } = usePinnedSites();
+    addPinnedSitesToSpaceFolder,
+    restorePinnedSiteIcons,
+    needsFolderHint: favoritesNeedFolderHint,
+  } = usePinnedSites(activeSpace);
+  const favoritesImportTarget = useMemo<FavoritesImportTarget>(() => ({
+    replace: replacePinnedSites,
+    append: appendPinnedSites,
+    restoreIcons: restorePinnedSiteIcons,
+  }), [replacePinnedSites, appendPinnedSites, restorePinnedSiteIcons]);
   const { tabs, refreshTabs } = useTabs();
 
   const handleApplySettings = (newSettings: SettingsValues) => {
@@ -1177,8 +1198,6 @@ function App() {
   {
     try
     {
-      // App() sits outside SpacesProvider, so there is no context windowId to
-      // read - resolve this window inline instead.
       const { id: windowId } = await chrome.windows.getCurrent();
       if (windowId === undefined) return;
 
@@ -1188,8 +1207,7 @@ function App() {
       if (targetTabId !== undefined)
       {
         // Background switches space and sends an explicit TAB_ACTIVATED, which
-        // scrolls the tab (or its bookmark row) into view - App() sits outside
-        // the providers, so it cannot route the scroll itself
+        // scrolls the tab (or its bookmark row) into view
         await chrome.runtime.sendMessage({
           action: 'set-active-tab-and-space',
           tabId: targetTabId,
@@ -1204,8 +1222,6 @@ function App() {
   const handleOpenAudioDialog = useCallback(async () => {
     try
     {
-      // Same as handleJumpToAudioTab: no context windowId out here, so this
-      // window is resolved inline.
       const { id: windowId } = await chrome.windows.getCurrent();
       if (windowId === undefined) return;
 
@@ -1262,8 +1278,6 @@ function App() {
 
   return (
     <FontSizeContext.Provider value={fontSize}>
-      <BookmarkTabsProvider>
-      <SpacesProvider>
       <SelectionProvider>
       <UnifiedDndProvider>
       <AppContainer useSpaceColor={useSpaceColor} spaceColorAlpha={spaceColorAlpha} fontSize={fontSize} followActiveTab={followActiveTab} tabAgeHighlight={shownTabAgeHighlight} attentionMarkStyle={attentionMarkStyle}>
@@ -1313,8 +1327,7 @@ function App() {
           <ImportDialogWrapper
             isOpen
             onClose={() => setShowImport(false)}
-            replacePinnedSites={replacePinnedSites}
-            appendPinnedSites={appendPinnedSites}
+            favorites={favoritesImportTarget}
           />
         )}
 
@@ -1324,6 +1337,7 @@ function App() {
             onClose={() => setShowArcImport(false)}
             replacePinnedSites={replacePinnedSites}
             appendPinnedSites={appendPinnedSites}
+            addPinnedSitesToSpaceFolder={addPinnedSitesToSpaceFolder}
           />
         )}
 
@@ -1499,12 +1513,15 @@ function App() {
       {/* Pinned Sites */}
       <PinnedBar
         pinnedSites={pinnedSites}
+        needsFolderHint={favoritesNeedFolderHint}
         removePin={removePin}
         updatePin={updatePin}
         resetFavicon={resetFavicon}
         movePin={movePin}
         duplicatePin={duplicatePin}
         addPin={handleAddPin}
+        getMoveTargets={getMoveTargets}
+        movePinToSpace={movePinToSpace}
         iconSize={pinnedIconSize}
         bookmarkOpenMode={bookmarkOpenMode}
         filterLiveTabs={showFilterArea && filterLiveTabs}
@@ -1579,9 +1596,18 @@ function App() {
       </AppContainer>
       </UnifiedDndProvider>
       </SelectionProvider>
-      </SpacesProvider>
-      </BookmarkTabsProvider>
     </FontSizeContext.Provider>
+  );
+}
+
+function App()
+{
+  return (
+    <BookmarkTabsProvider>
+      <SpacesProvider>
+        <Sidebar />
+      </SpacesProvider>
+    </BookmarkTabsProvider>
   );
 }
 

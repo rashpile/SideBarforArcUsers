@@ -20,7 +20,7 @@ export const ManagerId = {
   SPACES: 'SpaceManager',
   TAB_HISTORY: 'TabHistoryManager',
   LAST_AUDIBLE: 'LastAudibleTracker',
-  PINNED_SITES: 'PinnedSitesManager',
+  FAVORITE_ICONS: 'FavoriteIconsManager',
   ATTENTION_MARKS: 'AttentionMarkManager',
 } as const;
 

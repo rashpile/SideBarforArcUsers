@@ -4,7 +4,7 @@ import { useSpacesContext, Space } from '../contexts/SpacesContext';
 import { SpaceFolderIcon } from './SpaceFolderIcon';
 import { Dialog } from './Dialog';
 import { TreeRow } from './TreeRow';
-import { isArchiveFolder } from '../utils/archiveFolder';
+import { isSystemFolder } from '../utils/archiveFolder';
 import { Folder, FolderPlus } from 'lucide-react';
 
 // Whether a folder with this id exists anywhere in the tree
@@ -74,8 +74,8 @@ const FolderItem = ({
 
   if (!isFolder) return null;
 
-  // Filter children to only folders; Space archive folders are not offered
-  const folderChildren = node.children?.filter(child => !child.url && !isArchiveFolder(child)) || [];
+  // Filter children to only folders; Space archive and Favorites folders are not offered
+  const folderChildren = node.children?.filter(child => !child.url && !isSystemFolder(child)) || [];
   const hasChildren = folderChildren.length > 0;
   const isExpanded = expandedState[node.id];
   const isSelected = selectedFolderId === node.id;

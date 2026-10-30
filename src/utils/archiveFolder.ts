@@ -3,6 +3,8 @@
 // there as bookmarks, newest at index 0. The Bookmarks section hides the folder;
 // only the Archive section shows it.
 
+import { isFavoritesFolder } from './favoritesFolder.ts';
+
 export const ARCHIVE_FOLDER_TITLE = 'asd_Archive';
 
 /** The fields of a bookmark node the archive helpers read. */
@@ -38,6 +40,15 @@ export interface ArchivedPage
 export function isArchiveFolder(node: ArchiveNodeLike): boolean
 {
   return !node.url && node.title === ARCHIVE_FOLDER_TITLE;
+}
+
+/**
+ * True for a folder the sidebar manages itself (`asd_Archive` or `asd_Favorites`).
+ * Walks of a Space folder's descendants skip these at any depth.
+ */
+export function isSystemFolder(node: ArchiveNodeLike): boolean
+{
+  return isArchiveFolder(node) || isFavoritesFolder(node);
 }
 
 /**

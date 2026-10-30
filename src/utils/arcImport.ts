@@ -642,8 +642,11 @@ async function createBookmarkFolder(name: string): Promise<{ id: string; path: s
 
 export interface ArcImportCallbacks
 {
-  replacePinnedSites: (sites: PinnedSite[]) => void;
-  appendPinnedSites: (sites: PinnedSite[]) => void;
+  /** Into the active Space's Favorites. */
+  replacePinnedSites: (sites: PinnedSite[]) => Promise<number>;
+  appendPinnedSites: (sites: PinnedSite[]) => Promise<number>;
+  /** Into the Favorites of the Space whose bookmark folder this is. */
+  addPinnedSitesToSpaceFolder: (spaceFolderId: string, sites: PinnedSite[]) => Promise<number>;
   replaceSpaces: (spaces: Space[]) => Promise<void>;
   appendSpaces: (spaces: Space[]) => Promise<void>;
   existingSpaces: readonly Space[];
@@ -664,6 +667,7 @@ export async function importArcData(
 
   const result: ArcImportResult = {
     pinnedSitesCount: 0,
+    pinnedSitesSkipped: 0,
     bookmarksCount: 0,
     tabGroupsCount: 0,
     spacesCount: 0,
@@ -673,31 +677,10 @@ export async function importArcData(
     notes: [],
   };
 
-  // ─── Step 1: Top Apps → Pinned Sites ───
-  if (options.importTopApps && data.topApps.length > 0)
-  {
-    // Favicon/icon resolution is handled lazily by usePinnedSites hook.
-    // Just store metadata here.
-    const sites: PinnedSite[] = data.topApps.map((tab) => ({
-      id: generatePinId(),
-      url: tab.url,
-      title: tab.title,
-      ...(tab.emoji ? { emoji: tab.emoji } : {}),
-      ...(tab.iconName ? { customIconName: tab.iconName } : {}),
-    }));
+  // Bookmark folders of the Spaces this import creates; Top Apps go into each
+  const createdSpaceFolderIds: string[] = [];
 
-    if (options.topAppsMode === 'replace')
-    {
-      callbacks.replacePinnedSites(sites);
-    }
-    else
-    {
-      callbacks.appendPinnedSites(sites);
-    }
-    result.pinnedSitesCount = sites.length;
-  }
-
-  // ─── Step 2: Spaces + Bookmarks ───
+  // ─── Step 1: Spaces + Bookmarks ───
   if (options.importSpaces && data.spaces.length > 0)
   {
     const newSpaces: Space[] = [];
@@ -713,6 +696,7 @@ export async function importArcData(
 
         const icon = arcSpace.emoji || arcSpace.iconName || 'folder';
         const { id: folderId, path: folderPath } = await createBookmarkFolder(arcSpace.name);
+        createdSpaceFolderIds.push(folderId);
 
         // Import pinned items as bookmarks
         for (const node of arcSpace.pinnedItems)
@@ -785,6 +769,7 @@ export async function importArcData(
 
           const icon = arcSpace.emoji || arcSpace.iconName || 'folder';
           const { id: folderId, path: folderPath } = await createBookmarkFolder(arcSpace.name);
+          createdSpaceFolderIds.push(folderId);
 
           for (const node of arcSpace.pinnedItems)
           {
@@ -809,6 +794,43 @@ export async function importArcData(
         await callbacks.appendSpaces(newSpaces);
       }
       result.spacesCount = data.spaces.length;
+    }
+  }
+
+  // ─── Step 2: Top Apps → Favorites ───
+  // After the Spaces, so the folders of the new ones exist
+  if (options.importTopApps && data.topApps.length > 0)
+  {
+    // Favicon/icon resolution is handled lazily by usePinnedSites hook.
+    // Just store metadata here.
+    const sites: PinnedSite[] = data.topApps.map((tab) => ({
+      id: generatePinId(),
+      url: tab.url,
+      title: tab.title,
+      ...(tab.emoji ? { emoji: tab.emoji } : {}),
+      ...(tab.iconName ? { customIconName: tab.iconName } : {}),
+    }));
+
+    const addFavorites = (created: number) =>
+    {
+      result.pinnedSitesCount += created;
+      result.pinnedSitesSkipped += sites.length - created;
+    };
+    if (createdSpaceFolderIds.length > 0)
+    {
+      // New folders are empty, so append and replace are the same here
+      for (const folderId of createdSpaceFolderIds)
+      {
+        addFavorites(await callbacks.addPinnedSitesToSpaceFolder(folderId, sites));
+      }
+    }
+    else if (options.topAppsMode === 'replace')
+    {
+      addFavorites(await callbacks.replacePinnedSites(sites));
+    }
+    else
+    {
+      addFavorites(await callbacks.appendPinnedSites(sites));
     }
   }
 

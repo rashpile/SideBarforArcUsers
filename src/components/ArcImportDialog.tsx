@@ -18,8 +18,9 @@ interface ArcImportDialogProps
 {
   isOpen: boolean;
   onClose: () => void;
-  replacePinnedSites: (sites: PinnedSite[]) => void;
-  appendPinnedSites: (sites: PinnedSite[]) => void;
+  replacePinnedSites: (sites: PinnedSite[]) => Promise<number>;
+  appendPinnedSites: (sites: PinnedSite[]) => Promise<number>;
+  addPinnedSitesToSpaceFolder: (spaceFolderId: string, sites: PinnedSite[]) => Promise<number>;
   replaceSpaces: (spaces: Space[]) => Promise<void>;
   appendSpaces: (spaces: Space[]) => Promise<void>;
   existingSpaces: readonly Space[];
@@ -44,6 +45,7 @@ export function ArcImportDialog({
   onClose,
   replacePinnedSites,
   appendPinnedSites,
+  addPinnedSitesToSpaceFolder,
   replaceSpaces,
   appendSpaces,
   existingSpaces,
@@ -177,6 +179,7 @@ export function ArcImportDialog({
       const callbacks: ArcImportCallbacks = {
         replacePinnedSites,
         appendPinnedSites,
+        addPinnedSitesToSpaceFolder,
         replaceSpaces,
         appendSpaces,
         existingSpaces,
@@ -363,7 +366,10 @@ export function ArcImportDialog({
               </div>
               <ul className="text-gray-600 dark:text-gray-400 ml-7 space-y-1">
                 {importResult.pinnedSitesCount > 0 && (
-                  <li>{importResult.pinnedSitesCount} pinned sites</li>
+                  <li>{importResult.pinnedSitesCount} Favorites</li>
+                )}
+                {importResult.pinnedSitesSkipped > 0 && (
+                  <li>{importResult.pinnedSitesSkipped} Favorites not imported (invalid URL or no bookmark folder)</li>
                 )}
                 {importResult.spacesCount > 0 && (
                   <li>
@@ -420,7 +426,7 @@ export function ArcImportDialog({
                         className="rounded border-gray-300 dark:border-gray-600"
                         disabled={dialogState === 'importing'}
                       />
-                      Top Apps as Pinned Sites
+                      Top Apps as Favorites
                     </label>
                     {importTopApps && (
                       <div className="ml-5 mt-1 space-y-1">
@@ -444,6 +450,9 @@ export function ArcImportDialog({
                           />
                           Replace existing
                         </label>
+                        <p className="text-gray-500 dark:text-gray-500 ml-5 text-xs">
+                          Into every Space this import creates, else into the active Space
+                        </p>
                       </div>
                     )}
                   </div>

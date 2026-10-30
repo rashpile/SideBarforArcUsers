@@ -31,6 +31,7 @@ import {
 } from '../utils/autoArchivePolicy';
 import { SpaceArchive } from '../utils/archiveFolder';
 import { findFolderBySegments } from '../utils/bookmarkFolderLookup';
+import { allFavoriteUrls } from '../utils/spaceFavorites';
 import { getEffectiveTabUrl } from '../utils/parkedTabAssociation';
 import { getTabAssociations } from '../utils/tabAssociations';
 import type { TabActivityTracker } from '../stores/tabActivityTracker';
@@ -46,9 +47,8 @@ export interface TabAutoArchiverDeps
   tracker: TabActivityTracker;
   /** The Space a tab belongs to (TabSpaceRegistry). */
   spaceRegistry: { getSpace: (windowId: number, tabId: number) => string | undefined };
+  /** The Spaces; a tab on the page of any Space's Favorite is never closed. */
   getSpaces: () => readonly Space[];
-  /** Favorites (pinned sites); a tab on a Favorite's page is never closed. */
-  getPinnedSites: () => readonly { url: string }[];
   /** True for a tab marked for attention (AttentionMarkManager); a marked tab is never closed. */
   isTabMarked: (tabId: number) => boolean;
   /** False when the stored tab marks failed to load: marked tabs are unknown, so a run closes nothing. */
@@ -296,11 +296,15 @@ export class TabAutoArchiver
       chrome.bookmarks.getTree(),
     ]);
     const roots = tree[0]?.children ?? [];
+    const spaces = this.#deps.getSpaces();
 
+    // Every Space's Favorites, not only those of the tab's Space: the same page may be a
+    // Favorite in one Space and an ordinary tab in another, and it stays open in both
+    const favorites = allFavoriteUrls(roots, spaces).map(url => ({ url }));
     const { archive, closeOnly } = selectTabsToClose({
       tabs,
       associationsByWindow,
-      savedPages: SavedPages.fromTree(roots, this.#deps.getPinnedSites()),
+      savedPages: SavedPages.fromTree(roots, favorites),
       activity,
       isMarked: (tabId) => this.#deps.isTabMarked(tabId),
       enabledAt: settings.enabledAt,
@@ -309,7 +313,6 @@ export class TabAutoArchiver
     });
 
     // One tab at a time: two archives into a Space without a folder must not both create one
-    const spaces = this.#deps.getSpaces();
     for (const tab of archive)
     {
       await this.#archiveAndClose(tab, roots, spaces, runStartedAt);

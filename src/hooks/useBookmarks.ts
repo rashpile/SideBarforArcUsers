@@ -8,7 +8,7 @@ import {
   findRootFolder,
   isInAccountStorage,
 } from '../utils/bookmarkFolderLookup';
-import { isArchiveFolder } from '../utils/archiveFolder';
+import { isSystemFolder } from '../utils/archiveFolder';
 
 export type SortOption = 'none' | 'name' | 'dateAdded';
 
@@ -59,6 +59,12 @@ const sharedBookmarkStore = new SharedBookmarkStore(
 );
 
 const refreshAll = () => sharedBookmarkStore.refresh();
+
+/**
+ * Read handle on the shared tree, for a hook that derives a small part of it and
+ * should not re-render its component on every bookmark change (usePinnedSites).
+ */
+export const bookmarkTreeStore: Pick<SharedBookmarkStore, 'subscribe' | 'getSnapshot'> = sharedBookmarkStore;
 
 export { refreshAll as refreshAllBookmarks };
 
@@ -438,7 +444,7 @@ export const useBookmarks = () => {
   }, [bookmarks]);
 
   // Get all bookmarks recursively from a folder (including nested subfolders).
-  // Archive folders are skipped: their items are not part of the Space's bookmarks
+  // System folders (archive, Favorites) are skipped: their items are not part of the Space's bookmarks
   const getAllBookmarksInFolder = useCallback(async (
     folderId: string
   ): Promise<Array<{ id: string; title: string; url: string }>> =>
@@ -448,14 +454,14 @@ export const useBookmarks = () => {
     const collectRecursive = async (id: string): Promise<void> =>
     {
       const children = await getChildren(id);
-      // Depth-first: pages are collected, subfolders other than the archive are walked
+      // Depth-first: pages are collected, subfolders other than the system folders are walked
       for (const child of children)
       {
         if (child.url)
         {
           results.push({ id: child.id, title: child.title, url: child.url });
         }
-        else if (!isArchiveFolder(child))
+        else if (!isSystemFolder(child))
         {
           await collectRecursive(child.id);
         }

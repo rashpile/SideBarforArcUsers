@@ -2,6 +2,7 @@ import { PinnedSite } from '../hooks/usePinnedSites';
 import { Space } from '../contexts/SpacesContext';
 import { isEmoji } from './emoji';
 import { fetchRootFolder, findRootFolder } from './bookmarkFolderLookup';
+import { favoritesImportAction } from './favoritesImport';
 
 // Convert PascalCase to kebab-case — used only for v1 backup migration
 function toKebabCase(name: string): string
@@ -182,6 +183,8 @@ async function importTabGroups(tabGroups: TabGroupBackup[]): Promise<void> {
 
 export interface ImportResult {
   pinnedSitesCount: number;
+  /** Favorites in the import that weren't created: an invalid URL, or Chrome rejected them. */
+  pinnedSitesSkipped: number;
   bookmarksCount: number;
   tabGroupsCount: number;
   spacesCount: number;
@@ -235,12 +238,20 @@ function generateUniqueSpaceName(name: string, existingNames: Set<string>): stri
   return `${name} (${suffix})`;
 }
 
+/** Where a backup's `pinnedSites` go: the active Space's Favorites. */
+export interface FavoritesImportTarget
+{
+  /** Each returns how many Favorites it created. */
+  replace: (sites: PinnedSite[]) => Promise<number>;
+  append: (sites: PinnedSite[]) => Promise<number>;
+  restoreIcons: (sites: readonly PinnedSite[]) => Promise<void>;
+}
+
 // Import full backup
 export async function importFullBackup(
   backup: FullBackup,
   options: ImportOptions,
-  replacePinnedSites: (sites: PinnedSite[]) => void,
-  appendPinnedSites: (sites: PinnedSite[]) => void,
+  favorites: FavoritesImportTarget,
   replaceSpaces: (spaces: Space[]) => Promise<void>,
   appendSpaces: (spaces: Space[]) => Promise<void>,
   existingSpaceNames: string[]
@@ -253,23 +264,16 @@ export async function importFullBackup(
 
   const result: ImportResult = {
     pinnedSitesCount: 0,
+    pinnedSitesSkipped: 0,
     bookmarksCount: 0,
     tabGroupsCount: 0,
     spacesCount: 0,
   };
 
-  // Import pinned sites
-  if (options.importPinnedSites && backup.pinnedSites && backup.pinnedSites.length > 0) {
-    if (options.pinnedSitesMode === 'replace') {
-      replacePinnedSites(backup.pinnedSites);
-    } else {
-      appendPinnedSites(backup.pinnedSites);
-    }
-    result.pinnedSitesCount = backup.pinnedSites.length;
-  }
+  const importBookmarks = options.importBookmarks && !!backup.bookmarks && backup.bookmarks.length > 0;
 
   // Import bookmarks
-  if (options.importBookmarks && backup.bookmarks && backup.bookmarks.length > 0) {
+  if (importBookmarks && backup.bookmarks) {
     // The backup structure can be either:
     // 1. [rootNode] where rootNode.children contains Bookmarks Bar and Other Bookmarks
     // 2. [bookmarksBar, otherBookmarks] directly (flat structure)
@@ -340,6 +344,27 @@ export async function importFullBackup(
         }
       }
     }
+  }
+
+  // After the bookmarks: restored in place they bring back the Favorites themselves
+  const backupFavorites = backup.pinnedSites ?? [];
+  const favoritesAction = favoritesImportAction({
+    importFavorites: options.importPinnedSites,
+    favoritesMode: options.pinnedSitesMode,
+    backupFavorites,
+    bookmarksRestoredInPlace: importBookmarks && options.bookmarkMode === 'replace',
+    backupBookmarks: backup.bookmarks ?? [],
+  });
+  if (favoritesAction === 'restore-icons')
+  {
+    await favorites.restoreIcons(backupFavorites);
+  }
+  else if (favoritesAction === 'replace' || favoritesAction === 'append')
+  {
+    result.pinnedSitesCount = favoritesAction === 'replace'
+      ? await favorites.replace(backupFavorites)
+      : await favorites.append(backupFavorites);
+    result.pinnedSitesSkipped = backupFavorites.length - result.pinnedSitesCount;
   }
 
   // Import tab groups

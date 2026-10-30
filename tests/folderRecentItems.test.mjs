@@ -49,6 +49,26 @@ test('skips archive folders below the folder, but lists an archive folder passed
   assert.deepEqual(collectFolderBookmarks(archive).map(b => b.id), ['archived-new', 'archived-old']);
 });
 
+test('never lists a Favorite: asd_Favorites folders are skipped at any depth', () =>
+{
+  const favorites = (id) => ({
+    id,
+    title: 'asd_Favorites',
+    children: [{ id: `${id}-mail`, title: 'Mail', url: 'https://mail.example' }],
+  });
+  const space = {
+    id: 'space',
+    title: 'Home',
+    children: [
+      favorites('favorites'),
+      ...folder.children,
+      { id: 'sub', title: 'Sub', children: [favorites('nested-favorites')] },
+    ],
+  };
+
+  assert.deepEqual(collectFolderBookmarks(space).map(b => b.id), ['notion', 'sheets', 'gas', 'power']);
+});
+
 test('without a query lists only previously active bookmarks, newest first', () =>
 {
   const recency = new BookmarkRecency({ power: 100, sheets: 300, gas: 200 });

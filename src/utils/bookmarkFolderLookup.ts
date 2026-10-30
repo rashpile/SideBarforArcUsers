@@ -59,6 +59,19 @@ export function findFolderBySegments(
   return walkSegments(preferredRoots, segments, true) ?? walkSegments(otherRoots, segments, true);
 }
 
+// A removed node's id and, for a folder, every descendant id: Chrome's onRemoved
+// reports only the folder, not the bookmarks that went with it
+export function collectBookmarkIds(node: BookmarkIdNode): string[]
+{
+  return [node.id, ...(node.children ?? []).flatMap(collectBookmarkIds)];
+}
+
+interface BookmarkIdNode
+{
+  id: string;
+  children?: readonly BookmarkIdNode[];
+}
+
 // Chrome's permanent top-level folders
 export type RootFolderType = 'bookmarks-bar' | 'other' | 'mobile';
 

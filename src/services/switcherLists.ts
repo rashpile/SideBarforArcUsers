@@ -15,11 +15,10 @@ export interface WindowSpaces
 {
   activeSpaceId: string | undefined;  // undefined when no Spaces are set up
   spaceOf(tabId: number): string | undefined;
-  isFavorite(tabId: number): boolean; // Favorites belong to every Space
 }
 
-// Per-Space tab count and most recently used tab in one window. Favorites
-// belong to every Space, so they count for none.
+// Per-Space tab count and most recently used tab in one window. A Favorite's
+// tab counts for the Space it is registered in, like any other tab.
 class SpaceUsage
 {
   #spaces = new Map<string, { tabCount: number; lastUse: number; lastTabId: number }>();
@@ -28,7 +27,7 @@ class SpaceUsage
   {
     for (const tab of tabs)
     {
-      if (tab.id === undefined || spaces.isFavorite(tab.id)) continue;
+      if (tab.id === undefined) continue;
       const spaceId = spaces.spaceOf(tab.id);
       if (!spaceId) continue;
 
@@ -77,13 +76,11 @@ function hostOf(url: string): string
   catch { return url; }
 }
 
-// The current tab first, then the current Space's tabs and the Favorites,
-// most recently used first
+// The current tab first, then the current Space's tabs, most recently used first
 export function buildTabCards(tabs: TabWithLastAccess[], spaces: WindowSpaces): SwitcherCard[]
 {
   const inCurrentSpace = (tabId: number) =>
     spaces.activeSpaceId === undefined
-    || spaces.isFavorite(tabId)
     || spaces.spaceOf(tabId) === spaces.activeSpaceId;
 
   const ordered = [...tabs].sort((a, b) =>
