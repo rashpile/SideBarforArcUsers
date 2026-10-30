@@ -2,15 +2,14 @@
  * ArchiveSection - the active Space's archive, between the Bookmarks
  * and Tabs sections. Auto-archive saves closed tabs as bookmarks in the Space
  * folder's `asd_Archive` folder; this section reopens them.
- * Collapsed: hovering the header peeks the newest items (FolderRecentPopover).
- * Expanded: every item, newest first. Clicking an item reopens it as a regular tab.
+ * Expanded: every item, newest first, with a search field in the header row that narrows
+ * them. Clicking an item reopens it as a regular tab.
  */
-import { useState, useCallback, useMemo } from 'react';
-import { Trash, X } from 'lucide-react';
+import { useState, useCallback, useMemo, useEffect, useRef, KeyboardEvent } from 'react';
+import { Search, Trash, X } from 'lucide-react';
 import { useBookmarks } from '../hooks/useBookmarks';
 import { useInView } from '../hooks/useInView';
 import { Space, useSpacesContext } from '../contexts/SpacesContext';
-import { useUnifiedDnd } from '../contexts/UnifiedDndContext';
 import { useFontSize } from '../contexts/FontSizeContext';
 import { UndoableAction } from '../actions/types';
 import { DeleteBookmarkAction } from '../actions/deleteBookmarkAction';
@@ -18,10 +17,10 @@ import { createChromeErrorHandler } from '../utils/chromeError';
 import { findArchiveFolder } from '../utils/archiveFolder';
 import { ArchiveItems } from '../utils/archiveItems';
 import { formatRelativeTime } from '../utils/folderRecentItems';
+import { getIndentPadding } from '../utils/indent';
 import { SectionHeader } from './SectionHeader';
 import { TreeRow } from './TreeRow';
 import { BookmarkFavicon } from './BookmarkFavicon';
-import { FolderRecentPopover, useFolderPeek } from './FolderRecentPopover';
 import * as ContextMenu from './menu/ContextMenu';
 
 // --- Item row ---
@@ -118,6 +117,82 @@ const ArchiveItemRow = ({ page, now, onRestore, onDelete }: ArchiveItemRowProps)
   );
 };
 
+// --- Search field ---
+
+interface ArchiveSearchFieldProps
+{
+  value: string;
+  onChange: (value: string) => void;
+}
+
+/**
+ * The search input in the expanded Archive header. It fills the header's trailing slot and
+ * keeps clicks there, because a click anywhere else in the header row toggles the section.
+ */
+const ArchiveSearchField = ({ value, onChange }: ArchiveSearchFieldProps) =>
+{
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) =>
+  {
+    if (e.key !== 'Escape') return;
+    // The document-level Escape handler would also clear the tab/bookmark multi-selection
+    e.stopPropagation();
+    if (value)
+    {
+      onChange('');
+    }
+    else
+    {
+      e.currentTarget.blur();
+    }
+  };
+
+  return (
+    <div
+      className="flex w-full min-w-0 pl-2 cursor-text"
+      onClick={(e) =>
+      {
+        e.stopPropagation();
+        inputRef.current?.focus();
+      }}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      <div className="flex flex-1 items-center gap-1.5 min-w-0 pl-2 pr-0.5 rounded-md bg-black/5 dark:bg-white/10">
+        <Search size={14} className="shrink-0 text-gray-400" aria-hidden="true" />
+        <input
+          ref={inputRef}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Search Archive..."
+          aria-label="Search Archive"
+          className="flex-1 min-w-0 py-0.5 bg-transparent outline-none text-gray-700 dark:text-gray-200 placeholder-gray-400"
+        />
+        {value && (
+          <button
+            type="button"
+            onClick={(e) =>
+            {
+              e.stopPropagation();
+              onChange('');
+              inputRef.current?.focus();
+            }}
+            className="shrink-0 p-0.5 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400"
+            // .arc-space-title hides header buttons until hover or focus; a hidden "x" would hide
+            // that the rows are filtered
+            style={{ opacity: 1 }}
+            title="Clear search"
+            aria-label="Clear search"
+          >
+            <X size={12} />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // --- Section ---
 
 interface ArchiveSectionProps
@@ -141,9 +216,9 @@ export const ArchiveSection = ({
 {
   const { findFolderBySegments } = useBookmarks();
   const { windowId } = useSpacesContext();
-  const { activeId: dragActiveId } = useUnifiedDnd();
   const fontSize = useFontSize();
   const [error, setError] = useState<string | null>(null);
+  const [searchText, setSearchText] = useState('');
   const handleError = useMemo(() => createChromeErrorHandler('Archive', setError), []);
 
   // The active Space's archive: the first asd_Archive child of its bookmark folder (items in
@@ -152,22 +227,23 @@ export const ArchiveSection = ({
   const archiveFolder = spaceFolder ? findArchiveFolder(spaceFolder.children ?? []) : undefined;
 
   const items = useMemo(() => ArchiveItems.fromFolder(archiveFolder), [archiveFolder]);
-  const recency = useMemo(() => items.toRecency(), [items]);
-  const visibleItems = useMemo(() => items.matching(filterText), [items, filterText]);
+  const filteredItems = useMemo(() => items.matching(filterText), [items, filterText]);
+  const visibleItems = useMemo(() => items.matching(filterText, searchText), [items, filterText, searchText]);
 
   // Hidden without items (no archive, empty, or nothing matches the text filter) and
-  // under "With open tabs": archived pages have no live tab
-  const isHidden = filterLiveTabs || visibleItems.length === 0;
+  // under "With open tabs": archived pages have no live tab. The Archive search doesn't
+  // hide the section, or a search without matches would take its own input away
+  const isHidden = filterLiveTabs || filteredItems.length === 0;
 
-  // The collapsed header peeks the newest items, in every bookmark open mode
-  const peek = useFolderPeek(!isHidden && isCollapsed && !dragActiveId);
-  const closePeek = peek.close;
+  useEffect(() =>
+  {
+    if (isCollapsed) setSearchText('');
+  }, [isCollapsed]);
 
   // Reopen as a regular tab of the active Space (background assigns new tabs to it, like
   // "+ New Tab"), then drop the item. Opening first means a failed open loses nothing.
   const handleRestore = useCallback((page: chrome.bookmarks.BookmarkTreeNode) =>
   {
-    closePeek();
     chrome.tabs.create({ url: page.url, active: true, windowId: windowId ?? undefined }, () =>
     {
       if (handleError('reopen archived page')) return;
@@ -176,7 +252,7 @@ export const ArchiveSection = ({
         handleError('remove archived page');
       });
     });
-  }, [closePeek, windowId, handleError]);
+  }, [windowId, handleError]);
 
   // Undoable, like deleting a bookmark from the tree. Undo creates the bookmark again, so the
   // item comes back on top with a new archive time
@@ -199,34 +275,17 @@ export const ArchiveSection = ({
 
   return (
     <div>
-      <div
-        onPointerEnter={peek.rowHandlers.onPointerEnter}
-        onPointerLeave={peek.rowHandlers.onPointerLeave}
-      >
-        <SectionHeader
-          label="Archive"
-          menuContent={null}
-          showMenuButton={false}
-          fontSize={fontSize}
-          labelClassName="font-medium"
-          className="arc-space-title"
-          collapsed={isCollapsed}
-          onToggleCollapsed={onToggleCollapsed}
-        />
-      </div>
-      {peek.anchorRect && archiveFolder && (
-        <FolderRecentPopover
-          folder={archiveFolder}
-          label="Archive"
-          anchorRect={peek.anchorRect}
-          popoverRef={peek.popoverRef}
-          recency={recency}
-          onOpenBookmark={handleRestore}
-          onClose={closePeek}
-          onPointerEnter={peek.popoverHandlers.onPointerEnter}
-          onPointerLeave={peek.popoverHandlers.onPointerLeave}
-        />
-      )}
+      <SectionHeader
+        label="Archive"
+        menuContent={null}
+        showMenuButton={false}
+        fontSize={fontSize}
+        labelClassName="font-medium"
+        className="arc-space-title"
+        collapsed={isCollapsed}
+        onToggleCollapsed={onToggleCollapsed}
+        trailing={!isCollapsed && <ArchiveSearchField value={searchText} onChange={setSearchText} />}
+      />
 
       {!isCollapsed && visibleItems.map((page) => (
         <ArchiveItemRow
@@ -237,6 +296,15 @@ export const ArchiveSection = ({
           onDelete={handleDelete}
         />
       ))}
+
+      {!isCollapsed && visibleItems.length === 0 && (
+        <div
+          className="py-1 text-sm text-gray-500 dark:text-gray-400"
+          style={{ paddingLeft: `${getIndentPadding(0)}px` }}
+        >
+          No matching pages
+        </div>
+      )}
 
       {error && (
         <p className="text-red-500 text-sm px-2 py-1 text-center">{error}</p>

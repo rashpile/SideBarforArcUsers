@@ -30,11 +30,19 @@ test('archive items are listed newest first, equal times keep tree order, and th
   assert.deepEqual(ArchiveItems.fromFolder(undefined).matching(''), []);
 });
 
-test('the archive time of each item feeds the recent popover; an item without one gets none', () =>
+test('the Archive search narrows the items together with the toolbar filter', () =>
 {
-  const recency = ArchiveItems.fromFolder(archiveFolder).toRecency();
+  const items = ArchiveItems.fromFolder(archiveFolder);
 
-  assert.equal(recency.lastActiveAt('b'), 3000);
-  assert.equal(recency.lastActiveAt('a'), 2000);
-  assert.equal(recency.wasEverActive('d'), false);
+  // Toolbar filter only
+  assert.deepEqual(ids(items.matching('test', '')), ['b', 'a', 'c', 'd']);
+  // Archive search only
+  assert.deepEqual(ids(items.matching('', 'beta')), ['b']);
+  // Both apply: an item must match the filter AND the search
+  assert.deepEqual(ids(items.matching('alpha || gamma', 'gamma')), ['c']);
+  assert.deepEqual(ids(items.matching('alpha', 'beta')), []);
+  // A blank search keeps whatever the filter matches
+  assert.deepEqual(ids(items.matching('delta', '   ')), ['d']);
+  // A search that matches nothing leaves no items
+  assert.deepEqual(ids(items.matching('', 'nothing-like-this')), []);
 });

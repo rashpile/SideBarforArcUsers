@@ -224,7 +224,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
         onBookmarkCreated={onBookmarkCreated}
         isCollapsed={sectionCollapseState.isCollapsed(activeSpaceId, 'bookmarks')}
       />
-      {/* Keyed by Space so a Space switch closes an open archive peek */}
+      {/* Keyed by Space so a Space switch resets the Archive search */}
       <ArchiveSection
         key={activeSpaceId}
         activeSpace={activeSpace}

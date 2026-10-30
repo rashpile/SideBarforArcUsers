@@ -4,8 +4,6 @@
 
 import { collectFolderBookmarks } from './folderRecentItems.ts';
 import { matchesFilter } from './searchParser.ts';
-import { BookmarkRecency } from '../stores/bookmarkRecencyStore.ts';
-import type { BookmarkRecencyRecord } from '../stores/bookmarkRecencyStore.ts';
 
 type BookmarkNode = chrome.bookmarks.BookmarkTreeNode;
 
@@ -28,23 +26,15 @@ export class ArchiveItems
     return folder ? new ArchiveItems(collectFolderBookmarks(folder)) : ArchiveItems.EMPTY;
   }
 
-  /** Every item, or only those matching the toolbar text filter while it is active. */
-  matching(filterText: string): BookmarkNode[]
+  /**
+   * The items matching both the toolbar text filter and the Archive search;
+   * a blank query matches every item.
+   */
+  matching(filterText: string, searchText = ''): BookmarkNode[]
   {
-    if (!filterText.trim()) return this.#newestFirst;
-    return this.#newestFirst.filter(page => matchesFilter(page.title, page.url ?? '', filterText));
-  }
-
-  /** Archive times in the form the recent popover orders by. */
-  toRecency(): BookmarkRecency
-  {
-    const archivedAt: BookmarkRecencyRecord = {};
-
-    // The archive time of an item is the moment its bookmark was created
-    for (const page of this.#newestFirst)
-    {
-      if (page.dateAdded !== undefined) archivedAt[page.id] = page.dateAdded;
-    }
-    return new BookmarkRecency(archivedAt);
+    if (!filterText.trim() && !searchText.trim()) return this.#newestFirst;
+    return this.#newestFirst.filter(page =>
+      matchesFilter(page.title, page.url ?? '', filterText) &&
+      matchesFilter(page.title, page.url ?? '', searchText));
   }
 }

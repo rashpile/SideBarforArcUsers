@@ -5,7 +5,7 @@ export const CHANGELOG: Record<string, string[]> = {
   '1.0.352': [
     'New: Edit submenu in the bookmark right-click menu - "Replace Pinned URL with Current" saves the open tab\'s address as the bookmark URL; "Edit Pinned Page" opens the edit dialog',
     'New: "Archive tabs after" setting (Settings > Behaviour, off by default) - unused tabs are saved to the space\'s Archive and closed; unused open bookmark pages close and keep their bookmark',
-    'New: Archive section between Bookmarks and Tabs - hover to search archived tabs, click one to reopen it',
+    'New: Archive section between Bookmarks and Tabs - expand it to list and search archived tabs, click one to reopen it',
     'New: collapse the Bookmarks section from the space title - open bookmark pages stay visible',
     'New: "Mark unvisited tabs" setting (Settings > Appearance, on by default) - a dot marks tabs opened in the background until you first switch to them',
     'New: "Highlight tabs by last use" setting (Settings > Appearance, on by default) - tabs you left recently get a stronger background in the Tab list, fading over 3 hours; pick White, Accent, Cooling or Trail, or turn it off',
