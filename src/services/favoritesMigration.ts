@@ -9,7 +9,7 @@ import type { PinnedSite } from '../managers/shared/pinnedSitesApi.ts';
 import { PINNED_SITES_STORAGE_KEY } from '../managers/shared/pinnedSitesApi.ts';
 import type { FavoriteIconEntry } from '../managers/shared/favoriteIconsApi.ts';
 import { findFolderBySegments } from '../utils/bookmarkFolderLookup.ts';
-import { FAVORITES_FOLDER_TITLE, findFavoritesFolder } from '../utils/favoritesFolder.ts';
+import { FAVORITES_FOLDER_TITLE, findFavoritesFolder, isBookmarkableUrl } from '../utils/favoritesFolder.ts';
 import type { FavoritesBookmarkNode } from '../utils/favoritesFolder.ts';
 import type { FavoritesSpace } from '../utils/spaceFavorites.ts';
 import { pairFavoritesByUrl } from '../utils/favoritesImport.ts';
@@ -168,21 +168,6 @@ export interface FavoritesMigrationDeps
   /** FavoriteIconsManager.restoreIcons: background is the single writer of `favoriteIcons`. */
   restoreIcons: (bookmarkId: string, entry: FavoriteIconEntry) => unknown;
   getSpaces: () => readonly FavoritesSpace[];
-}
-
-// The old Edit dialog saved URLs as typed; bookmarks.create rejects one that doesn't
-// parse, and it would fail the same way on every retry
-function isBookmarkableUrl(url: string): boolean
-{
-  try
-  {
-    new URL(url);
-    return true;
-  }
-  catch
-  {
-    return false;
-  }
 }
 
 // Only pins the old list could show; anything malformed is left behind

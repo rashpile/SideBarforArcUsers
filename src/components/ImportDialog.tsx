@@ -310,6 +310,9 @@ export function ImportDialog({
                 {importResult.pinnedSitesCount > 0 && (
                   <li>{importResult.pinnedSitesCount} Favorites into the active Space</li>
                 )}
+                {importResult.pinnedSitesSkipped > 0 && (
+                  <li>{importResult.pinnedSitesSkipped} Favorites not imported (invalid URL or no bookmark folder)</li>
+                )}
                 {importResult.bookmarksCount > 0 && (
                   <li>{importResult.bookmarksCount} bookmarks</li>
                 )}

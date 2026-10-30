@@ -18,9 +18,9 @@ interface ArcImportDialogProps
 {
   isOpen: boolean;
   onClose: () => void;
-  replacePinnedSites: (sites: PinnedSite[]) => Promise<void>;
-  appendPinnedSites: (sites: PinnedSite[]) => Promise<void>;
-  addPinnedSitesToSpaceFolder: (spaceFolderId: string, sites: PinnedSite[]) => Promise<void>;
+  replacePinnedSites: (sites: PinnedSite[]) => Promise<number>;
+  appendPinnedSites: (sites: PinnedSite[]) => Promise<number>;
+  addPinnedSitesToSpaceFolder: (spaceFolderId: string, sites: PinnedSite[]) => Promise<number>;
   replaceSpaces: (spaces: Space[]) => Promise<void>;
   appendSpaces: (spaces: Space[]) => Promise<void>;
   existingSpaces: readonly Space[];
@@ -367,6 +367,9 @@ export function ArcImportDialog({
               <ul className="text-gray-600 dark:text-gray-400 ml-7 space-y-1">
                 {importResult.pinnedSitesCount > 0 && (
                   <li>{importResult.pinnedSitesCount} Favorites</li>
+                )}
+                {importResult.pinnedSitesSkipped > 0 && (
+                  <li>{importResult.pinnedSitesSkipped} Favorites not imported (invalid URL or no bookmark folder)</li>
                 )}
                 {importResult.spacesCount > 0 && (
                   <li>

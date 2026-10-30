@@ -183,6 +183,8 @@ async function importTabGroups(tabGroups: TabGroupBackup[]): Promise<void> {
 
 export interface ImportResult {
   pinnedSitesCount: number;
+  /** Favorites in the import that weren't created: an invalid URL, or Chrome rejected them. */
+  pinnedSitesSkipped: number;
   bookmarksCount: number;
   tabGroupsCount: number;
   spacesCount: number;
@@ -239,8 +241,9 @@ function generateUniqueSpaceName(name: string, existingNames: Set<string>): stri
 /** Where a backup's `pinnedSites` go: the active Space's Favorites. */
 export interface FavoritesImportTarget
 {
-  replace: (sites: PinnedSite[]) => Promise<void>;
-  append: (sites: PinnedSite[]) => Promise<void>;
+  /** Each returns how many Favorites it created. */
+  replace: (sites: PinnedSite[]) => Promise<number>;
+  append: (sites: PinnedSite[]) => Promise<number>;
   restoreIcons: (sites: readonly PinnedSite[]) => Promise<void>;
 }
 
@@ -261,6 +264,7 @@ export async function importFullBackup(
 
   const result: ImportResult = {
     pinnedSitesCount: 0,
+    pinnedSitesSkipped: 0,
     bookmarksCount: 0,
     tabGroupsCount: 0,
     spacesCount: 0,
@@ -355,15 +359,12 @@ export async function importFullBackup(
   {
     await favorites.restoreIcons(backupFavorites);
   }
-  else if (favoritesAction === 'replace')
+  else if (favoritesAction === 'replace' || favoritesAction === 'append')
   {
-    await favorites.replace(backupFavorites);
-    result.pinnedSitesCount = backupFavorites.length;
-  }
-  else if (favoritesAction === 'append')
-  {
-    await favorites.append(backupFavorites);
-    result.pinnedSitesCount = backupFavorites.length;
+    result.pinnedSitesCount = favoritesAction === 'replace'
+      ? await favorites.replace(backupFavorites)
+      : await favorites.append(backupFavorites);
+    result.pinnedSitesSkipped = backupFavorites.length - result.pinnedSitesCount;
   }
 
   // Import tab groups

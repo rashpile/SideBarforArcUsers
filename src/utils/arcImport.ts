@@ -643,10 +643,10 @@ async function createBookmarkFolder(name: string): Promise<{ id: string; path: s
 export interface ArcImportCallbacks
 {
   /** Into the active Space's Favorites. */
-  replacePinnedSites: (sites: PinnedSite[]) => Promise<void>;
-  appendPinnedSites: (sites: PinnedSite[]) => Promise<void>;
+  replacePinnedSites: (sites: PinnedSite[]) => Promise<number>;
+  appendPinnedSites: (sites: PinnedSite[]) => Promise<number>;
   /** Into the Favorites of the Space whose bookmark folder this is. */
-  addPinnedSitesToSpaceFolder: (spaceFolderId: string, sites: PinnedSite[]) => Promise<void>;
+  addPinnedSitesToSpaceFolder: (spaceFolderId: string, sites: PinnedSite[]) => Promise<number>;
   replaceSpaces: (spaces: Space[]) => Promise<void>;
   appendSpaces: (spaces: Space[]) => Promise<void>;
   existingSpaces: readonly Space[];
@@ -667,6 +667,7 @@ export async function importArcData(
 
   const result: ArcImportResult = {
     pinnedSitesCount: 0,
+    pinnedSitesSkipped: 0,
     bookmarksCount: 0,
     tabGroupsCount: 0,
     spacesCount: 0,
@@ -810,23 +811,27 @@ export async function importArcData(
       ...(tab.iconName ? { customIconName: tab.iconName } : {}),
     }));
 
+    const addFavorites = (created: number) =>
+    {
+      result.pinnedSitesCount += created;
+      result.pinnedSitesSkipped += sites.length - created;
+    };
     if (createdSpaceFolderIds.length > 0)
     {
       // New folders are empty, so append and replace are the same here
       for (const folderId of createdSpaceFolderIds)
       {
-        await callbacks.addPinnedSitesToSpaceFolder(folderId, sites);
+        addFavorites(await callbacks.addPinnedSitesToSpaceFolder(folderId, sites));
       }
     }
     else if (options.topAppsMode === 'replace')
     {
-      await callbacks.replacePinnedSites(sites);
+      addFavorites(await callbacks.replacePinnedSites(sites));
     }
     else
     {
-      await callbacks.appendPinnedSites(sites);
+      addFavorites(await callbacks.appendPinnedSites(sites));
     }
-    result.pinnedSitesCount = sites.length;
   }
 
   // ─── Step 3: Unpinned tabs (optional) ───

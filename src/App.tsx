@@ -544,9 +544,9 @@ interface ArcImportDialogWrapperProps
 {
   isOpen: boolean;
   onClose: () => void;
-  replacePinnedSites: (sites: PinnedSite[]) => Promise<void>;
-  appendPinnedSites: (sites: PinnedSite[]) => Promise<void>;
-  addPinnedSitesToSpaceFolder: (spaceFolderId: string, sites: PinnedSite[]) => Promise<void>;
+  replacePinnedSites: (sites: PinnedSite[]) => Promise<number>;
+  appendPinnedSites: (sites: PinnedSite[]) => Promise<number>;
+  addPinnedSitesToSpaceFolder: (spaceFolderId: string, sites: PinnedSite[]) => Promise<number>;
 }
 
 const ArcImportDialogWrapper: React.FC<ArcImportDialogWrapperProps> = (props) =>

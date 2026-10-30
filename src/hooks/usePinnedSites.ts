@@ -5,7 +5,7 @@ import { favoriteIconsManagerProxy } from '../managers/proxies/favoriteIconsMana
 import type { FavoriteFaviconPatch, FavoriteIconEntry } from '../managers/shared/favoriteIconsApi';
 import type { PinnedSite } from '../managers/shared/pinnedSitesApi';
 import { SpaceFavorites, favoritesMoveTargets, favoritesSpaceFolder, type FavoritesSpace } from '../utils/spaceFavorites';
-import { ensureFavoritesFolder, type FavoritesBookmarksApi } from '../utils/favoritesFolder';
+import { createFavoriteBookmarks, ensureFavoritesFolder, isBookmarkableUrl, type FavoritesBookmarksApi } from '../utils/favoritesFolder';
 import { bookmarkTreeStore, runBatchOperation } from './useBookmarks';
 import { iconRestoresByUrl } from '../utils/favoritesImport';
 
@@ -35,6 +35,14 @@ interface NewFavorite
 function iconsOf(site: PinnedSite): FavoriteIconEntry
 {
   return { favicon: site.favicon, customIconName: site.customIconName, iconColor: site.iconColor, emoji: site.emoji };
+}
+
+// Entries whose URL doesn't parse are left out: Chrome rejects them
+function importEntries(sites: readonly PinnedSite[]): NewFavorite[]
+{
+  return sites
+    .filter(site => isBookmarkableUrl(site.url))
+    .map(site => ({ url: site.url, title: site.title, icons: iconsOf(site) }));
 }
 
 function hasIcons(icons: FavoriteIconEntry): boolean
@@ -126,7 +134,8 @@ export const usePinnedSites = (space: FavoritesSpace) =>
    * Creates Favorites one after another, from `index` on (grid order) or at the
    * end. One at a time so they keep their order and a new Space gets one
    * `asd_Favorites`, not one per call. Into this Space unless another Space
-   * folder is given. Returns what was created before any failure.
+   * folder is given. Returns what was created: an entry Chrome rejects is
+   * skipped and reported, the rest are still created.
    */
   const createFavorites = useCallback(async (
     context: string,
@@ -138,35 +147,33 @@ export const usePinnedSites = (space: FavoritesSpace) =>
     const targetFolderId = spaceFolderId ?? readFavorites().spaceFolder?.id;
     if (!targetFolderId || entries.length === 0) return [];
 
-    const created: PinnedSite[] = [];
     try
     {
       const folder = await ensureFavoritesFolder(chromeFavoritesBookmarks, targetFolderId);
 
       // A grid index is a position among the folder's pages; subfolders in it take bookmark indexes too
-      let bookmarkIndex = atIndex === undefined
+      const bookmarkIndex = atIndex === undefined
         ? undefined
         : (await favoriteNodesIn(folder.id))[atIndex]?.index;
 
-      for (const entry of entries)
+      const { created, rejected } = await createFavoriteBookmarks(
+        chromeFavoritesBookmarks,
+        folder.id,
+        entries,
+        bookmarkIndex,
+        (node, entry) => storeIcons(node.id, entry.icons)
+      );
+      if (rejected.length > 0)
       {
-        const node = await chrome.bookmarks.create({
-          parentId: folder.id,
-          title: entry.title,
-          url: entry.url,
-          ...(bookmarkIndex !== undefined && { index: bookmarkIndex }),
-        });
-        if (bookmarkIndex !== undefined) bookmarkIndex++;
-
-        await storeIcons(node.id, entry.icons);
-        created.push({ ...entry.icons, id: node.id, url: node.url ?? entry.url, title: node.title });
+        reportFailure(context, `${rejected.length} of ${entries.length} not created: ${String(rejected[0].error)}`);
       }
+      return created.map(({ entry, node }) => ({ ...entry.icons, id: node.id, url: node.url ?? entry.url, title: node.title ?? entry.title }));
     }
     catch (err)
     {
       reportFailure(context, err);
+      return [];
     }
-    return created;
   }, [readFavorites, storeIcons, reportFailure]);
 
   const loadIcons = useCallback(async () =>
@@ -555,15 +562,20 @@ export const usePinnedSites = (space: FavoritesSpace) =>
   // Scenario 2a: replace the active Space's Favorites from our own JSON backup.
   // favicon is already embedded as base64 in the backup — no fetch needed.
   // Sites with missing favicon (old backups) are handled by the lazy-resolve effect.
-  const replacePinnedSites = useCallback(async (sites: PinnedSite[]): Promise<void> =>
+  // Returns how many were created; the importer reports the rest as skipped.
+  const replacePinnedSites = useCallback(async (sites: PinnedSite[]): Promise<number> =>
   {
-    await runBatchOperation(async () =>
+    // Checked before anything is deleted: a backup of only unusable entries keeps the current Favorites
+    const entries = importEntries(sites);
+    if (entries.length === 0) return 0;
+
+    return await runBatchOperation(async () =>
     {
       let spaceFolderId: string;
       try
       {
         const current = await readCurrentFavorites();
-        if (!current.spaceFolder) return;
+        if (!current.spaceFolder) return 0;
         spaceFolderId = current.spaceFolder.id;
         for (const site of current.sites)
         {
@@ -573,17 +585,17 @@ export const usePinnedSites = (space: FavoritesSpace) =>
       catch (err)
       {
         reportFailure('replacePinnedSites', err);
-        return;
+        return 0;
       }
-      await createFavorites('replacePinnedSites', sites.map(site => ({ url: site.url, title: site.title, icons: iconsOf(site) })), undefined, spaceFolderId);
+      return (await createFavorites('replacePinnedSites', entries, undefined, spaceFolderId)).length;
     });
   }, [readCurrentFavorites, createFavorites, reportFailure]);
 
   // Scenario 2b / 3: append Favorites from our own JSON backup or Arc import.
   // Same as replacePinnedSites — favicon already in backup, or lazy-resolve handles it.
-  const appendPinnedSites = useCallback(async (sites: PinnedSite[]): Promise<void> =>
+  const appendPinnedSites = useCallback(async (sites: PinnedSite[]): Promise<number> =>
   {
-    await runBatchOperation(async () =>
+    return await runBatchOperation(async () =>
     {
       let spaceFolderId: string | undefined;
       try
@@ -593,19 +605,20 @@ export const usePinnedSites = (space: FavoritesSpace) =>
       catch (err)
       {
         reportFailure('appendPinnedSites', err);
-        return;
+        return 0;
       }
-      if (!spaceFolderId) return;
-      await createFavorites('appendPinnedSites', sites.map(site => ({ url: site.url, title: site.title, icons: iconsOf(site) })), undefined, spaceFolderId);
+      if (!spaceFolderId) return 0;
+      return (await createFavorites('appendPinnedSites', importEntries(sites), undefined, spaceFolderId)).length;
     });
   }, [readCurrentFavorites, createFavorites, reportFailure]);
 
   // Arc import: Top Apps into a Space folder the import just created
-  const addPinnedSitesToSpaceFolder = useCallback(async (spaceFolderId: string, sites: PinnedSite[]): Promise<void> =>
+  const addPinnedSitesToSpaceFolder = useCallback(async (spaceFolderId: string, sites: PinnedSite[]): Promise<number> =>
   {
-    await runBatchOperation(() =>
-      createFavorites('addPinnedSitesToSpaceFolder', sites.map(site => ({ url: site.url, title: site.title, icons: iconsOf(site) })), undefined, spaceFolderId)
+    const created = await runBatchOperation(() =>
+      createFavorites('addPinnedSitesToSpaceFolder', importEntries(sites), undefined, spaceFolderId)
     );
+    return created.length;
   }, [createFavorites]);
 
   /**

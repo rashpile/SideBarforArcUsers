@@ -65,3 +65,74 @@ export async function ensureFavoritesFolder(
   return findFavoritesFolder(children)
     ?? await bookmarks.create({ parentId: spaceFolderId, title: FAVORITES_FOLDER_TITLE });
 }
+
+// The old Edit dialog saved URLs as typed, so backups and old pins can hold one
+// that doesn't parse; bookmarks.create rejects it, and would on every retry
+export function isBookmarkableUrl(url: string): boolean
+{
+  try
+  {
+    new URL(url);
+    return true;
+  }
+  catch
+  {
+    return false;
+  }
+}
+
+/** A Favorite bookmark to create in a favorites folder. */
+export interface FavoriteBookmarkEntry
+{
+  url: string;
+  title: string;
+}
+
+/** What a run of creates made, in order, and what Chrome rejected. */
+export interface FavoriteBookmarksCreated<E extends FavoriteBookmarkEntry>
+{
+  created: Array<{ entry: E; node: FavoritesBookmarkNode }>;
+  rejected: Array<{ entry: E; error: unknown }>;
+}
+
+/**
+ * Creates the entries one after another, from bookmark index `startIndex` on or
+ * at the end, so they keep their order. An entry Chrome rejects is skipped and
+ * the rest are still created: in an import, the current Favorites may already
+ * be gone.
+ */
+export async function createFavoriteBookmarks<E extends FavoriteBookmarkEntry>(
+  bookmarks: FavoritesBookmarksApi,
+  folderId: string,
+  entries: readonly E[],
+  startIndex: number | undefined,
+  onCreated: (node: FavoritesBookmarkNode, entry: E) => Promise<void>
+): Promise<FavoriteBookmarksCreated<E>>
+{
+  const result: FavoriteBookmarksCreated<E> = { created: [], rejected: [] };
+  let index = startIndex;
+
+  for (const entry of entries)
+  {
+    let node: FavoritesBookmarkNode;
+    try
+    {
+      node = await bookmarks.create({
+        parentId: folderId,
+        title: entry.title,
+        url: entry.url,
+        ...(index !== undefined && { index }),
+      });
+    }
+    catch (error)
+    {
+      result.rejected.push({ entry, error });
+      continue;
+    }
+    if (index !== undefined) index++;
+
+    await onCreated(node, entry);
+    result.created.push({ entry, node });
+  }
+  return result;
+}
