@@ -45,11 +45,11 @@ Edit both row components in place. No new state, storage or handlers. The hover 
 **Files:**
 - Modify: `src/components/TabList.tsx`
 
-- [ ] remove the hover Pin button from the `actions` block
-- [ ] move `showMarkItem` above `actions` (keep its incognito comment)
-- [ ] add the Flag/FlagOff toggle button where Pin was, shown when `showMarkItem`, calling `onToggleMark(tab.id)`, titles "Mark for Attention" / "Clear Mark" (`Flag`, `FlagOff` are already imported)
-- [ ] leave the `-` close button on a marked tab and the single-tab and multi-selection Pin to Sidebar items unchanged
-- [ ] run `make lint && make test && make build` - must pass before task 2
+- [x] remove the hover Pin button from the `actions` block
+- [x] move `showMarkItem` above `actions` (keep its incognito comment)
+- [x] add the Flag/FlagOff toggle button where Pin was, shown when `showMarkItem`, calling `onToggleMark(tab.id)`, titles "Mark for Attention" / "Clear Mark" (`Flag`, `FlagOff` are already imported)
+- [x] leave the `-` close button on a marked tab and the single-tab and multi-selection Pin to Sidebar items unchanged
+- [x] run `make lint && make test && make build` - must pass before task 2
 
 ### Task 2: Bookmark row - Mark toggle and Pin to Sidebar in the menus
 

@@ -172,21 +172,26 @@ const TabRow = forwardRef<HTMLDivElement, DraggableTabProps>(({
     <Globe className="w-4 h-4 text-gray-400 flex-shrink-0" />
   );
 
+  // Incognito tabs get no mark: their URLs must not reach persistent storage
+  const showMarkItem = !!onToggleMark && tab.id !== undefined && !tab.incognito;
+
   const actions = (
     <div className="flex items-center opacity-0 group-hover:opacity-100 bg-white dark:bg-gray-900 rounded">
-      {onPin && tab.url && !tab.pinned && (
+      {showMarkItem && (
         <button
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) =>
           {
             e.stopPropagation();
-            onPin(tab.url!, tab.title || tab.url!, tab.favIconUrl, tab.id);
+            if (onToggleMark && tab.id !== undefined) onToggleMark(tab.id);
           }}
           className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 active:bg-gray-300 dark:active:bg-gray-500 rounded"
-          title="Pin"
-          aria-label="Pin tab"
+          title={isMarked ? "Clear Mark" : "Mark for Attention"}
+          aria-label={isMarked ? "Clear Mark" : "Mark for Attention"}
         >
-          <Pin size={14} className="text-gray-700 dark:text-gray-200" />
+          {isMarked
+            ? <FlagOff size={14} className="text-gray-700 dark:text-gray-200" />
+            : <Flag size={14} className="text-gray-700 dark:text-gray-200" />}
         </button>
       )}
       {isMarked && onToggleMark ? (
@@ -220,9 +225,6 @@ const TabRow = forwardRef<HTMLDivElement, DraggableTabProps>(({
       )}
     </div>
   );
-
-  // Incognito tabs get no mark: their URLs must not reach persistent storage
-  const showMarkItem = !!onToggleMark && tab.id !== undefined && !tab.incognito;
 
   const badges = (
     <div className="flex items-center gap-1">
