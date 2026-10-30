@@ -1,7 +1,6 @@
 /**
  * FolderRecentPopover - Arc-style peek on a collapsed bookmark folder.
  * Lists the folder's bookmarks by last-active time, with a search field.
- * Also the peek of the collapsed Archive section, ordered by archive time.
  */
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
@@ -130,7 +129,6 @@ export function useFolderPeek(enabled: boolean): FolderPeek
 interface FolderRecentPopoverProps
 {
   folder: chrome.bookmarks.BookmarkTreeNode;
-  label?: string;  // Name in the search placeholder and dialog label; defaults to the folder title
   anchorRect: DOMRect;
   popoverRef: React.RefObject<HTMLDivElement>;
   recency: BookmarkRecency;
@@ -142,7 +140,6 @@ interface FolderRecentPopoverProps
 
 export const FolderRecentPopover = ({
   folder,
-  label,
   anchorRect,
   popoverRef,
   recency,
@@ -157,7 +154,6 @@ export const FolderRecentPopover = ({
   const [query, setQuery] = useState('');
   const [highlightIndex, setHighlightIndex] = useState(0);
   const [top, setTop] = useState(anchorRect.bottom + ANCHOR_GAP);
-  const name = label ?? folder.title;
 
   useEscapeKey(true, onClose);
 
@@ -225,7 +221,7 @@ export const FolderRecentPopover = ({
     <div
       ref={popoverRef}
       role="dialog"
-      aria-label={`Recent pages in ${name}`}
+      aria-label={`Recent pages in ${folder.title}`}
       className="fixed z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden text-gray-700 dark:text-gray-200"
       style={{ top, left, width, fontSize: `${fontSize}px` }}
       onPointerEnter={onPointerEnter}
@@ -243,7 +239,7 @@ export const FolderRecentPopover = ({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={`Search ${name}...`}
+          placeholder={`Search ${folder.title}...`}
           className="flex-1 min-w-0 bg-transparent outline-none placeholder-gray-400"
         />
       </div>
