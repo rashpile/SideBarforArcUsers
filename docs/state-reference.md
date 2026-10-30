@@ -43,7 +43,7 @@ Need to persist across browser restart?
 ### When to Use Each
 
 **chrome.storage.local** - Use for:
-- User data that must persist (spaces, pinned sites)
+- User data that must persist (spaces, Favorite icons)
 - Settings that need real-time sync across all windows
 - Data the service worker needs to access
 
@@ -97,9 +97,9 @@ Active space per window
 - Note: active Space selection is independent from user-owned Chrome tab groups.
 
 ### `tabAssociations_${windowId}`
-Tab → bookmark/pinned site mapping (Record: tabId → itemKey, `bookmark-{id}` / `pinned-{id}`)
-- Owner: `src/contexts/BookmarkTabsContext.tsx`
-- Consumers: `src/components/PinnedBar.tsx`, `src/components/TabList.tsx`, `src/services/tabAutoArchiver.ts` (tells bookmark and Favorite tabs from regular tabs)
+Tab → bookmark/Favorite mapping (Record: tabId → itemKey, `bookmark-{id}` / `pinned-{id}`; a Favorite's id is its bookmark id in the Space's `asd_Favorites`)
+- Owner: `src/contexts/BookmarkTabsContext.tsx`. On rebuild it first re-keys `pinned-<oldPinId>` entries left from global Favorites (`favoritesMigration.rekey`), then binds tabs by URL: a Favorite URL matches only the `asd_Favorites` copy of the tab's own Space, never a `bookmark-{id}`
+- Consumers: `src/components/PinnedBar.tsx`, `src/components/TabList.tsx`, `src/services/tabAutoArchiver.ts` (tells bookmark and Favorite tabs from regular tabs), `src/actions/deletePinnedSiteAction.ts` (undo hands the context the tab and the re-created bookmark's key). A Favorite tab belongs to its registered Space like any other tab (keyboard switcher, Move to Space)
 - Restore at worker start: `restoreTabAssociationBackup` (`src/utils/tabAssociations.ts`) rebuilds it from the local backup (`matchBackupWindows`). On a worker restart within the browser session (`tabRestoreSessionStarted` present) a backup keeps its window by window ID and each entry keeps the tab with its stored ID, whatever page it shows now; entries whose tab is gone are dropped. After a browser restart or an extension reload/update (marker absent) a backup window keeps its old window ID only when every entry's stored tab ID is still in it on the entry's site (`isSameSite`); otherwise it is matched by tab index + domain, then by domain overlap, so IDs reused after a browser restart are not taken. ID matches of a window where the other entries' tabs are gone are kept when index + domain matching finds nothing. Within the window a backup was matched to, an entry placed by reused ID, index or domain prefers the free tab showing its exact page (backup URL), and domain overlap otherwise takes the tab on the entry's domain nearest its stored index
 - Backup indices: refreshed on tab create, move, remove, attach and detach, so index + domain matching finds the tabs after a browser restart
 - Instances: 1 per window
@@ -203,21 +203,43 @@ Array<{
 - Consumers: `src/background.ts` (space switching), `src/hooks/useFollowActiveTab.ts` (scrolling), `src/components/SettingsDialog.tsx`
 - Instances: 1 per extension (shared across windows)
 
-### `pinnedSites`
-Pinned sites list
+### `favoriteIcons`
+Icon fields of each Favorite, keyed by bookmark id. A Favorite itself is a bookmark in its Space's `asd_Favorites` folder (url, title, position); what a bookmark can't hold lives here
 ```typescript
-Array<{
-  id: string,
-  url: string,
-  title: string,
-  favicon: string,
-  customIconName?: string,
-  iconColor?: string
+Record<bookmarkId, {
+  favicon?: string,         // base64 data URL
+  customIconName?: string,  // Lucide icon name
+  iconColor?: string,       // hex, e.g. "#ef4444"
+  emoji?: string
 }>
 ```
-- Owner: `src/hooks/usePinnedSites.ts`
-- Consumers: `src/components/PinnedBar.tsx`
+- Owner: `src/managers/impl/favoriteIconsManager.ts` (`FavoriteIconsManager`, background, the only writer). Per-operation API (`setIcons`, `setFavicons`, `resetFavicon`, `copyIcons`, `restoreIcons`, `removeIcons`) in `src/managers/shared/favoriteIconsApi.ts`
+- Writers through the manager: the sidebar's edits, duplicate, undo of a delete and JSON import (`favoriteIconsManagerProxy`), the lazy icon resolver in `src/hooks/usePinnedSites.ts`, background's favicon update on `favIconUrl`, the favorites migration
+- Pruning: `chrome.bookmarks.onRemoved` in `src/background.ts` drops the entry of a removed bookmark and of every bookmark under a removed folder
+- Consumers: `src/hooks/usePinnedSites.ts` (merges each bookmark with its entry into a `PinnedSite` via `SpaceFavorites`), `src/actions/deletePinnedSiteAction.ts` (snapshot for undo); JSON export reads the merged list from the hook
 - Instances: 1 per extension (shared across windows)
+
+### `favoritesMigration`
+State of the one-time copy of the legacy global `pinnedSites` into every Space's `asd_Favorites`
+```typescript
+{
+  done: boolean,
+  rekey: Record<oldPinId, Record<spaceId, bookmarkId>>  // where each old pin went in each Space
+}
+```
+- Owner: `src/services/favoritesMigration.ts` (`FavoritesMigration`, background, the only writer). Runs at worker start, on a `spaces` change and on bookmark created/moved events until `done`; serialized
+- `done` stays unset while a Space with a folder failed or no Space has a resolvable folder yet, so the next trigger retries. Each Space's `rekey` entries are merged in as soon as that Space is copied
+- Consumers: `src/contexts/BookmarkTabsContext.tsx` reads `rekey` on rebuild and on change of the key, and re-keys open `pinned-<oldPinId>` tabs to the copy in their own Space (`rekeyFavoriteAssociations`, `src/utils/favoriteRekey.ts`)
+- Instances: 1 per extension
+
+### `pinnedSites` (legacy)
+The global Favorites list from before per-Space Favorites
+```typescript
+Array<{ id, url, title, favicon?, customIconName?, iconColor?, emoji? }>
+```
+- Owner: none. Left as it was; read once by `src/services/favoritesMigration.ts`, never written again
+- The same field name in a JSON backup (`src/utils/backupRestore.ts`) holds the active Space's Favorites; that is the backup format, not this key
+- Instances: 1 per extension
 
 ### `bookmarkLastActiveAt`
 Last time each bookmark's Arc-style tab was active (folder recent popover)
@@ -409,7 +431,9 @@ Lost on page reload or service worker restart.
 ├─────────────────────────────────────────────────────────────────┤
 │  chrome.storage.local (survives browser restart)                │
 │  ├─ spaces                                                      │
-│  ├─ pinnedSites                                                 │
+│  ├─ favoriteIcons                   (Favorite icons by bookmark)│
+│  ├─ favoritesMigration              (one-time Favorites copy)   │
+│  ├─ pinnedSites                     (legacy, read once)         │
 │  ├─ tabSpaceAssignments             (real Tab → Space)          │
 │  ├─ autoArchiveAfter                (auto-archive setting)      │
 │  ├─ autoArchiveEnabledAt            (auto-archive switch-on)    │

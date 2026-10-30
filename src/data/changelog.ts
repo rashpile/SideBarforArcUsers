@@ -3,6 +3,8 @@
 // Entries are shown in the "What's New" dialog when the user upgrades past them.
 export const CHANGELOG: Record<string, string[]> = {
   '1.0.352': [
+    'Changed: each Space has its own Favorites, stored as bookmarks in an asd_Favorites folder inside the Space folder - your current Favorites are copied into every Space that has a bookmark folder',
+    'New: Move to Space in a Favorite\'s right-click menu - its open tab moves along',
     'New: Clear in the Archive header\'s ... menu - remove everything or pages older than 24 hours, 7 days or 30 days, with Undo',
     'New: Mark for Attention in the tab and bookmark right-click menu - marked rows get a ring in the Space colour, auto-archive and bulk close leave marked tabs open, and the - button on a marked tab clears the mark; pick the ring\'s colour and strength in Settings > Appearance',
     'New: Edit submenu in the bookmark right-click menu - "Replace Pinned URL with Current" saves the open tab\'s address as the bookmark URL; "Edit Pinned Page" opens the edit dialog',

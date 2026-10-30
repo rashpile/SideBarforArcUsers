@@ -8,7 +8,7 @@ This extension does not collect personal data and has no server. The developer r
 
 The extension stores the following data locally on your device using Chrome's storage API:
 
-- Pinned sites (URLs, titles, custom icons)
+- Favorites' custom icons, emoji and icon colors (the Favorites themselves are Chrome bookmarks in each Space's `asd_Favorites` folder)
 - Favicons (stored as base64 image data)
 - User preferences (font size, icon size, display settings)
 - AI naming settings, including the API key you enter, if you configure AI naming
@@ -19,7 +19,7 @@ This data stays on your device and is not accessible to the developer or any thi
 
 ## External Services
 
-- **Iconify API**: The extension connects to `api.iconify.design` to fetch icon images when you customize pinned site icons.
+- **Iconify API**: The extension connects to `api.iconify.design` to fetch icon images when you customize Favorite icons.
 - **Favicons**: The extension may fetch favicons directly from websites you pin to store them locally for faster loading.
 
 No user data is sent in these requests beyond standard HTTP headers.

@@ -23,29 +23,32 @@ Then open `chrome://extensions`, turn on **Developer mode**, click **Load unpack
 
 To update, run `git pull && make build` and press reload on the extension's card in `chrome://extensions`.
 
-Coming from Arc? **Import from Arc Browser...** in the sidebar menu reads Arc's `StorableSidebar.json` and brings over your Favorites, Spaces and pinned pages.
+Coming from Arc? **Import from Arc Browser...** in the sidebar menu reads Arc's `StorableSidebar.json` and brings over your Favorites, Spaces and pinned pages. Arc's Favorites go into every Space the import creates, or into the active Space when it creates none.
 
 ## How it fits together
 
-- **Favorites** are the icon grid at the top. They stay the same in every Space.
+- **Favorites** are the icon grid at the top. Each Space has its own; switching Space switches the grid.
 - **Spaces** each link one bookmark folder with their own set of tabs, plus a name, icon and color. You see one Space at a time and switch from the bar at the bottom.
 - **Pinned pages** are the bookmarks in the Space's folder. Click one and it opens as its tab. Close the tab and the bookmark stays in place, like a pinned tab in Arc.
 - **Tabs** below the bookmarks are the Space's other open tabs.
 - **Archive** keeps tabs you stopped using, if you turn auto-archive on.
 
-Everything is stored in Chrome: bookmarks for Spaces, pinned pages and the archive, and the extension's local storage for settings, Favorites and marks. Nothing goes to a server. See [PRIVACY.md](PRIVACY.md).
+Everything is stored in Chrome: bookmarks for Spaces, pinned pages, the archive and Favorites, and the extension's local storage for settings, Favorite icons and marks. Nothing goes to a server. See [PRIVACY.md](PRIVACY.md).
 
 ## Features
 
 ### Favorites
 
 - Icon grid at the top of the panel. Tile height follows the **Pinned icon size** setting (12-48px)
+- Each Space has its own Favorites, stored as bookmarks in an `asd_Favorites` folder inside the Space's folder, so they sync with Chrome bookmarks and survive reinstalling the extension. Custom icon, emoji and color stay in the extension's local storage
+- A Space without a bookmark folder has no Favorites; the grid says so and pinning does nothing there
+- After the update from global Favorites, the old list is copied once into every Space that has a bookmark folder
 - Pin a bookmark or a tab, drag to reorder
 - Custom icon, emoji and color per Favorite
 - Click opens it as an Arc-style tab. `Cmd/Ctrl+Click` opens a background tab, `Shift+Click` a new window
 - A dot marks an open Favorite, a triangle one that plays audio
 - Double-click a Favorite whose tab moved on to another page to load the Favorite's page back in that tab
-- Right-click: Edit (title, URL, icon, color), Duplicate, Reset favicon, Unpin, Move to New Window
+- Right-click: Edit (title, URL, icon, color), Duplicate, Reset favicon, Unpin, Move to Space, Move to New Window. Move to Space moves the Favorite to another Space's Favorites, and its open tab goes with it
 
 ### Bookmarks and pinned pages
 
@@ -106,7 +109,7 @@ Off by default. Turn it on with **Archive tabs after** in Settings: 12 hours, 24
 - Tabs from the Tab list that you haven't used for that long are saved as bookmarks in an `asd_Archive` folder inside the Space's folder, then closed
 - Open pinned pages unused for that long are closed. Their bookmark stays. If the tab had moved on to another page, that page is archived first
 - Empty pages (New Tab, `about:blank`) close without a bookmark
-- Never closed: the active tab of each window and the tab next to it in split view, tabs playing audio, Chrome-pinned tabs, tabs marked for attention, Favorites and tabs showing a Favorite's page, incognito tabs, and tabs with no Space or whose Space has no folder
+- Never closed: the active tab of each window and the tab next to it in split view, tabs playing audio, Chrome-pinned tabs, tabs marked for attention, Favorites and tabs showing the page of any Space's Favorite, incognito tabs, and tabs with no Space or whose Space has no folder
 - "Unused" counts from the moment you switched away, including while Chrome is closed or the computer sleeps
 - Turning the setting on starts every tab's clock at that moment, so nothing closes right away
 - Archiving a URL again replaces the older item. Archived items are never deleted automatically
@@ -115,7 +118,7 @@ The **Archive** section sits between Bookmarks and Tabs. Click the header to lis
 
 The header's `...` menu has **Clear**: Clear All, Older than 24 Hours, Older than 7 Days or Older than 30 Days. It works on the whole Archive of the active Space, whatever the search shows. Each option shows how many pages it removes and is grayed out when there are none. Clear All asks first; the age options run at once. One Undo brings back everything a Clear removed.
 
-The extension hides `asd_Archive` in the sidebar, search and folder pickers. Chrome's bookmark bar and Bookmark Manager still show it.
+The extension hides `asd_Archive` and `asd_Favorites` in the Bookmarks tree, search, Expand All, Open All and folder pickers. Chrome's bookmark bar and Bookmark Manager still show them.
 
 ### Search and filters
 
@@ -131,7 +134,7 @@ The extension hides `asd_Archive` in the sidebar, search and folder pickers. Chr
 | `Cmd+Shift+E` / `Ctrl+Shift+E` | Open the sidebar |
 | `Cmd+Shift+<` / `Ctrl+Shift+<` | Previous tab in this window's history |
 | `Cmd+Shift+>` / `Ctrl+Shift+>` | Next tab in history |
-| not set | Tab Switcher: hold the modifier, press to list the Space's tabs by last use, press again to move, release to switch |
+| not set | Tab Switcher: hold the modifier, press to list the Space's tabs (its Favorite tabs included) by last use, press again to move, release to switch |
 | not set | Space Switcher: the same for Spaces |
 
 Set or change shortcuts in `chrome://extensions/shortcuts`.
@@ -152,7 +155,7 @@ Gear menu → Settings:
 
 ### Backup
 
-Export Favorites, bookmarks and tabs to a JSON file, and import them back: replace or append Favorites, replace bookmarks or add them as a subfolder, replace the session or add tabs to the current window.
+Export the active Space's Favorites, bookmarks and tabs to a JSON file, and import them back: replace or append the active Space's Favorites, replace bookmarks or add them as a subfolder, replace the session or add tabs to the current window. When you replace all bookmarks from a backup that holds `asd_Favorites` folders, every Space gets its Favorites back from them and the backup's Favorites list only restores the active Space's custom icons; other Spaces' Favorites come back with site icons.
 
 Light and dark mode follow your system.
 

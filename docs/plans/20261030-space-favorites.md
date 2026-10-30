@@ -405,15 +405,16 @@ with the live tab's url and index, and the old key's entry is removed.
 
 ### Task 14: [Final] Update documentation
 
-- [ ] README.md: Favorites belong to a Space (replace "They stay the same in every Space"),
+- [x] README.md: Favorites belong to a Space (replace "They stay the same in every Space"),
   stored as bookmarks in `asd_Favorites`, Move to Space, migration note, export/import and Arc
   import wording, storage sentence ("bookmarks for Spaces, pinned pages, the archive and Favorites")
-- [ ] `docs/state-reference.md`: `favoriteIcons`, `favoritesMigration`, `pinnedSites` legacy,
+- [x] `docs/state-reference.md`: `favoriteIcons`, `favoritesMigration`, `pinnedSites` legacy,
   updated `tabAssociations_${windowId}` consumers, diagram
-- [ ] `docs/changelog.md` entry and `src/data/changelog.ts` What's New entry
-- [ ] `docs/chrome-web-store-info.md` and `PRIVACY.md` if they say Favorites live in local storage
-- [ ] `docs/development.md` manager list / shared state section if it names `PinnedSitesManager`
-- [ ] move this plan to `docs/plans/completed/`
+- [x] `docs/changelog.md` entry and `src/data/changelog.ts` What's New entry
+- [x] `docs/chrome-web-store-info.md` and `PRIVACY.md` if they say Favorites live in local storage
+  (PRIVACY.md updated; the store listing doesn't say where Favorites live, nothing to change)
+- [x] `docs/development.md` manager list / shared state section if it names `PinnedSitesManager`
+- [x] move this plan to `docs/plans/completed/` (left in place: the orchestrator moves it at the end)
 
 ## Post-Completion
 
