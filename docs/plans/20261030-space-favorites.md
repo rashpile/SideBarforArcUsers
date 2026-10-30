@@ -317,7 +317,7 @@ with the live tab's url and index, and the old key's entry is removed.
 - ➕ the hook reads the shared bookmark tree through `bookmarkTreeStore` (exported from
   `useBookmarks.ts`) and keeps its `SpaceFavorites` snapshot while `sameAs` holds, so the sidebar
   doesn't re-render on unrelated bookmark changes; `needsFolderHint` stays false until the tree is read
-- ⚠️ until Task 8, unpin still goes through `DeletePinnedSiteAction` and the old pinned-sites proxy,
+- ⚠️ (resolved in Task 8) until Task 8, unpin still goes through `DeletePinnedSiteAction` and the old pinned-sites proxy,
   so it does not remove the bookmark
 
 ### Task 8: undo of a Favorite delete on bookmarks
@@ -325,12 +325,15 @@ with the live tab's url and index, and the old key's entry is removed.
 **Files:**
 - Modify: `src/actions/deletePinnedSiteAction.ts`, `src/tests/deletePinnedSiteActionTest.ts`
 
-- [ ] undo recreates the bookmark at its index in the same `asd_Favorites` and restores the icon
+- [x] undo recreates the bookmark at its index in the same `asd_Favorites` and restores the icon
   fields from the action's own snapshot with `restoreIcons(newId, entry)` (the side-store entry is
   already pruned by then, so `copyIcons` would find nothing); the tab association moves to the new id
-- [ ] update `src/tests/deletePinnedSiteActionTest.ts` (in-browser test) to the bookmark model,
+- [x] update `src/tests/deletePinnedSiteActionTest.ts` (in-browser test) to the bookmark model,
   including "undo brings back custom icon and emoji"
-- [ ] `make lint && make test && make build` - must pass before next task
+- [x] `make lint && make test && make build` - must pass before next task
+- ➕ `do()` now removes the Favorite's bookmark (`chrome.bookmarks.remove`, batched) instead of
+  calling the old pinned-sites proxy; the snapshot records the bookmark's folder and bookmark index
+  (not the grid position) and undo clamps the index to the folder's current size
 
 ### Task 9: Move a Favorite to another Space
 
