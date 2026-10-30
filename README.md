@@ -55,7 +55,7 @@ Everything is stored in Chrome: bookmarks for Spaces, pinned pages and the archi
 - Collapse the whole section with the chevron on the Space title. Open pages stay visible. The state is kept per Space and shared across windows
 - Double-click a bookmark whose tab moved on to another page to load the bookmarked page back in that tab
 - Links you open from a bookmark or Favorite page (`Cmd+Click`) land at the top of the Tab list
-- A tab you open yourself on a bookmarked or Favorite URL stays in the Tab list. It becomes the bookmark's page only when you click the bookmark, drag the tab onto the tree or use **Add to Bookmark**. Tabs reopened from the Archive also land in the Tab list
+- A tab you open yourself on a bookmarked or Favorite URL stays in the Tab list. In Arc style, clicking that bookmark or Favorite opens a second tab for it; dragging the tab onto the tree, **Add to Bookmark**, pinning it or dropping it on the Favorites grid makes a new bookmark or Favorite with that tab as its page. Tabs reopened from the Archive also land in the Tab list
 - Drag and drop to organize. Drag a tab onto the tree to bookmark it
 - `...` menu: New Folder, New Bookmark, Sort by Name/Date, Edit, Duplicate, Delete, Pin, Move to New Window, Expand All, Open as Tab Group
 - Right-click a bookmark: Copy Link, Share, AI Rename, Edit, Mute/Unmute, Duplicate, Move to..., Remove Pin, Mark for Attention. **Edit** opens a submenu: **Replace Pinned URL with Current** (when the page is open) saves the tab's current address as the bookmark's URL and keeps its title; **Edit Pinned Page** opens the dialog to change title and URL

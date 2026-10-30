@@ -55,6 +55,7 @@ interface BookmarkTabsContextValue
   isPinnedActive: (pinnedId: string) => boolean;
   getTabIdForPinned: (pinnedId: string) => number | undefined;
   getPinnedLiveTitle: (pinnedId: string) => string | undefined;
+  associateExistingPinnedTab: (tabId: number, pinnedId: string) => Promise<void>;
   deassociatePinnedTab: (pinnedId: string) => Promise<void>;
   // Active item tracking
   getActiveItemKey: () => string | null;
@@ -833,6 +834,13 @@ export const BookmarkTabsProvider = ({ children }: BookmarkTabsProviderProps) =>
     return tabId !== undefined ? tabTitles.get(tabId) : undefined;
   }, [itemToTab, tabTitles]);
 
+  // Links the tab a Favorite was just made from. The URL pass runs once per browser session,
+  // so without this the tab would stay in the Tab list and the Favorite would open a second one.
+  const associateExistingPinnedTab = useCallback(async (tabId: number, pinnedId: string): Promise<void> =>
+  {
+    await restoreItemAssociation(tabId, makePinnedKey(pinnedId));
+  }, [restoreItemAssociation]);
+
   // Deassociate a pinned site from its tab (tab stays alive, becomes unmanaged).
   // Remove the association first, then background makes it a regular tab of the current Space.
   const deassociatePinnedTab = useCallback(async (pinnedId: string): Promise<void> =>
@@ -900,6 +908,7 @@ export const BookmarkTabsProvider = ({ children }: BookmarkTabsProviderProps) =>
     isPinnedActive,
     getTabIdForPinned,
     getPinnedLiveTitle,
+    associateExistingPinnedTab,
     deassociatePinnedTab,
     getActiveItemKey,
     getManagedTabIds,
@@ -925,6 +934,7 @@ export const BookmarkTabsProvider = ({ children }: BookmarkTabsProviderProps) =>
     isPinnedActive,
     getTabIdForPinned,
     getPinnedLiveTitle,
+    associateExistingPinnedTab,
     deassociatePinnedTab,
     getActiveItemKey,
     getManagedTabIds,
