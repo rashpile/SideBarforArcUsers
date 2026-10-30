@@ -110,17 +110,17 @@
 - Modify: `src/hooks/useBookmarks.ts`
 - Modify: `src/components/BookmarkTree.tsx`
 
-- [ ] add `updateBookmarkUrl(id, url)` to `useBookmarks` (URL only, errors through `handleError`) and export it from the hook's return
-- [ ] add `handleReplaceBookmarkUrlWithCurrent` in the `BookmarkTree` container (association lookup by bookmark id, `chrome.tabs.get` with error handling, `getEffectiveTabUrl`, empty URL → no-op)
-- [ ] add `onReplaceUrlWithCurrent` to `BookmarkRowProps` and destructure it in `BookmarkRow`; pass it once where the container renders the top-level rows (next to `onToggleBookmarkMuted`, ~line 2666) — child rows already get every handler through `{...props}`
-- [ ] replace `Rename...` in the single-bookmark menu with the Edit submenu (Replace item only when `isLoaded`; Edit Pinned Page → `onEdit(node)`); folder and multi-select menus unchanged
-- [ ] no unit tests (Chrome call wiring; the association lookup is existing code); run `make test`, `make lint` and `make build` - must pass before task 4
+- [x] add `updateBookmarkUrl(id, url)` to `useBookmarks` (URL only, errors through `handleError`) and export it from the hook's return
+- [x] add `handleReplaceBookmarkUrlWithCurrent` in the `BookmarkTree` container (association lookup by bookmark id, `chrome.tabs.get` with error handling, `getEffectiveTabUrl`, empty URL → no-op)
+- [x] add `onReplaceUrlWithCurrent` to `BookmarkRowProps` and destructure it in `BookmarkRow`; pass it once where the container renders the top-level rows (next to `onToggleBookmarkMuted`, ~line 2666) — child rows already get every handler through `{...props}`
+- [x] replace `Rename...` in the single-bookmark menu with the Edit submenu (Replace item only when `isLoaded`; Edit Pinned Page → `onEdit(node)`); folder and multi-select menus unchanged
+- [x] no unit tests (Chrome call wiring; the association lookup is existing code); run `make test`, `make lint` and `make build` - must pass before task 4
 
 ### Task 4: Verify acceptance criteria
-- [ ] verify all requirements from Overview are implemented (Edit submenu, Replace only with a live tab, Edit Pinned Page opens the dialog, `Rename...` gone, folder/multi-select menus unchanged)
-- [ ] verify edge cases: parked tab yields its original URL; closed tab / no association is a no-op; submenu flips/clamps in a narrow side panel
-- [ ] run full test suite: `make test`
-- [ ] run `make lint` and `make build`
+- [x] verify all requirements from Overview are implemented (Edit submenu, Replace only with a live tab, Edit Pinned Page opens the dialog, `Rename...` gone, folder/multi-select menus unchanged)
+- [x] verify edge cases: parked tab yields its original URL; closed tab / no association is a no-op; submenu flips/clamps in a narrow side panel
+- [x] run full test suite: `make test`
+- [x] run `make lint` and `make build`
 
 ### Task 5: [Final] Update documentation
 - [ ] update `README.md` "Bookmarks and pinned pages": describe the bookmark right-click menu including Edit → Replace Pinned URL with Current / Edit Pinned Page
