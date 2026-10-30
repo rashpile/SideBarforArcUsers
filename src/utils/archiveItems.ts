@@ -28,11 +28,16 @@ export class ArchiveItems
     return folder ? new ArchiveItems(collectFolderBookmarks(folder)) : ArchiveItems.EMPTY;
   }
 
-  /** Every item, or only those matching the toolbar text filter while it is active. */
-  matching(filterText: string): BookmarkNode[]
+  /**
+   * The items matching both the toolbar text filter and the Archive search;
+   * a blank query matches every item.
+   */
+  matching(filterText: string, searchText = ''): BookmarkNode[]
   {
-    if (!filterText.trim()) return this.#newestFirst;
-    return this.#newestFirst.filter(page => matchesFilter(page.title, page.url ?? '', filterText));
+    if (!filterText.trim() && !searchText.trim()) return this.#newestFirst;
+    return this.#newestFirst.filter(page =>
+      matchesFilter(page.title, page.url ?? '', filterText) &&
+      matchesFilter(page.title, page.url ?? '', searchText));
   }
 
   /** Archive times in the form the recent popover orders by. */

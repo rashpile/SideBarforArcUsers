@@ -90,12 +90,12 @@
 - Modify: `src/utils/archiveItems.ts`
 - Modify: `tests/archiveItems.test.mjs`
 
-- [ ] change `matching(filterText)` to `matching(filterText, searchText = '')`: an item is kept when it
+- [x] change `matching(filterText)` to `matching(filterText, searchText = '')`: an item is kept when it
   matches the toolbar filter (blank = all) AND the Archive search (blank = all), both via `matchesFilter`;
   update its doc comment
-- [ ] add tests for the combined filter: toolbar filter only, Archive search only, both together (AND),
+- [x] add tests for the combined filter: toolbar filter only, Archive search only, both together (AND),
   blank search, a search that matches nothing
-- [ ] run `make test` - must pass before task 2
+- [x] run `make test` - must pass before task 2
 
 ### Task 2: Trailing slot in SectionHeader
 
