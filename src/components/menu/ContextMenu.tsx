@@ -21,6 +21,7 @@ import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { useFontSize } from '../../contexts/FontSizeContext';
 import { Item as BaseItem, Separator, Overlay, useEscapeKey, menuContainerClass } from './MenuBase';
+import { placeMenuAtPoint } from '../../utils/menuPosition';
 
 // Re-export Separator (Item is wrapped below to add close behavior)
 export { Separator };
@@ -163,27 +164,12 @@ export const Content = forwardRef<HTMLDivElement, ContentProps>(
     {
       if (!isOpen || !menuRef.current) return;
 
-      const menu = menuRef.current;
-      const rect = menu.getBoundingClientRect();
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-
-      let x = position.x;
-      let y = position.y;
-
-      // Adjust horizontal position
-      if (x + rect.width > viewportWidth)
-      {
-        x = viewportWidth - rect.width - 8;
-      }
-
-      // Adjust vertical position
-      if (y + rect.height > viewportHeight)
-      {
-        y = viewportHeight - rect.height - 8;
-      }
-
-      setAdjustedPosition({ x, y });
+      const rect = menuRef.current.getBoundingClientRect();
+      setAdjustedPosition(placeMenuAtPoint(
+        position,
+        { width: rect.width, height: rect.height },
+        { width: window.innerWidth, height: window.innerHeight }
+      ));
     }, [isOpen, position]);
 
     if (!isOpen) return null;

@@ -87,11 +87,11 @@
 - Create: `tests/menuPosition.test.mjs`
 - Modify: `src/components/menu/ContextMenu.tsx`
 
-- [ ] create `src/utils/menuPosition.ts` with `placeMenuAtPoint` and `placeSubmenu` as in Technical Details
-- [ ] switch `Content`'s viewport effect in `ContextMenu.tsx` to `placeMenuAtPoint` (same result as today)
-- [ ] write tests for `placeSubmenu`: fits to the right; flips left when the right side overflows; moves up when the bottom overflows; when neither side fits, the panel goes below the trigger, or above it when there is no room below, and its rectangle never overlaps the anchor rectangle
-- [ ] write one test for `placeMenuAtPoint` pinning today's clamp at the right and bottom edges
-- [ ] run `make test` and `make lint` - must pass before task 2
+- [x] create `src/utils/menuPosition.ts` with `placeMenuAtPoint` and `placeSubmenu` as in Technical Details
+- [x] switch `Content`'s viewport effect in `ContextMenu.tsx` to `placeMenuAtPoint` (same result as today)
+- [x] write tests for `placeSubmenu`: fits to the right; flips left when the right side overflows; moves up when the bottom overflows; when neither side fits, the panel goes below the trigger, or above it when there is no room below, and its rectangle never overlaps the anchor rectangle
+- [x] write one test for `placeMenuAtPoint` pinning today's clamp at the right and bottom edges
+- [x] run `make test` and `make lint` - must pass before task 2
 
 ### Task 2: Submenu components in ContextMenu
 
