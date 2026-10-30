@@ -78,6 +78,8 @@ Everything is stored in Chrome: bookmarks for Spaces, pinned pages and the archi
 
 Right-click a tab or a bookmark and pick **Mark for Attention** to flag it for later. A marked row gets a thin ring in the active Space's colour; pick another colour or strength with **Mark for Attention colour** in Settings. The Space colour option takes the colour of the active Space (theme violet in the All view). On a marked row the item reads **Clear Mark**.
 
+<img src="asset/mark-for-attention.png" alt="Marked tabs and bookmarks with the Space colour ring" width="240">
+
 - With several tabs or bookmarks selected, one item applies to all of them: if any is unmarked it marks them all, otherwise it clears them all. Folders can't be marked
 - On a marked tab the close button shows `-` instead of `x`. Click it to clear the mark; the tab stays open
 - Commands that close many tabs at once leave marked tabs open: Close Tabs Before / After, Close Other Tabs, closing a multi-selection, Close Tabs in Group, Clear and Archive on the "+ New Tab" row, and Close All Tabs In Space. A tab's own **Close** still closes it
