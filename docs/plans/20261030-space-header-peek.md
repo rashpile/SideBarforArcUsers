@@ -100,10 +100,10 @@
 - Modify: `src/components/FolderRecentPopover.tsx`
 - Modify: `src/components/BookmarkTree.tsx`
 
-- [ ] in `useFolderPeek`, make `anchorOf` look for `[data-bookmark-id], [data-peek-anchor]`; update its comment
-- [ ] add exported `openPeekBookmark(bookmark, e, windowId, openInArc)` to `FolderRecentPopover.tsx` with the Cmd/Ctrl / Shift / default branches now in `handlePeekOpen`
-- [ ] make `BookmarkTree`'s `handlePeekOpen` call `folderPeek.close()` then `openPeekBookmark(bookmark, e, windowId, (id, url) => onOpenBookmark?.(id, url))`
-- [ ] run `make lint && make test` - must pass before task 2
+- [x] in `useFolderPeek`, make `anchorOf` look for `[data-bookmark-id], [data-peek-anchor]`; update its comment
+- [x] add exported `openPeekBookmark(bookmark, e, windowId, openInArc)` to `FolderRecentPopover.tsx` with the Cmd/Ctrl / Shift / default branches now in `handlePeekOpen`
+- [x] make `BookmarkTree`'s `handlePeekOpen` call `folderPeek.close()` then `openPeekBookmark(bookmark, e, windowId, (id, url) => onOpenBookmark?.(id, url))`
+- [x] run `make lint && make test` - must pass before task 2
 
 ### Task 2: Actions slot in SectionHeader
 

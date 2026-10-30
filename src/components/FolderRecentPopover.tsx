@@ -103,10 +103,11 @@ export function useFolderPeek(enabled: boolean): FolderPeek
 
   useEffect(() => clearTimers, [clearTimers]);
 
-  // Anchor to the folder row, not the button: a popover hung off a button at
-  // the row's right edge would run off a narrow sidebar
+  // Anchor to the folder row or the Space header row, not the button: a popover
+  // hung off a button at the row's right edge would run off a narrow sidebar.
+  // A folder row's [data-bookmark-id] is always closer than any header.
   const anchorOf = (trigger: HTMLElement) =>
-    trigger.closest<HTMLElement>('[data-bookmark-id]') ?? trigger;
+    trigger.closest<HTMLElement>('[data-bookmark-id], [data-peek-anchor]') ?? trigger;
 
   const triggerHandlers: FolderPeek['triggerHandlers'] = {
     onPointerEnter: (e) =>
@@ -141,6 +142,33 @@ export function useFolderPeek(enabled: boolean): FolderPeek
   };
 
   return { anchorRect, popoverRef, triggerHandlers, popoverHandlers, close };
+}
+
+// --- Opening a picked page ---
+
+/**
+ * Opens a page picked in a peek with the same modifiers as the tree's open
+ * button: Cmd/Ctrl in a new tab, Shift in a new window, otherwise Arc-style.
+ */
+export function openPeekBookmark(
+  bookmark: chrome.bookmarks.BookmarkTreeNode,
+  e: React.MouseEvent | React.KeyboardEvent,
+  windowId: number | null | undefined,
+  openInArc: (bookmarkId: string, url: string) => void
+): void
+{
+  if (e.metaKey || e.ctrlKey)
+  {
+    chrome.tabs.create({ url: bookmark.url!, active: true, windowId: windowId ?? undefined });
+  }
+  else if (e.shiftKey)
+  {
+    chrome.windows.create({ url: bookmark.url! });
+  }
+  else
+  {
+    openInArc(bookmark.id, bookmark.url!);
+  }
 }
 
 // --- Popover ---
