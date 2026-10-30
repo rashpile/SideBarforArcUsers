@@ -112,7 +112,8 @@ dispatch plan before anything is claimed; with `--auto`, state it and dispatch i
   ```
   The body ends with `Closes #<n>` so the merge closes the issue. A not-clean run adds `--draft`.
   Title style follows the repo: `feat: …` / `fix: …`.
-- **Merge — ship worker only:** `gh pr merge <pr> --squash --delete-branch`.
+- **Merge — ship worker only:** `gh pr merge <pr> --squash`, then `git push origin --delete
+  <branch>`. Not `--delete-branch`: it also deletes the local branch and its worktree.
 - Close an issue the merge did not close: `gh issue close <n> --comment "Merged in #<pr>"`.
 - A task an agent files gets `--label pending` and its body ends with
   `_Filed by agent while working on #<n>._`

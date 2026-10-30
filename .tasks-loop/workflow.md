@@ -59,7 +59,8 @@ checkout, no slot of its own). Its brief, per PR in order:
    the branch in a worktree, run `# Checks`, push (never force). Semantic conflict → stop, report
    it; that task is closed as BLOCKED.
 2. Run `# Checks` on the branch rebased onto current `main` (there is no CI) — red → stop, report.
-3. `gh pr merge <pr> --squash --delete-branch`.
+3. `gh pr merge <pr> --squash`, then `git push origin --delete <branch>`. Never `--delete-branch`:
+   it also deletes the local branch and its worktree, which `--keep` leaves for the user.
 
 After all merges: `git checkout main && git pull --ff-only` in the main checkout, run `# Checks`
 once on `main`, confirm each issue closed (close it with a comment if not), then remove each local
@@ -68,6 +69,16 @@ worktree and branch — `git branch -D` only after checking the branch's own fil
 
 **The merges are the ship worker's.** The orchestrator never merges; a refused spawn means nothing
 merged — report it and leave those tasks at `done`.
+
+**The ship worker runs with `permission-mode: acceptEdits`** (config § 3. Ship), not `auto`: auto
+mode's classifier denies `gh pr merge` as "Merge Without Review" and the worker is stuck. In
+`acceptEdits` the merge, `git push`, `git pull` and `gh issue` calls raise an approval `waiting`
+instead, and the orchestrator answers it (`answer --to <request id>`), as § Supervise says. The
+approval for a PR's merge is already given — the user dropped `pending`, or `--full-auto` did —
+so approve the `gh pr merge <pr> --squash` and the `git push origin --delete <branch>` of that
+PR's own branch, for exactly the PRs in the brief. Any
+other destructive request (force-push, `rm -rf`, `git reset --hard`, deleting a branch other than
+the merged one) goes to the user, as always.
 
 No deploy: the extension is not published. The loop says "deploy not configured" in the summary.
 

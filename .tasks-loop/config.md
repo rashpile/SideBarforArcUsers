@@ -20,7 +20,10 @@ Push `issue/<n>-<slug>` to `origin`. PR against `main`, conventional title (`fea
 body ends with `Closes #<n>`.
 
 ## 3. Ship
-Squash-merge with `--delete-branch`. No deploy: the extension is not published to the Chrome Web
+permission-mode: acceptEdits
+
+Squash-merge without `--delete-branch` (it also deletes the local branch and its worktree, which
+`--keep` must leave), then delete the remote branch with `git push origin --delete <branch>`. No deploy: the extension is not published to the Chrome Web
 Store.
 
 # Checks
