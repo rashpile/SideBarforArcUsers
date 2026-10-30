@@ -91,7 +91,7 @@ Code lives in `src/managers/`: `impl/` has the managers (background only), `prox
 
 An action string is `<managerId>_msg_<method>`, e.g. `TabSpaceRegistry_msg_register`. `background.ts` splits on `_msg_` and looks up the manager by exact match. Prefix matching would misroute when one id is a prefix of another. `registerManager` throws on a duplicate manager id. The router awaits `stateReady` once, so manager methods don't have to. `src/managers/proxies/messageRouting.ts` holds the vocabulary for both sides.
 
-A few messages coordinate several managers and stay as plain handlers in `background.ts`: `set-active-tab-and-space`, `queue-tab-for-grouping`, `tab-activated`, `deassociate-tab`.
+A few messages coordinate several managers and stay as plain handlers in `background.ts`: `set-active-tab-and-space`, `queue-tab-for-grouping`, `tab-activated`, `deassociate-tab`. `tab-reopened-by-undo` is one too: it hands each tab the sidebar's Undo re-created to `TabActivityTracker`, the writer of `tabLastUsedAt`.
 
 ### Mirror store
 

@@ -3,6 +3,7 @@
 ## Latest Version
 
 - Fixed: a tab opened from a link in a bookmark or Favorite page (Cmd+click) now goes to the top of the Tab list instead of a random spot
+- New: "Mark unvisited tabs" setting (Settings > Appearance, on by default) - a dot at the left edge of a Tab list row marks a tab opened in the background until you first switch to it. Tabs restored with a closed window (Cmd+Shift+T) or brought back by Undo get no dot
 - New: "Highlight tabs by last use" setting (Settings > Appearance, on by default) - Tab list rows get a stronger background the more recently you left the tab, fading out over 3 hours; looks: White, Accent, Cooling, Trail, or Off. Accent and Trail use the Space colour when it tints the sidebar
 - New: "Archive tabs after" setting (Settings > Behaviour, off by default) - tabs unused for 12 hours to 30 days are saved to the Space's `asd_Archive` bookmark folder and closed; open bookmark pages close and keep their bookmark
 - New: Archive section between Bookmarks and Tabs - hover to see and search the newest archived tabs, expand to list them all, click one to reopen it

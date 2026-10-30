@@ -3,6 +3,7 @@ import { truncateTitle } from '../utils/truncateTitle';
 import { Space } from '../contexts/SpacesContext';
 import { spaceManagerProxy } from '../managers/proxies/spaceManagerProxy';
 import { tabSpaceRegistryProxy } from '../managers/proxies/tabSpaceRegistryProxy';
+import { reportTabReopenedByUndo } from '../utils/tabReopenedByUndo';
 
 interface TabSnapshot
 {
@@ -173,6 +174,7 @@ export class DeleteSpaceAction implements UndoableAction
           });
 
           if (!newTab.id) continue;
+          reportTabReopenedByUndo(newTab.id);
           await tabSpaceRegistryProxy.register(this.windowId, newTab.id, this.snapshot.space.id);
 
           if (import.meta.env.DEV)

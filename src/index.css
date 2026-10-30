@@ -19,7 +19,7 @@ html, body, #root {
   --arc-surface-hover: rgba(255, 255, 255, 0.34);
   --arc-surface-active: rgba(255, 255, 255, 0.72);
   --arc-shadow: 0 1px 2px rgba(41, 35, 76, 0.07), 0 3px 10px rgba(41, 35, 76, 0.07);
-  /* r, g, b of the tab age Accent and Trail looks; App sets the Space accent when the Space colour is applied */
+  /* r, g, b of the tab age Accent and Trail looks and of the unvisited tab dot; App sets the Space accent when the Space colour is applied */
   --arc-tab-age-accent: 106, 90, 205;
   color: var(--arc-text);
   -webkit-font-smoothing: antialiased;
@@ -329,6 +329,22 @@ html, body, #root {
     linear-gradient(var(--arc-row-overlay), var(--arc-row-overlay)),
     linear-gradient(var(--arc-tab-age-color), var(--arc-tab-age-color)),
     var(--arc-sidebar-bg, transparent);
+}
+
+/*
+ * Unvisited tab: a dot in the row's 8px left gutter, so it never covers the
+ * favicon of an ungrouped (depth 0) row. The accent follows dark mode and the Space colour.
+ */
+.arc-unvisited-dot {
+  position: absolute;
+  left: 1px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  background: rgb(var(--arc-tab-age-accent));
+  pointer-events: none;
 }
 
 .arc-space-root-drop-target {

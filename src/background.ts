@@ -18,6 +18,8 @@ import { TabActivityTracker } from './stores/tabActivityTracker';
 import { queryOpenTabs, readTabActivityRecording, TabAutoArchiver } from './services/tabAutoArchiver';
 import { AUTO_ARCHIVE_AFTER_KEY } from './utils/autoArchive';
 import { TAB_AGE_HIGHLIGHT_KEY } from './utils/tabAgeHighlight';
+import { isOpenedUnvisited, RecentWindows, UNVISITED_TAB_MARKER_KEY } from './utils/unvisitedTabMarker';
+import { TAB_REOPENED_BY_UNDO_ACTION } from './utils/tabReopenedByUndo';
 import { KeyboardSwitcher, parseSwitcherCommand } from './services/keyboardSwitcher';
 import { buildSpaceCards, buildTabCards, findLastUsedTab, WindowSpaces } from './services/switcherLists';
 import { SwitcherMessageAction } from './utils/switcherMessages';
@@ -157,8 +159,9 @@ const bookmarkSpaceResolver = new BookmarkSpaceResolver(
   (id) => chrome.bookmarks.get(id).then(([node]) => node, () => undefined),
   () => spaceManager.getSpaces(),
 );
-// Last-use time of every tab, for auto-archive and the Tab list's age highlight.
-// Background is the only writer; nothing is recorded while both are off.
+// Last-use time of every tab, for auto-archive and the Tab list's age highlight, and the
+// unvisited mark of tabs opened in the background. Background is the only writer; nothing
+// is recorded while auto-archive, the age highlight and the unvisited marker are all off.
 const tabActivityTracker = new TabActivityTracker({
   local: {
     get: (key) => chrome.storage.local.get(key),
@@ -263,8 +266,8 @@ async function detachLegacySpaceGroups(): Promise<void>
   ]);
 }
 
-// Attach the stored last-use records to the open tabs (or drop them while auto-archive and the
-// tab age highlight are both off). A failure here doesn't hold up the other managers: the
+// Attach the stored last-use records to the open tabs (or drop them while auto-archive, the
+// tab age highlight and the unvisited marker are all off). A failure here doesn't hold up the other managers: the
 // tracker then refuses to refresh, and no tab is auto-archived.
 async function loadTabActivity(): Promise<void>
 {
@@ -278,11 +281,12 @@ async function loadTabActivity(): Promise<void>
   }
 }
 
-// Switching the tab age highlight on or off starts recording, or drops the records when
-// auto-archive doesn't need them either. A change between two looks reloads harmlessly.
+// Switching the tab age highlight or the unvisited marker on or off starts recording, or drops
+// the records when nothing else needs them. A change between two looks reloads harmlessly.
 chrome.storage.onChanged.addListener((changes, areaName) =>
 {
-  if (areaName === 'local' && changes[TAB_AGE_HIGHLIGHT_KEY]) void loadTabActivity();
+  if (areaName !== 'local') return;
+  if (changes[TAB_AGE_HIGHLIGHT_KEY] || changes[UNVISITED_TAB_MARKER_KEY]) void loadTabActivity();
 });
 
 // Tells a worker restart (stored tab and window IDs are exact) from a browser restart or an
@@ -417,7 +421,7 @@ chrome.alarms.onAlarm.addListener((alarm) =>
 });
 
 // Switching the setting on starts every tab's clock and the alarm; switching it off stops the
-// alarm and drops the last-use records unless the tab age highlight still needs them
+// alarm and drops the last-use records unless the tab age highlight or the unvisited marker still needs them
 chrome.storage.onChanged.addListener((changes, areaName) =>
 {
   const change = changes[AUTO_ARCHIVE_AFTER_KEY];
@@ -753,6 +757,15 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) =>
     catch { /* tab may have been closed */ }
   }
 
+  // An unvisited tab's record follows its redirects, so a browser restart can still re-match it.
+  // The active tab is skipped here only to save a queued records read per navigation: its mark
+  // was already cleared when it was activated.
+  if (changeInfo.url && tab && !tab.active)
+  {
+    tabActivityTracker.followUrl(tab)
+      .catch((error) => console.error('[TabActivityTracker] failed to follow an unvisited tab\'s URL:', error));
+  }
+
   if (tab && parseParkedTabUrl(tab.url))
   {
     await migrateParkedTabAssociation(tab);
@@ -859,11 +872,28 @@ async function moveLinkTabToTabListTop(tabId: number, windowId: number, openerTa
   if (index !== undefined) await chrome.tabs.move(tabId, { index });
 }
 
+// Inactive tabs arriving right after their window are a restored window's, not new ones
+// (see RESTORED_WINDOW_MS). Memory only: a worker woken by the window event has no stateReady
+// to wait for, and the tabs follow within milliseconds. Registered before tabs.onCreated.
+const recentWindows = new RecentWindows();
+chrome.windows.onCreated.addListener((createdWindow) =>
+{
+  if (createdWindow.id !== undefined) recentWindows.markCreated(createdWindow.id, Date.now());
+});
+
 // A new tab joins the current Space; Chrome's native groupId plays no part in the Space lifecycle.
 chrome.tabs.onCreated.addListener(async (tab) =>
 {
   if (!tab.id || !tab.windowId) return;
+  // Decided now: after the await below the window may no longer count as just created
+  const openedUnvisited = isOpenedUnvisited(tab, recentWindows, Date.now());
   await stateReady;
+  // Before any other await, so a quick switch to the tab clears the mark after it was set
+  if (openedUnvisited)
+  {
+    tabActivityTracker.markOpenedUnvisited(tab)
+      .catch((error) => console.error('[TabActivityTracker] failed to mark a tab opened in the background:', error));
+  }
   const targetSpaceId = resolveActiveSpaceId(
     spaceManager.getSpaces(),
     spaceStateManager.getActiveSpace(tab.windowId)
@@ -916,6 +946,20 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) =>
   {
     tabAssociationReadiness.wait().then(() => sendResponse({ ready: true }));
     return true;
+  }
+
+  // The sidebar sends this after chrome.tabs.create returned, so tabs.onCreated for the tab
+  // was dispatched first and its handler is already waiting on stateReady. Chained on the same
+  // promise, this runs after it and enqueues the clear after onCreated's markOpenedUnvisited.
+  if (message?.action === TAB_REOPENED_BY_UNDO_ACTION)
+  {
+    if (Number.isInteger(message.tabId))
+    {
+      void stateReady
+        .then(() => tabActivityTracker.markReopened(message.tabId))
+        .catch((error) => console.error('[TabActivityTracker] failed to unmark a tab reopened by Undo:', error));
+    }
+    return;
   }
 
   if (message?.action === SpaceMessageAction.OPEN_SPACE)

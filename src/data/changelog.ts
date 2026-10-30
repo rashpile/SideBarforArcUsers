@@ -6,6 +6,7 @@ export const CHANGELOG: Record<string, string[]> = {
     'New: "Archive tabs after" setting (Settings > Behaviour, off by default) - unused tabs are saved to the space\'s Archive and closed; unused open bookmark pages close and keep their bookmark',
     'New: Archive section between Bookmarks and Tabs - hover to search archived tabs, click one to reopen it',
     'New: collapse the Bookmarks section from the space title - open bookmark pages stay visible',
+    'New: "Mark unvisited tabs" setting (Settings > Appearance, on by default) - a dot marks tabs opened in the background until you first switch to them',
     'New: "Highlight tabs by last use" setting (Settings > Appearance, on by default) - tabs you left recently get a stronger background in the Tab list, fading over 3 hours; pick White, Accent, Cooling or Trail, or turn it off',
     'New: Archive button next to Clear on the "+ New Tab" row - saves the Tab list to the Archive and closes it, with Undo',
     'New: Tab Switcher and Space Switcher - hold the modifier and press the shortcut to step through tabs or Spaces by last use, release to switch. Set the shortcuts in chrome://extensions/shortcuts',

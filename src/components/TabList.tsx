@@ -59,7 +59,7 @@ import { moveSingleGroup, moveGroupAfter } from '../utils/groupMove';
 import { DropIndicators } from './DropIndicators';
 import * as ContextMenu from './menu/ContextMenu';
 import { useInView } from '../hooks/useInView';
-import { useTabLeftTimes } from '../hooks/useTabLeftTimes';
+import { useTabActivityView } from '../hooks/useTabActivityView';
 import { useClock } from '../hooks/useClock';
 import { TAB_AGE_REGRADE_INTERVAL_MS, tabAgeGrade, tabLastUseForHighlight } from '../utils/tabAgeHighlight';
 import { useChromeLocalStorage } from '../hooks/useChromeLocalStorage';
@@ -88,6 +88,7 @@ interface DraggableTabProps {
   isLastInGroup?: boolean;
   isSelected?: boolean;
   ageGrade?: number;  // Tab age highlight grade; not shown on the active or a selected row
+  isUnvisited?: boolean;  // Opened in the background and not activated since; no dot on the active row
   onClose: (id: number) => void;
   onActivate: (id: number) => void;
   onDuplicate?: (id: number) => void;
@@ -129,6 +130,7 @@ const TabRow = forwardRef<HTMLDivElement, DraggableTabProps>(({
   isLastInGroup,
   isSelected,
   ageGrade,
+  isUnvisited,
   onClose,
   onActivate,
   onDuplicate,
@@ -270,6 +272,7 @@ const TabRow = forwardRef<HTMLDivElement, DraggableTabProps>(({
               data-group-id={tab.groupId ?? -1}
               data-dnd-id={dndId}
             >
+              {isUnvisited && !tab.active && <span className="arc-unvisited-dot" aria-hidden="true" />}
               {/* Border overlay for grouped tabs - shows on hover or context menu, hidden during drag */}
               {groupColor && !globalDragActive && (
                 <div className={clsx(
@@ -879,9 +882,10 @@ interface TabListProps {
   onPerformAction?: (action: UndoableAction) => Promise<void>;
   onBookmarkCreated?: (bookmark: chrome.bookmarks.BookmarkTreeNode, tabId?: number) => void;
   highlightTabAge?: boolean;  // "Highlight tabs by last use" is on; the look is set on the .arc-theme root
+  markUnvisitedTabs?: boolean;  // "Mark unvisited tabs" is on
 }
 
-export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFirst', onTabGroupDisplayOrderChange, onExternalDropTargetChange: _onExternalDropTargetChange, resolveBookmarkDropTarget: _resolveBookmarkDropTarget, arcStyleEnabled = false, filterText = '', activeSpace: activeSpaceProp, useSpaces = true, onSpaceDropTargetChange: _onSpaceDropTargetChange, onPerformAction, onBookmarkCreated, highlightTabAge = false }: TabListProps) =>
+export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFirst', onTabGroupDisplayOrderChange, onExternalDropTargetChange: _onExternalDropTargetChange, resolveBookmarkDropTarget: _resolveBookmarkDropTarget, arcStyleEnabled = false, filterText = '', activeSpace: activeSpaceProp, useSpaces = true, onSpaceDropTargetChange: _onSpaceDropTargetChange, onPerformAction, onBookmarkCreated, highlightTabAge = false, markUnvisitedTabs = false }: TabListProps) =>
 {
   const { spaces, activeSpace: activeSpaceFromContext, windowId } = useSpacesContext();
   const { tabs, closeTabs, activateTab, moveTab, groupTab, ungroupTab, createGroupWithTab, createTabInGroup, createTab, duplicateTab, sortTabs, sortGroupTabs, error } = useTabs(windowId ?? undefined);
@@ -895,16 +899,18 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
 
   const activeTabId = tabs.find(t => t.active)?.id;
 
-  // Tab age highlight: when the user last left each tab (background records, plus the leave
-  // this list just saw), re-graded every 15 s. No grades until the records are read
-  const [tabLeftTimes, tabLeftTimesLoaded] = useTabLeftTimes(highlightTabAge, activeTabId);
+  // Tab age highlight and unvisited dot: the background's records, plus the leave this list
+  // just saw. Ages are re-graded every 15 s; no grades until the records are read
+  const [tabActivity, tabActivityLoaded] = useTabActivityView(highlightTabAge || markUnvisitedTabs, activeTabId);
   const now = useClock(highlightTabAge, TAB_AGE_REGRADE_INTERVAL_MS);
   // lastAccessed (Chrome 121+) is missing from @types/chrome, so the tab is typed by the fields read
   const tabAgeGradeOf = (tab: { id?: number; lastAccessed?: number }): number | undefined =>
   {
-    if (!highlightTabAge || !tabLeftTimesLoaded || tab.id === undefined) return undefined;
-    return tabAgeGrade(tabLastUseForHighlight(tabLeftTimes.leftAt(tab.id), tab.lastAccessed), now);
+    if (!highlightTabAge || !tabActivityLoaded || tab.id === undefined) return undefined;
+    return tabAgeGrade(tabLastUseForHighlight(tabActivity.leftAt(tab.id), tab.lastAccessed), now);
   };
+  const isTabUnvisited = (tab: chrome.tabs.Tab): boolean =>
+    markUnvisitedTabs && tab.id !== undefined && tabActivity.isUnvisited(tab.id);
 
   // Check if we're in a non-"all" space
   const isInSpace = activeSpace && activeSpace.id !== 'all';
@@ -2732,6 +2738,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
                   showDropAfter={(isTarget && dropPosition === 'after') || (isExternalTarget && externalUrlDropTarget?.position === 'after')}
                   isSelected={isTabSelected(tabId)}
                   ageGrade={tabAgeGradeOf(item.tab)}
+                  isUnvisited={isTabUnvisited(item.tab)}
                   onClose={handleCloseSelectedTabs}
                   onActivate={activateTab}
                   onDuplicate={duplicateTab}
@@ -2781,6 +2788,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
                           showDropAfter={(isTabTarget && dropPosition === 'after') || (isExternalTabTarget && externalUrlDropTarget?.position === 'after')}
                           isSelected={isTabSelected(tabId)}
                           ageGrade={tabAgeGradeOf(tab)}
+                          isUnvisited={isTabUnvisited(tab)}
                           onClose={handleCloseSelectedTabs}
                           onActivate={activateTab}
                           onDuplicate={duplicateTab}
@@ -2887,6 +2895,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
                         isLastInGroup={isLastTab}
                         isSelected={isTabSelected(tabId)}
                         ageGrade={tabAgeGradeOf(tab)}
+                        isUnvisited={isTabUnvisited(tab)}
                         onClose={handleCloseSelectedTabs}
                         onActivate={activateTab}
                         onDuplicate={duplicateTab}

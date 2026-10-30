@@ -3,6 +3,7 @@ import { Dialog } from './Dialog';
 import { FollowActiveTabMode } from '../utils/followActiveTab';
 import { AutoArchivePeriod } from '../utils/autoArchive';
 import { TabAgeHighlightStyle } from '../utils/tabAgeHighlight';
+import { UnvisitedTabMarkerSetting } from '../utils/unvisitedTabMarker';
 import { Eye, EyeOff } from 'lucide-react';
 import {
   AiRenameSettings,
@@ -27,6 +28,7 @@ export interface SettingsValues {
   followActiveTab: FollowActiveTabMode;
   autoArchiveAfter: AutoArchivePeriod;
   tabAgeHighlight: TabAgeHighlightStyle;
+  markUnvisitedTabs: UnvisitedTabMarkerSetting;
   aiSettings: AiRenameSettings;
 }
 
@@ -58,6 +60,7 @@ export function SettingsDialog({
   const [tempFollowActiveTab, setTempFollowActiveTab] = useState(settings.followActiveTab);
   const [tempAutoArchiveAfter, setTempAutoArchiveAfter] = useState(settings.autoArchiveAfter);
   const [tempTabAgeHighlight, setTempTabAgeHighlight] = useState(settings.tabAgeHighlight);
+  const [tempMarkUnvisitedTabs, setTempMarkUnvisitedTabs] = useState(settings.markUnvisitedTabs);
   const [tempAiSettings, setTempAiSettings] = useState(settings.aiSettings);
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
   const [showApiKey, setShowApiKey] = useState(false);
@@ -94,6 +97,7 @@ export function SettingsDialog({
       setTempFollowActiveTab(settings.followActiveTab);
       setTempAutoArchiveAfter(settings.autoArchiveAfter);
       setTempTabAgeHighlight(settings.tabAgeHighlight);
+      setTempMarkUnvisitedTabs(settings.markUnvisitedTabs);
       setTempAiSettings(settings.aiSettings);
       setShowApiKey(false);
       setAiValidation({ state: 'idle', message: '' });
@@ -119,6 +123,7 @@ export function SettingsDialog({
       followActiveTab: tempFollowActiveTab,
       autoArchiveAfter: tempAutoArchiveAfter,
       tabAgeHighlight: tempTabAgeHighlight,
+      markUnvisitedTabs: tempMarkUnvisitedTabs,
       aiSettings: tempAiSettings,
     });
   };
@@ -323,6 +328,22 @@ export function SettingsDialog({
               </select>
               <p className="mt-1 text-gray-500 dark:text-gray-400">
                 Recently used tabs in the Tab list get a stronger background
+              </p>
+            </div>
+
+            {/* Mark unvisited tabs */}
+            <div>
+              <label className="flex items-center gap-2 text-gray-700 dark:text-gray-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={tempMarkUnvisitedTabs === 'on'}
+                  onChange={(e) => setTempMarkUnvisitedTabs(e.target.checked ? 'on' : 'off')}
+                  className="rounded border-gray-300 dark:border-gray-600"
+                />
+                Mark unvisited tabs
+              </label>
+              <p className="mt-0.5 text-gray-500 dark:text-gray-400 ml-5">
+                A dot marks tabs opened in the background until you first switch to them
               </p>
             </div>
           </>
