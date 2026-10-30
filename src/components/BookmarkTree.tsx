@@ -566,6 +566,8 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
                 if (e.detail === 1) hadTabOnPressRef.current = !!isLoaded;
               }}
               onDoubleClick={(e) => {
+                // A quick double click on a hover button (Mark, Delete, Close) must not reopen the bookmark
+                if ((e.target as Element).closest('.arc-tree-row-actions')) return;
                 if (!node.url || bookmarkOpenMode !== 'arc' || !onOpenBookmark) return;
                 // Modifier clicks only change the selection
                 if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
