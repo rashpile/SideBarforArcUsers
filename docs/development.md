@@ -21,6 +21,7 @@ Load `dist/` in Chrome: `chrome://extensions` → Developer mode → Load unpack
 | `make dev` | Vite dev server |
 | `make build` | `tsc` + production build into `dist/` |
 | `make build-debug` | Same with `--mode development`: `import.meta.env.DEV` is true, debug logging and the DEV menu items are on |
+| `make test-build` | Production build of the current checkout into the main checkout's `dist/`. Run it in a worktree to try that branch in the extension already loaded in Chrome, then reload it; `make build` in the main checkout goes back to `main` |
 | `make test` | Unit tests (`node --test tests/*.test.mjs`) |
 | `make lint` | ESLint (`.eslintrc.cjs`), fails on any warning |
 | `make chrome` | Chrome with a fresh test profile (`tools/start-test-chrome.sh`) |
