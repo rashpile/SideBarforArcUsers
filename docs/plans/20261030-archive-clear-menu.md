@@ -170,9 +170,9 @@ constructor(api, archiveFolderId: string, option: ArchiveClearOption, now: () =>
 
 ### Task 5: Verify acceptance criteria
 
-- [ ] verify: scope is the active Space's archive only; clearing ignores the header search and toolbar filter; one Undo restores all removed items; a cutoff with nothing to remove is disabled and runs nothing
-- [ ] verify the invariants in CLAUDE.md: no hard-coded bookmark roots, archive folder resolved through `findArchiveFolder`
-- [ ] run `make lint && make test && make build`
+- [x] verify: scope is the active Space's archive only; clearing ignores the header search and toolbar filter; one Undo restores all removed items; a cutoff with nothing to remove is disabled and runs nothing
+- [x] verify the invariants in CLAUDE.md: no hard-coded bookmark roots, archive folder resolved through `findArchiveFolder`
+- [x] run `make lint && make test && make build`
 
 ### Task 6: [Final] Update documentation
 
