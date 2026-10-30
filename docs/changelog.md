@@ -2,6 +2,7 @@
 
 ## Latest Version
 
+- Fixed: a tab you opened by hand on a bookmarked or Favorite page no longer jumps out of the Tab list into the bookmark (or into another Space) when another bookmark opens or closes. Open bookmark pages are still re-linked after a browser restart or extension reload
 - New: Mark for Attention in the right-click menu of tabs and bookmarks, also for a multi-selection - a marked row gets a ring; the item reads Clear Mark on a marked row. A marked tab's close button shows `-`, which clears the mark and leaves the tab open. Auto-archive never closes a marked tab, and bulk close commands (Close Tabs Before / After, Close Other Tabs, closing a selection, Close Tabs in Group, Clear, Archive, Close All Tabs In Space) leave marked tabs open. Marks survive a browser restart; incognito tabs can't be marked. The "Mark for Attention colour" setting (Settings > Appearance) picks the ring's colour - green, blue, orange, red, purple, yellow or the Space colour (the active Space's colour, also with the sidebar tint off; theme violet in the All view) - and strength: dim, normal or bright. The default is Space colour - dim
 - New: Edit submenu in a bookmark's right-click menu, as in Arc - "Replace Pinned URL with Current" sets the bookmark's URL to the page its open tab shows now (the title stays); "Edit Pinned Page" opens the edit dialog. It replaces "Rename..."
 - Fixed: a tab opened from a link in a bookmark or Favorite page (Cmd+click) now goes to the top of the Tab list instead of a random spot

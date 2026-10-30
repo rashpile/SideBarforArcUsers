@@ -95,11 +95,11 @@
 - [x] run full suite: `make lint && make test && make build`
 
 ### Task 4: [Final] Update documentation
-- [ ] `README.md` (Bookmarks and pinned pages section): a tab you open yourself on a bookmarked or Favorite URL stays in the Tab list; it becomes the bookmark's page only when you click the bookmark, drag the tab onto the tree or use "Add to bookmark". Tabs reopened from the Archive land in the Tab list
-- [ ] `docs/changelog.md` (Latest Version): a `Fixed:` line - a tab opened by hand on a bookmarked page no longer jumps out of the Tab list into the bookmark (or another Space) when another bookmark opens or closes; open bookmark pages are still re-linked after a browser restart or extension reload. Check that it doesn't contradict the existing "Improved: fixed-page and Favorite recovery across Side Panel reopen…" line (`docs/changelog.md:31`); reword that line if needed
-- [ ] `docs/state-reference.md`: section for `urlRecoveryDone_${windowId}` under Chrome Session Storage (owner `src/contexts/BookmarkTabsContext.tsx` via `UrlRecoveryGate`, value, instances 1 per window, lifespan, consumers; never removed - entries of closed windows stay until the session ends), and `urlRecoveryDone_{winId} (per window)` in the SESSION STORAGE diagram
-- [ ] no `src/data/changelog.ts` entry (bug fix; that file omits fixes)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] `README.md` (Bookmarks and pinned pages section): a tab you open yourself on a bookmarked or Favorite URL stays in the Tab list; it becomes the bookmark's page only when you click the bookmark, drag the tab onto the tree or use "Add to bookmark". Tabs reopened from the Archive land in the Tab list
+- [x] `docs/changelog.md` (Latest Version): a `Fixed:` line - a tab opened by hand on a bookmarked page no longer jumps out of the Tab list into the bookmark (or another Space) when another bookmark opens or closes; open bookmark pages are still re-linked after a browser restart or extension reload. Check that it doesn't contradict the existing "Improved: fixed-page and Favorite recovery across Side Panel reopen…" line (`docs/changelog.md:31`); reword that line if needed
+- [x] `docs/state-reference.md`: section for `urlRecoveryDone_${windowId}` under Chrome Session Storage (owner `src/contexts/BookmarkTabsContext.tsx` via `UrlRecoveryGate`, value, instances 1 per window, lifespan, consumers; never removed - entries of closed windows stay until the session ends), and `urlRecoveryDone_{winId} (per window)` in the SESSION STORAGE diagram
+- [x] no `src/data/changelog.ts` entry (bug fix; that file omits fixes)
+- [x] move this plan to `docs/plans/completed/` (left in place - the orchestrator moves the plan at the end)
 
 ## Post-Completion
 *Items requiring manual intervention or external systems - no checkboxes, informational only*
