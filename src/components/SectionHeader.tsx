@@ -131,7 +131,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
     </div>
   );
 
-  // No menu at all (e.g. the Archive header): a plain row, so right-click doesn't open an empty menu
+  // No menu at all: a plain row, so right-click doesn't open an empty menu
   if (!showMenuButton && !menuContent)
   {
     return renderHeaderRow();

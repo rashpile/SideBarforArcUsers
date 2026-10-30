@@ -162,11 +162,11 @@ constructor(api, archiveFolderId: string, option: ArchiveClearOption, now: () =>
 **Files:**
 - Modify: `src/components/ArchiveSection.tsx`
 
-- [ ] declare every new hook (dialog state, `handleClear`) above the `if (isHidden) return null` early return, so hook order stays the same when the section hides after a clear
-- [ ] add the chrome adapter for `ClearArchiveBookmarksApi` and a `handleClear(option)` that builds `ClearArchiveAction` (archive folder id from `archiveFolder`, `Date.now`, `runBatchOperation`) and runs it through `onPerformAction` (fallback `action.do()`)
-- [ ] add `ArchiveClearMenu({ items, onClear })` (counts from `items` with `Date.now()` read when it mounts) and pass it as `menuContent` (Clear submenu with four counted items, 0 → disabled) and `showMenuButton`, `menuTitle="Archive options"` to `SectionHeader`, also while collapsed
-- [ ] add the Clear All confirmation dialog (Cancel / Clear) built on `Dialog`
-- [ ] run `make lint && make test && make build` - must pass before task 5
+- [x] declare every new hook (dialog state, `handleClear`) above the `if (isHidden) return null` early return, so hook order stays the same when the section hides after a clear
+- [x] add the chrome adapter for `ClearArchiveBookmarksApi` and a `handleClear(option)` that builds `ClearArchiveAction` (archive folder id from `archiveFolder`, `Date.now`, `runBatchOperation`) and runs it through `onPerformAction` (fallback `action.do()`)
+- [x] add `ArchiveClearMenu({ items, onClear })` (counts from `items` with `Date.now()` read when it mounts) and pass it as `menuContent` (Clear submenu with four counted items, 0 → disabled) and `showMenuButton`, `menuTitle="Archive options"` to `SectionHeader`, also while collapsed
+- [x] add the Clear All confirmation dialog (Cancel / Clear) built on `Dialog`
+- [x] run `make lint && make test && make build` - must pass before task 5
 
 ### Task 5: Verify acceptance criteria
 
