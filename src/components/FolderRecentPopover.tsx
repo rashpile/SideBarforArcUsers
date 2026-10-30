@@ -1,7 +1,7 @@
 /**
  * FolderRecentPopover - Arc-style peek on a bookmark folder, opened from the
- * search button in the folder row. Lists the folder's bookmarks by last-active
- * time, with a search field.
+ * search button in a folder row or the Space header. Lists the folder's
+ * bookmarks by last-active time, with a search field.
  */
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
@@ -27,7 +27,7 @@ const MAX_WIDTH = 360;
 
 export interface FolderPeek
 {
-  /** Folder row rect while the popover is open, null when closed. */
+  /** Anchor row rect (folder row or Space header row) while the popover is open, null when closed. */
   anchorRect: DOMRect | null;
   /** Attached to the popover so scrolling inside it doesn't close it. */
   popoverRef: React.RefObject<HTMLDivElement>;
@@ -103,10 +103,11 @@ export function useFolderPeek(enabled: boolean): FolderPeek
 
   useEffect(() => clearTimers, [clearTimers]);
 
-  // Anchor to the folder row, not the button: a popover hung off a button at
-  // the row's right edge would run off a narrow sidebar
+  // Anchor to the folder row or the Space header row, not the button: a popover
+  // hung off a button at the row's right edge would run off a narrow sidebar.
+  // A folder row's [data-bookmark-id] is always closer than any header.
   const anchorOf = (trigger: HTMLElement) =>
-    trigger.closest<HTMLElement>('[data-bookmark-id]') ?? trigger;
+    trigger.closest<HTMLElement>('[data-bookmark-id], [data-peek-anchor]') ?? trigger;
 
   const triggerHandlers: FolderPeek['triggerHandlers'] = {
     onPointerEnter: (e) =>
@@ -141,6 +142,33 @@ export function useFolderPeek(enabled: boolean): FolderPeek
   };
 
   return { anchorRect, popoverRef, triggerHandlers, popoverHandlers, close };
+}
+
+// --- Opening a picked page ---
+
+/**
+ * Opens a page picked in a peek with the same modifiers as the tree's open
+ * button: Cmd/Ctrl in a new tab, Shift in a new window, otherwise Arc-style.
+ */
+export function openPeekBookmark(
+  bookmark: chrome.bookmarks.BookmarkTreeNode,
+  e: React.MouseEvent | React.KeyboardEvent,
+  windowId: number | null | undefined,
+  openInArc: (bookmarkId: string, url: string) => void
+): void
+{
+  if (e.metaKey || e.ctrlKey)
+  {
+    chrome.tabs.create({ url: bookmark.url!, active: true, windowId: windowId ?? undefined });
+  }
+  else if (e.shiftKey)
+  {
+    chrome.windows.create({ url: bookmark.url! });
+  }
+  else
+  {
+    openInArc(bookmark.id, bookmark.url!);
+  }
 }
 
 // --- Popover ---
@@ -199,7 +227,7 @@ export const FolderRecentPopover = ({
     setHighlightIndex(0);
   }, [query]);
 
-  // Below the folder row; flip above it when the panel has no room below
+  // Below the anchor row; flip above it when the panel has no room below
   useLayoutEffect(() =>
   {
     const height = popoverRef.current?.getBoundingClientRect().height ?? 0;
@@ -248,7 +276,7 @@ export const FolderRecentPopover = ({
       style={{ top, left, width, fontSize: `${fontSize}px` }}
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
-      // React bubbles portal events to the folder row's ancestors - keep clicks here
+      // React bubbles portal events to the anchor row's ancestors - keep clicks here
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}

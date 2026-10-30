@@ -248,7 +248,7 @@ Last time each bookmark's Arc-style tab was active (folder recent popover)
 string  // JSON of Record<bookmarkId, epochMillis>
 ```
 - Owner: `src/background.ts` (via `BookmarkRecencyStore`, the only writer)
-- Consumers: `src/components/BookmarkTree.tsx` (via `useChromeLocalStorage`, read-only)
+- Consumers: `src/components/BookmarkTree.tsx` (folder rows) and `src/App.tsx` (Space header peek), both via `useChromeLocalStorage`, read-only
 - Instances: 1 per extension (shared across windows)
 
 ### `autoArchiveAfter`

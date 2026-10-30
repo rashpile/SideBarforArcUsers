@@ -3,6 +3,7 @@
 // Entries are shown in the "What's New" dialog when the user upgrades past them.
 export const CHANGELOG: Record<string, string[]> = {
   '1.0.352': [
+    'New: search button on the Space title - hover or click it to see the Space\'s recently used pages, with search',
     'Changed: each Space has its own Favorites, stored as bookmarks in an asd_Favorites folder inside the Space folder - your current Favorites are copied into every Space that has a bookmark folder',
     'New: Move to Space in a Favorite\'s right-click menu - its open tab moves along',
     'New: Clear in the Archive header\'s ... menu - remove everything or pages older than 24 hours, 7 days or 30 days, with Undo',

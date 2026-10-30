@@ -17,6 +17,7 @@ interface SectionHeaderProps
   collapsed?: boolean;  // Collapsible section: chevron before the label, right = collapsed, down = expanded
   onToggleCollapsed?: () => void;  // Row click / Enter / Space toggles the section; omit for a display-only chevron
   trailing?: ReactNode;  // Optional content between the label and the "..." button; takes the remaining width
+  actions?: ReactNode;  // Optional buttons right before the "..." button
 }
 
 export const SectionHeader: React.FC<SectionHeaderProps> = ({
@@ -32,6 +33,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
   collapsed,
   onToggleCollapsed,
   trailing,
+  actions,
 }) =>
 {
   const menuJustClosedRef = useRef(false);
@@ -97,6 +99,8 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
   const renderHeaderRow = (menuButton?: ReactNode) => (
     <div
       onClick={onToggleCollapsed}
+      // A peek popover opened from an action anchors to the whole row, like it does to a folder row
+      data-peek-anchor={actions ? '' : undefined}
       className={`arc-section-header group relative flex items-center py-1 rounded select-none outline-none border-2 border-transparent ${onToggleCollapsed ? 'cursor-pointer' : ''} ${textClassName ?? defaultTextColor} ${className ?? ''}`}
       style={{
         paddingLeft: `${getIndentPadding(0)}px`,
@@ -127,6 +131,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
           {trailing}
         </div>
       )}
+      {actions}
       {menuButton}
     </div>
   );

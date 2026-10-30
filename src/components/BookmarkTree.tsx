@@ -26,7 +26,7 @@ import { BookmarkFavicon } from './BookmarkFavicon';
 import { useInView } from '../hooks/useInView';
 import { useChromeLocalStorage } from '../hooks/useChromeLocalStorage';
 import { BookmarkRecency, BookmarkRecencyRecord, BOOKMARK_RECENCY_KEY } from '../stores/bookmarkRecencyStore';
-import { FolderRecentPopover, useFolderPeek } from './FolderRecentPopover';
+import { FolderRecentPopover, useFolderPeek, openPeekBookmark } from './FolderRecentPopover';
 import { SPEAKER_ICON_SIZE } from '../constants';
 import {
   Globe,
@@ -306,18 +306,7 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
   const handlePeekOpen = (bookmark: chrome.bookmarks.BookmarkTreeNode, e: React.MouseEvent | React.KeyboardEvent) =>
   {
     folderPeek.close();
-    if (e.metaKey || e.ctrlKey)
-    {
-      chrome.tabs.create({ url: bookmark.url!, active: true, windowId: windowId ?? undefined });
-    }
-    else if (e.shiftKey)
-    {
-      chrome.windows.create({ url: bookmark.url! });
-    }
-    else
-    {
-      onOpenBookmark?.(bookmark.id, bookmark.url!);
-    }
+    openPeekBookmark(bookmark, e, windowId, (id, url) => onOpenBookmark?.(id, url));
   };
 
   const visualState = resolveBookmarkRowVisualState({
