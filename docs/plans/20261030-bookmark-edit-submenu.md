@@ -98,11 +98,11 @@
 **Files:**
 - Modify: `src/components/menu/ContextMenu.tsx`
 
-- [ ] add `Sub` (open state, trigger ref, delayed close timer cleared on unmount) with its own context
-- [ ] add `SubTrigger`: item-styled row with `ChevronRight`, opens on hover and on click, does not close the root menu, keeps its highlight while open, `aria-haspopup`/`aria-expanded`
-- [ ] add `SubContent`: rendered inside `Content`'s div, `whitespace-nowrap`, measured hidden at 0,0, then placed with `placeSubmenu`; hover keeps it open
-- [ ] confirm `ContextMenu.Item` inside `SubContent` still closes the whole menu (root context) and Escape/overlay close everything
-- [ ] no unit tests (UI wiring; placement is covered by Task 1); run `make test`, `make lint` and `make build` - must pass before task 3
+- [x] add `Sub` (open state, trigger ref, delayed close timer cleared on unmount) with its own context
+- [x] add `SubTrigger`: item-styled row with `ChevronRight`, opens on hover and on click, does not close the root menu, keeps its highlight while open, `aria-haspopup`/`aria-expanded`
+- [x] add `SubContent`: rendered inside `Content`'s div, `whitespace-nowrap`, measured hidden at 0,0, then placed with `placeSubmenu`; hover keeps it open
+- [x] confirm `ContextMenu.Item` inside `SubContent` still closes the whole menu (root context) and Escape/overlay close everything
+- [x] no unit tests (UI wiring; placement is covered by Task 1); run `make test`, `make lint` and `make build` - must pass before task 3
 
 ### Task 3: Edit submenu and Replace Pinned URL with Current in the bookmark menu
 
