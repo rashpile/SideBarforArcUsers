@@ -25,15 +25,18 @@ is skipped. A heading's body is the project's detail for that phase and may set 
 ## What each phase means
 
 **1. Make** — invoke the `make-task` skill with the task text. make-task asks the user **only**
-during brainstorm and at the leftovers card, through floating agterm cards in the worker's own
-session. Everything else runs without a human.
+during brainstorm and at the leftovers card, through the standard `AskUserQuestion` in the
+worker's own session, not the floating agterm cards (`MT_NO_CARDS=1` makes `mt` skip them).
+Everything else runs without a human.
 
 - The worker runs in a linked worktree, so make-task asks no worktree question and stays in place:
   its commits land on the task branch `issue/<n>-<slug>`.
 - make-task never pushes. Its finalizer rebases onto `origin/main` and squashes.
-- **A worker waiting on a make-task card is waiting on a human, not stalled.** Its screen shows the
-  card, or `mt ask` running. Do not count those re-arms toward the stall clock; tell the user which
-  session has a card open, and keep waiting. `read --tail` once to tell the two apart.
+- **A worker waiting on a make-task question is waiting on a human, not stalled.** `status` shows a
+  `waiting` request with its `prompt` and `options`. Do not count those re-arms toward the stall
+  clock; tell the user which session has a question open and what it asks, and keep waiting. A
+  worker that still opens a floating card (it forgot `MT_NO_CARDS=1`) shows `waiting` without a
+  request; `read --tail` once to tell the two apart.
 
 **2. Push** — after make-task's final report, the worker pushes the branch
 (`git push -u origin issue/<n>-<slug>`; never force, never `main`) and ends with:
@@ -97,7 +100,10 @@ the newest comment from the user wins.>
 Rules:
 - You are in <worktree path>, on branch issue/<n>-<slug>. Follow the project's CLAUDE.md.
 - First run `npm ci`. Then invoke the make-task skill with the task above as its text.
-  It asks the user only via its cards in this session; do not ask anything else.
+  It asks the user only via `AskUserQuestion` in this session; do not ask anything else.
+- Run every `mt` call with `MT_NO_CARDS=1` as a prefix
+  (`MT_NO_CARDS=1 uv run -q --script <skill dir>/scripts/mt …`), so make-task asks through
+  `AskUserQuestion` and never opens floating agterm cards.
 - Phase details from the config: <## 1. Make body> <## 2. Push body>
 - Checks that must pass: <# Checks>. Notes: <# Notes>
 - When make-task has finished, push the branch (never force, never main) and end with the
@@ -112,7 +118,7 @@ Rules:
 
 | Gate | Interactive / `--auto` | `--full-auto` |
 |---|---|---|
-| make-task's brainstorm and leftovers cards | the user answers in the worker's session | **unchanged** — make-task asks the user directly; the loop cannot answer its cards |
+| make-task's brainstorm and leftovers questions (`AskUserQuestion`) | the user answers in the worker's session | **unchanged** — make-task asks the user directly; the loop cannot answer its questions |
 | merge approval (`done`+`pending` → `done`) | the user drops `pending` | the run drops it itself for a **clean** run, records it on the issue, and ships |
 | a `not clean` run | frozen with `pending`, draft PR | same — a not-clean result is never auto-approved |
 
