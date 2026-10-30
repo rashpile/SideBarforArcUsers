@@ -47,11 +47,11 @@ Rejected: give every row the Arc card offset. Changes the whole tree's look; not
 **Files:**
 - Modify: `docs/changelog.md`
 
-- [ ] add under "Latest Version" in `docs/changelog.md`: "Fixed: the active bookmark row now lines up with the
+- [x] add under "Latest Version" in `docs/changelog.md`: "Fixed: the active bookmark row now lines up with the
       other rows and is as wide as they are"
-- [ ] no `README.md`, `docs/state-reference.md` or `src/data/changelog.ts` change (no feature, no storage
+- [x] no `README.md`, `docs/state-reference.md` or `src/data/changelog.ts` change (no feature, no storage
       key; `src/data/changelog.ts` omits bug fixes)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] move this plan to `docs/plans/completed/` (left for the orchestrator)
 
 ## Post-Completion
 
