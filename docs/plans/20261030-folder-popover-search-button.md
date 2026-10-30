@@ -76,11 +76,11 @@
 - [x] run full checks: `make lint && make test && make build`
 
 ### Task 3: [Final] Update documentation
-- [ ] `README.md` line 54: hover or click the search button on a folder row to see its recently used pages, newest first, with search
-- [ ] `docs/changelog.md` "Latest Version": rewrite the unreleased line "New: hovering a collapsed bookmark folder shows its recently used pages, newest first, with search" in place (the feature has not shipped) - the search button on a folder row (hover or click) shows its recently used pages, newest first, with search; no separate Changed entry
-- [ ] `src/data/changelog.ts` `'1.0.352'`: rewrite the "hover a collapsed folder…" line to say the search button on a folder row opens its recently used pages, with search
-- [ ] `docs/state-reference.md`: no new storage keys - no change
-- [ ] move this plan to `docs/plans/completed/`
+- [x] `README.md` line 54: hover or click the search button on a folder row to see its recently used pages, newest first, with search
+- [x] `docs/changelog.md` "Latest Version": rewrite the unreleased line "New: hovering a collapsed bookmark folder shows its recently used pages, newest first, with search" in place (the feature has not shipped) - the search button on a folder row (hover or click) shows its recently used pages, newest first, with search; no separate Changed entry
+- [x] `src/data/changelog.ts` `'1.0.352'`: rewrite the "hover a collapsed folder…" line to say the search button on a folder row opens its recently used pages, with search
+- [x] `docs/state-reference.md`: no new storage keys - no change
+- [x] move this plan to `docs/plans/completed/` (left in place - the orchestrator moves it at the end)
 
 ## Known limitations
 - [known-limitation] Keyboard: Enter/Space on a focused search button bubbles to the row's key handler and toggles the folder, like the existing `-` collapse button. Keyboard access to the popover is out of scope.

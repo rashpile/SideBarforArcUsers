@@ -51,7 +51,7 @@ Everything is stored in Chrome: bookmarks for Spaces, pinned pages and the archi
 
 - The Space's bookmark folder as a tree
 - Click a folder row to expand or collapse it. A collapsed folder still shows its open pages, the active one as a card
-- Hover a collapsed folder to see its recently used pages, newest first, with search
+- Hover or click the search button on a folder row to see its recently used pages, newest first, with search
 - Collapse the whole section with the chevron on the Space title. Open pages stay visible. The state is kept per Space and shared across windows
 - Double-click a bookmark whose tab moved on to another page to load the bookmarked page back in that tab
 - Links you open from a bookmark or Favorite page (`Cmd+Click`) land at the top of the Tab list

@@ -23,7 +23,7 @@
 - Changed: the extension now requests the `alarms` permission (no install warning), used only while "Archive tabs after" is on
 - Fixed: right-clicking the "Create a Space" placeholder header no longer opens an empty menu
 - Fixed: after a browser restart, a reused tab ID no longer gives a pinned page's identity or a Space assignment to an unrelated tab on another site
-- New: hovering a collapsed bookmark folder shows its recently used pages, newest first, with search
+- New: the search button on a bookmark folder row (hover or click) shows the folder's recently used pages, newest first, with search
 - Improved: collapsed folders now keep all of their open pages visible, not only the active one
 - Changed: Spaces now use persistent extension-owned Tab assignments instead of creating Chrome native tab groups
 - Fixed: opening Spaces across multiple windows no longer accumulates duplicate Saved Tab Groups
