@@ -110,9 +110,9 @@
 **Files:**
 - Modify: `src/components/SectionHeader.tsx`
 
-- [ ] add optional `actions?: ReactNode` prop, rendered in `renderHeaderRow` after `trailing` and before the `...` button
-- [ ] add `data-peek-anchor` to the header row `div` when `actions` is passed
-- [ ] run `make lint && make test` - must pass before task 3
+- [x] add optional `actions?: ReactNode` prop, rendered in `renderHeaderRow` after `trailing` and before the `...` button
+- [x] add `data-peek-anchor` to the header row `div` when `actions` is passed
+- [x] run `make lint && make test` - must pass before task 3
 
 ### Task 3: Search button and popover in the Space header
 
