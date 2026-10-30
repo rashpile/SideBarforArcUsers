@@ -356,12 +356,12 @@ with the live tab's url and index, and the old key's entry is removed.
 - Modify: `src/services/switcherLists.ts`, `src/background.ts` (`readWindowSpaces`, `pick`)
 - Modify: `tests/switcherLists.test.mjs`
 
-- [ ] drop "Favorites belong to every Space" (`WindowSpaces.isFavorite` and its uses): a Favorite
+- [x] drop "Favorites belong to every Space" (`WindowSpaces.isFavorite` and its uses): a Favorite
   tab is listed, counted and picked as a tab of its registered Space; picking it switches Space
   like any other tab; update the comments
-- [ ] write test: in Space B the tab list does not offer Space A's Favorite tab, and A's usage
+- [x] write test: in Space B the tab list does not offer Space A's Favorite tab, and A's usage
   count includes it
-- [ ] run `make test` - must pass before next task
+- [x] run `make test` - must pass before next task
 
 ### Task 11: auto-archiver protects every Space's Favorites
 

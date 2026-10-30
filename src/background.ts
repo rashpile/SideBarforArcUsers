@@ -1,6 +1,6 @@
 import { SpaceMessageAction, SPACES_STORAGE_KEY } from './utils/spaceMessages';
 import { FOLLOW_ACTIVE_TAB_KEY, parseFollowActiveTabMode } from './utils/followActiveTab';
-import { getTabAssociations, storeTabAssociation, removeTabAssociation, saveTabAssociationBackup, removeTabAssociationBackup, updateTabAssociationBackupIndices, removeWindowAssociationBackup, restoreTabAssociationBackup, WAIT_FOR_TAB_ASSOCIATIONS_READY, BOOKMARK_ITEM_KEY_PREFIX, FAVORITE_ITEM_KEY_PREFIX } from './utils/tabAssociations';
+import { getTabAssociations, storeTabAssociation, removeTabAssociation, saveTabAssociationBackup, removeTabAssociationBackup, updateTabAssociationBackupIndices, removeWindowAssociationBackup, restoreTabAssociationBackup, WAIT_FOR_TAB_ASSOCIATIONS_READY, BOOKMARK_ITEM_KEY_PREFIX } from './utils/tabAssociations';
 import { fetchFaviconAsBase64, getFaviconUrl } from './utils/favicon';
 import { parseManagerActionId, RoutedManager } from './managers/proxies/messageRouting';
 import { SpaceWindowStateManager } from './managers/impl/spaceWindowStateManager';
@@ -497,20 +497,18 @@ void tabAutoArchiver.start();
 // and of the Spaces, by last use. See services/keyboardSwitcher.ts.
 // =============================================================================
 
-async function readWindowSpaces(windowId: number): Promise<WindowSpaces>
+function readWindowSpaces(windowId: number): WindowSpaces
 {
-  const associations = await getTabAssociations(windowId);
   return {
     activeSpaceId: resolveActiveSpaceId(spaceManager.getSpaces(), spaceStateManager.getActiveSpace(windowId)) ?? undefined,
     spaceOf: (tabId) => tabSpaceRegistry.getSpace(windowId, tabId),
-    isFavorite: (tabId) => associations[tabId]?.startsWith(FAVORITE_ITEM_KEY_PREFIX) ?? false,
   };
 }
 
 const keyboardSwitcher = new KeyboardSwitcher({
   buildCards: async (kind, win) =>
   {
-    const windowSpaces = await readWindowSpaces(win.id!);
+    const windowSpaces = readWindowSpaces(win.id!);
     const tabs = win.tabs ?? [];
     return kind === 'tabs'
       ? buildTabCards(tabs, windowSpaces)
@@ -520,14 +518,7 @@ const keyboardSwitcher = new KeyboardSwitcher({
   {
     if (kind === 'tabs')
     {
-      const tabId = Number(cardId);
-      // A Favorite belongs to every Space, so it only gets activated, as a
-      // sidebar click does: onActivated then applies "Follow active tab"
-      if ((await readWindowSpaces(windowId)).isFavorite(tabId))
-      {
-        await chrome.tabs.update(tabId, { active: true }).catch(() => { /* tab closed */ });
-      }
-      else await setActiveTabAndSpace(tabId);
+      await setActiveTabAndSpace(Number(cardId));
       return;
     }
 
@@ -548,7 +539,7 @@ async function openSpace(windowId: number, spaceId: string): Promise<void>
   if (!restored) return;
 
   const tabs = await chrome.tabs.query({ windowId });
-  const lastTabId = findLastUsedTab(tabs, spaceId, await readWindowSpaces(windowId));
+  const lastTabId = findLastUsedTab(tabs, spaceId, readWindowSpaces(windowId));
   if (lastTabId !== undefined) await setActiveTabAndSpace(lastTabId);
   // onCreated registers the new tab to the window's active Space, set above
   else await chrome.tabs.create({ windowId, active: true });
