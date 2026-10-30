@@ -36,11 +36,11 @@ Rejected: give every row the Arc card offset. Changes the whole tree's look; not
 **Files:**
 - Modify: `src/components/BookmarkTree.tsx`
 
-- [ ] remove `activeCardIndentPx` and the `style` prop it feeds on the bookmark `TreeRow`; keep the
+- [x] remove `activeCardIndentPx` and the `style` prop it feeds on the bookmark `TreeRow`; keep the
       `getIndentPadding` import (drop indicator offsets still use it)
-- [ ] confirm no other code gives the active bookmark row its own margin, width or padding
+- [x] confirm no other code gives the active bookmark row its own margin, width or padding
       (`grep -n "marginLeft\|calc(100% -" src/components/BookmarkTree.tsx`)
-- [ ] run `make lint && make test && make build` - must pass before task 2
+- [x] run `make lint && make test && make build` - must pass before task 2
 
 ### Task 2: [Final] Update documentation
 

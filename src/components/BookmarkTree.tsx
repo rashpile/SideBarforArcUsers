@@ -325,9 +325,6 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
     isSelected: !!isSelected,
     selectionCount: selectionCount ?? 0,
   });
-  const activeCardIndentPx = visualState === 'active'
-    ? getIndentPadding(depth)
-    : undefined;
 
   const isBeingDragged = isMultiDrag ? isSelected : activeId === node.id;
   const isDropTarget = dropTargetId === node.id;
@@ -610,14 +607,6 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
                 showDropInto && "bg-blue-100 dark:bg-blue-900/50 ring-2 ring-blue-500",
                 !isSpecialFolder && "touch-none"
               )}
-              style={activeCardIndentPx === undefined
-                ? undefined
-                : {
-                    marginLeft: `${activeCardIndentPx}px`,
-                    width: `calc(100% - ${activeCardIndentPx + 4}px)`,
-                    paddingLeft: 0,
-                  }
-              }
               actions={actions}
               leadingIndicator={leadingIndicator}
             >
