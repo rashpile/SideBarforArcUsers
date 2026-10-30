@@ -212,19 +212,24 @@ with the live tab's url and index, and the old key's entry is removed.
 - Modify: `src/managers/proxies/messageRouting.ts`, `src/background.ts`
 - Create: `tests/favoriteIcons.test.mjs`
 
-- [ ] API: `getIcons`, `setIcons(id, fields)` (an edit: the three icon fields as a set, favicon
+- [x] API: `getIcons`, `setIcons(id, fields)` (an edit: the three icon fields as a set, favicon
   "absent = keep", as `PinnedSiteEdit`), `setFavicons(patches)` (stale-patch rule kept),
   `resetFavicon(id, favicon?)`, `copyIcons(fromId, toId)` (duplicate only),
   `restoreIcons(id, entry)` (writes all four fields; undo, migration, import), `removeIcons(ids)`;
   every method returns the resulting store, the proxy mirrors it
-- [ ] background: register the manager, load it before `stateReady`, drop entries for the removed
+- [x] background: register the manager, load it before `stateReady`, drop entries for the removed
   bookmark and every bookmark under a removed folder from the existing `bookmarks.onRemoved`
   listener (`src/background.ts`, reuse `collectBookmarkIds`; no second listener)
-- [ ] background favicon update on `favIconUrl`: match Favorites by URL across every
+- [x] background favicon update on `favIconUrl`: match Favorites by URL across every
   `asd_Favorites` folder of every Space (bookmark tree, not `pinnedSites`)
-- [ ] write tests: a favicon patch for a pin whose icon changed meanwhile is dropped; removing a
+- [x] write tests: a favicon patch for a pin whose icon changed meanwhile is dropped; removing a
   folder drops the entries of the bookmarks inside it and keeps the others
-- [ ] run `make test` - must pass before next task
+- [x] run `make test` - must pass before next task
+- ⚠️ the three `pinnedSites*` manager files are kept and `PinnedSitesManager` stays registered:
+  `usePinnedSites`, `deletePinnedSiteAction`, the in-browser test and the archiver still use them
+  until Tasks 7, 8 and 11; delete them once nothing imports them (checked in Task 13)
+- ➕ `collectBookmarkIds` moved to `src/utils/bookmarkFolderLookup.ts` so the folder-removal
+  test exercises the same id collection background uses
 
 ### Task 4: resolve a Space's Favorites from the bookmark tree
 
@@ -238,6 +243,8 @@ with the live tab's url and index, and the old key's entry is removed.
   `hasFolder` tells "no Space folder" from "no Favorites yet"
 - [ ] `allFavoriteUrls(roots, spaces)` / `allFavoriteBookmarks(roots, spaces)` for the archiver,
   favicon update and URL recovery (every Space)
+- [ ] ➕ replace the local `favoriteBookmarksOfAllSpaces` in `src/background.ts` (favicon update,
+  Task 3) with `allFavoriteBookmarks`
 - [ ] write tests: the right Space's folder when two Spaces have same-titled folders in different
   roots (account vs device); subfolders inside `asd_Favorites` ignored; a Space without folder gives
   `hasFolder: false` (ALL_SPACE gives an empty list; the grid shows no hint for it)
@@ -370,6 +377,9 @@ with the live tab's url and index, and the old key's entry is removed.
 - [ ] no `asd_Favorites` in the Bookmarks tree, filters, Expand All, Open All, folder pickers
 - [ ] `grep -rn "PINNED_SITES_STORAGE_KEY\|'pinnedSites'" src` shows only the migration, the backup
   format and the legacy key definition
+- [ ] ➕ delete `pinnedSitesManager.ts`, `pinnedSitesManagerProxy.ts` and the manager parts of
+  `pinnedSitesApi.ts` (keep `PinnedSite` and `PINNED_SITES_STORAGE_KEY`), drop
+  `ManagerId.PINNED_SITES` and its registration in `background.ts` once nothing imports them
 - [ ] run `make lint && make test && make build`
 
 ### Task 14: [Final] Update documentation

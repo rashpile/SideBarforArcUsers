@@ -9,6 +9,9 @@ import { SpaceManager } from './managers/impl/spaceManager';
 import { TabHistoryManager } from './managers/impl/tabHistoryManager';
 import { LastAudibleTracker } from './managers/impl/lastAudibleTracker';
 import { PinnedSitesManager } from './managers/impl/pinnedSitesManager';
+import { FavoriteIconsManager } from './managers/impl/favoriteIconsManager';
+import { findFavoritesFolder } from './utils/favoritesFolder';
+import { collectBookmarkIds, findFolderBySegments } from './utils/bookmarkFolderLookup';
 import { AttentionMarkManager } from './managers/impl/attentionMarkManager';
 import { TabAssociationReadiness } from './utils/tabAssociationReadiness';
 import { resolveActiveSpaceId } from './utils/spaceSelection';
@@ -153,6 +156,14 @@ const historyManager = new TabHistoryManager({
   getSpaceForTab,
 });
 const pinnedSitesManager = new PinnedSitesManager();
+// Custom icon, emoji, color and cached favicon of each Favorite bookmark, by bookmark id
+const favoriteIconsManager = new FavoriteIconsManager({
+  storage: {
+    get: (key) => chrome.storage.local.get(key),
+    set: (values) => chrome.storage.local.set(values),
+  },
+  broadcast: (message) => chrome.runtime.sendMessage(message),
+});
 // Mark for Attention on tabs and bookmarks; auto-archive keeps marked tabs open
 const attentionMarkManager = new AttentionMarkManager();
 // Reads the history manager's activation order, so it has to come after it.
@@ -319,6 +330,7 @@ const managerLoadPromise = Promise.all([
   historyManager.load(),
   lastAudibleTracker.load(),
   pinnedSitesManager.load(),
+  favoriteIconsManager.load(),
   sameBrowserSession.then((same) => tabSpaceRegistry.load(same)),
   sameBrowserSession.then((same) => attentionMarkManager.load(same)),
   loadTabActivity()
@@ -391,12 +403,6 @@ chrome.storage.onChanged.addListener((changes, areaName) =>
   }
 });
 
-// Collect a removed node's id and, for folders, every descendant id
-function collectBookmarkIds(node: chrome.bookmarks.BookmarkTreeNode): string[]
-{
-  return [node.id, ...(node.children ?? []).flatMap(collectBookmarkIds)];
-}
-
 chrome.bookmarks.onRemoved.addListener((id, removeInfo) =>
 {
   const ids = removeInfo.node ? collectBookmarkIds(removeInfo.node) : [id];
@@ -406,6 +412,10 @@ chrome.bookmarks.onRemoved.addListener((id, removeInfo) =>
   void stateReady
     .then(() => attentionMarkManager.handleBookmarksRemoved(ids))
     .catch((error) => console.error('[AttentionMarkManager] failed to drop marks of removed bookmarks:', error));
+  // After the icons load, so the load can't bring back an entry this removal dropped
+  void stateReady
+    .then(() => favoriteIconsManager.removeIcons(ids))
+    .catch((error) => console.error('[FavoriteIconsManager] failed to drop icons of removed bookmarks:', error));
 });
 
 // =============================================================================
@@ -819,7 +829,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) =>
     }
   }
 
-  // Scenario 5: update pinned site favicon when Chrome reports a new favIconUrl
+  // Scenario 5: update Favorite favicons when Chrome reports a new favIconUrl
   if (changeInfo.favIconUrl && tab?.url)
   {
     try
@@ -828,18 +838,18 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) =>
       try { tabHostname = new URL(tab.url).hostname; }
       catch { return; }
 
-      // Match by hostname, only sites without favicon and no custom icon/emoji.
-      // PinnedSitesManager owns this list now, so this reads its in-memory copy
-      // instead of storage, and hands back a patch instead of a whole rewritten
-      // array - see Case 2 in the shared-storage decision doc.
-      const matchingSites = pinnedSitesManager.getPinnedSites().filter(site =>
+      // Match by hostname across every Space's Favorites, only those showing no icon of any kind.
+      // The manager gets a patch, not a rewritten store, and re-checks each entry's eligibility.
+      const icons = favoriteIconsManager.icons;
+      const matchingFavorites = (await favoriteBookmarksOfAllSpaces()).filter(bookmark =>
       {
-        if (site.favicon || site.customIconName || site.emoji) return false;
-        try { return new URL(site.url).hostname === tabHostname; }
+        const entry = icons.entryFor(bookmark.id);
+        if (entry?.favicon || entry?.customIconName || entry?.emoji) return false;
+        try { return new URL(bookmark.url!).hostname === tabHostname; }
         catch { return false; }
       });
 
-      if (matchingSites.length > 0)
+      if (matchingFavorites.length > 0)
       {
         // Use Chrome's internal _favicon API instead of fetching favIconUrl directly.
         // This avoids CORS errors on private/local servers (e.g. homeassistant, proxmox).
@@ -847,17 +857,15 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) =>
         const favicon = await fetchFaviconAsBase64(getFaviconUrl(tab.url));
         if (favicon)
         {
-          // No originId: this change started here, so every sidebar needs to
-          // hear about it. The manager re-checks each pin's eligibility, since
-          // the fetch above gave the user time to set an icon by hand.
-          pinnedSitesManager.setFavicons(
-            matchingSites.map(site => ({ id: site.id, favicon }))
+          // No originId: this change started here, so every sidebar needs to hear about it
+          favoriteIconsManager.setFavicons(
+            matchingFavorites.map(bookmark => ({ id: bookmark.id, favicon }))
           );
 
           if (import.meta.env.DEV)
           {
-            console.log('[Background] updated favicon for pinned sites:',
-              matchingSites.map(s => s.url));
+            console.log('[Background] updated favicon for Favorites:',
+              matchingFavorites.map(bookmark => bookmark.url));
           }
         }
       }
@@ -865,6 +873,18 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) =>
     catch { /* tab may have been closed */ }
   }
 });
+
+// The URL bookmarks directly inside each Space's asd_Favorites folder
+async function favoriteBookmarksOfAllSpaces(): Promise<chrome.bookmarks.BookmarkTreeNode[]>
+{
+  const roots = (await chrome.bookmarks.getTree())[0]?.children ?? [];
+  return spaceManager.getSpaces().flatMap(space =>
+  {
+    const spaceFolder = findFolderBySegments(roots, space.bookmarkFolderSegments ?? [], space.bookmarkFolderInAccount);
+    const favoritesFolder = spaceFolder ? findFavoritesFolder(spaceFolder.children ?? []) : undefined;
+    return (favoritesFolder?.children ?? []).filter(child => child.url);
+  });
+}
 
 // A tab opened from a link in a bookmark's or Favorite's tab goes to the top of the Tab list.
 // Chrome puts it next to its opener, which the Tab list doesn't show, so it would land at a
@@ -962,6 +982,7 @@ registerManager(spaceManager);
 registerManager(historyManager);
 registerManager(lastAudibleTracker);
 registerManager(pinnedSitesManager);
+registerManager(favoriteIconsManager);
 registerManager(attentionMarkManager);
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) =>
