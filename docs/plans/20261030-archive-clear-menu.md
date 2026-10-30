@@ -176,11 +176,11 @@ constructor(api, archiveFolderId: string, option: ArchiveClearOption, now: () =>
 
 ### Task 6: [Final] Update documentation
 
-- [ ] `README.md` Archive section: the `...` menu with Clear (All / older than 24 hours / 7 days / 30 days), Clear All confirmation, Undo; keep "Archived items are never deleted automatically"
-- [ ] `docs/changelog.md` Latest Version: a "New:" line for the Archive Clear menu
-- [ ] `src/data/changelog.ts`: a What's New line under `'1.0.352'`
-- [ ] `docs/state-reference.md`: no change (no storage key added) - confirm
-- [ ] move this plan to `docs/plans/completed/`
+- [x] `README.md` Archive section: the `...` menu with Clear (All / older than 24 hours / 7 days / 30 days), Clear All confirmation, Undo; keep "Archived items are never deleted automatically"
+- [x] `docs/changelog.md` Latest Version: a "New:" line for the Archive Clear menu
+- [x] `src/data/changelog.ts`: a What's New line under `'1.0.352'`
+- [x] `docs/state-reference.md`: no change (no storage key added) - confirmed, no storage key added
+- [x] move this plan to `docs/plans/completed/` (left in place - the orchestrator moves it at the end)
 
 ## Post-Completion
 

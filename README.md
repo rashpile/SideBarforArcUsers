@@ -112,6 +112,8 @@ Off by default. Turn it on with **Archive tabs after** in Settings: 12 hours, 24
 
 The **Archive** section sits between Bookmarks and Tabs. Click the header to list everything, newest first, with the time each was archived. While it is expanded, a search field in the header row narrows the list. Click an item to reopen it in the active Space. Right-click to delete it (with Undo).
 
+The header's `...` menu has **Clear**: Clear All, Older than 24 Hours, Older than 7 Days or Older than 30 Days. It works on the whole Archive of the active Space, whatever the search shows. Each option shows how many pages it removes and is grayed out when there are none. Clear All asks first; the age options run at once. One Undo brings back everything a Clear removed.
+
 The extension hides `asd_Archive` in the sidebar, search and folder pickers. Chrome's bookmark bar and Bookmark Manager still show it.
 
 ### Search and filters
