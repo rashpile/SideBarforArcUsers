@@ -153,12 +153,12 @@ Issue: https://github.com/rashpile/SideBarforArcUsers/issues/14
 **Files:**
 - Modify: `src/components/TabList.tsx`
 
-- [ ] pass `isMarked` and `onToggleMark` into `TabRow` for every place it is rendered (~2734, ~2783, ~2889)
-- [ ] draw the green ring overlay on marked rows (alongside the grouped row's hover border overlay)
-- [ ] replace `X` with `Minus` on a marked row; click clears the mark, does not close; `aria-label`/title "Clear mark"
-- [ ] single-tab context menu: `Mark for Attention` / `Clear Mark` (hidden for incognito tabs)
-- [ ] multi-selection menu: one item for all selected tabs with the any/all rule (incognito tabs left out)
-- [ ] no new tests (UI wiring); run `make test`, `make lint`, `make build` - must pass before task 6
+- [x] pass `isMarked` and `onToggleMark` into `TabRow` for every place it is rendered (~2734, ~2783, ~2889)
+- [x] draw the green ring overlay on marked rows (alongside the grouped row's hover border overlay)
+- [x] replace `X` with `Minus` on a marked row; click clears the mark, does not close; `aria-label`/title "Clear mark"
+- [x] single-tab context menu: `Mark for Attention` / `Clear Mark` (hidden for incognito tabs)
+- [x] multi-selection menu: one item for all selected tabs with the any/all rule (incognito tabs left out)
+- [x] no new tests (UI wiring); run `make test`, `make lint`, `make build` - must pass before task 6
 
 ### Task 6: Bulk close skips marked tabs
 
