@@ -57,6 +57,7 @@ Everything is stored in Chrome: bookmarks for Spaces, pinned pages and the archi
 - Links you open from a bookmark or Favorite page (`Cmd+Click`) land at the top of the Tab list
 - Drag and drop to organize. Drag a tab onto the tree to bookmark it
 - `...` menu: New Folder, New Bookmark, Sort by Name/Date, Edit, Duplicate, Delete, Pin, Move to New Window, Expand All, Open as Tab Group
+- Right-click a bookmark: Copy Link, Share, AI Rename, Edit, Mute/Unmute, Duplicate, Move to..., Remove Pin. **Edit** opens a submenu: **Replace Pinned URL with Current** (when the page is open) saves the tab's current address as the bookmark's URL and keeps its title; **Edit Pinned Page** opens the dialog to change title and URL
 - A speaker icon for pages playing audio, an X on hover to close the tab
 
 ### Tabs

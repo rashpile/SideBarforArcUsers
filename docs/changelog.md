@@ -2,6 +2,7 @@
 
 ## Latest Version
 
+- New: Edit submenu in a bookmark's right-click menu, as in Arc - "Replace Pinned URL with Current" sets the bookmark's URL to the page its open tab shows now (the title stays); "Edit Pinned Page" opens the edit dialog. It replaces "Rename..."
 - Fixed: a tab opened from a link in a bookmark or Favorite page (Cmd+click) now goes to the top of the Tab list instead of a random spot
 - New: "Mark unvisited tabs" setting (Settings > Appearance, on by default) - a dot at the left edge of a Tab list row marks a tab opened in the background until you first switch to it. Tabs restored with a closed window (Cmd+Shift+T) or brought back by Undo get no dot
 - New: "Highlight tabs by last use" setting (Settings > Appearance, on by default) - Tab list rows get a stronger background the more recently you left the tab, fading out over 3 hours; looks: White, Accent, Cooling, Trail, or Off. Accent and Trail use the Space colour when it tints the sidebar

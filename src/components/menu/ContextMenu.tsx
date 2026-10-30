@@ -7,6 +7,7 @@ import
   useContext,
   useState,
   useEffect,
+  useLayoutEffect,
   useRef,
   useCallback,
   cloneElement,
@@ -15,12 +16,16 @@ import
   ReactElement,
   MouseEvent as ReactMouseEvent,
   forwardRef,
-  HTMLAttributes
+  HTMLAttributes,
+  MutableRefObject
 } from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
+import { ChevronRight } from 'lucide-react';
 import { useFontSize } from '../../contexts/FontSizeContext';
 import { Item as BaseItem, Separator, Overlay, useEscapeKey, menuContainerClass } from './MenuBase';
+import { placeMenuAtPoint, placeSubmenu, MenuPoint } from '../../utils/menuPosition';
+import { SubmenuHoverTimer } from '../../utils/submenuHoverTimer';
 
 // Re-export Separator (Item is wrapped below to add close behavior)
 export { Separator };
@@ -163,27 +168,12 @@ export const Content = forwardRef<HTMLDivElement, ContentProps>(
     {
       if (!isOpen || !menuRef.current) return;
 
-      const menu = menuRef.current;
-      const rect = menu.getBoundingClientRect();
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-
-      let x = position.x;
-      let y = position.y;
-
-      // Adjust horizontal position
-      if (x + rect.width > viewportWidth)
-      {
-        x = viewportWidth - rect.width - 8;
-      }
-
-      // Adjust vertical position
-      if (y + rect.height > viewportHeight)
-      {
-        y = viewportHeight - rect.height - 8;
-      }
-
-      setAdjustedPosition({ x, y });
+      const rect = menuRef.current.getBoundingClientRect();
+      setAdjustedPosition(placeMenuAtPoint(
+        position,
+        { width: rect.width, height: rect.height },
+        { width: window.innerWidth, height: window.innerHeight }
+      ));
     }, [isOpen, position]);
 
     if (!isOpen) return null;
@@ -244,3 +234,156 @@ export const Item = forwardRef<HTMLDivElement, ItemProps>(
   }
 );
 Item.displayName = 'ContextMenu.Item';
+
+// --- Submenu ---
+interface SubMenuState
+{
+  isOpen: boolean;
+  hoverTimer: SubmenuHoverTimer;
+  triggerRef: MutableRefObject<HTMLDivElement | null>;
+}
+
+const SubMenuContext = createContext<SubMenuState | null>(null);
+
+const useSubMenuState = () =>
+{
+  const context = useContext(SubMenuContext);
+  if (!context)
+  {
+    throw new Error('ContextMenu.SubTrigger and SubContent must be used within ContextMenu.Sub');
+  }
+  return context;
+};
+
+interface SubProps
+{
+  children: ReactNode;
+}
+
+export const Sub = ({ children }: SubProps) =>
+{
+  const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLDivElement | null>(null);
+  const [hoverTimer] = useState(() => new SubmenuHoverTimer(setIsOpen, {
+    setTimeout: (callback, ms) => window.setTimeout(callback, ms),
+    clearTimeout: (handle) => window.clearTimeout(handle as number)
+  }));
+
+  // The root menu unmounts its content on close; a pending timer must not
+  // fire into an unmounted Sub.
+  useEffect(() => () => hoverTimer.cancelPending(), [hoverTimer]);
+
+  return (
+    <SubMenuContext.Provider value={{ isOpen, hoverTimer, triggerRef }}>
+      {children}
+    </SubMenuContext.Provider>
+  );
+};
+
+// onSelect is taken: choosing the trigger opens the submenu.
+interface SubTriggerProps extends Omit<HTMLAttributes<HTMLDivElement>, 'onSelect'>
+{
+  children: ReactNode;
+}
+
+export const SubTrigger = ({ children, className, onMouseEnter, onMouseLeave, ...props }: SubTriggerProps) =>
+{
+  const { isOpen, hoverTimer, triggerRef } = useSubMenuState();
+
+  return (
+    <BaseItem
+      ref={triggerRef}
+      // Opens the submenu at once and leaves the root menu open, unlike ContextMenu.Item.
+      onSelect={() => hoverTimer.openNow()}
+      onMouseEnter={(e) =>
+      {
+        hoverTimer.pointerEnteredTrigger();
+        onMouseEnter?.(e);
+      }}
+      onMouseLeave={(e) =>
+      {
+        hoverTimer.pointerLeft();
+        onMouseLeave?.(e);
+      }}
+      aria-haspopup="menu"
+      aria-expanded={isOpen}
+      className={clsx(isOpen && 'bg-gray-100 dark:bg-gray-700', className)}
+      {...props}
+    >
+      {children}
+      <ChevronRight size={14} className="ml-auto pl-1 shrink-0" />
+    </BaseItem>
+  );
+};
+SubTrigger.displayName = 'ContextMenu.SubTrigger';
+
+interface SubContentProps extends HTMLAttributes<HTMLDivElement>
+{
+  children: ReactNode;
+}
+
+// Rendered inside Content's fixed box, without a portal: Content has no
+// transform or filter, so this fixed panel is placed against the viewport and
+// stacks above the root menu's rows. Children are ContextMenu.Items, which close
+// the whole menu through the root context.
+export const SubContent = (props: SubContentProps) =>
+{
+  const { isOpen } = useSubMenuState();
+
+  // Mounted only while open, so every opening measures and places afresh.
+  if (!isOpen) return null;
+
+  return <SubPanel {...props} />;
+};
+SubContent.displayName = 'ContextMenu.SubContent';
+
+const SubPanel = ({ children, className, style, onMouseEnter, onMouseLeave, ...props }: SubContentProps) =>
+{
+  const { hoverTimer, triggerRef } = useSubMenuState();
+  const fontSize = useFontSize();
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const [position, setPosition] = useState<MenuPoint | null>(null);
+
+  // Measured hidden at 0,0 first, then placed before paint, so the panel never
+  // shows at a spot where it covers the trigger row.
+  useLayoutEffect(() =>
+  {
+    if (!panelRef.current || !triggerRef.current) return;
+
+    const panelRect = panelRef.current.getBoundingClientRect();
+    const triggerRect = triggerRef.current.getBoundingClientRect();
+    setPosition(placeSubmenu(
+      { left: triggerRect.left, right: triggerRect.right, top: triggerRect.top, bottom: triggerRect.bottom },
+      { width: panelRect.width, height: panelRect.height },
+      { width: window.innerWidth, height: window.innerHeight }
+    ));
+  }, [triggerRef]);
+
+  return (
+    <div
+      ref={panelRef}
+      role="menu"
+      className={clsx(menuContainerClass, 'whitespace-nowrap', className)}
+      style={{
+        left: position?.x ?? 0,
+        top: position?.y ?? 0,
+        visibility: position ? 'visible' : 'hidden',
+        fontSize: `${fontSize}px`,
+        ...style
+      }}
+      onMouseEnter={(e) =>
+      {
+        hoverTimer.pointerEnteredPanel();
+        onMouseEnter?.(e);
+      }}
+      onMouseLeave={(e) =>
+      {
+        hoverTimer.pointerLeft();
+        onMouseLeave?.(e);
+      }}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+};

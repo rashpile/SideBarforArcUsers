@@ -116,6 +116,15 @@ export const useBookmarks = () => {
     });
   }, [handleError]);
 
+  // URL only: sending the title too would overwrite a rename made since the tree was read.
+  const updateBookmarkUrl = useCallback((id: string, url: string) =>
+  {
+    chrome.bookmarks.update(id, { url }, () =>
+    {
+      handleError('update url');
+    });
+  }, [handleError]);
+
   const sortBookmarks = useCallback((folderId: string, sortBy: SortOption) => {
     if (sortBy === 'none') return;
 
@@ -462,6 +471,7 @@ export const useBookmarks = () => {
     //removeBookmark,
     createFolder,
     updateBookmark,
+    updateBookmarkUrl,
     sortBookmarks,
     moveBookmark,
     findFolderInParent,

@@ -19,6 +19,7 @@ import { BookmarkEditModal } from './BookmarkEditModal';
 import { BookmarkCreateFolderModal } from './BookmarkCreateFolderModal';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import { getRootFolderType } from '../utils/bookmarkFolderLookup';
+import { getEffectiveTabUrl } from '../utils/parkedTabAssociation';
 import * as ContextMenu from './menu/ContextMenu';
 import { TreeRow } from './TreeRow';
 import { BookmarkFavicon } from './BookmarkFavicon';
@@ -183,6 +184,7 @@ interface BookmarkRowProps {
   onShareUrl?: (title: string, url: string) => void;
   onShareSelectedBookmarks?: () => void;
   onToggleBookmarkMuted?: (bookmarkId: string) => void;
+  onReplaceUrlWithCurrent?: (bookmarkId: string) => void;
   onToggleSelectedBookmarksMuted?: () => void;
   onDuplicateSelectedBookmarks?: () => void;
   onCreateFolderWithSelectedBookmarks?: () => void;
@@ -256,6 +258,7 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
   onShareUrl,
   onShareSelectedBookmarks,
   onToggleBookmarkMuted,
+  onReplaceUrlWithCurrent,
   onToggleSelectedBookmarksMuted,
   onDuplicateSelectedBookmarks,
   onCreateFolderWithSelectedBookmarks,
@@ -753,9 +756,21 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
                   <Sparkles size={14} className="mr-2" /> AI Rename
                 </ContextMenu.Item>
               )}
-              <ContextMenu.Item onSelect={() => onEdit(node)}>
-                Rename...
-              </ContextMenu.Item>
+              <ContextMenu.Sub>
+                <ContextMenu.SubTrigger>
+                  <Pencil size={14} className="mr-2" /> Edit
+                </ContextMenu.SubTrigger>
+                <ContextMenu.SubContent>
+                  {isLoaded && onReplaceUrlWithCurrent && (
+                    <ContextMenu.Item onSelect={() => onReplaceUrlWithCurrent(node.id)}>
+                      Replace Pinned URL with Current
+                    </ContextMenu.Item>
+                  )}
+                  <ContextMenu.Item onSelect={() => onEdit(node)}>
+                    Edit Pinned Page
+                  </ContextMenu.Item>
+                </ContextMenu.SubContent>
+              </ContextMenu.Sub>
               {isLoaded && (
                 <ContextMenu.Item onSelect={() => onToggleBookmarkMuted?.(node.id)}>
                   {isMuted ? 'Unmute' : 'Mute'}
@@ -1032,7 +1047,7 @@ interface BookmarkTreeProps {
 }
 
 export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false, externalDropTarget, bookmarkOpenMode = 'arc', arcSingleClickOpensTab = true, onResolverReady, filterLiveTabs = false, filterText = '', activeSpace, onShowToast, onPerformAction, useSpaces = true, onAiRename, onBookmarkCreated, isCollapsed = false }: BookmarkTreeProps) => {
-  const { bookmarks, updateBookmark, createFolder, createBookmark, sortBookmarks, moveBookmark, duplicateBookmark, findFolderBySegments, getAllBookmarksInFolder, getBookmarkSegments, getBookmarkFolderLocation, getBookmark, error } = useBookmarks();
+  const { bookmarks, updateBookmark, updateBookmarkUrl, createFolder, createBookmark, sortBookmarks, moveBookmark, duplicateBookmark, findFolderBySegments, getAllBookmarksInFolder, getBookmarkSegments, getBookmarkFolderLocation, getBookmark, error } = useBookmarks();
   const { openBookmarkTab, closeBookmarkTab, isBookmarkLoaded, isBookmarkAudible, isBookmarkMuted, isBookmarkActive, getBookmarkLiveTitle, deassociateBookmarkTab, getTabIdForBookmark, getItemKeyForTab, restoreItemAssociation, associateExistingTab } = useBookmarkTabsContext();
   const { spaces, updateSpace, updateSpaceFolderPaths, windowId } = useSpacesContext();
   const findSpaceForFolder = useFindSpaceForFolder(getBookmarkFolderLocation, spaces);
@@ -2031,6 +2046,26 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
     await chrome.tabs.update(tabId, { muted: !isBookmarkMuted(bookmarkId) });
   }, [getTabIdForBookmark, isBookmarkMuted]);
 
+  const handleReplaceBookmarkUrlWithCurrent = useCallback(async (bookmarkId: string) =>
+  {
+    const tabId = getTabIdForBookmark(bookmarkId);
+    if (tabId === undefined) return;
+    let tab: chrome.tabs.Tab;
+    try
+    {
+      tab = await chrome.tabs.get(tabId);
+    }
+    catch
+    {
+      // The tab closed between opening the menu and choosing the item.
+      return;
+    }
+    // A parked tab shows the park page; the pin must keep the page it stands for.
+    const url = getEffectiveTabUrl(tab.url);
+    if (!url) return;
+    updateBookmarkUrl(bookmarkId, url);
+  }, [getTabIdForBookmark, updateBookmarkUrl]);
+
   const handleToggleSelectedBookmarksMuted = useCallback(async () =>
   {
     const bookmarkIds = getSelectedLiveBookmarkIds();
@@ -2664,6 +2699,7 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
               onShareUrl={handleShareBookmark}
               onShareSelectedBookmarks={handleShareSelectedBookmarks}
               onToggleBookmarkMuted={handleToggleBookmarkMuted}
+              onReplaceUrlWithCurrent={handleReplaceBookmarkUrlWithCurrent}
               onToggleSelectedBookmarksMuted={handleToggleSelectedBookmarksMuted}
               onDuplicateSelectedBookmarks={handleDuplicateSelectedBookmarks}
               onCreateFolderWithSelectedBookmarks={openCreateFolderWithSelectedBookmarks}
