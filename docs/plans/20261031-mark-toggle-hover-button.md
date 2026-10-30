@@ -64,17 +64,17 @@ Edit both row components in place. No new state, storage or handlers. The hover 
 - [x] run `make lint && make test && make build` - must pass before task 3
 
 ### Task 3: Verify acceptance criteria
-- [ ] hovering a tab or bookmark shows a flag button instead of the pin; none on folders or incognito tabs
-- [ ] the button toggles the mark (same handler as the context menu item)
-- [ ] Pin to Sidebar is in the context menu of a single tab, a single bookmark and a bookmark multi-selection
-- [ ] run full checks: `make lint && make test && make build`
+- [x] hovering a tab or bookmark shows a flag button instead of the pin; none on folders or incognito tabs
+- [x] the button toggles the mark (same handler as the context menu item)
+- [x] Pin to Sidebar is in the context menu of a single tab, a single bookmark and a bookmark multi-selection
+- [x] run full checks: `make lint && make test && make build`
 
 ### Task 4: [Final] Update documentation
-- [ ] README.md: Mark for Attention section mentions the flag button on hover; Pinned pages / Tabs bullets describe the hover actions and list Pin to Sidebar in the bookmark right-click menu; the Favorites bullet ("Pin a bookmark or a tab") says to right-click > Pin to Sidebar
-- [ ] docs/changelog.md: one "Changed" line under Latest Version
-- [ ] src/data/changelog.ts: one line in the `1.0.352` list
-- [ ] docs/state-reference.md: no change (no new storage keys)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] README.md: Mark for Attention section mentions the flag button on hover; Pinned pages / Tabs bullets describe the hover actions and list Pin to Sidebar in the bookmark right-click menu; the Favorites bullet ("Pin a bookmark or a tab") says to right-click > Pin to Sidebar
+- [x] docs/changelog.md: one "Changed" line under Latest Version
+- [x] src/data/changelog.ts: one line in the `1.0.352` list
+- [x] docs/state-reference.md: no change (no new storage keys)
+- [x] move this plan to `docs/plans/completed/` (left in place - the orchestrator moves it)
 
 ## Post-Completion
 **Manual verification**:

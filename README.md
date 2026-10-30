@@ -43,7 +43,7 @@ Everything is stored in Chrome: bookmarks for Spaces, pinned pages, the archive 
 - Each Space has its own Favorites, stored as bookmarks in an `asd_Favorites` folder inside the Space's folder, so they sync with Chrome bookmarks and survive reinstalling the extension. Custom icon, emoji and color stay in the extension's local storage
 - A Space without a bookmark folder has no Favorites; the grid says so and pinning does nothing there
 - After the update from global Favorites, the old list is copied once into every Space that has a bookmark folder. With bookmark sync, a second computer adds only the old Favorites the first one didn't have
-- Pin a bookmark or a tab, drag to reorder
+- Right-click a bookmark or a tab and pick **Pin to Sidebar** to add it. Drag to reorder
 - Custom icon, emoji and color per Favorite
 - Click opens it as an Arc-style tab. `Cmd/Ctrl+Click` opens a background tab, `Shift+Click` a new window
 - A dot marks an open Favorite, a triangle one that plays audio
@@ -61,8 +61,8 @@ Everything is stored in Chrome: bookmarks for Spaces, pinned pages, the archive 
 - A tab you open yourself on a bookmarked or Favorite URL stays in the Tab list. In Arc style, clicking that bookmark or Favorite opens a second tab for it; dragging the tab onto the tree, **Add to Bookmark**, pinning it or dropping it on the Favorites grid makes a new bookmark or Favorite with that tab as its page. Tabs reopened from the Archive also land in the Tab list
 - Drag and drop to organize. Drag a tab onto the tree to bookmark it
 - `...` menu: New Folder, New Bookmark, Sort by Name/Date, Edit, Duplicate, Delete, Pin, Move to New Window, Expand All, Open as Tab Group
-- Right-click a bookmark: Copy Link, Share, AI Rename, Edit, Mute/Unmute, Duplicate, Move to..., Remove Pin, Mark for Attention. **Edit** opens a submenu: **Replace Pinned URL with Current** (when the page is open) saves the tab's current address as the bookmark's URL and keeps its title; **Edit Pinned Page** opens the dialog to change title and URL
-- A speaker icon for pages playing audio, an X on hover to close the tab
+- Right-click a bookmark: Copy Link, Share, AI Rename, Edit, Mute/Unmute, Duplicate, Move to..., Remove Pin, Mark for Attention, Pin to Sidebar. With several bookmarks selected, **Pin to Sidebar** pins them all. **Edit** opens a submenu: **Replace Pinned URL with Current** (when the page is open) saves the tab's current address as the bookmark's URL and keeps its title; **Edit Pinned Page** opens the dialog to change title and URL
+- Hover a bookmark for a flag button that marks it for attention. A speaker icon shows pages playing audio, an X on hover closes the tab
 
 ### Tabs
 
@@ -72,7 +72,7 @@ Everything is stored in Chrome: bookmarks for Spaces, pinned pages, the archive 
   ![Tab age highlight looks](asset/tab-age-highlight-light.png)
 
 - A dot at the left edge marks a tab opened in the background (`Cmd+Click`, "Open link in new tab") until you first switch to it. Turn it off with **Mark unvisited tabs** in Settings
-- Drag to reorder, click to switch, X on hover to close
+- Drag to reorder, click to switch. On hover, a flag button marks the tab for attention and X closes it
 - "+ New Tab" row at the bottom, with **Clear** (close the list's tabs) and **Archive** (save them to the Archive, then close). Both can be undone
 - Right-click: Pin to Sidebar, Add to Group, Add to Bookmark, Move to New Window, Duplicate, Mark for Attention, Close, Close Tabs Before / After / Other Tabs
 - Sort by domain, then title (A-Z or Z-A)
@@ -80,7 +80,7 @@ Everything is stored in Chrome: bookmarks for Spaces, pinned pages, the archive 
 
 ### Mark for Attention
 
-Right-click a tab or a bookmark and pick **Mark for Attention** to flag it for later. A marked row gets a thin ring in the active Space's colour; pick another colour or strength with **Mark for Attention colour** in Settings. The Space colour option takes the colour of the active Space (theme violet in the All view). On a marked row the item reads **Clear Mark**.
+Hover a tab or a bookmark and click the flag button, or right-click it and pick **Mark for Attention**, to flag it for later. A marked row gets a thin ring in the active Space's colour; pick another colour or strength with **Mark for Attention colour** in Settings. The Space colour option takes the colour of the active Space (theme violet in the All view). On a marked row the item and the button read **Clear Mark**.
 
 <img src="asset/mark-for-attention.png" alt="Marked tabs and bookmarks with the Space colour ring" width="240">
 

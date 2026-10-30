@@ -4,6 +4,7 @@
 export const CHANGELOG: Record<string, string[]> = {
   '1.0.352': [
     'New: search button on the Space title - hover or click it to see the Space\'s recently used pages, with search',
+    'Changed: the hover button on tabs and bookmarks marks them for attention instead of pinning - Pin to Sidebar is in the right-click menu, now also for bookmarks',
     'Changed: each Space has its own Favorites, stored as bookmarks in an asd_Favorites folder inside the Space folder - your current Favorites are copied into every Space that has a bookmark folder',
     'New: Move to Space in a Favorite\'s right-click menu - its open tab moves along',
     'New: Clear in the Archive header\'s ... menu - remove everything or pages older than 24 hours, 7 days or 30 days, with Undo',
