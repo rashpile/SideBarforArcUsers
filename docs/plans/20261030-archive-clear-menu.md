@@ -153,9 +153,9 @@ constructor(api, archiveFolderId: string, option: ArchiveClearOption, now: () =>
 - Modify: `src/components/menu/MenuBase.tsx`
 - Modify: `src/components/menu/ContextMenu.tsx`
 
-- [ ] add `disabled` to `MenuBase.Item` (gray, no hover, `cursor-default`, `aria-disabled`, no `onSelect`)
-- [ ] pass `disabled` through `ContextMenu.Item` (a disabled item then never reaches `close()`)
-- [ ] run `make lint` and `make test` - must pass before task 4
+- [x] add `disabled` to `MenuBase.Item` (gray, no hover, `cursor-default`, `aria-disabled`, no `onSelect`)
+- [x] pass `disabled` through `ContextMenu.Item` (a disabled item then never reaches `close()`)
+- [x] run `make lint` and `make test` - must pass before task 4
 
 ### Task 4: Archive header menu and Clear All confirmation
 
