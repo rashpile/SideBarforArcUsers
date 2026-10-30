@@ -39,6 +39,8 @@ import {
   ArrowDownAZ,
   Calendar,
   Pin,
+  Flag,
+  FlagOff,
   X,
   Minus,
   Volume2,
@@ -489,16 +491,17 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
           <Minus size={15} strokeWidth={2.25} />
         </span>
       )}
-      {/* Pin button - visible on hover */}
-      {!isFolder && onPin && node.url && (
+      {!isFolder && node.url && onToggleMark && (
         <button
           onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); onPin(node.url!, node.title, getFaviconUrl(node.url!)); }}
+          onClick={(e) => { e.stopPropagation(); onToggleMark(node.id); }}
           className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded bg-white dark:bg-gray-900 opacity-0 group-hover:opacity-100"
-          title="Pin"
-          aria-label="Pin bookmark"
+          title={showMark ? "Clear Mark" : "Mark for Attention"}
+          aria-label={showMark ? "Clear Mark" : "Mark for Attention"}
         >
-          <Pin size={14} className="text-gray-700 dark:text-gray-200" />
+          {showMark
+            ? <FlagOff size={14} className="text-gray-700 dark:text-gray-200" />
+            : <Flag size={14} className="text-gray-700 dark:text-gray-200" />}
         </button>
       )}
       {/* Delete button - visible on hover when bookmark is not loaded (Arc-style only); opening is a click on the row */}
@@ -563,6 +566,8 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
                 if (e.detail === 1) hadTabOnPressRef.current = !!isLoaded;
               }}
               onDoubleClick={(e) => {
+                // A quick double click on a hover button (Mark, Delete, Close) must not reopen the bookmark
+                if ((e.target as Element).closest('.arc-tree-row-actions')) return;
                 if (!node.url || bookmarkOpenMode !== 'arc' || !onOpenBookmark) return;
                 // Modifier clicks only change the selection
                 if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -638,6 +643,11 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
               {selectionMarkAction && onToggleSelectionMark && (
                 <ContextMenu.Item onSelect={onToggleSelectionMark}>
                   {selectionMarkAction === 'mark' ? 'Mark for Attention' : 'Clear Mark'}
+                </ContextMenu.Item>
+              )}
+              {onPin && (
+                <ContextMenu.Item onSelect={() => onPin(node.url || '', node.title, node.url ? getFaviconUrl(node.url) : undefined)}>
+                  <Pin size={14} className="mr-2" /> Pin to Sidebar
                 </ContextMenu.Item>
               )}
               <ContextMenu.Separator />
@@ -789,6 +799,11 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
               {onToggleMark && (
                 <ContextMenu.Item onSelect={() => onToggleMark(node.id)}>
                   {showMark ? 'Clear Mark' : 'Mark for Attention'}
+                </ContextMenu.Item>
+              )}
+              {onPin && (
+                <ContextMenu.Item onSelect={() => onPin(node.url!, node.title, getFaviconUrl(node.url!))}>
+                  <Pin size={14} className="mr-2" /> Pin to Sidebar
                 </ContextMenu.Item>
               )}
               <ContextMenu.Separator />
