@@ -142,11 +142,11 @@ Issue: https://github.com/rashpile/SideBarforArcUsers/issues/14
 - Modify: `src/background.ts`
 - Modify: `tests/autoArchivePolicy.test.mjs`
 
-- [ ] add `isMarked: (tabId: number) => boolean` to `TabsToCloseQuery`; `selectTabsToClose` keeps marked tabs; the existing query helper in `tests/autoArchivePolicy.test.mjs` (~36) gets a default `isMarked: () => false`
-- [ ] add the marks to `TabAutoArchiverDeps` (`isTabMarked`, `tabMarksLoaded: () => boolean`); a run returns without closing anything when the tab marks failed to load; the per-tab re-check before closing also keeps a tab marked meanwhile
-- [ ] pass the manager into the archiver in `background.ts`
-- [ ] write tests in `tests/autoArchivePolicy.test.mjs`: overdue marked tab stays open; overdue unmarked tab still selected
-- [ ] run `make test` - must pass before task 5
+- [x] add `isMarked: (tabId: number) => boolean` to `TabsToCloseQuery`; `selectTabsToClose` keeps marked tabs; the existing query helper in `tests/autoArchivePolicy.test.mjs` (~36) gets a default `isMarked: () => false`
+- [x] add the marks to `TabAutoArchiverDeps` (`isTabMarked`, `tabMarksLoaded: () => boolean`); a run returns without closing anything when the tab marks failed to load; the per-tab re-check before closing also keeps a tab marked meanwhile
+- [x] pass the manager into the archiver in `background.ts`
+- [x] write tests in `tests/autoArchivePolicy.test.mjs`: overdue marked tab stays open; overdue unmarked tab still selected
+- [x] run `make test` - must pass before task 5
 
 ### Task 5: Tab list mark UI
 

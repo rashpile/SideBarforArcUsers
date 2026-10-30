@@ -420,6 +420,8 @@ const tabAutoArchiver = new TabAutoArchiver({
   spaceRegistry: tabSpaceRegistry,
   getSpaces: () => spaceManager.getSpaces(),
   getPinnedSites: () => pinnedSitesManager.getPinnedSites(),
+  isTabMarked: (tabId) => attentionMarkManager.isTabMarked(tabId),
+  tabMarksLoaded: () => attentionMarkManager.tabMarksLoaded,
 });
 
 // Registered at top level so the alarm wakes the worker
