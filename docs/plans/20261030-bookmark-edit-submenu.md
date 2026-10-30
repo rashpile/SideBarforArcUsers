@@ -123,11 +123,11 @@
 - [x] run `make lint` and `make build`
 
 ### Task 5: [Final] Update documentation
-- [ ] update `README.md` "Bookmarks and pinned pages": describe the bookmark right-click menu including Edit → Replace Pinned URL with Current / Edit Pinned Page
-- [ ] add a `New:` line to `docs/changelog.md` under "Latest Version"
-- [ ] add a What's New line to `src/data/changelog.ts` under `'1.0.352'`
-- [ ] no new storage keys, so `docs/state-reference.md` stays as is
-- [ ] move this plan to `docs/plans/completed/`
+- [x] update `README.md` "Bookmarks and pinned pages": describe the bookmark right-click menu including Edit → Replace Pinned URL with Current / Edit Pinned Page
+- [x] add a `New:` line to `docs/changelog.md` under "Latest Version"
+- [x] add a What's New line to `src/data/changelog.ts` under `'1.0.352'`
+- [x] no new storage keys, so `docs/state-reference.md` stays as is
+- [x] move this plan to `docs/plans/completed/` (left in place - the orchestrator moves it at the end)
 
 ## Post-Completion
 *Items requiring manual intervention or external systems - no checkboxes, informational only*
