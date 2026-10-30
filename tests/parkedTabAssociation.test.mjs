@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  FavoriteUrlMatcher,
   findParkedReplacementTab,
   parseParkedTabUrl,
   recoverFixedTabAssociations,
@@ -47,7 +48,10 @@ test('a lost association heals by URL only for a park page; a regular tab on the
     id: 'root',
     children: [{ id: 'docs', url: 'https://example.com/docs/' }],
   }];
-  const favorites = [{ id: 'favorite', url: 'https://favorite.example.com' }];
+  const favorites = new FavoriteUrlMatcher(
+    [{ spaceId: 'home', bookmark: { id: 'favorite', url: 'https://favorite.example.com' } }],
+    () => 'home'
+  );
 
   assert.deepEqual(
     recoverParkedTabAssociations(tabs, {}, bookmarks, favorites),
@@ -74,7 +78,7 @@ test('an open regular Chrome tab whose URL belongs to a bookmark or Favorite get
   }];
 
   assert.deepEqual(
-    recoverFixedTabAssociations(tabs, {}, bookmarks, []),
+    recoverFixedTabAssociations(tabs, {}, bookmarks),
     {
       101: 'bookmark-docs',
       102: 'bookmark-github',
@@ -109,6 +113,82 @@ test('bookmarks in asd_Archive take no part in URL healing; a tab on an archived
     }],
   }];
 
-  assert.deepEqual(recoverFixedTabAssociations(tabs, {}, bookmarks, []), { 103: 'bookmark-kept' });
-  assert.deepEqual(recoverParkedTabAssociations(tabs, {}, bookmarks, []), {});
+  assert.deepEqual(recoverFixedTabAssociations(tabs, {}, bookmarks), { 103: 'bookmark-kept' });
+  assert.deepEqual(recoverParkedTabAssociations(tabs, {}, bookmarks), {});
+});
+
+// Two Spaces, each with its own asd_Favorites holding the same page (as after the migration)
+const twoSpaceTree = () => [{
+  id: 'root',
+  title: '',
+  children: [
+    {
+      id: 'space-a',
+      title: 'A',
+      children: [{
+        id: 'fav-a',
+        title: 'asd_Favorites',
+        children: [{ id: 'mail-a', title: 'Mail', url: 'https://mail.example.com/' }],
+      }],
+    },
+    {
+      id: 'space-b',
+      title: 'B',
+      children: [
+        {
+          id: 'fav-b',
+          title: 'asd_Favorites',
+          children: [{ id: 'mail-b', title: 'Mail', url: 'https://mail.example.com/' }],
+        },
+        { id: 'docs', title: 'Docs', url: 'https://docs.example.com/' },
+      ],
+    },
+  ],
+}];
+
+const twoSpaceFavorites = (spaceOfTab) => new FavoriteUrlMatcher([
+  { spaceId: 'a', bookmark: { id: 'mail-a', url: 'https://mail.example.com/' } },
+  { spaceId: 'b', bookmark: { id: 'mail-b', url: 'https://mail.example.com/' } },
+], spaceOfTab);
+
+test('a Favorite bookmark URL heals to pinned-<id>, never to bookmark-<id>', () =>
+{
+  const tabs = [{ id: 101, active: true, url: 'https://mail.example.com' }];
+
+  assert.deepEqual(
+    recoverFixedTabAssociations(tabs, {}, twoSpaceTree(), twoSpaceFavorites(() => 'a')),
+    { 101: 'pinned-mail-a' }
+  );
+  assert.deepEqual(recoverFixedTabAssociations(tabs, {}, twoSpaceTree()), {});
+});
+
+test('the same Favorite URL in two Spaces heals to the copy of the tab\'s own Space', () =>
+{
+  const tabs = [
+    { id: 101, active: true, url: 'https://mail.example.com/' },
+    { id: 102, active: false, url: parkUrl(42, 'https://mail.example.com/') },
+  ];
+  const spaces = { 101: 'b', 102: 'a' };
+
+  assert.deepEqual(
+    recoverFixedTabAssociations(tabs, {}, twoSpaceTree(), twoSpaceFavorites(tabId => spaces[tabId])),
+    { 101: 'pinned-mail-b', 102: 'pinned-mail-a' }
+  );
+});
+
+test('a tab with no Space, or in a Space without that Favorite, gets no Favorite', () =>
+{
+  const tabs = [
+    { id: 101, active: true, url: 'https://mail.example.com/' },
+    { id: 102, active: false, url: 'https://docs.example.com/' },
+  ];
+  const favorites = new FavoriteUrlMatcher(
+    [{ spaceId: 'a', bookmark: { id: 'mail-a', url: 'https://mail.example.com/' } }],
+    tabId => (tabId === 101 ? 'b' : undefined)
+  );
+
+  assert.deepEqual(
+    recoverFixedTabAssociations(tabs, {}, twoSpaceTree(), favorites),
+    { 102: 'bookmark-docs' }
+  );
 });

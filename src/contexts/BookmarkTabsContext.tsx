@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo, ReactNode } from 'react';
 import { createChromeErrorHandler } from '../utils/chromeError';
 import { tabSpaceRegistryProxy } from '../managers/proxies/tabSpaceRegistryProxy';
+import { spaceManagerProxy } from '../managers/proxies/spaceManagerProxy';
 import { SpaceMessageAction } from '../utils/spaceMessages';
 import {
   getTabAssociations,
@@ -14,8 +15,11 @@ import {
 } from '../utils/tabAssociations';
 import { restoreTabAssociations } from '../utils/restoreTabAssociations';
 import { isActivationForWindow } from '../utils/tabActivationScope';
-import { PINNED_SITES_STORAGE_KEY, PinnedSite } from '../managers/shared/pinnedSitesApi';
+import { FAVORITES_MIGRATION_STORAGE_KEY, FavoritesMigrationState, type FavoriteRekeyMap } from '../services/favoritesMigration';
+import { allFavoriteBookmarks } from '../utils/spaceFavorites';
+import { hasFavoriteAssociationsToRekey, rekeyFavoriteAssociations } from '../utils/favoriteRekey';
 import {
+  FavoriteUrlMatcher,
   findParkedReplacementTab,
   getEffectiveTabUrl,
   parseParkedTabUrl,
@@ -23,6 +27,31 @@ import {
   recoverParkedTabAssociations,
 } from '../utils/parkedTabAssociation';
 import { UrlRecoveryGate } from '../utils/urlRecoveryGate';
+
+// The Space of each tab in the window, as the registry records it
+async function loadSpaceOfTab(windowId: number): Promise<(tabId: number) => string | undefined>
+{
+  const assignments = await tabSpaceRegistryProxy.getWindowAssignments(windowId);
+  return tabId => assignments[tabId];
+}
+
+async function loadFavoriteUrlMatcher(
+  windowId: number,
+  bookmarkRoots: chrome.bookmarks.BookmarkTreeNode[]
+): Promise<FavoriteUrlMatcher>
+{
+  const [spaces, spaceOfTab] = await Promise.all([
+    spaceManagerProxy.getSpaces(),
+    loadSpaceOfTab(windowId),
+  ]);
+  return new FavoriteUrlMatcher(allFavoriteBookmarks(bookmarkRoots, spaces), spaceOfTab);
+}
+
+async function loadFavoriteRekeyMap(): Promise<FavoriteRekeyMap>
+{
+  const result = await chrome.storage.local.get([FAVORITES_MIGRATION_STORAGE_KEY]);
+  return FavoritesMigrationState.fromStored(result[FAVORITES_MIGRATION_STORAGE_KEY]).rekey;
+}
 
 // Helper to create item keys
 const makeBookmarkKey = (bookmarkId: string) => `bookmark-${bookmarkId}`;
@@ -130,13 +159,35 @@ export const BookmarkTabsProvider = ({ children }: BookmarkTabsProviderProps) =>
       await chrome.runtime.sendMessage({ action: WAIT_FOR_TAB_ASSOCIATIONS_READY });
 
       // One query for the window, so first open doesn't cost a chrome.tabs.get per pinned tab.
-      const [associations, allTabs] = await Promise.all([
+      const [storedAssociations, allTabs, rekeyMap] = await Promise.all([
         getTabAssociations(windowId),
         chrome.tabs.query({ windowId }),
+        loadFavoriteRekeyMap(),
       ]);
       const tabsById = new Map(
         allTabs.flatMap(tab => tab.id === undefined ? [] : [[tab.id, tab] as const])
       );
+
+      // Before URL recovery, so a re-keyed Favorite already claims its new key there
+      let associations = storedAssociations;
+      if (hasFavoriteAssociationsToRekey(associations, rekeyMap))
+      {
+        const rekeyed = rekeyFavoriteAssociations(associations, rekeyMap, await loadSpaceOfTab(windowId));
+        associations = rekeyed.associations;
+        await Promise.all(rekeyed.moves.map(async ({ tabId, fromKey, toKey }) =>
+        {
+          const tab = tabsById.get(tabId);
+          if (toKey && tab)
+          {
+            await saveTabAssociationBackup(windowId, toKey, {
+              tabId,
+              url: getEffectiveTabUrl(tab.url),
+              tabIndex: tab.index,
+            });
+          }
+          await removeTabAssociationBackup(windowId, fromKey);
+        }));
+      }
 
       performance.mark('sidebar:associations-start');
       const restored = await restoreTabAssociations(
@@ -156,18 +207,15 @@ export const BookmarkTabsProvider = ({ children }: BookmarkTabsProviderProps) =>
       );
       if (hasUnresolvedParkedTab)
       {
-        const [bookmarkRoots, pinnedResult] = await Promise.all([
-          chrome.bookmarks.getTree(),
-          chrome.storage.local.get([PINNED_SITES_STORAGE_KEY]),
-        ]);
-        const pinnedSites = (pinnedResult[PINNED_SITES_STORAGE_KEY] as PinnedSite[] | undefined) ?? [];
+        const bookmarkRoots = await chrome.bookmarks.getTree();
+        const favorites = await loadFavoriteUrlMatcher(windowId, bookmarkRoots);
         recovered = {
           ...recovered,
           ...recoverParkedTabAssociations(
             allTabs,
             { ...associations, ...recovered },
             bookmarkRoots,
-            pinnedSites
+            favorites
           ),
         };
       }
@@ -197,7 +245,7 @@ export const BookmarkTabsProvider = ({ children }: BookmarkTabsProviderProps) =>
       performance.measure('sidebar:associations-restore', 'sidebar:associations-start', 'sidebar:associations-ready');
 
       // Write only if stale tabs were dropped, or the storage listener loops on pointless rebuilds.
-      if (JSON.stringify(restored.associations) !== JSON.stringify(associations))
+      if (JSON.stringify(restored.associations) !== JSON.stringify(storedAssociations))
       {
         await setTabAssociations(windowId, restored.associations);
       }
@@ -223,17 +271,16 @@ export const BookmarkTabsProvider = ({ children }: BookmarkTabsProviderProps) =>
       // back the blank wait on first open.
       void urlRecoveryGate.current.gate.runOnce(async () =>
       {
-        const [bookmarkRoots, pinnedResult] = await Promise.all([
-          chrome.bookmarks.getTree(),
-          chrome.storage.local.get([PINNED_SITES_STORAGE_KEY]),
+        const bookmarkRoots = await chrome.bookmarks.getTree();
+        const [favorites, latestAssociations] = await Promise.all([
+          loadFavoriteUrlMatcher(windowId, bookmarkRoots),
+          getTabAssociations(windowId),
         ]);
-        const latestAssociations = await getTabAssociations(windowId);
-        const pinnedSites = (pinnedResult[PINNED_SITES_STORAGE_KEY] as PinnedSite[] | undefined) ?? [];
         const fixedAssociations = recoverFixedTabAssociations(
           allTabs,
           latestAssociations,
           bookmarkRoots,
-          pinnedSites
+          favorites
         );
         if (Object.keys(fixedAssociations).length === 0) return;
 
@@ -268,6 +315,19 @@ export const BookmarkTabsProvider = ({ children }: BookmarkTabsProviderProps) =>
     {
       rebuildAssociations(currentWindowId);
     }
+  }, [currentWindowId, rebuildAssociations]);
+
+  // The migration may finish while the sidebar is open; its re-key map then moves open
+  // Favorite tabs to their Space's copies
+  useEffect(() =>
+  {
+    if (currentWindowId === null) return;
+    const listener = (changes: Record<string, chrome.storage.StorageChange>, areaName: string) =>
+    {
+      if (areaName === 'local' && FAVORITES_MIGRATION_STORAGE_KEY in changes) void rebuildAssociations(currentWindowId);
+    };
+    chrome.storage.onChanged.addListener(listener);
+    return () => chrome.storage.onChanged.removeListener(listener);
   }, [currentWindowId, rebuildAssociations]);
 
   useEffect(() =>

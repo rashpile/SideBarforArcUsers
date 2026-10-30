@@ -15,10 +15,50 @@ interface BookmarkNodeLike
   children?: BookmarkNodeLike[];
 }
 
-interface PinnedSiteLike
+/** A Favorite bookmark and the Space whose `asd_Favorites` holds it (see allFavoriteBookmarks). */
+interface SpaceFavoriteLike
 {
-  id: string;
-  url: string;
+  spaceId: string;
+  bookmark: { id: string; url?: string };
+}
+
+/**
+ * Finds a tab's Favorite by URL within the tab's own Space. After the migration every
+ * Space holds the same Favorite URLs, so only the tab's Space can tell which copy it is;
+ * a tab with no Space, or whose Space has no Favorite on that URL, gets no Favorite.
+ */
+export class FavoriteUrlMatcher
+{
+  static readonly NONE = new FavoriteUrlMatcher([], () => undefined);
+
+  readonly #itemKeyBySpaceAndUrl = new Map<string, Map<string, string>>();
+  readonly #spaceOfTab: (tabId: number) => string | undefined;
+
+  constructor(favorites: readonly SpaceFavoriteLike[], spaceOfTab: (tabId: number) => string | undefined)
+  {
+    this.#spaceOfTab = spaceOfTab;
+    for (const { spaceId, bookmark } of favorites)
+    {
+      const comparableUrl = bookmark.url ? normalizeComparableUrl(bookmark.url) : '';
+      if (!comparableUrl) continue;
+
+      let byUrl = this.#itemKeyBySpaceAndUrl.get(spaceId);
+      if (!byUrl)
+      {
+        byUrl = new Map();
+        this.#itemKeyBySpaceAndUrl.set(spaceId, byUrl);
+      }
+      // Keep the first in grid order, as the bookmark walk keeps the first bookmark
+      if (!byUrl.has(comparableUrl)) byUrl.set(comparableUrl, `pinned-${bookmark.id}`);
+    }
+  }
+
+  itemKeyFor(tabId: number, comparableUrl: string): string | undefined
+  {
+    const spaceId = this.#spaceOfTab(tabId);
+    if (spaceId === undefined) return undefined;
+    return this.#itemKeyBySpaceAndUrl.get(spaceId)?.get(comparableUrl);
+  }
 }
 
 export interface ParkedTabUrl
@@ -74,10 +114,10 @@ export function recoverParkedTabAssociations<TTab extends TabLike>(
   tabs: readonly TTab[],
   associations: Readonly<Record<number, string>>,
   bookmarkRoots: readonly BookmarkNodeLike[] = [],
-  pinnedSites: readonly PinnedSiteLike[] = []
+  favorites: FavoriteUrlMatcher = FavoriteUrlMatcher.NONE
 ): Record<number, string>
 {
-  return recoverAssociations(tabs, associations, bookmarkRoots, pinnedSites, true);
+  return recoverAssociations(tabs, associations, bookmarkRoots, favorites, true);
 }
 
 /**
@@ -87,17 +127,17 @@ export function recoverFixedTabAssociations<TTab extends TabLike>(
   tabs: readonly TTab[],
   associations: Readonly<Record<number, string>>,
   bookmarkRoots: readonly BookmarkNodeLike[] = [],
-  pinnedSites: readonly PinnedSiteLike[] = []
+  favorites: FavoriteUrlMatcher = FavoriteUrlMatcher.NONE
 ): Record<number, string>
 {
-  return recoverAssociations(tabs, associations, bookmarkRoots, pinnedSites, false);
+  return recoverAssociations(tabs, associations, bookmarkRoots, favorites, false);
 }
 
 function recoverAssociations<TTab extends TabLike>(
   tabs: readonly TTab[],
   associations: Readonly<Record<number, string>>,
   bookmarkRoots: readonly BookmarkNodeLike[],
-  pinnedSites: readonly PinnedSiteLike[],
+  favorites: FavoriteUrlMatcher,
   parkedOnly: boolean
 ): Record<number, string>
 {
@@ -110,7 +150,7 @@ function recoverAssociations<TTab extends TabLike>(
       .filter(([tabId]) => liveTabIds.has(Number(tabId)))
       .map(([, itemKey]) => itemKey)
   );
-  const itemKeyByUrl = buildPersistentItemUrlIndex(bookmarkRoots, pinnedSites);
+  const itemKeyByUrl = buildBookmarkUrlIndex(bookmarkRoots);
 
   const orderedTabs = [...tabs].sort((left, right) => Number(right.active) - Number(left.active));
 
@@ -121,8 +161,11 @@ function recoverAssociations<TTab extends TabLike>(
     const parked = parseParkedTabUrl(tab.url);
     if (parkedOnly && !parked) continue;
 
+    // Favorites take priority in Arc, so a Favorite wins over a bookmark with the same URL
+    const comparableUrl = normalizeComparableUrl(getEffectiveTabUrl(tab.url));
     const itemKey = (parked ? associations[parked.sourceTabId] : undefined)
-      ?? itemKeyByUrl.get(normalizeComparableUrl(getEffectiveTabUrl(tab.url)));
+      ?? favorites.itemKeyFor(tab.id, comparableUrl)
+      ?? itemKeyByUrl.get(comparableUrl);
     if (!itemKey || claimedItemKeys.has(itemKey)) continue;
 
     recovered[tab.id] = itemKey;
@@ -133,22 +176,12 @@ function recoverAssociations<TTab extends TabLike>(
 }
 
 /**
- * Favorites take priority in Arc, so a Favorite wins over a bookmark with the same URL.
  * System folders are left out: a tab on an archived URL stays a regular tab, and a Favorite
- * never becomes a `bookmark-<id>` tab.
+ * never becomes a `bookmark-<id>` tab (Favorites match through FavoriteUrlMatcher).
  */
-function buildPersistentItemUrlIndex(
-  bookmarkRoots: readonly BookmarkNodeLike[],
-  pinnedSites: readonly PinnedSiteLike[]
-): Map<string, string>
+function buildBookmarkUrlIndex(bookmarkRoots: readonly BookmarkNodeLike[]): Map<string, string>
 {
   const itemKeyByUrl = new Map<string, string>();
-
-  for (const site of pinnedSites)
-  {
-    const comparableUrl = normalizeComparableUrl(site.url);
-    if (comparableUrl) itemKeyByUrl.set(comparableUrl, `pinned-${site.id}`);
-  }
 
   const visitBookmarks = (nodes: readonly BookmarkNodeLike[]): void =>
   {

@@ -280,21 +280,21 @@ with the live tab's url and index, and the old key's entry is removed.
 - Modify: `tests/parkedTabAssociation.test.mjs`
 - Create: `tests/favoriteRekey.test.mjs`
 
-- [ ] `buildPersistentItemUrlIndex` / `recoverFixedTabAssociations` / `recoverParkedTabAssociations`:
+- [x] `buildPersistentItemUrlIndex` / `recoverFixedTabAssociations` / `recoverParkedTabAssociations`:
   bookmarks without system folders → `bookmark-<id>`; a Favorite match is Space-aware: the tab's
   Space (passed in from `tabSpaceRegistryProxy`) picks the `pinned-<bookmarkId>` of that Space's
   `asd_Favorites` only; no Space or no copy in it → no Favorite match. BookmarkTabsContext stops
   reading `pinnedSites` from storage
-- [ ] `rekeyFavoriteAssociations(associations, rekeyMap, spaceOfTab)` per "Re-keying open Favorite
+- [x] `rekeyFavoriteAssociations(associations, rekeyMap, spaceOfTab)` per "Re-keying open Favorite
   tabs"; BookmarkTabsContext applies it on rebuild and on `favoritesMigration` change, and writes
   only through its own association store
-- [ ] re-key runs before URL recovery in `rebuildAssociations` and moves the association backup
+- [x] re-key runs before URL recovery in `rebuildAssociations` and moves the association backup
   entry to the new key (see "Re-keying open Favorite tabs")
-- [ ] write tests: a Favorite bookmark's URL maps to `pinned-<id>`, never `bookmark-<id>`; two
+- [x] write tests: a Favorite bookmark's URL maps to `pinned-<id>`, never `bookmark-<id>`; two
   Spaces with the same Favorite URL and a tab in Space B → B's bookmark id; re-key picks the copy of
   the tab's own Space; a tab whose Space has no copy loses the association; keys not in the map are
   untouched
-- [ ] run `make test` - must pass before next task
+- [x] run `make test` - must pass before next task
 
 ### Task 7: usePinnedSites and PinnedBar on per-Space bookmarks
 
