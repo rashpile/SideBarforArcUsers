@@ -213,10 +213,10 @@ export const FolderRecentPopover = ({
     else setTop(above >= VIEWPORT_MARGIN ? above : pinnedToBottom);
   }, [anchorRect, items.length, popoverRef]);
 
-  // Right-aligned to the row when the sidebar is wider than the popover, so it
-  // sits under the search button at the row's right edge and the pointer can
-  // reach it within the close delay
-  const left = Math.max(VIEWPORT_MARGIN, Math.min(anchorRect.left, anchorRect.right - MAX_WIDTH));
+  // Right-aligned to the row when the row is wider than the popover, so it sits
+  // under the search button at the row's right edge and the pointer can reach it
+  // within the close delay; a narrower row keeps the popover at the row's left
+  const left = Math.max(VIEWPORT_MARGIN, anchorRect.left, anchorRect.right - MAX_WIDTH);
   const width = Math.min(MAX_WIDTH, window.innerWidth - left - VIEWPORT_MARGIN);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) =>

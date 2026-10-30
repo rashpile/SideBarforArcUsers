@@ -31,7 +31,7 @@
 - `useFolderPeek` keeps its behaviour; its `rowHandlers` become `triggerHandlers` for the button, plus an `onClick` that opens at once.
 - The popover stays anchored to the **folder row**, not the button: the trigger looks up its row (`closest('[data-bookmark-id]')`, falling back to the button) and stores that rect. A button at the right edge would push a 360 px popover off a narrow sidebar.
 - The button shows on collapsed **and** expanded folders (user choice): the enabled condition drops `!expandedState[node.id]`.
-- Horizontal position: `left = Math.max(VIEWPORT_MARGIN, Math.min(anchorRect.left, anchorRect.right - MAX_WIDTH))`. The button sits at the row's right edge; with the popover left-aligned to the row, a sidebar wider than ~380 px puts the button past the popover's right edge and the pointer has to travel diagonally within the 150 ms close delay. On a narrow sidebar the result is the same as today (clamped to the viewport margin).
+- Horizontal position: `left = Math.max(VIEWPORT_MARGIN, anchorRect.left, anchorRect.right - MAX_WIDTH)`. The button sits at the row's right edge; with the popover left-aligned to the row, a sidebar wider than ~380 px puts the button past the popover's right edge and the pointer has to travel diagonally within the 150 ms close delay. A row wider than `MAX_WIDTH` gets the popover's right edge on the row's right edge (row 8..624 -> popover 264..624). A narrower row keeps today's position: the row's left edge, clamped to the viewport margin (row 40..300 -> popover from 40), with the width still limited by the viewport.
 - Open delay 200 ms (user choice): a hover on a dedicated small button is already intent, but a pointer sliding down the row's right edge still crosses the buttons.
 
 ## Technical Details
@@ -63,7 +63,7 @@
 
 - [x] in `FolderRecentPopover.tsx` rename `rowHandlers` to `triggerHandlers`, anchor to the trigger's closest `[data-bookmark-id]` row, add the `onClick` handler (open at once, no-op when open or disabled, stops propagation)
 - [x] set `OPEN_DELAY_MS` to 200; update the file header and hook comments (no longer "on a collapsed folder" / "rests on the folder row") and the effect comment "Expanding the folder, starting a drag or leaving Arc mode closes the peek" (expanding no longer disables it)
-- [x] in `FolderRecentPopover` set `left` to `Math.max(VIEWPORT_MARGIN, Math.min(anchorRect.left, anchorRect.right - MAX_WIDTH))` with a why-comment (popover under the right-edge button on a wide sidebar)
+- [x] in `FolderRecentPopover` set `left` to `Math.max(VIEWPORT_MARGIN, anchorRect.left, anchorRect.right - MAX_WIDTH)` with a why-comment (popover under the right-edge button on a wide sidebar)
 - [x] in `BookmarkTree.tsx` move the peek condition into a `canPeek` const without `!expandedState[node.id]`, pass it to `useFolderPeek`, and update the comment above it
 - [x] remove the row's `onPointerEnter` / `onPointerLeave` peek handlers from `TreeRow`
 - [x] add the `Search` button first in `actions`, shown only when `canPeek`, hover-visible, kept visible while the popover is open, with `triggerHandlers` and `onPointerDown` stopping propagation; import `Search` from `lucide-react`
