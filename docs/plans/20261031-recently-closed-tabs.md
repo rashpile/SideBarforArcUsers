@@ -224,14 +224,14 @@ records.
 - Modify: `src/App.tsx`
 - Modify: `src/index.css` (only if needed)
 
-- [ ] `RecentlyClosedPopover`: anchored like `FolderRecentPopover`, rows with favicon, title (fallback URL) and relative closed time, click reopens via the proxy and closes the popover, Clear item at the bottom
-- [ ] `SpaceTitleWrapper`: read `recentlyClosedTabs` read-only with `useChromeLocalStorage` parsed through `RecentlyClosedTabs.fromStored`; `SpaceTitle` takes `headerActions`; `History` button next to the search button, only when the active Space has records, independent of `canPeek`, hover/click via `useFolderPeek`
-- [ ] run `make lint && make test && make build` - must pass before task 7
+- [x] `RecentlyClosedPopover`: anchored like `FolderRecentPopover`, rows with favicon, title (fallback URL) and relative closed time, click reopens via the proxy and closes the popover, Clear item at the bottom
+- [x] `SpaceTitleWrapper`: read `recentlyClosedTabs` read-only with `useChromeLocalStorage` parsed through `RecentlyClosedTabs.fromStored`; `SpaceTitle` takes `headerActions`; `History` button next to the search button, only when the active Space has records, independent of `canPeek`, hover/click via `useFolderPeek`
+- [x] run `make lint && make test && make build` - must pass before task 7
 
 ### Task 7: Verify acceptance criteria
-- [ ] verify every requirement in Overview and the issue's Recording / Storage / Reopen sections is implemented
-- [ ] verify edge cases: window close, Space deletion, worker wake, auto-archive, associated tabs, incognito, internal pages
-- [ ] run `make lint && make test && make build`
+- [x] verify every requirement in Overview and the issue's Recording / Storage / Reopen sections is implemented
+- [x] verify edge cases: window close, Space deletion, worker wake, auto-archive, associated tabs, incognito, internal pages
+- [x] run `make lint && make test && make build`
 
 ### Task 8: [Final] Update documentation
 - [ ] `README.md`: the Recently Closed button and what is recorded
