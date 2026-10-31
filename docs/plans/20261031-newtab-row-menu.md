@@ -54,17 +54,17 @@
 - Modify: `src/components/TabList.tsx`
 - Modify: `src/index.css`
 
-- [ ] in `DroppableNewTabRow`, wrap the existing right-click `ContextMenu.Root` in an outer `ContextMenu.Root` render prop and render the `...` menu's `ContextMenu.Portal` / `Content` as a sibling of the inner root, outside `TreeRow`
-- [ ] replace the two buttons in `actions` with one `MoreHorizontal` button (always rendered) with the pointerdown/click/keydown handling from Technical Details, opening the menu at the button's bottom-right
-- [ ] menu items: `<Archive size={14} className="mr-2" /> Archive` with `disabled={!onArchiveTabs}` and `<ArrowDown size={14} className="mr-2" /> Clear` with `disabled={!onClearTabs}`; update the prop comment on `onArchiveTabs` / `onClearTabs` (undefined now disables the item)
-- [ ] import `MoreHorizontal` from `lucide-react` if not imported; keep `Archive` / `ArrowDown` imports only if still used
-- [ ] in `src/index.css`, adapt `.arc-tab-list-action` for an icon button and keep it visible while its menu is open (modifier); update the CSS comment (say the menu overlay takes the row's hover); drop rules that only served the text labels
-- [ ] run `make lint && make test && make build` - must pass before task 2
+- [x] in `DroppableNewTabRow`, wrap the existing right-click `ContextMenu.Root` in an outer `ContextMenu.Root` render prop and render the `...` menu's `ContextMenu.Portal` / `Content` as a sibling of the inner root, outside `TreeRow`
+- [x] replace the two buttons in `actions` with one `MoreHorizontal` button (always rendered) with the pointerdown/click/keydown handling from Technical Details, opening the menu at the button's bottom-right
+- [x] menu items: `<Archive size={14} className="mr-2" /> Archive` with `disabled={!onArchiveTabs}` and `<ArrowDown size={14} className="mr-2" /> Clear` with `disabled={!onClearTabs}`; update the prop comment on `onArchiveTabs` / `onClearTabs` (undefined now disables the item)
+- [x] import `MoreHorizontal` from `lucide-react` if not imported; keep `Archive` / `ArrowDown` imports only if still used
+- [x] in `src/index.css`, adapt `.arc-tab-list-action` for an icon button and keep it visible while its menu is open (modifier); update the CSS comment (say the menu overlay takes the row's hover); drop rules that only served the text labels
+- [x] run `make lint && make test && make build` - must pass before task 2
 
 ### Task 2: Verify acceptance criteria
-- [ ] verify: one `...` button on the row; menu with Archive and Clear; Archive disabled with no Space folder; both disabled with no visible tabs
-- [ ] verify by reading the code: clicking `...` or a menu item does not trigger the row's New Tab click; Enter/Space on the focused button does not open a New Tab; the row stays the `end-of-list` drop target; right-click menu unchanged (right-click on `...` opens the row's right-click menu, acceptable); Tab from the row reaches `...` and Enter opens its menu, also with an empty Tab list
-- [ ] run full checks: `make lint && make test && make build`
+- [x] verify (by code reading; live UI check left to Post-Completion): one `...` button on the row; menu with Archive and Clear; Archive disabled with no Space folder; both disabled with no visible tabs
+- [x] verify by reading the code: clicking `...` or a menu item does not trigger the row's New Tab click; Enter/Space on the focused button does not open a New Tab; the row stays the `end-of-list` drop target; right-click menu unchanged (right-click on `...` opens the row's right-click menu, acceptable); Tab from the row reaches `...` and Enter opens its menu, also with an empty Tab list
+- [x] run full checks: `make lint && make test && make build`
 
 ### Task 3: [Final] Update documentation
 - [ ] `README.md` line 76: the "+ New Tab" row has a `...` menu with **Archive** and **Clear**; line 92: "Clear and Archive in the '+ New Tab' row's `...` menu"

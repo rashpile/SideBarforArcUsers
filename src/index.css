@@ -407,23 +407,26 @@ html, body, #root {
   opacity: 1;
 }
 
-/* Archive and Clear buttons on the "+ New Tab" row, shown on row hover */
+/* "..." menu button on the "+ New Tab" row, shown on row hover. While its menu is open
+   the menu overlay takes the row's :hover, so data-open keeps the button visible. */
 .arc-tab-list-action {
   color: var(--arc-muted);
-  font-size: 0.82em;
-  font-weight: 500;
   opacity: 0;
   pointer-events: none;
   transition: opacity 120ms ease;
 }
 
 .arc-new-tab-row:hover .arc-tab-list-action,
-.arc-new-tab-row:focus-within .arc-tab-list-action {
+.arc-new-tab-row:focus-within .arc-tab-list-action,
+.arc-tab-list-action[data-open] {
   opacity: 1;
   pointer-events: auto;
 }
 
-.arc-tab-list-action:hover {
+/* The row-actions prefix outranks `.arc-tree-row-actions button:not(:hover)`, which would
+   otherwise repaint the open button's background */
+.arc-tab-list-action:hover,
+.arc-tree-row-actions .arc-tab-list-action[data-open] {
   background: rgba(255, 255, 255, 0.32);
   color: var(--arc-text);
 }

@@ -53,7 +53,7 @@ import { AddToGroupDialog } from './AddToGroupDialog';
 import { ChangeGroupColorDialog } from './ChangeGroupColorDialog';
 import { ExportConflictDialog, ExportConflictMode } from './ExportConflictDialog';
 import { RenameGroupDialog } from './RenameGroupDialog';
-import { Globe, Volume2, Pin, Plus, X, Minus, Flag, FlagOff, Archive, ArrowDown, ArrowDownAZ, ArrowDownZA, Edit, Palette, FolderPlus, Copy, SquareStack, Bookmark, ExternalLink, Link, Check } from 'lucide-react';
+import { Globe, Volume2, Pin, Plus, X, Minus, Flag, FlagOff, Archive, ArrowDown, ArrowDownAZ, ArrowDownZA, MoreHorizontal, Edit, Palette, FolderPlus, Copy, SquareStack, Bookmark, ExternalLink, Link, Check } from 'lucide-react';
 import { getArcTabSectionItems } from '../utils/arcTabSection';
 import { getIndentPadding } from '../utils/indent';
 import { matchesFilter } from '../utils/searchParser';
@@ -566,8 +566,8 @@ interface DroppableNewTabRowProps
   showDropIndicator: boolean;
   showDropInto: boolean;
   menuContent: React.ReactNode;
-  onArchiveTabs?: () => void;  // Undefined hides the Archive button (no Space folder to archive to)
-  onClearTabs?: () => void;
+  onArchiveTabs?: () => void;  // Undefined disables the Archive item (no visible tabs or no Space folder to archive to)
+  onClearTabs?: () => void;  // Undefined disables the Clear item (no visible tabs)
 }
 
 const DroppableNewTabRow = forwardRef<HTMLDivElement, DroppableNewTabRowProps>(
@@ -602,80 +602,89 @@ const DroppableNewTabRow = forwardRef<HTMLDivElement, DroppableNewTabRowProps>(
 
     return (
       <ContextMenu.Root>
-        <ContextMenu.Trigger asChild>
-          <TreeRow
-            ref={setRefs}
-            depth={0}
-            icon={<Plus size={14} />}
-            title="New Tab"
-            hideChevronSlot
-            hasChildren={false}
-            role="button"
-            tabIndex={0}
-            onClick={onClick}
-            onKeyDown={(e) =>
-            {
-              if (e.key === 'Enter' || e.key === ' ')
-              {
-                e.preventDefault();
-                onClick();
-              }
-            }}
-            className={clsx(
-              "arc-new-tab-row cursor-pointer",
-              showDropInto
-                ? "bg-blue-100 dark:bg-blue-900/50 text-gray-700 dark:text-gray-200"
-                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-            )}
-            data-dnd-id="end-of-list"
-            actions={(onArchiveTabs || onClearTabs) && (
-              <div className="flex items-center gap-1">
-                {onArchiveTabs && (
-                  <button
-                    type="button"
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onArchiveTabs();
-                    }}
-                    className="arc-tab-list-action flex items-center gap-1 px-1.5 py-1 rounded"
-                    title="Archive tabs"
-                    aria-label="Archive tabs"
-                  >
-                    <Archive size={12} />
-                    <span>Archive</span>
-                  </button>
-                )}
-                {onClearTabs && (
-                  <button
-                    type="button"
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onClearTabs();
-                    }}
-                    className="arc-tab-list-action flex items-center gap-1 px-1.5 py-1 rounded"
-                    title="Clear tabs"
-                    aria-label="Clear tabs"
-                  >
-                    <ArrowDown size={12} />
-                    <span>Clear</span>
-                  </button>
-                )}
-              </div>
-            )}
-          >
-            {showDropIndicator && (
-              <div className="absolute left-0 right-0 top-0 h-0.5 bg-blue-500 z-20" />
-            )}
-            {showDropInto && (
-              <div className="absolute inset-0 rounded-md ring-2 ring-blue-500 pointer-events-none" />
-            )}
-          </TreeRow>
-        </ContextMenu.Trigger>
-        <ContextMenu.Portal>
-          <ContextMenu.Content>{menuContent}</ContextMenu.Content>
-        </ContextMenu.Portal>
+        {({ open: openActionsMenu, isOpen: isActionsMenuOpen }) => (
+          <>
+            <ContextMenu.Root>
+              <ContextMenu.Trigger asChild>
+                <TreeRow
+                  ref={setRefs}
+                  depth={0}
+                  icon={<Plus size={14} />}
+                  title="New Tab"
+                  hideChevronSlot
+                  hasChildren={false}
+                  role="button"
+                  tabIndex={0}
+                  onClick={onClick}
+                  onKeyDown={(e) =>
+                  {
+                    if (e.key === 'Enter' || e.key === ' ')
+                    {
+                      e.preventDefault();
+                      onClick();
+                    }
+                  }}
+                  className={clsx(
+                    "arc-new-tab-row cursor-pointer",
+                    showDropInto
+                      ? "bg-blue-100 dark:bg-blue-900/50 text-gray-700 dark:text-gray-200"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                  )}
+                  data-dnd-id="end-of-list"
+                  actions={
+                    <button
+                      type="button"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) =>
+                      {
+                        e.stopPropagation();
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        openActionsMenu(rect.right, rect.bottom);
+                      }}
+                      onKeyDown={(e) =>
+                      {
+                        // Keep the row's Enter/Space handler from opening a New Tab; the native button click still fires
+                        if (e.key === 'Enter' || e.key === ' ')
+                        {
+                          e.stopPropagation();
+                        }
+                      }}
+                      className="arc-tab-list-action flex items-center justify-center p-1 rounded"
+                      data-open={isActionsMenuOpen || undefined}
+                      title="Tab list actions"
+                      aria-label="Tab list actions"
+                      aria-haspopup="menu"
+                      aria-expanded={isActionsMenuOpen}
+                    >
+                      <MoreHorizontal size={14} />
+                    </button>
+                  }
+                >
+                  {showDropIndicator && (
+                    <div className="absolute left-0 right-0 top-0 h-0.5 bg-blue-500 z-20" />
+                  )}
+                  {showDropInto && (
+                    <div className="absolute inset-0 rounded-md ring-2 ring-blue-500 pointer-events-none" />
+                  )}
+                </TreeRow>
+              </ContextMenu.Trigger>
+              <ContextMenu.Portal>
+                <ContextMenu.Content>{menuContent}</ContextMenu.Content>
+              </ContextMenu.Portal>
+            </ContextMenu.Root>
+            {/* Outside TreeRow: portal events bubble along the React tree, so a menu inside the row would fire its New Tab click */}
+            <ContextMenu.Portal>
+              <ContextMenu.Content>
+                <ContextMenu.Item disabled={!onArchiveTabs} onSelect={() => onArchiveTabs?.()}>
+                  <Archive size={14} className="mr-2" /> Archive
+                </ContextMenu.Item>
+                <ContextMenu.Item disabled={!onClearTabs} onSelect={() => onClearTabs?.()}>
+                  <ArrowDown size={14} className="mr-2" /> Clear
+                </ContextMenu.Item>
+              </ContextMenu.Content>
+            </ContextMenu.Portal>
+          </>
+        )}
       </ContextMenu.Root>
     );
   }
