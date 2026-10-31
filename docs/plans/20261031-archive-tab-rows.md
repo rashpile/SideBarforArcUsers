@@ -168,17 +168,17 @@ export class TabArchiveCandidates
 - Modify: `src/components/ArchiveSection.tsx`
 - Modify: `src/components/TabList.tsx`
 
-- [ ] add `'archive'` to `DropZone`
-- [ ] `ArchiveSection`: one droppable (`id`/`data-dnd-id` `archive-section`, `zone: 'archive'`,
+- [x] add `'archive'` to `DropZone`
+- [x] `ArchiveSection`: one droppable (`id`/`data-dnd-id` `archive-section`, `zone: 'archive'`,
       `targetId: activeSpace.id`, `isFolder: true`, `canAccept` = `TAB_GROUP`/`TAB` only while the Space has
       a folder and `sourceZone === 'tabList'`) around the header and the expanded rows; works collapsed;
       hooks called before the `isHidden` early return
-- [ ] `ArchiveSection`: highlight while `overZone === 'archive'`; visibility unchanged (a hidden section is
+- [x] `ArchiveSection`: highlight while `overZone === 'archive'`; visibility unchanged (a hidden section is
       no drop target)
-- [ ] `TabList`: register a drop handler for `archive` (refuse a stale `targetId` or no folder; tab ids and
+- [x] `TabList`: register a drop handler for `archive` (refuse a stale `targetId` or no folder; tab ids and
       group ids from the drag items; `runManualArchive(candidates.pick(...))`; `clearSelection()`), unregister on
       unmount
-- [ ] no new tests (wiring; `pick` covered by task 1); run `make lint && make test && make build` - must
+- [x] no new tests (wiring; `pick` covered by task 1); run `make lint && make test && make build` - must
       pass before task 4
 
 ### Task 4: Verify acceptance criteria

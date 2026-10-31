@@ -8,7 +8,7 @@ import { SelectionItem } from '../contexts/SelectionContext';
 import { useSelection } from '../hooks/useSelection';
 import type { DropPosition } from '../utils/dragDrop';
 import { useUnifiedDnd, DropHandler } from '../contexts/UnifiedDndContext';
-import { DragData, DragFormat, DragItem, DropData, createTabDragData, createTabGroupDragData, createTabDragItem, createTabGroupDragItem, acceptsFormats, getPrimaryItem, hasFormat, collectUrlsFromDragItems, collectItemsFromDragData } from '../types/dragDrop';
+import { DragData, DragFormat, DragItem, DropData, createTabDragData, createTabGroupDragData, createTabDragItem, createTabGroupDragItem, acceptsFormats, getItemsByFormat, getPrimaryItem, hasFormat, collectUrlsFromDragItems, collectItemsFromDragData } from '../types/dragDrop';
 
 // Re-export DropPosition for components that need it
 export type { DropPosition };
@@ -2694,6 +2694,27 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
       runManualArchive(archiveCandidates.pick([clickedTabId], []));
     }
   }, [getSelectedItems, runManualArchive, pickSelectionToArchive, clearSelection, visibleTabs, archiveCandidates]);
+
+  // Drop on the Archive section: the dragged tabs and the tabs of dragged groups, without marked ones.
+  // A drop aimed at a Space that is no longer active would archive tabs the user can't see
+  const handleArchiveDrop: DropHandler = useCallback(async (dragData: DragData, dropData: DropData) =>
+  {
+    if (dropData.targetId !== activeSpace?.id || !activeSpaceFolderId) return;
+    const tabIds = getItemsByFormat(dragData, DragFormat.TAB)
+      .map(item => item.tab?.tabId)
+      .filter((id): id is number => id !== undefined);
+    const groupIds = getItemsByFormat(dragData, DragFormat.TAB_GROUP)
+      .map(item => item.tabGroup?.groupId)
+      .filter((id): id is number => id !== undefined);
+    runManualArchive(archiveCandidates.pick(tabIds, groupIds));
+    clearSelection();
+  }, [activeSpace, activeSpaceFolderId, runManualArchive, archiveCandidates, clearSelection]);
+
+  useEffect(() =>
+  {
+    registerDropHandler('archive', handleArchiveDrop);
+    return () => unregisterDropHandler('archive');
+  }, [registerDropHandler, unregisterDropHandler, handleArchiveDrop]);
 
   // Archive after the close-all confirmation: runs without Undo, since the window closes.
   // Tabs whose archive item fails stay open, and then the window and the toast survive
