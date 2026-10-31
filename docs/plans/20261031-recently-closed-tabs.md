@@ -234,12 +234,12 @@ records.
 - [x] run `make lint && make test && make build`
 
 ### Task 8: [Final] Update documentation
-- [ ] `README.md`: the Recently Closed button and what is recorded
-- [ ] `docs/changelog.md` entry; `src/data/changelog.ts` What's New entry
-- [ ] `docs/state-reference.md`: `recentlyClosedTabs` (local, owner `RecentlyClosedManager`) and `openTabPages` (session, owner background)
-- [ ] `docs/development.md` manager table: add `RecentlyClosedManager | recentlyClosedTabs (local)`
-- [ ] `PRIVACY.md` Local Storage section: closed tabs' URLs, titles, close times (up to 50 per Space, removed by Clear or deleting the Space, incognito never recorded) and the session page cache; check `docs/chrome-web-store-info.md` storage justification still fits
-- [ ] move this plan to `docs/plans/completed/`
+- [x] `README.md`: the Recently Closed button and what is recorded
+- [x] `docs/changelog.md` entry; `src/data/changelog.ts` What's New entry
+- [x] `docs/state-reference.md`: `recentlyClosedTabs` (local, owner `RecentlyClosedManager`) and `openTabPages` (session, owner background)
+- [x] `docs/development.md` manager table: add `RecentlyClosedManager | recentlyClosedTabs (local)`
+- [x] `PRIVACY.md` Local Storage section: closed tabs' URLs, titles, close times (up to 50 per Space, removed by Clear or deleting the Space, incognito never recorded) and the session page cache; check `docs/chrome-web-store-info.md` storage justification still fits
+- [x] move this plan to `docs/plans/completed/` (left in place: the orchestrator moves it at the end)
 
 ## Post-Completion
 

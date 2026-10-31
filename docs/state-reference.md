@@ -160,6 +160,18 @@ number  // epoch millis
 - Consumers: `TabAutoArchiver.start` skips the worker-start run when a run started less than one alarm period ago (tab events wake the worker often); `TabAutoArchiver.run` skips an alarm run within half a period (the worker-start run of the worker that alarm woke)
 - Instances: 1 per extension
 
+### `openTabPages`
+Page of each open tab, so a close can be recorded in Recently Closed (`tabs.onRemoved` gives no URL or title)
+```typescript
+Array<{ tabId: number, url: string, title: string, favIconUrl: string, incognito: boolean, spaceId?: string, associated: boolean }>
+```
+- Owner: `src/background.ts` through `OpenTabPages` (`src/stores/openTabPages.ts`, the only writer; writes serialized, unchanged entries not written)
+- Updates: `tabs.onCreated` and `tabs.onUpdated` (URL, title, icon) update the tab's page; `TabSpaceRegistry.register` sets `spaceId` (`onAssigned`); a new `tabAssociations_${windowId}` entry sets `associated`, which is never cleared, so the sidebar removing the association when the tab closes doesn't make it recordable; `tabs.onRemoved` takes the entry out and hands it to `closedTabRecord`
+- Seeding at worker start, after `TabSpaceRegistry.load`: live tabs are merged over the stored entries, which keep their `spaceId` and `associated`; entries of tabs that are not live are kept, since one of them may be the tab whose close woke the worker
+- Why session storage: a close often wakes the worker, and then the closed tab is gone from both the live tabs and `TabSpaceRegistry`. Session storage survives worker restarts and is cleared with the tab IDs (browser restart, extension reload or update)
+- Unreadable value: starts empty
+- Instances: 1 per extension
+
 ---
 
 ## Chrome Local Storage
@@ -363,6 +375,19 @@ string  // JSON of Record<spaceId, { bookmarks: boolean, archive: boolean }>
 - The toolbar text filter shows both sections expanded without writing this key
 - Instances: 1 per extension (shared across windows)
 
+### `recentlyClosedTabs`
+Recently closed tabs of each Space (Recently Closed button on the Space title)
+```typescript
+string  // JSON of Record<spaceId, Array<{ id: string, url: string, title: string, favIconUrl: string, closedAt: number }>>, newest first
+```
+- Owner: `src/managers/impl/recentlyClosedManager.ts` (`RecentlyClosedManager`, background, the only writer; writes serialized); the model is `RecentlyClosedTabs` in `src/stores/recentlyClosedTabs.ts`
+- Consumers: `src/App.tsx` (`SpaceTitleWrapper`, via `useChromeLocalStorage` parsed with `RecentlyClosedTabs.fromStored`, read-only) → `src/components/RecentlyClosedPopover.tsx`; reopen and Clear go through `src/managers/proxies/recentlyClosedProxy.ts`
+- Updates: `tabs.onRemoved` (window close included) adds a record when `closedTabRecord` (`src/utils/closedTabRecording.ts`) finds the tab's Space and the tab qualifies; the same URL in the same Space replaces the older record; at most 50 per Space, the oldest dropped. Reopen removes the record after `chrome.tabs.create` succeeds and registers the new tab in the record's Space; Clear empties the Space's list; a `spaces` change and the worker start drop the lists of deleted Spaces, and a close handled after its Space was deleted is dropped
+- Not recorded: tabs closed by auto-archive or the sidebar's Archive action (`expectArchiveClose` right before closing), tabs with a bookmark or Favorite association (`openTabPages.associated`), tabs replaced by a tab suspender's park page, incognito tabs, internal URLs (`chrome:`, `chrome-extension:`, `edge:`, `about:`, `devtools:`, `view-source:`, `chrome-search:`, empty). A parked tab is recorded by the page it stands for
+- Records hold no tab IDs, so they survive a browser restart
+- Unreadable value: parsed as empty, malformed records dropped. A failed read leaves the manager not loaded, and it writes nothing until the next worker start
+- Instances: 1 per extension (shared across windows)
+
 ---
 
 ## Browser localStorage
@@ -444,7 +469,8 @@ Lost on page reload or service worker restart.
 │  ├─ tabLastUsedAt                   (tab last-use times)        │
 │  ├─ attentionMarkedTabs             (marked tabs)               │
 │  ├─ attentionMarkedBookmarks        (marked bookmarks)          │
-│  └─ sectionCollapsedState           (per Space)                 │
+│  ├─ sectionCollapsedState           (per Space)                 │
+│  └─ recentlyClosedTabs              (closed tabs per Space)     │
 ├─────────────────────────────────────────────────────────────────┤
 │  browser localStorage (survives browser restart)                │
 │  └─ sidebar-* settings (10 keys)                                │
@@ -462,7 +488,8 @@ Lost on page reload or service worker restart.
 │  ├─ tabActivityActiveTabs           (active tab per window)     │
 │  ├─ tabActivitySessionStarted       (browser session marker)    │
 │  ├─ tabRestoreSessionStarted        (browser session marker)    │
-│  └─ autoArchiveLastRunAt            (last auto-archive run)     │
+│  ├─ autoArchiveLastRunAt            (last auto-archive run)     │
+│  └─ openTabPages                    (open tab pages)            │
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
