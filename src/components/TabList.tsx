@@ -44,6 +44,7 @@ import type { UndoableAction } from '../actions/types';
 import type { PinnedSite } from '../hooks/usePinnedSites';
 import { TabArchiveBatch } from '../utils/tabArchiveBatch';
 import type { ArchivableTab } from '../utils/tabArchiveBatch';
+import { TabArchiveCandidates } from '../utils/tabArchiveCandidates';
 import type { ArchiveBookmarksApi } from '../utils/archiveFolder';
 import { SpaceNavigatorDialog } from './SpaceNavigatorDialog';
 import { AddToGroupDialog } from './AddToGroupDialog';
@@ -93,6 +94,7 @@ interface DraggableTabProps {
   isUnvisited?: boolean;  // Opened in the background and not activated since; no dot on the active row
   isMarked?: boolean;
   onToggleMark?: (tabId: number) => void;
+  onArchive?: (tabId: number) => void;  // Undefined hides Archive (marked tab, empty page, no Space folder)
   onClose: (id: number) => void;
   onActivate: (id: number) => void;
   onDuplicate?: (id: number) => void;
@@ -117,6 +119,7 @@ interface DraggableTabProps {
   onCopyUrls?: () => void;
   selectionMarkAction?: 'mark' | 'clear';  // Undefined when the selection holds no tab that can be marked
   onToggleSelectionMark?: () => void;
+  onArchiveSelection?: () => void;  // Undefined when the selection holds nothing to archive
   // Drag attributes
   attributes?: DraggableAttributes;
   listeners?: SyntheticListenerMap;
@@ -139,6 +142,7 @@ const TabRow = forwardRef<HTMLDivElement, DraggableTabProps>(({
   isUnvisited,
   isMarked,
   onToggleMark,
+  onArchive,
   onClose,
   onActivate,
   onDuplicate,
@@ -162,6 +166,7 @@ const TabRow = forwardRef<HTMLDivElement, DraggableTabProps>(({
   onCopyUrls,
   selectionMarkAction,
   onToggleSelectionMark,
+  onArchiveSelection,
   attributes,
   listeners,
 }, ref) => {
@@ -192,6 +197,21 @@ const TabRow = forwardRef<HTMLDivElement, DraggableTabProps>(({
           {isMarked
             ? <FlagOff size={14} className="text-gray-700 dark:text-gray-200" />
             : <Flag size={14} className="text-gray-700 dark:text-gray-200" />}
+        </button>
+      )}
+      {onArchive && tab.id !== undefined && (
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) =>
+          {
+            e.stopPropagation();
+            if (tab.id !== undefined) onArchive(tab.id);
+          }}
+          className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 active:bg-gray-300 dark:active:bg-gray-500 rounded"
+          title="Archive tab"
+          aria-label="Archive tab"
+        >
+          <Archive size={14} className="text-gray-700 dark:text-gray-200" />
         </button>
       )}
       {isMarked && onToggleMark ? (
@@ -361,6 +381,11 @@ const TabRow = forwardRef<HTMLDivElement, DraggableTabProps>(({
                 </ContextMenu.Item>
               )}
               <ContextMenu.Separator />
+              {onArchiveSelection && (
+                <ContextMenu.Item onSelect={onArchiveSelection}>
+                  <Archive size={14} className="mr-2" /> Archive
+                </ContextMenu.Item>
+              )}
               <ContextMenu.Item danger onSelect={() => { if (tab.id) onClose(tab.id); }}>
                 <X size={14} className="mr-2" /> Close {selectionCount} Tabs
               </ContextMenu.Item>
@@ -441,6 +466,11 @@ const TabRow = forwardRef<HTMLDivElement, DraggableTabProps>(({
             onAddToBookmark || onOpenAddToGroupDialog || onOpenMoveToSpaceDialog || onMoveToNewWindow ||
             onCloseTabsBefore || onCloseTabsAfter || onCloseOthers) && (
             <ContextMenu.Separator />
+          )}
+          {onArchive && tab.id !== undefined && (
+            <ContextMenu.Item onSelect={() => onArchive(tab.id!)}>
+              <Archive size={14} className="mr-2" /> Archive
+            </ContextMenu.Item>
           )}
           <ContextMenu.Item danger onSelect={() => { if (tab.id) onClose(tab.id); }}>
             <X size={14} className="mr-2" /> Close
@@ -2609,12 +2639,11 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     }
   }, []);
 
-  // Archive button: archives and closes the tabs Clear would close (the visible ones, active and audible included,
-  // marked ones left open)
-  const handleArchiveAllTabs = useCallback(() =>
+  // Every manual archive (Archive button, row button, menu items, drop on the Archive section) runs here.
+  // It leaves the selection alone: archiving one unselected row must not drop an unrelated selection
+  const runManualArchive = useCallback((archiveTabs: ArchivableTab[]) =>
   {
     if (!activeSpaceFolderId || !windowId || archiveRunningRef.current) return;
-    const archiveTabs = visibleTabs.filter(isArchivableTab).filter(tab => !isTabMarked(tab.id));
     if (archiveTabs.length === 0) return;
 
     const tabIds = archiveTabs.map(tab => tab.id);
@@ -2628,8 +2657,43 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     runArchiveOnce(onPerformAction
       ? () => onPerformAction(action)
       : () => action.do().catch(error => console.error('[TabList] Failed to archive tabs:', error)));
+  }, [activeSpaceFolderId, windowId, closesWholeWindow, createArchiveTabsAction, runArchiveOnce, onPerformAction]);
+
+  // Archive button: archives and closes the tabs Clear would close (the visible ones, active and audible included,
+  // marked ones left open)
+  const handleArchiveAllTabs = useCallback(() =>
+  {
+    if (!activeSpaceFolderId || !windowId || archiveRunningRef.current) return;
+    runManualArchive(visibleTabs.filter(isArchivableTab).filter(tab => !isTabMarked(tab.id)));
     clearSelection();
-  }, [activeSpaceFolderId, windowId, visibleTabs, isTabMarked, closesWholeWindow, createArchiveTabsAction, runArchiveOnce, onPerformAction, clearSelection]);
+  }, [activeSpaceFolderId, windowId, visibleTabs, isTabMarked, runManualArchive, clearSelection]);
+
+  const archiveCandidates = useMemo(() => new TabArchiveCandidates(visibleTabs, isTabMarked), [visibleTabs, isTabMarked]);
+
+  const pickSelectionToArchive = useCallback(() =>
+  {
+    const { selectedTabs, selectedGroups } = getTabSelectionInfo();
+    return archiveCandidates.pick(
+      selectedTabs.map(tab => tab.id).filter((id): id is number => id !== undefined),
+      selectedGroups.map(group => group.id)
+    );
+  }, [getTabSelectionInfo, archiveCandidates]);
+
+  // Row button and single-tab menu item: like Close, a multi-selection archives the whole selection
+  const handleArchiveSelectedTabs = useCallback((clickedTabId: number) =>
+  {
+    if (getSelectedItems().length > 1)
+    {
+      runManualArchive(pickSelectionToArchive());
+      clearSelection();
+      return;
+    }
+    const clickedTab = visibleTabs.find(tab => tab.id === clickedTabId);
+    if (clickedTab && archiveCandidates.canArchiveRow(clickedTab))
+    {
+      runManualArchive(archiveCandidates.pick([clickedTabId], []));
+    }
+  }, [getSelectedItems, runManualArchive, pickSelectionToArchive, clearSelection, visibleTabs, archiveCandidates]);
 
   // Archive after the close-all confirmation: runs without Undo, since the window closes.
   // Tabs whose archive item fails stay open, and then the window and the toast survive
@@ -2761,6 +2825,18 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     clearSelection();
   };
 
+  // Worked out once per render for the multi-selection menu of every row
+  const selectionArchivePick = isMultiSelection && activeSpaceFolderId ? pickSelectionToArchive() : [];
+  const archiveSelection = selectionArchivePick.length > 0
+    ? () =>
+    {
+      runManualArchive(selectionArchivePick);
+      clearSelection();
+    }
+    : undefined;
+  const archiveRowHandler = (tab: chrome.tabs.Tab) =>
+    activeSpaceFolderId && archiveCandidates.canArchiveRow(tab) ? handleArchiveSelectedTabs : undefined;
+
   // Check if only groups are selected
   const onlyGroupsSelected = useCallback((): boolean =>
   {
@@ -2852,6 +2928,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
                   isUnvisited={isTabUnvisited(item.tab)}
                   isMarked={item.tab.id !== undefined && isTabMarked(item.tab.id)}
                   onToggleMark={toggleTabMark}
+                  onArchive={archiveRowHandler(item.tab)}
                   onClose={handleCloseSelectedTabs}
                   onActivate={activateTab}
                   onDuplicate={duplicateTab}
@@ -2875,6 +2952,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
                   onCopyUrls={handleCopyUrls}
                   selectionMarkAction={selectionMarkAction}
                   onToggleSelectionMark={toggleSelectionMark}
+                  onArchiveSelection={archiveSelection}
                 />
               );
             }
@@ -2906,6 +2984,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
                           isUnvisited={isTabUnvisited(tab)}
                           isMarked={tab.id !== undefined && isTabMarked(tab.id)}
                           onToggleMark={toggleTabMark}
+                          onArchive={archiveRowHandler(tab)}
                           onClose={handleCloseSelectedTabs}
                           onActivate={activateTab}
                           onDuplicate={duplicateTab}
@@ -2929,6 +3008,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
                           onCopyUrls={handleCopyUrls}
                           selectionMarkAction={selectionMarkAction}
                           onToggleSelectionMark={toggleSelectionMark}
+                          onArchiveSelection={archiveSelection}
                         />
                       );
                     })}
@@ -3017,6 +3097,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
                         isUnvisited={isTabUnvisited(tab)}
                         isMarked={tab.id !== undefined && isTabMarked(tab.id)}
                         onToggleMark={toggleTabMark}
+                        onArchive={archiveRowHandler(tab)}
                         onClose={handleCloseSelectedTabs}
                         onActivate={activateTab}
                         onDuplicate={duplicateTab}
@@ -3040,6 +3121,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
                         onCopyUrls={handleCopyUrls}
                         selectionMarkAction={selectionMarkAction}
                         onToggleSelectionMark={toggleSelectionMark}
+                        onArchiveSelection={archiveSelection}
                       />
                     );
                   })}

@@ -146,19 +146,19 @@ export class TabArchiveCandidates
 **Files:**
 - Modify: `src/components/TabList.tsx`
 
-- [ ] extract `runManualArchive(tabsToArchive)` from `handleArchiveAllTabs` (folder/window/busy/empty
+- [x] extract `runManualArchive(tabsToArchive)` from `handleArchiveAllTabs` (folder/window/busy/empty
       checks, `closesWholeWindow` confirm, `createArchiveTabsAction` + `runArchiveOnce`; no `clearSelection`
       inside); `handleArchiveAllTabs` uses it and keeps its own `clearSelection()`
-- [ ] add `candidates` (`TabArchiveCandidates` over `visibleTabs` and `isTabMarked`) and
+- [x] add `candidates` (`TabArchiveCandidates` over `visibleTabs` and `isTabMarked`) and
       `handleArchiveSelectedTabs(clickedTabId)` (multi-selection → `pick` of selected tabs and groups +
       `clearSelection`; else the clicked tab)
-- [ ] add `onArchive` to `TabRow` props: hover button between Mark and Close (lucide `Archive`,
+- [x] add `onArchive` to `TabRow` props: hover button between Mark and Close (lucide `Archive`,
       `title`/`aria-label` "Archive tab"), single-tab menu item **Archive** above **Close**; pass it at all
       three `TabRow` call sites only when `activeSpaceFolderId` is set and `candidates.canArchiveRow(tab)`
-- [ ] add `onArchiveSelection` to `TabRow` props: multi-selection menu item **Archive** above
+- [x] add `onArchiveSelection` to `TabRow` props: multi-selection menu item **Archive** above
       "Close N Tabs"; passed when the Space has a folder and the selection's pick (computed once per render)
       is non-empty
-- [ ] no new tests (UI wiring; the decision is covered by task 1); run `make lint && make test && make build`
+- [x] no new tests (UI wiring; the decision is covered by task 1); run `make lint && make test && make build`
       - must pass before task 3
 
 ### Task 3: Drop tabs onto the Archive section
