@@ -17,7 +17,7 @@ export const CHANGELOG: Record<string, string[]> = {
     'New: collapse the Bookmarks section from the space title - open bookmark pages stay visible',
     'New: "Mark unvisited tabs" setting (Settings > Appearance, on by default) - a dot marks tabs opened in the background until you first switch to them',
     'New: "Highlight tabs by last use" setting (Settings > Appearance, on by default) - tabs you left recently get a stronger background in the Tab list, fading over 3 hours; pick White, Accent, Cooling or Trail, or turn it off',
-    'New: Archive button next to Clear on the "+ New Tab" row - saves the Tab list to the Archive and closes it, with Undo',
+    'New: "..." menu on the "+ New Tab" row with Archive and Clear - Archive saves the Tab list to the Archive and closes it, with Undo',
     'New: Tab Switcher and Space Switcher - hold the modifier and press the shortcut to step through tabs or Spaces by last use, release to switch. Set the shortcuts in chrome://extensions/shortcuts',
     'Removed: Space Navigator (Cmd+Shift+S) - the Space Switcher replaces it',
     'New: search button on a bookmark folder row - hover or click it to see the folder\'s recently used pages, with search',

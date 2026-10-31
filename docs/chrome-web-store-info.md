@@ -13,7 +13,7 @@ I missed Arc's sidebar after switching to Chrome in how Arc puts favorites, book
 
 - Arc-Style Unified Sidebar - Pinned favorites, bookmarks, and tabs in one vertical panel.
 
-- Arc-Style Auto-Archive - Optionally close tabs you haven't used for 12 hours to 30 days. Unused tabs are saved to the space's Archive, where you can search them and reopen them with one click; open bookmark pages simply close and keep their bookmark. Off by default. To clean up the tab list right away, the Archive button next to Clear saves all its tabs to the Archive and closes them, with Undo.
+- Arc-Style Auto-Archive - Optionally close tabs you haven't used for 12 hours to 30 days. Unused tabs are saved to the space's Archive, where you can search them and reopen them with one click; open bookmark pages simply close and keep their bookmark. Off by default. To clean up the tab list right away, Archive in the "+ New Tab" row's `...` menu saves all its tabs to the Archive and closes them, with Undo.
 
 - Tab Age Highlight - Tabs you left recently get a stronger background in the tab list, so you can find where you just were. The highlight fades over 3 hours. Four looks: White, Accent, Cooling and Trail. On by default; turn it off in Settings.
 

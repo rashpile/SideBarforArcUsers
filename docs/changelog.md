@@ -21,7 +21,7 @@
 - New: "Highlight tabs by last use" setting (Settings > Appearance, on by default) - Tab list rows get a stronger background the more recently you left the tab, fading out over 3 hours; looks: White, Accent, Cooling, Trail, or Off. Accent and Trail use the Space colour when it tints the sidebar
 - New: "Archive tabs after" setting (Settings > Behaviour, off by default) - tabs unused for 12 hours to 30 days are saved to the Space's `asd_Archive` bookmark folder and closed; open bookmark pages close and keep their bookmark
 - New: Archive section between Bookmarks and Tabs - expand it to list archived tabs, newest first, and search them from the header row; click one to reopen it
-- New: Archive button next to Clear on the "+ New Tab" row - saves the Tab list's tabs to the Space's Archive and closes them right away; Undo reopens them and removes the new archive items
+- New: `...` menu on the "+ New Tab" row with Archive and Clear, replacing the Clear button. Archive saves the Tab list's tabs to the Space's Archive and closes them right away; Undo reopens them and removes the new archive items
 - New: collapse the Bookmarks section with the chevron on the Space title; collapsed, it still shows the open bookmark pages
 - New: double-click a bookmark (Arc mode) or a Favorite whose tab has moved to another page to load the bookmarked page back in that tab
 - Fixed: double-clicking a bookmark or Favorite with no open tab no longer opens two tabs

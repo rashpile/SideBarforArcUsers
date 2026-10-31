@@ -54,7 +54,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
   // Handler for menu button click
   const handleMenuButtonClick = (
     e: React.MouseEvent<HTMLButtonElement>,
-    openMenu: (x: number, y: number) => void
+    openMenu: (anchorRect: DOMRect) => void
   ) =>
   {
     e.stopPropagation();
@@ -64,8 +64,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
       menuJustClosedRef.current = false;
       return;
     }
-    const rect = e.currentTarget.getBoundingClientRect();
-    openMenu(rect.right, rect.bottom);
+    openMenu(e.currentTarget.getBoundingClientRect());
   };
 
   // Enter/Space on the focused toggle (chevron + label) toggles the section
@@ -162,7 +161,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
   // When showMenuButton is true, use button click
   return (
     <ContextMenu.Root>
-      {({ open: openMenu, isOpen: isMenuOpen }) => (
+      {({ openAtAnchor: openMenu, isOpen: isMenuOpen }) => (
         <>
           {renderHeaderRow(
             <button

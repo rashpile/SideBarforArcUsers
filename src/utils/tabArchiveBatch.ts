@@ -1,5 +1,5 @@
-// Saves a set of tabs into one Space's archive for the Tab list's
-// Archive button. Pure logic over an injected bookmarks API: it decides which
+// Saves a set of tabs into one Space's archive for manual archiving
+// (the "+ New Tab" row's Archive, tab rows, drops on the Archive section). Pure logic over an injected bookmarks API: it decides which
 // tabs may close and remembers the archive items it created, so Undo can remove
 // them again. Closing the tabs is the caller's job.
 

@@ -73,7 +73,7 @@ Everything is stored in Chrome: bookmarks for Spaces, pinned pages, the archive 
 
 - A dot at the left edge marks a tab opened in the background (`Cmd+Click`, "Open link in new tab") until you first switch to it. Turn it off with **Mark unvisited tabs** in Settings
 - Drag to reorder, click to switch. On hover, a flag button marks the tab for attention, the Archive button saves it to the Archive and closes it, and X closes it. Marked tabs and empty pages have no Archive button, and neither does a Space without a bookmark folder
-- "+ New Tab" row at the bottom, with **Clear** (close the list's tabs) and **Archive** (save them to the Archive, then close). Both can be undone
+- "+ New Tab" row at the bottom. Its `...` menu has **Archive** (save the list's tabs to the Archive, then close them) and **Clear** (close them). Both can be undone. Archive is grayed out in a Space without a bookmark folder
 - Right-click: Pin to Sidebar, Add to Group, Add to Bookmark, Move to New Window, Duplicate, Mark for Attention, Archive, Close, Close Tabs Before / After / Other Tabs
 - With several tabs selected, **Archive** in the right-click menu archives them all; marked tabs stay open. Every Archive can be undone
 - Sort by domain, then title (A-Z or Z-A)
@@ -89,7 +89,7 @@ Hover a tab or a bookmark and click the flag button, or right-click it and pick 
 
 - With several tabs or bookmarks selected, one item applies to all of them: if any is unmarked it marks them all, otherwise it clears them all. Folders can't be marked
 - On a marked tab the close button shows `-` instead of `x`. Click it to clear the mark; the tab stays open
-- Commands that close many tabs at once leave marked tabs open: Close Tabs Before / After, Close Other Tabs, closing a multi-selection, Close Tabs in Group, Clear and Archive on the "+ New Tab" row, archiving a multi-selection or dropping it on the Archive, and Close All Tabs In Space. A tab's own **Close** still closes it
+- Commands that close many tabs at once leave marked tabs open: Close Tabs Before / After, Close Other Tabs, closing a multi-selection, Close Tabs in Group, Clear and Archive in the "+ New Tab" row's `...` menu, archiving a multi-selection or dropping it on the Archive, and Close All Tabs In Space. A tab's own **Close** still closes it
 - Auto-archive never closes a marked tab. A marked bookmark doesn't keep its open tab from being archived
 - Marks survive closing the sidebar, an extension restart and a browser restart. Incognito tabs can't be marked
 
