@@ -76,6 +76,8 @@ Everything is stored in Chrome: bookmarks for Spaces, pinned pages, the archive 
 - "+ New Tab" row at the bottom, with **Clear** (close the list's tabs) and **Archive** (save them to the Archive, then close). Both can be undone
 - Right-click: Pin to Sidebar, Add to Group, Add to Bookmark, Move to New Window, Duplicate, Mark for Attention, Close, Close Tabs Before / After / Other Tabs
 - Sort by domain, then title (A-Z or Z-A)
+- **Recently Closed**: a clock button on the Space title, shown on hover when the Space has closed tabs. Hover or click it for the Space's recently closed tabs, newest first, with the time each was closed. Click one to reopen it in the current window, in that Space (without its Back/Forward history). **Clear** empties the Space's list. Up to 50 tabs per Space are kept, across browser restarts; closing a page again replaces its older entry
+  - Not recorded: tabs closed by auto-archive or the Archive button (they are in the Archive), tabs of bookmarks and Favorites, tabs a tab suspender replaces with its park page, incognito tabs and internal pages (`chrome://`, the New Tab page and the like)
 - Chrome tab groups show with their color and title. Group menu: New Tab, Sort by Domain, Save to Bookmarks, Rename, Change Color, Close All. Drag tabs in and out of groups, reorder groups, drop a group on the bookmark tree to save it as a folder
 
 ### Mark for Attention

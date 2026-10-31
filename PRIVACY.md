@@ -14,6 +14,8 @@ The extension stores the following data locally on your device using Chrome's st
 - AI naming settings, including the API key you enter, if you configure AI naming
 - The URL, window, position in the window, and last-use times of each open tab, and whether you have switched to it since it was opened, recorded while "Archive tabs after", "Highlight tabs by last use" or "Mark unvisited tabs" is turned on, so the extension knows how long a tab has been unused, how recently you left it and which tabs you haven't looked at yet (stored in `chrome.storage.local`; incognito tabs are never recorded). "Highlight tabs by last use" and "Mark unvisited tabs" are on by default, so the extension records them unless you turn both off. Setting "Archive tabs after" to "Never", "Highlight tabs by last use" to "Off" and turning "Mark unvisited tabs" off deletes them
 - The URL, window and position in the window of each tab you mark with "Mark for Attention", and the IDs of bookmarks you mark, so the marks survive a browser restart (stored in `chrome.storage.local`; incognito tabs can't be marked). Clearing a mark, closing the tab or deleting the bookmark deletes its entry
+- The URL, title and close time of tabs you close, up to 50 per Space, for the Recently Closed list (stored in `chrome.storage.local`). Clear in the Recently Closed list or deleting the Space deletes them. Incognito tabs are never recorded
+- The URL, title and Space of each open tab, so a close can be recorded after the extension's background worker has slept (stored in `chrome.storage.session`, which Chrome clears when the browser closes; incognito tabs are kept out of the Recently Closed list)
 
 This data stays on your device and is not accessible to the developer or any third party.
 

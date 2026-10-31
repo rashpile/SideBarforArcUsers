@@ -1,6 +1,7 @@
 import { UndoableAction } from './types';
 import { truncateTitle } from '../utils/truncateTitle';
 import { tabSpaceRegistryProxy } from '../managers/proxies/tabSpaceRegistryProxy';
+import { recentlyClosedProxy } from '../managers/proxies/recentlyClosedProxy';
 import { reportTabReopenedByUndo } from '../utils/tabReopenedByUndo';
 
 interface TabSnapshot
@@ -163,6 +164,9 @@ export class CloseTabAction implements UndoableAction
         if (snapshot.spaceId)
         {
           await tabSpaceRegistryProxy.register(this.windowId, newTab.id, snapshot.spaceId);
+          // The close put the page in Recently Closed; it is open again
+          recentlyClosedProxy.forgetReopened(snapshot.spaceId, snapshot.url)
+            .catch((error) => console.error('[CloseTabAction] failed to drop the Recently Closed record:', error));
         }
 
         if (import.meta.env.DEV)

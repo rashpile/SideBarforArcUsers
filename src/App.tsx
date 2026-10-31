@@ -32,10 +32,14 @@ import { UnifiedDragOverlay } from './components/UnifiedDragOverlay';
 import { SpaceDialogs } from './components/SpaceDialogs';
 import { useFontSize } from './contexts/FontSizeContext';
 import { getSpaceBgColor, getSpaceAccentRgb } from './utils/groupColors';
-import { Settings, Info, Upload, Download, RefreshCw, Undo2, Sparkles, Search } from 'lucide-react';
+import { Settings, Info, Upload, Download, RefreshCw, Undo2, Sparkles, Search, History } from 'lucide-react';
 import { SectionHeader } from './components/SectionHeader';
 import { FolderRecentPopover, useFolderPeek, openPeekBookmark } from './components/FolderRecentPopover';
 import { BookmarkRecency, BookmarkRecencyRecord, BOOKMARK_RECENCY_KEY } from './stores/bookmarkRecencyStore';
+import { RecentlyClosedPopover } from './components/RecentlyClosedPopover';
+import { RecentlyClosedTabs, ClosedTabRecord } from './stores/recentlyClosedTabs';
+import { RECENTLY_CLOSED_TABS_KEY } from './managers/shared/recentlyClosedApi';
+import { recentlyClosedProxy } from './managers/proxies/recentlyClosedProxy';
 import { SpaceContextMenuContent } from './components/SpaceContextMenuContent';
 import { lastAudibleTrackerProxy } from './managers/proxies/lastAudibleTrackerProxy';
 import { useFollowActiveTab } from './hooks/useFollowActiveTab';
@@ -268,10 +272,10 @@ interface SpaceTitleProps
   onCreateFolder?: () => void;
   bookmarksCollapsed: boolean;  // Bookmarks section as shown (chevron direction)
   onToggleBookmarks?: () => void;  // Omitted while the text filter shows the section expanded
-  peekButton?: React.ReactNode;  // Search recent pages of the Space folder, before the "..." button
+  headerActions?: React.ReactNode;  // Search recent pages and Recently Closed buttons, before the "..." button
 }
 
-const SpaceTitle: React.FC<SpaceTitleProps> = ({ onEditSpace, onDeleteSpace, onCloseAllTabs, onCreateFolder, bookmarksCollapsed, onToggleBookmarks, peekButton }) =>
+const SpaceTitle: React.FC<SpaceTitleProps> = ({ onEditSpace, onDeleteSpace, onCloseAllTabs, onCreateFolder, bookmarksCollapsed, onToggleBookmarks, headerActions }) =>
 {
   const { spaces, activeSpace } = useSpacesContext();
   const fontSize = useFontSize();
@@ -312,7 +316,7 @@ const SpaceTitle: React.FC<SpaceTitleProps> = ({ onEditSpace, onDeleteSpace, onC
       className="arc-space-title"
       collapsed={bookmarksCollapsed}
       onToggleCollapsed={onToggleBookmarks}
-      actions={peekButton}
+      actions={headerActions}
     />
   );
 };
@@ -378,6 +382,62 @@ const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({
     >
       <Search size={peekIconSize} />
     </button>
+  ) : undefined;
+
+  // Read-only: RecentlyClosedManager in background is the only writer
+  const [recentlyClosed] = useChromeLocalStorage<RecentlyClosedTabs>(
+    RECENTLY_CLOSED_TABS_KEY,
+    RecentlyClosedTabs.empty(),
+    { parse: raw => RecentlyClosedTabs.fromStored(raw) }
+  );
+  const closedRecords = recentlyClosed.forSpace(activeSpaceId);
+  const hasClosedRecords = closedRecords.length > 0;
+  // Disabled when the list empties, so the popover closes and doesn't pop up again with the next record
+  const closedPeek = useFolderPeek(hasClosedRecords && !dragActive);
+
+  const handleReopenClosed = (record: ClosedTabRecord) =>
+  {
+    closedPeek.close();
+    if (!windowId) return;
+    recentlyClosedProxy.reopen(windowId, activeSpaceId, record.id).catch(error =>
+    {
+      if (import.meta.env.DEV)
+      {
+        console.error('Failed to reopen closed tab:', error);
+      }
+    });
+  };
+
+  const handleClearClosed = () =>
+  {
+    closedPeek.close();
+    recentlyClosedProxy.clear(activeSpaceId).catch(error =>
+    {
+      if (import.meta.env.DEV)
+      {
+        console.error('Failed to clear recently closed tabs:', error);
+      }
+    });
+  };
+
+  const recentlyClosedButton = hasClosedRecords ? (
+    <button
+      onPointerDown={(e) => e.stopPropagation()}
+      {...closedPeek.triggerHandlers}
+      className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"
+      title="Recently closed tabs"
+      aria-label="Recently closed tabs"
+      aria-expanded={!!closedPeek.anchorRect}
+    >
+      <History size={peekIconSize} />
+    </button>
+  ) : undefined;
+
+  const headerActions = peekButton || recentlyClosedButton ? (
+    <>
+      {peekButton}
+      {recentlyClosedButton}
+    </>
   ) : undefined;
 
   // The Space title toggles the Bookmarks section; keyed like SidebarContent's tree
@@ -453,7 +513,7 @@ const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({
         onCreateFolder={spaceRoot ? handleCreateFolder : undefined}
         bookmarksCollapsed={bookmarksCollapsed}
         onToggleBookmarks={onToggleSection && handleToggleBookmarks}
-        peekButton={peekButton}
+        headerActions={headerActions}
       />
       {peek.anchorRect && spaceRoot && (
         <FolderRecentPopover
@@ -466,6 +526,19 @@ const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({
           onClose={peek.close}
           onPointerEnter={peek.popoverHandlers.onPointerEnter}
           onPointerLeave={peek.popoverHandlers.onPointerLeave}
+        />
+      )}
+      {closedPeek.anchorRect && hasClosedRecords && (
+        <RecentlyClosedPopover
+          spaceName={activeSpace.name}
+          records={closedRecords}
+          anchorRect={closedPeek.anchorRect}
+          popoverRef={closedPeek.popoverRef}
+          onReopen={handleReopenClosed}
+          onClear={handleClearClosed}
+          onClose={closedPeek.close}
+          onPointerEnter={closedPeek.popoverHandlers.onPointerEnter}
+          onPointerLeave={closedPeek.popoverHandlers.onPointerLeave}
         />
       )}
       <BookmarkCreateFolderModal

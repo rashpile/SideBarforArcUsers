@@ -8,6 +8,8 @@ import type { ArchivableTab, TabArchiveBatch, TabArchiveResult } from '../utils/
 import { truncateTitle } from '../utils/truncateTitle.ts';
 
 export type CloseActionFactory = (tabIds: number[]) => UndoableAction;
+/** Runs right before the tabs close (the app tells background not to record them as Recently Closed). */
+export type BeforeArchiveClose = (tabIds: number[]) => Promise<void>;
 
 export class ArchiveTabsAction implements UndoableAction
 {
@@ -16,19 +18,22 @@ export class ArchiveTabsAction implements UndoableAction
   #spaceFolderId: string;
   #batch: TabArchiveBatch;
   #createCloseAction: CloseActionFactory;
+  #beforeClose: BeforeArchiveClose;
   #closeAction: UndoableAction | null = null;
 
   constructor(
     tabs: readonly ArchivableTab[],
     spaceFolderId: string,
     batch: TabArchiveBatch,
-    createCloseAction: CloseActionFactory
+    createCloseAction: CloseActionFactory,
+    beforeClose: BeforeArchiveClose = async () => {}
   )
   {
     this.#tabs = tabs;
     this.#spaceFolderId = spaceFolderId;
     this.#batch = batch;
     this.#createCloseAction = createCloseAction;
+    this.#beforeClose = beforeClose;
   }
 
   async do(): Promise<void>
@@ -43,6 +48,7 @@ export class ArchiveTabsAction implements UndoableAction
       return;
     }
 
+    await this.#beforeClose([...result.closableTabIds]);
     const closeAction = this.#createCloseAction([...result.closableTabIds]);
     this.#closeAction = closeAction;
     await closeAction.do();

@@ -2,6 +2,7 @@
 
 ## Latest Version
 
+- New: Recently Closed button on the Space title (shown on hover when the Space has closed tabs) - hover or click it for the Space's recently closed tabs, newest first, with the time each was closed. Click one to reopen it in the current window and that Space, without its Back/Forward history; Clear empties the list. Up to 50 per Space, kept across browser restarts; the same page closed again replaces its older entry. Tabs closed by auto-archive or the Archive button, bookmark and Favorite tabs, tabs a tab suspender replaces with its park page, incognito tabs and internal pages are not recorded. Deleting a Space deletes its list
 - Fixed: an invalid URL in New Bookmark shows its error only in the dialog; it no longer stays under the Bookmarks tree after the dialog closes
 - New: the search button on the Space title (hover or click, Arc style) shows the recently used pages of the whole Space folder, newest first, with search, like the button on a folder row
 - Changed: hovering a tab or bookmark shows a flag button that marks it for attention or clears the mark, in place of the Pin button. Pin to Sidebar stays in the right-click menu and is now also in a single bookmark's menu and in the menu of a selection of several bookmarks
