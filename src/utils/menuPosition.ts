@@ -43,6 +43,24 @@ export function placeMenuAtPoint(point: MenuPoint, size: MenuSize, viewport: Men
   return { x, y };
 }
 
+// Menu opened from a button: below the button, or above it when the bottom
+// edge is too close. Never on top of it: a second click on the button spot
+// would otherwise land on a menu item and run it.
+export function placeMenuAtAnchor(anchorRect: MenuAnchorRect, size: MenuSize, viewport: MenuSize): MenuPoint
+{
+  const margin = MENU_VIEWPORT_MARGIN;
+  let x = anchorRect.right;
+  if (x + size.width > viewport.width - margin)
+  {
+    x = Math.max(margin, viewport.width - size.width - margin);
+  }
+
+  const y = anchorRect.bottom + size.height <= viewport.height - margin
+    ? anchorRect.bottom
+    : Math.max(margin, anchorRect.top - size.height);
+  return { x, y };
+}
+
 // Submenu beside its trigger row: right side first, then left. In a narrow
 // side panel neither side fits; then the panel goes below or above the row and
 // never covers it, because the hover-opened panel would otherwise put one of its

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { MENU_VIEWPORT_MARGIN, placeMenuAtPoint, placeSubmenu } from '../src/utils/menuPosition.ts';
+import { MENU_VIEWPORT_MARGIN, placeMenuAtAnchor, placeMenuAtPoint, placeSubmenu } from '../src/utils/menuPosition.ts';
 
 const SUBMENU = { width: 220, height: 64 };
 
@@ -85,4 +85,42 @@ test('root menu keeps the cursor position when it fits and clamps at the right a
     placeMenuAtPoint({ x: 350, y: 250 }, size, viewport),
     { x: 400 - 200 - MENU_VIEWPORT_MARGIN, y: 300 - 150 - MENU_VIEWPORT_MARGIN }
   );
+});
+
+const BUTTON_MENU = { width: 160, height: 70 };
+
+function buttonAt(left, top, size = 22)
+{
+  return { left, right: left + size, top, bottom: top + size };
+}
+
+test('button menu opens below the button at its right edge when it fits', () =>
+{
+  const anchor = buttonAt(100, 50);
+  const result = placeMenuAtAnchor(anchor, BUTTON_MENU, { width: 800, height: 800 });
+
+  assert.deepEqual(result, { x: anchor.right, y: anchor.bottom });
+});
+
+test('button menu near the bottom edge goes above the button and does not cover it', () =>
+{
+  const viewport = { width: 300, height: 600 };
+  // Right-aligned button just above a thin bar: the menu fits neither below nor at the right
+  const anchor = buttonAt(270, 560);
+  const result = placeMenuAtAnchor(anchor, BUTTON_MENU, viewport);
+
+  assert.equal(result.y, anchor.top - BUTTON_MENU.height);
+  assert.equal(result.x, viewport.width - BUTTON_MENU.width - MENU_VIEWPORT_MARGIN);
+  assert.equal(overlaps(anchor, result, BUTTON_MENU), false);
+});
+
+test('right-aligned button menu with room below is clamped horizontally and does not cover the button', () =>
+{
+  const viewport = { width: 300, height: 600 };
+  const anchor = buttonAt(270, 100);
+  const result = placeMenuAtAnchor(anchor, BUTTON_MENU, viewport);
+
+  assert.equal(result.y, anchor.bottom);
+  assert.equal(result.x, viewport.width - BUTTON_MENU.width - MENU_VIEWPORT_MARGIN);
+  assert.equal(overlaps(anchor, result, BUTTON_MENU), false);
 });

@@ -602,7 +602,7 @@ const DroppableNewTabRow = forwardRef<HTMLDivElement, DroppableNewTabRowProps>(
 
     return (
       <ContextMenu.Root>
-        {({ open: openActionsMenu, isOpen: isActionsMenuOpen }) => (
+        {({ openAtAnchor: openActionsMenu, isOpen: isActionsMenuOpen }) => (
           <>
             <ContextMenu.Root>
               <ContextMenu.Trigger asChild>
@@ -638,8 +638,7 @@ const DroppableNewTabRow = forwardRef<HTMLDivElement, DroppableNewTabRowProps>(
                       onClick={(e) =>
                       {
                         e.stopPropagation();
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        openActionsMenu(rect.right, rect.bottom);
+                        openActionsMenu(e.currentTarget.getBoundingClientRect());
                       }}
                       onKeyDown={(e) =>
                       {

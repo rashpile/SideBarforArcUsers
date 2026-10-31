@@ -24,7 +24,7 @@ import clsx from 'clsx';
 import { ChevronRight } from 'lucide-react';
 import { useFontSize } from '../../contexts/FontSizeContext';
 import { Item as BaseItem, Separator, Overlay, useEscapeKey, menuContainerClass } from './MenuBase';
-import { placeMenuAtPoint, placeSubmenu, MenuPoint } from '../../utils/menuPosition';
+import { placeMenuAtAnchor, placeMenuAtPoint, placeSubmenu, MenuAnchorRect, MenuPoint } from '../../utils/menuPosition';
 import { SubmenuHoverTimer } from '../../utils/submenuHoverTimer';
 
 // Re-export Separator (Item is wrapped below to add close behavior)
@@ -35,7 +35,9 @@ interface ContextMenuState
 {
   isOpen: boolean;
   position: { x: number; y: number };
+  anchorRect: MenuAnchorRect | null;
   open: (x: number, y: number) => void;
+  openAtAnchor: (anchorRect: MenuAnchorRect) => void;
   close: () => void;
 }
 
@@ -56,6 +58,8 @@ interface RootRenderProps
 {
   isOpen: boolean;
   open: (x: number, y: number) => void;
+  // For a menu opened by a button: placed below or above the button, never over it
+  openAtAnchor: (anchorRect: MenuAnchorRect) => void;
   close: () => void;
 }
 
@@ -68,10 +72,19 @@ export const Root = ({ children }: RootProps) =>
 {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [anchorRect, setAnchorRect] = useState<MenuAnchorRect | null>(null);
 
   const open = useCallback((x: number, y: number) =>
   {
     setPosition({ x, y });
+    setAnchorRect(null);
+    setIsOpen(true);
+  }, []);
+
+  const openAtAnchor = useCallback((rect: MenuAnchorRect) =>
+  {
+    setPosition({ x: rect.right, y: rect.bottom });
+    setAnchorRect({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom });
     setIsOpen(true);
   }, []);
 
@@ -80,10 +93,10 @@ export const Root = ({ children }: RootProps) =>
     setIsOpen(false);
   }, []);
 
-  const renderProps: RootRenderProps = { isOpen, open, close };
+  const renderProps: RootRenderProps = { isOpen, open, openAtAnchor, close };
 
   return (
-    <ContextMenuContext.Provider value={{ isOpen, position, open, close }}>
+    <ContextMenuContext.Provider value={{ isOpen, position, anchorRect, open, openAtAnchor, close }}>
       {typeof children === 'function' ? children(renderProps) : children}
     </ContextMenuContext.Provider>
   );
@@ -154,7 +167,7 @@ interface ContentProps extends HTMLAttributes<HTMLDivElement>
 export const Content = forwardRef<HTMLDivElement, ContentProps>(
   ({ children, className, style, ...props }, ref) =>
   {
-    const { isOpen, position, close } = useContextMenuState();
+    const { isOpen, position, anchorRect, close } = useContextMenuState();
     const fontSize = useFontSize();
     const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -169,12 +182,12 @@ export const Content = forwardRef<HTMLDivElement, ContentProps>(
       if (!isOpen || !menuRef.current) return;
 
       const rect = menuRef.current.getBoundingClientRect();
-      setAdjustedPosition(placeMenuAtPoint(
-        position,
-        { width: rect.width, height: rect.height },
-        { width: window.innerWidth, height: window.innerHeight }
-      ));
-    }, [isOpen, position]);
+      const size = { width: rect.width, height: rect.height };
+      const viewport = { width: window.innerWidth, height: window.innerHeight };
+      setAdjustedPosition(anchorRect
+        ? placeMenuAtAnchor(anchorRect, size, viewport)
+        : placeMenuAtPoint(position, size, viewport));
+    }, [isOpen, position, anchorRect]);
 
     if (!isOpen) return null;
 
