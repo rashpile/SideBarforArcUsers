@@ -9,6 +9,12 @@ import { TAB_SPACE_ASSIGNMENTS_CHANGED } from '../shared/tabSpaceRegistryApi.ts'
 import type { TabSpaceRegistryApi } from '../shared/tabSpaceRegistryApi.ts';
 import { matchStoredTabs } from '../../utils/storedTabMatcher.ts';
 
+export interface TabSpaceRegistryObserver
+{
+  /** A tab was put in a Space by register; the page cache keeps the Space for a later close. */
+  onAssigned?(tabId: number, spaceId: string): void;
+}
+
 export class TabSpaceRegistry implements RoutedManager, TabSpaceRegistryApi
 {
   static STORAGE_KEY = 'tabSpaceAssignments';
@@ -19,6 +25,12 @@ export class TabSpaceRegistry implements RoutedManager, TabSpaceRegistryApi
   // Map<windowId, Map<tabId, spaceId>>
   #registry: Map<number, Map<number, string>> = new Map();
   #tabMetadata = new Map<string, { url: string; index: number }>();
+  readonly #observer: TabSpaceRegistryObserver;
+
+  constructor(observer: TabSpaceRegistryObserver = {})
+  {
+    this.#observer = observer;
+  }
 
   /** See RoutedManager.dispatch. */
   async dispatch(method: string, message: Record<string, unknown>): Promise<unknown>
@@ -46,6 +58,7 @@ export class TabSpaceRegistry implements RoutedManager, TabSpaceRegistryApi
       this.#registry.set(windowId, new Map());
     }
     this.#registry.get(windowId)!.set(tabId, spaceId);
+    this.#observer.onAssigned?.(tabId, spaceId);
     try
     {
       const tab = await chrome.tabs.get(tabId);

@@ -40,6 +40,7 @@ import { FolderPickerDialog } from './FolderPickerDialog';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import { CloseTabAction } from '../actions/closeTabAction';
 import { ArchiveTabsAction } from '../actions/archiveTabsAction';
+import { recentlyClosedProxy } from '../managers/proxies/recentlyClosedProxy';
 import type { UndoableAction } from '../actions/types';
 import type { PinnedSite } from '../hooks/usePinnedSites';
 import { TabArchiveBatch } from '../utils/tabArchiveBatch';
@@ -2621,7 +2622,10 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
       archiveTabs,
       spaceFolderId,
       new TabArchiveBatch(chromeArchiveBookmarks),
-      (tabIds) => new CloseTabAction(tabIds, targetWindowId, getItemKeyForTab, restoreItemAssociation)
+      (tabIds) => new CloseTabAction(tabIds, targetWindowId, getItemKeyForTab, restoreItemAssociation),
+      // The tabs are in the Archive; a failed call only means they also show in Recently Closed
+      (tabIds) => recentlyClosedProxy.expectArchiveClose(tabIds)
+        .catch((error) => console.error('[RecentlyClosed] failed to announce archived tabs:', error))
     ), [getItemKeyForTab, restoreItemAssociation]);
 
   // One archive run at a time. A second press (double-click) would archive the same tabs again,
