@@ -3,6 +3,7 @@
 // Entries are shown in the "What's New" dialog when the user upgrades past them.
 export const CHANGELOG: Record<string, string[]> = {
   '1.0.352': [
+    'New: Archive button on hover and Archive in the right-click menu of tabs - also for a multi-selection, or drag tabs onto the Archive section; marked tabs stay open, with Undo',
     'New: Recently Closed button on the Space title - hover or click it to reopen the Space\'s recently closed tabs',
     'New: search button on the Space title - hover or click it to see the Space\'s recently used pages, with search',
     'Changed: the hover button on tabs and bookmarks marks them for attention instead of pinning - Pin to Sidebar is in the right-click menu, now also for bookmarks',

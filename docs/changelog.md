@@ -2,6 +2,7 @@
 
 ## Latest Version
 
+- New: Archive button on hover and Archive in the right-click menu of a tab or a multi-selection - saves the tabs to the Space's Archive and closes them, with Undo; marked tabs stay open. Dragging tabs onto the Archive section (collapsed or expanded) does the same
 - New: Recently Closed button on the Space title (shown on hover when the Space has closed tabs) - hover or click it for the Space's recently closed tabs, newest first, with the time each was closed. Click one to reopen it in the current window and that Space, without its Back/Forward history; Clear empties the list. Up to 50 per Space, kept across browser restarts; the same page closed again replaces its older entry. Tabs closed by auto-archive or the Archive button, bookmark and Favorite tabs, tabs a tab suspender replaces with its park page, incognito tabs and internal pages are not recorded. Deleting a Space deletes its list
 - Fixed: an invalid URL in New Bookmark shows its error only in the dialog; it no longer stays under the Bookmarks tree after the dialog closes
 - New: the search button on the Space title (hover or click, Arc style) shows the recently used pages of the whole Space folder, newest first, with search, like the button on a folder row

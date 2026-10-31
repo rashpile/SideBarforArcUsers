@@ -31,7 +31,7 @@ Coming from Arc? **Import from Arc Browser...** in the sidebar menu reads Arc's 
 - **Spaces** each link one bookmark folder with their own set of tabs, plus a name, icon and color. You see one Space at a time and switch from the bar at the bottom.
 - **Pinned pages** are the bookmarks in the Space's folder. Click one and it opens as its tab. Close the tab and the bookmark stays in place, like a pinned tab in Arc.
 - **Tabs** below the bookmarks are the Space's other open tabs.
-- **Archive** keeps tabs you stopped using, if you turn auto-archive on.
+- **Archive** keeps tabs you archive by hand or stopped using, if you turn auto-archive on.
 
 Everything is stored in Chrome: bookmarks for Spaces, pinned pages, the archive and Favorites, and the extension's local storage for settings, Favorite icons and marks. Nothing goes to a server. See [PRIVACY.md](PRIVACY.md).
 
@@ -72,9 +72,10 @@ Everything is stored in Chrome: bookmarks for Spaces, pinned pages, the archive 
   ![Tab age highlight looks](asset/tab-age-highlight-light.png)
 
 - A dot at the left edge marks a tab opened in the background (`Cmd+Click`, "Open link in new tab") until you first switch to it. Turn it off with **Mark unvisited tabs** in Settings
-- Drag to reorder, click to switch. On hover, a flag button marks the tab for attention and X closes it
+- Drag to reorder, click to switch. On hover, a flag button marks the tab for attention, the Archive button saves it to the Archive and closes it, and X closes it. Marked tabs and empty pages have no Archive button, and neither does a Space without a bookmark folder
 - "+ New Tab" row at the bottom, with **Clear** (close the list's tabs) and **Archive** (save them to the Archive, then close). Both can be undone
-- Right-click: Pin to Sidebar, Add to Group, Add to Bookmark, Move to New Window, Duplicate, Mark for Attention, Close, Close Tabs Before / After / Other Tabs
+- Right-click: Pin to Sidebar, Add to Group, Add to Bookmark, Move to New Window, Duplicate, Mark for Attention, Archive, Close, Close Tabs Before / After / Other Tabs
+- With several tabs selected, **Archive** in the right-click menu archives them all; marked tabs stay open. Every Archive can be undone
 - Sort by domain, then title (A-Z or Z-A)
 - **Recently Closed**: a clock button on the Space title, shown on hover when the Space has closed tabs. Hover or click it for the Space's recently closed tabs, newest first, with the time each was closed. Click one to reopen it in the current window, in that Space (without its Back/Forward history). **Clear** empties the Space's list. Up to 50 tabs per Space are kept, across browser restarts; closing a page again replaces its older entry
   - Not recorded: tabs closed by auto-archive or the Archive button (they are in the Archive), tabs of bookmarks and Favorites, tabs a tab suspender replaces with its park page, incognito tabs and internal pages (`chrome://`, the New Tab page and the like)
@@ -88,7 +89,7 @@ Hover a tab or a bookmark and click the flag button, or right-click it and pick 
 
 - With several tabs or bookmarks selected, one item applies to all of them: if any is unmarked it marks them all, otherwise it clears them all. Folders can't be marked
 - On a marked tab the close button shows `-` instead of `x`. Click it to clear the mark; the tab stays open
-- Commands that close many tabs at once leave marked tabs open: Close Tabs Before / After, Close Other Tabs, closing a multi-selection, Close Tabs in Group, Clear and Archive on the "+ New Tab" row, and Close All Tabs In Space. A tab's own **Close** still closes it
+- Commands that close many tabs at once leave marked tabs open: Close Tabs Before / After, Close Other Tabs, closing a multi-selection, Close Tabs in Group, Clear and Archive on the "+ New Tab" row, archiving a multi-selection or dropping it on the Archive, and Close All Tabs In Space. A tab's own **Close** still closes it
 - Auto-archive never closes a marked tab. A marked bookmark doesn't keep its open tab from being archived
 - Marks survive closing the sidebar, an extension restart and a browser restart. Incognito tabs can't be marked
 
@@ -117,6 +118,8 @@ Off by default. Turn it on with **Archive tabs after** in Settings: 12 hours, 24
 - Archiving a URL again replaces the older item. Archived items are never deleted automatically
 
 The **Archive** section sits between Bookmarks and Tabs. Click the header to list everything, newest first, with the time each was archived. While it is expanded, a search field in the header row narrows the list. Click an item to reopen it in the active Space. Right-click to delete it (with Undo).
+
+Drag a tab or a multi-selection from the Tab list onto the Archive section, collapsed or expanded, to archive them, with Undo. Marked tabs stay open. The section shows once the Archive has an item; until then use the Archive button on a tab row.
 
 The header's `...` menu has **Clear**: Clear All, Older than 24 Hours, Older than 7 Days or Older than 30 Days. It works on the whole Archive of the active Space, whatever the search shows. Each option shows how many pages it removes and is grayed out when there are none. Clear All asks first; the age options run at once. One Undo brings back everything a Clear removed.
 

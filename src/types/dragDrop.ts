@@ -17,7 +17,7 @@ import { getAllBookmarkItemsInFolder } from '../utils/bookmarkOperations';
 import type { BookmarkItem } from '../utils/bookmarkOperations';
 
 // Drop zones - each component that participates in DnD
-export type DropZone = 'pinnedBar' | 'spaceBar' | 'tabList' | 'bookmarkTree';
+export type DropZone = 'pinnedBar' | 'spaceBar' | 'tabList' | 'bookmarkTree' | 'archive';
 
 /**
  * Drag data formats - what kind of data is available.

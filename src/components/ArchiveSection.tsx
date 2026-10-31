@@ -7,9 +7,12 @@
  */
 import { useState, useCallback, useMemo, useEffect, useRef, KeyboardEvent } from 'react';
 import { Search, Trash, X } from 'lucide-react';
+import { useDroppable } from '@dnd-kit/core';
 import { useInView } from '../hooks/useInView';
 import { Space, useSpacesContext } from '../contexts/SpacesContext';
 import { useFontSize } from '../contexts/FontSizeContext';
+import { useUnifiedDnd } from '../contexts/UnifiedDndContext';
+import { DragFormat, DropData, acceptsFormatsIf } from '../types/dragDrop';
 import { UndoableAction } from '../actions/types';
 import { DeleteBookmarkAction } from '../actions/deleteBookmarkAction';
 import { runBatchOperation, useBookmarks } from '../hooks/useBookmarks';
@@ -277,6 +280,8 @@ const chromeArchiveBookmarks: ClearArchiveBookmarksApi = {
 
 // --- Section ---
 
+const ARCHIVE_DROP_ID = 'archive-section';
+
 interface ArchiveSectionProps
 {
   activeSpace: Space;
@@ -317,6 +322,22 @@ export const ArchiveSection = ({
   // under "With open tabs": archived pages have no live tab. The Archive search doesn't
   // hide the section, or a search without matches would take its own input away
   const isHidden = filterLiveTabs || filteredItems.length === 0;
+
+  // Dropping Tab-list rows here archives them (TabList's 'archive' drop handler does the work).
+  // Only drags that start in the Tab list: other items may carry TAB too but are no open rows.
+  // A hidden section attaches no node, so it is no drop target
+  const { sourceZone, overZone } = useUnifiedDnd();
+  const hasSpaceFolder = spaceFolder !== null;
+  const { setNodeRef: setDropRef } = useDroppable({
+    id: ARCHIVE_DROP_ID,
+    data: {
+      zone: 'archive',
+      targetId: activeSpace.id,
+      isFolder: true,
+      canAccept: acceptsFormatsIf([DragFormat.TAB_GROUP, DragFormat.TAB], () => hasSpaceFolder && sourceZone === 'tabList'),
+    } as DropData,
+  });
+  const isDropTarget = overZone === 'archive';
 
   useEffect(() =>
   {
@@ -402,36 +423,42 @@ export const ArchiveSection = ({
 
   return (
     <div>
-      <SectionHeader
-        label="Archive"
-        menuContent={<ArchiveClearMenu items={items} onClear={handleSelectClearOption} />}
-        menuTitle="Archive options"
-        fontSize={fontSize}
-        labelClassName="font-medium"
-        className="arc-space-title"
-        collapsed={isCollapsed}
-        onToggleCollapsed={onToggleCollapsed}
-        trailing={!isCollapsed && <ArchiveSearchField value={searchText} onChange={setSearchText} />}
-      />
-
-      {!isCollapsed && visibleItems.map((page) => (
-        <ArchiveItemRow
-          key={page.id}
-          page={page}
-          now={now}
-          onRestore={handleRestore}
-          onDelete={handleDelete}
+      <div
+        ref={setDropRef}
+        data-dnd-id={ARCHIVE_DROP_ID}
+        className={isDropTarget ? 'rounded-md ring-2 ring-inset ring-blue-400 bg-blue-50 dark:bg-blue-900/30' : undefined}
+      >
+        <SectionHeader
+          label="Archive"
+          menuContent={<ArchiveClearMenu items={items} onClear={handleSelectClearOption} />}
+          menuTitle="Archive options"
+          fontSize={fontSize}
+          labelClassName="font-medium"
+          className="arc-space-title"
+          collapsed={isCollapsed}
+          onToggleCollapsed={onToggleCollapsed}
+          trailing={!isCollapsed && <ArchiveSearchField value={searchText} onChange={setSearchText} />}
         />
-      ))}
 
-      {!isCollapsed && visibleItems.length === 0 && (
-        <div
-          className="py-1 text-sm text-gray-500 dark:text-gray-400"
-          style={{ paddingLeft: `${getIndentPadding(0)}px` }}
-        >
-          No matching pages
-        </div>
-      )}
+        {!isCollapsed && visibleItems.map((page) => (
+          <ArchiveItemRow
+            key={page.id}
+            page={page}
+            now={now}
+            onRestore={handleRestore}
+            onDelete={handleDelete}
+          />
+        ))}
+
+        {!isCollapsed && visibleItems.length === 0 && (
+          <div
+            className="py-1 text-sm text-gray-500 dark:text-gray-400"
+            style={{ paddingLeft: `${getIndentPadding(0)}px` }}
+          >
+            No matching pages
+          </div>
+        )}
+      </div>
 
       {error && (
         <p className="text-red-500 text-sm px-2 py-1 text-center">{error}</p>
