@@ -9,7 +9,6 @@ export interface ClosedTabRecord
   id: string;
   url: string;
   title: string;
-  favIconUrl: string;
   closedAt: number;
 }
 
@@ -22,14 +21,13 @@ function isClosedTabRecord(value: unknown): value is ClosedTabRecord
   return typeof entry.id === 'string' && entry.id !== ''
     && typeof entry.url === 'string' && entry.url !== ''
     && typeof entry.title === 'string'
-    && typeof entry.favIconUrl === 'string'
     && Number.isFinite(entry.closedAt);
 }
 
 function copyRecord(record: ClosedTabRecord): ClosedTabRecord
 {
-  const { id, url, title, favIconUrl, closedAt } = record;
-  return { id, url, title, favIconUrl, closedAt };
+  const { id, url, title, closedAt } = record;
+  return { id, url, title, closedAt };
 }
 
 /**
@@ -126,6 +124,14 @@ export class RecentlyClosedTabs
   {
     if (!this.find(spaceId, id)) return this;
     return this.#withSpace(spaceId, this.forSpace(spaceId).filter(record => record.id !== id));
+  }
+
+  /** Drops the Space's record of this URL (a tab of that page is open again). */
+  removeUrl(spaceId: string, url: string): RecentlyClosedTabs
+  {
+    const records = this.forSpace(spaceId);
+    if (!records.some(record => record.url === url)) return this;
+    return this.#withSpace(spaceId, records.filter(record => record.url !== url));
   }
 
   clearSpace(spaceId: string): RecentlyClosedTabs

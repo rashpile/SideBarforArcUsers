@@ -70,14 +70,14 @@ window and registers it in the record's Space; no Back/Forward history on reopen
 
 ## Technical Details
 
-**`OpenTabPages`** (`src/stores/openTabPages.ts`): map `tabId → { url, title, favIconUrl, incognito,
+**`OpenTabPages`** (`src/stores/openTabPages.ts`): map `tabId → { url, title, incognito,
 spaceId?, associated }`, stored as an array under `openTabPages` in an injected storage area
 (`chrome.storage.session` in background). Methods: `load()`, `update(tab)` (from a `chrome.tabs.Tab`-like;
 keeps the known `spaceId`), `assignSpace(tabId, spaceId)`, `take(tabId)` (returns the entry and removes
 it), `seed(liveTabs, spaceOf)` (merges live tabs over stored entries, keeps stored entries for tabs that
 are not live — one of them may be the tab whose close woke the worker), `markAssociated(tabIds)`
 (sets `associated`, never clears it). Every mutator skips the write when nothing changed (same URL,
-title, icon, Space, flag); title-only `onUpdated` changes update from `changeInfo` without a
+title, Space, flag); title-only `onUpdated` changes update from `changeInfo` without a
 `tabs.get`. Writes go through a write tail. Malformed stored value → empty.
 
 **Why `associated` lives in the cache.** The sidebar's own `tabs.onRemoved`
@@ -94,9 +94,10 @@ passes `{ parse: raw => RecentlyClosedTabs.fromStored(raw) }`-equivalent parsing
 yields an empty list, never a crash. `fromStored` accepts the string and the parsed object.
 
 **`RecentlyClosedTabs`** (`src/stores/recentlyClosedTabs.ts`): immutable-ish class over
-`{ [spaceId]: ClosedTabRecord[] }`; `ClosedTabRecord = { id, url, title, favIconUrl, closedAt }`
+`{ [spaceId]: ClosedTabRecord[] }`; `ClosedTabRecord = { id, url, title, closedAt }`
+(no icon: the popover uses Chrome's favicon cache by URL)
 (`id` = random string). `add(spaceId, record)` (dedupe by URL within the Space, newest first, cap 50),
-`remove(spaceId, id)`, `clearSpace(spaceId)`, `retainSpaces(ids)`, `forSpace(spaceId)`, `find(spaceId, id)`,
+`remove(spaceId, id)`, `removeUrl(spaceId, url)` (Undo of a tab close, via the manager's `forgetReopened`), `clearSpace(spaceId)`, `retainSpaces(ids)`, `forSpace(spaceId)`, `find(spaceId, id)`,
 `toStored()`, `static fromStored(raw)` (malformed → empty, malformed records dropped).
 
 **`closedTabRecord(input)`** (`src/utils/closedTabRecording.ts`): pure decision.
@@ -213,7 +214,7 @@ records.
 - [x] `TabSpaceRegistry` optional `onAssigned` observer called from `register`
 - [x] background: create `OpenTabPages` (session storage) and `RecentlyClosedManager`; startup as in Technical Details (pages load + seed chained after `tabSpaceRegistry.load` inside `managerLoadPromise`, failures caught); `registerManager(recentlyClosedManager)`
 - [x] background: `storage.onChanged` (session, `tabAssociations_*`) marks newly associated tabs in the page cache
-- [x] background: `tabs.onCreated` / `tabs.onUpdated` (url, title, favIconUrl) update the page cache; `tabs.onRemoved` records the close before `unregister` (window close included), errors logged and not blocking
+- [x] background: `tabs.onCreated` / `tabs.onUpdated` (url, title) update the page cache; `tabs.onRemoved` records the close before `unregister` (window close included), errors logged and not blocking
 - [x] background: `storage.onChanged` for `SPACES_STORAGE_KEY` calls `retainSpaces`; `TabAutoArchiver` gets a `beforeClose(tabId)` dep called right before each `chrome.tabs.remove`, wired to `expectArchiveClose`; the sidebar's manual Archive action awaits `recentlyClosedProxy.expectArchiveClose(tabIds)` before closing the tabs
 - [x] run `make lint && make test && make build` - must pass before task 6
 
@@ -252,4 +253,4 @@ records.
 **Known limitations**:
 - no Back/Forward history on reopen (needs `chrome.sessions`)
 - tabs closed while Chrome quits are recorded only if Chrome delivers `onRemoved` during shutdown
-- a tab that once had a bookmark/Favorite association stays `associated` in the page cache after the association is removed while it is open, so its close is not recorded
+- a tab that once had a bookmark/Favorite association stays `associated` in the page cache after the association is removed while it is open, so its close is not recorded (`[known-limitation]`, kept by decision: the flag is never cleared)

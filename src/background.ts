@@ -940,7 +940,7 @@ chrome.tabs.onAttached.addListener(async (tabId, attachInfo) =>
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, updatedTab) =>
 {
   // The event's tab already carries the new page, so no tabs.get is needed for the cache
-  if (changeInfo.url !== undefined || changeInfo.title !== undefined || changeInfo.favIconUrl !== undefined)
+  if (changeInfo.url !== undefined || changeInfo.title !== undefined)
   {
     openTabPages.update(updatedTab)
       .catch((error) => console.error('[OpenTabPages] failed to store a tab\'s page:', error));

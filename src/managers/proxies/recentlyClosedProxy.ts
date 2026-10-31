@@ -15,6 +15,11 @@ export const recentlyClosedProxy: Remote<RecentlyClosedApi> = {
     await callManager<void>(ManagerId.RECENTLY_CLOSED, 'clear', { spaceId });
   },
 
+  async forgetReopened(spaceId: string, url: string): Promise<void>
+  {
+    await callManager<void>(ManagerId.RECENTLY_CLOSED, 'forgetReopened', { spaceId, url });
+  },
+
   async spaceRecords(spaceId: string): Promise<ClosedTabRecord[]>
   {
     return callManager<ClosedTabRecord[]>(ManagerId.RECENTLY_CLOSED, 'spaceRecords', { spaceId });

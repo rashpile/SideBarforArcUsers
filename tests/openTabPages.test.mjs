@@ -138,7 +138,7 @@ test('an update that changes nothing writes nothing', async () =>
 test('a change made while the stored pages load is applied over them', async () =>
 {
   const storage = new MemoryStorage();
-  storage.data[KEY] = [{ tabId: 1, url: 'https://a.example', title: 'A', favIconUrl: '', incognito: false, spaceId: 'space-a', associated: false }];
+  storage.data[KEY] = [{ tabId: 1, url: 'https://a.example', title: 'A', incognito: false, spaceId: 'space-a', associated: false }];
   const pages = new OpenTabPages(storage);
 
   const update = pages.update(tab(2, 'https://b.example'));

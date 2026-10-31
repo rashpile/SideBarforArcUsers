@@ -58,6 +58,6 @@ export function closedTabRecord(input: ClosedTabInput): ClosedTabDecision | null
 
   return {
     spaceId,
-    record: { id, url, title: page.title, favIconUrl: page.favIconUrl, closedAt: now },
+    record: { id, url, title: page.title, closedAt: now },
   };
 }

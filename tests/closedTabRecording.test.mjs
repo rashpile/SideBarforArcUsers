@@ -10,7 +10,6 @@ function page(overrides = {})
   return {
     url: 'https://example.com/a',
     title: 'Example A',
-    favIconUrl: 'https://example.com/favicon.ico',
     incognito: false,
     associated: false,
     ...overrides,
@@ -44,7 +43,6 @@ test('the cached Space is used when the registry lost the tab after a worker wak
       id: 'r1',
       url: 'https://example.com/a',
       title: 'Example A',
-      favIconUrl: 'https://example.com/favicon.ico',
       closedAt: 1000,
     },
   });

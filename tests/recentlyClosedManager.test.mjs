@@ -5,7 +5,7 @@ import { RecentlyClosedManager } from '../src/managers/impl/recentlyClosedManage
 import { RECENTLY_CLOSED_TABS_KEY } from '../src/managers/shared/recentlyClosedApi.ts';
 import { RecentlyClosedTabs } from '../src/stores/recentlyClosedTabs.ts';
 
-const record = (id, url, closedAt) => ({ id, url, title: url, favIconUrl: '', closedAt });
+const record = (id, url, closedAt) => ({ id, url, title: url, closedAt });
 
 function storedList(bySpace)
 {
@@ -220,4 +220,26 @@ test('restoreSpace does nothing while the Space is still deleted', async () =>
   await manager.restoreSpace('work', [record('a', 'https://a.test/', 1)]);
 
   assert.deepEqual(RecentlyClosedTabs.fromStored(local[RECENTLY_CLOSED_TABS_KEY]).forSpace('work'), []);
+});
+
+test('a tab brought back by Undo of its close leaves its Space\'s list, parked pages by their original URL', async () =>
+{
+  const { local } = installChrome({
+    stored: {
+      [RECENTLY_CLOSED_TABS_KEY]: storedList({
+        work: [record('a', 'https://a.test/', 3), record('b', 'https://b.test/', 2), record('d', 'https://docs.test/', 1)],
+        home: [record('c', 'https://a.test/', 1)],
+      }),
+    },
+  });
+  const { manager } = createManager();
+  await manager.load();
+
+  await manager.forgetReopened('work', 'https://a.test/');
+  const parked = `chrome-extension://suspender/park.html?tabId=7&url=${encodeURIComponent('https://docs.test/')}`;
+  await manager.forgetReopened('work', parked);
+
+  const after = RecentlyClosedTabs.fromStored(local[RECENTLY_CLOSED_TABS_KEY]);
+  assert.deepEqual(after.forSpace('work').map(entry => entry.id), ['b']);
+  assert.deepEqual(after.forSpace('home').map(entry => entry.id), ['c']);
 });

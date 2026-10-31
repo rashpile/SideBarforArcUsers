@@ -18,6 +18,8 @@ export interface RecentlyClosedApi
   /** Opens the record's page as the active tab of `windowId`, puts it in the record's Space and drops the record. */
   reopen(windowId: number, spaceId: string, recordId: string): Promise<void>;
   clear(spaceId: string): Promise<void>;
+  /** A closed tab of this page in this Space came back by Undo; its record goes. */
+  forgetReopened(spaceId: string, url: string): Promise<void>;
   /** The Space's records, for a Space delete to keep for its Undo. */
   spaceRecords(spaceId: string): Promise<ClosedTabRecord[]>;
   /** Puts back records from spaceRecords after the Space itself is restored. */

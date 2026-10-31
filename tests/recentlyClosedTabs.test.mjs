@@ -3,13 +3,13 @@ import test from 'node:test';
 
 import { RECENTLY_CLOSED_PER_SPACE, RecentlyClosedTabs } from '../src/stores/recentlyClosedTabs.ts';
 
-const record = (id, url, closedAt, extra = {}) => ({ id, url, title: `Title ${id}`, favIconUrl: '', closedAt, ...extra });
+const record = (id, url, closedAt, extra = {}) => ({ id, url, title: `Title ${id}`, closedAt, ...extra });
 const urls = records => records.map(r => r.url);
 
 test('a list survives the round trip through the stored JSON string', () =>
 {
   const list = RecentlyClosedTabs.empty()
-    .add('space-a', record('1', 'https://a.test/', 100, { favIconUrl: 'https://a.test/icon.png' }))
+    .add('space-a', record('1', 'https://a.test/', 100))
     .add('space-a', record('2', 'https://b.test/', 200))
     .add('space-b', record('3', 'https://c.test/', 300));
 
@@ -68,6 +68,29 @@ test('retainSpaces drops the records of deleted Spaces only', () =>
 
   assert.deepEqual(Object.keys(kept.toStored()), ['space-a']);
   assert.equal(kept.hasRecords('space-gone'), false);
+});
+
+test('a record stored with the favIconUrl of earlier builds is kept without it', () =>
+{
+  const stored = JSON.stringify({ 'space-a': [record('1', 'https://a.test/', 100, { favIconUrl: 'data:image/png;base64,AAAA' })] });
+
+  const restored = RecentlyClosedTabs.fromStored(stored);
+
+  assert.deepEqual(restored.forSpace('space-a'), [record('1', 'https://a.test/', 100)]);
+});
+
+test('removeUrl drops only that URL in that Space', () =>
+{
+  const list = RecentlyClosedTabs.empty()
+    .add('space-a', record('1', 'https://a.test/', 100))
+    .add('space-a', record('2', 'https://b.test/', 200))
+    .add('space-b', record('3', 'https://a.test/', 300));
+
+  const after = list.removeUrl('space-a', 'https://a.test/');
+
+  assert.deepEqual(urls(after.forSpace('space-a')), ['https://b.test/']);
+  assert.deepEqual(urls(after.forSpace('space-b')), ['https://a.test/']);
+  assert.equal(list.removeUrl('space-a', 'https://missing.test/'), list);
 });
 
 test('remove and clearSpace affect only their Space', () =>

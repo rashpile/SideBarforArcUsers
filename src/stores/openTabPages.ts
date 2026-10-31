@@ -20,7 +20,6 @@ export interface OpenTabPage
 {
   url: string;
   title: string;
-  favIconUrl: string;
   incognito: boolean;
   /** The tab's Space as last registered; undefined until it gets one. */
   spaceId?: string;
@@ -36,7 +35,6 @@ export interface PageTabLike
   /** The URL a new tab is loading before it commits; url is empty until then. */
   pendingUrl?: string;
   title?: string;
-  favIconUrl?: string;
   incognito?: boolean;
 }
 
@@ -52,7 +50,7 @@ interface StoredOpenTabPage extends OpenTabPage
   tabId: number;
 }
 
-const EMPTY_PAGE: OpenTabPage = { url: '', title: '', favIconUrl: '', incognito: false, associated: false };
+const EMPTY_PAGE: OpenTabPage = { url: '', title: '', incognito: false, associated: false };
 
 function isStoredOpenTabPage(value: unknown): value is StoredOpenTabPage
 {
@@ -61,7 +59,6 @@ function isStoredOpenTabPage(value: unknown): value is StoredOpenTabPage
   return Number.isInteger(entry.tabId)
     && typeof entry.url === 'string'
     && typeof entry.title === 'string'
-    && typeof entry.favIconUrl === 'string'
     && typeof entry.incognito === 'boolean'
     && (entry.spaceId === undefined || (typeof entry.spaceId === 'string' && entry.spaceId !== ''))
     && typeof entry.associated === 'boolean';
@@ -71,7 +68,6 @@ function samePage(a: OpenTabPage, b: OpenTabPage): boolean
 {
   return a.url === b.url
     && a.title === b.title
-    && a.favIconUrl === b.favIconUrl
     && a.incognito === b.incognito
     && a.spaceId === b.spaceId
     && a.associated === b.associated;
@@ -83,7 +79,6 @@ function pageOf(tab: PageTabLike, known: OpenTabPage | undefined): OpenTabPage
   return {
     url: tab.url || tab.pendingUrl || '',
     title: tab.title ?? '',
-    favIconUrl: tab.favIconUrl ?? '',
     incognito: tab.incognito === true,
     spaceId: known?.spaceId,
     associated: known?.associated ?? false,
@@ -123,8 +118,8 @@ export class OpenTabPages
         for (const entry of stored)
         {
           if (!isStoredOpenTabPage(entry)) continue;
-          const { tabId, url, title, favIconUrl, incognito, spaceId, associated } = entry;
-          this.#byTabId.set(tabId, { url, title, favIconUrl, incognito, spaceId, associated });
+          const { tabId, url, title, incognito, spaceId, associated } = entry;
+          this.#byTabId.set(tabId, { url, title, incognito, spaceId, associated });
         }
       }
     }
@@ -145,7 +140,7 @@ export class OpenTabPages
     return page ? { ...page } : undefined;
   }
 
-  /** The tab's page changed (created, navigated, retitled, new icon). Keeps its Space and flag. */
+  /** The tab's page changed (created, navigated, retitled). Keeps its Space and flag. */
   async update(tab: PageTabLike): Promise<void>
   {
     if (tab.id === undefined) return;

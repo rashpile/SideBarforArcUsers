@@ -11,6 +11,7 @@ import { RECENTLY_CLOSED_TABS_KEY } from '../shared/recentlyClosedApi.ts';
 import type { RecentlyClosedApi } from '../shared/recentlyClosedApi.ts';
 import { RecentlyClosedTabs } from '../../stores/recentlyClosedTabs.ts';
 import type { ClosedTabRecord } from '../../stores/recentlyClosedTabs.ts';
+import { getEffectiveTabUrl } from '../../utils/parkedTabAssociation.ts';
 
 export interface RecentlyClosedManagerDeps
 {
@@ -58,6 +59,9 @@ export class RecentlyClosedManager implements RoutedManager, RecentlyClosedApi
 
       case 'restoreSpace':
         return this.restoreSpace(message.spaceId as string, message.records as ClosedTabRecord[]);
+
+      case 'forgetReopened':
+        return this.forgetReopened(message.spaceId as string, message.url as string);
 
       case 'expectArchiveClose':
         return this.expectArchiveClose(message.tabIds as number[]);
@@ -119,6 +123,13 @@ export class RecentlyClosedManager implements RoutedManager, RecentlyClosedApi
       if (!new Set(this.#deps.getSpaceIds()).has(spaceId)) return tabs;
       return tabs.restoreSpace(spaceId, records);
     });
+  }
+
+  forgetReopened(spaceId: string, url: string): Promise<void>
+  {
+    // A parked tab was recorded by the page it stands for
+    const recordedUrl = getEffectiveTabUrl(url);
+    return this.#change(tabs => tabs.removeUrl(spaceId, recordedUrl));
   }
 
   clear(spaceId: string): Promise<void>
