@@ -945,7 +945,7 @@ type DisplayItem =
   | { type: 'group'; group: chrome.tabGroups.TabGroup; tabs: chrome.tabs.Tab[]; startIndex: number }
   | { type: 'tab'; tab: chrome.tabs.Tab };
 
-// chrome.bookmarks calls for the Archive button's TabArchiveBatch
+// chrome.bookmarks calls for manual archiving's TabArchiveBatch
 const chromeArchiveBookmarks: ArchiveBookmarksApi = {
   getChildren: (id) => chrome.bookmarks.getChildren(id),
   create: (bookmark) => chrome.bookmarks.create(bookmark),
@@ -1812,7 +1812,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
   }, [activeTabId, isTabSelected, clearSelection]);
 
   // Confirm dialog for closing all tabs in window (window will close, no undo possible).
-  // mode 'archive' comes from the Archive button: the tabs are archived before they close
+  // mode 'archive' comes from manual archiving: the tabs are archived before they close
   const [confirmCloseAllDialog, setConfirmCloseAllDialog] = useState<{
     isOpen: boolean;
     tabIds: number[];
@@ -2624,7 +2624,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     }
   }, [getTabSelectionInfo, isTabMarked, performClose, clearSelection]);
 
-  // The Archive button's action: save the tabs into the Space's archive, then close them through CloseTabAction
+  // Manual archiving's action: save the tabs into the Space's archive, then close them through CloseTabAction
   const createArchiveTabsAction = useCallback((archiveTabs: ArchivableTab[], spaceFolderId: string, targetWindowId: number) =>
     new ArchiveTabsAction(
       archiveTabs,
@@ -2653,7 +2653,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     }
   }, []);
 
-  // Every manual archive (Archive button, row button, menu items, drop on the Archive section) runs here.
+  // Every manual archive ("+ New Tab" row's Archive, row button, menu items, drop on the Archive section) runs here.
   // It leaves the selection alone: archiving one unselected row must not drop an unrelated selection
   const runManualArchive = useCallback((archiveTabs: ArchivableTab[]) =>
   {
@@ -2673,7 +2673,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
       : () => action.do().catch(error => console.error('[TabList] Failed to archive tabs:', error)));
   }, [activeSpaceFolderId, windowId, closesWholeWindow, createArchiveTabsAction, runArchiveOnce, onPerformAction]);
 
-  // Archive button: archives and closes the tabs Clear would close (the visible ones, active and audible included,
+  // Archive in the "+ New Tab" row's ... menu: archives and closes the tabs Clear would close (the visible ones, active and audible included,
   // marked ones left open)
   const handleArchiveAllTabs = useCallback(() =>
   {
