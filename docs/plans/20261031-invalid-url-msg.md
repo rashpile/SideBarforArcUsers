@@ -31,20 +31,20 @@
 **Files:**
 - Modify: `src/hooks/useBookmarks.ts`
 
-- [ ] in `createBookmark`, replace `handleError('create bookmark')` with a `console.error` in the same format and keep resolving `{ node: null, error: lastError.message || 'Unknown error' }`
-- [ ] update the comment above the call to say why the hook state is not set (the caller shows the error; the tree line would stick)
-- [ ] remove `handleError` from the `useCallback` dependencies
-- [ ] run `make lint && make test` - must pass
+- [x] in `createBookmark`, replace `handleError('create bookmark')` with a `console.error` in the same format and keep resolving `{ node: null, error: lastError.message || 'Unknown error' }`
+- [x] update the comment above the call to say why the hook state is not set (the caller shows the error; the tree line would stick)
+- [x] remove `handleError` from the `useCallback` dependencies
+- [x] run `make lint && make test` - must pass
 
 ### Task 2: Verify acceptance criteria
-- [ ] confirm by reading the code that no path from `BookmarkEditModal`'s create sets the `error` rendered under the tree
-- [ ] confirm the other `createBookmark` callers still compile and don't depend on the hook's `error`
-- [ ] run `make lint && make test && make build`
+- [x] confirm by reading the code that no path from `BookmarkEditModal`'s create sets the `error` rendered under the tree
+- [x] confirm the other `createBookmark` callers still compile and don't depend on the hook's `error`
+- [x] run `make lint && make test && make build`
 
 ### Task 3: [Final] Update documentation
-- [ ] add a "Fixed:" line to `docs/changelog.md` under "Latest Version": an invalid URL in New Bookmark shows its error only in the dialog, no longer under the Bookmarks tree
-- [ ] README.md, `docs/state-reference.md`, `src/data/changelog.ts`: no change (no feature, no storage key, too small for What's New)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] add a "Fixed:" line to `docs/changelog.md` under "Latest Version": an invalid URL in New Bookmark shows its error only in the dialog, no longer under the Bookmarks tree
+- [x] README.md, `docs/state-reference.md`, `src/data/changelog.ts`: no change (no feature, no storage key, too small for What's New)
+- [x] move this plan to `docs/plans/completed/` (left in place - the orchestrator moves it at the end)
 
 ## Post-Completion
 **Manual verification**:
