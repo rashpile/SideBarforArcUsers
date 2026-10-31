@@ -162,9 +162,9 @@ records.
 - Create: `src/stores/recentlyClosedTabs.ts`
 - Create: `tests/recentlyClosedTabs.test.mjs`
 
-- [ ] create `RecentlyClosedTabs` with `add`, `remove`, `clearSpace`, `retainSpaces`, `forSpace`, `find`, `toStored`, `fromStored` as in Technical Details (cap constant `RECENTLY_CLOSED_PER_SPACE = 50`)
-- [ ] write tests: `fromStored(JSON.stringify(toStored()))` round-trip (the real stored format); same URL in the same Space replaces the older record and moves to the top; same URL in another Space stays; cap drops the oldest; `retainSpaces` drops deleted Spaces' records; `fromStored` on malformed input
-- [ ] run `make lint && make test` - must pass before task 2
+- [x] create `RecentlyClosedTabs` with `add`, `remove`, `clearSpace`, `retainSpaces`, `forSpace`, `find`, `toStored`, `fromStored` as in Technical Details (cap constant `RECENTLY_CLOSED_PER_SPACE = 50`)
+- [x] write tests: `fromStored(JSON.stringify(toStored()))` round-trip (the real stored format); same URL in the same Space replaces the older record and moves to the top; same URL in another Space stays; cap drops the oldest; `retainSpaces` drops deleted Spaces' records; `fromStored` on malformed input
+- [x] run `make lint && make test` - must pass before task 2
 
 ### Task 2: Per-tab page cache in session storage
 
