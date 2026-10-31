@@ -210,12 +210,12 @@ records.
 - Modify: `src/services/tabAutoArchiver.ts`
 - Modify: `src/actions/archiveTabsAction.ts`
 
-- [ ] `TabSpaceRegistry` optional `onAssigned` observer called from `register`
-- [ ] background: create `OpenTabPages` (session storage) and `RecentlyClosedManager`; startup as in Technical Details (pages load + seed chained after `tabSpaceRegistry.load` inside `managerLoadPromise`, failures caught); `registerManager(recentlyClosedManager)`
-- [ ] background: `storage.onChanged` (session, `tabAssociations_*`) marks newly associated tabs in the page cache
-- [ ] background: `tabs.onCreated` / `tabs.onUpdated` (url, title, favIconUrl) update the page cache; `tabs.onRemoved` records the close before `unregister` (window close included), errors logged and not blocking
-- [ ] background: `storage.onChanged` for `SPACES_STORAGE_KEY` calls `retainSpaces`; `TabAutoArchiver` gets a `beforeClose(tabId)` dep called right before each `chrome.tabs.remove`, wired to `expectArchiveClose`; the sidebar's manual Archive action awaits `recentlyClosedProxy.expectArchiveClose(tabIds)` before closing the tabs
-- [ ] run `make lint && make test && make build` - must pass before task 6
+- [x] `TabSpaceRegistry` optional `onAssigned` observer called from `register`
+- [x] background: create `OpenTabPages` (session storage) and `RecentlyClosedManager`; startup as in Technical Details (pages load + seed chained after `tabSpaceRegistry.load` inside `managerLoadPromise`, failures caught); `registerManager(recentlyClosedManager)`
+- [x] background: `storage.onChanged` (session, `tabAssociations_*`) marks newly associated tabs in the page cache
+- [x] background: `tabs.onCreated` / `tabs.onUpdated` (url, title, favIconUrl) update the page cache; `tabs.onRemoved` records the close before `unregister` (window close included), errors logged and not blocking
+- [x] background: `storage.onChanged` for `SPACES_STORAGE_KEY` calls `retainSpaces`; `TabAutoArchiver` gets a `beforeClose(tabId)` dep called right before each `chrome.tabs.remove`, wired to `expectArchiveClose`; the sidebar's manual Archive action awaits `recentlyClosedProxy.expectArchiveClose(tabIds)` before closing the tabs
+- [x] run `make lint && make test && make build` - must pass before task 6
 
 ### Task 6: Recently Closed button and popover
 

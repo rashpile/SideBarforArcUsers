@@ -53,6 +53,8 @@ export interface TabAutoArchiverDeps
   isTabMarked: (tabId: number) => boolean;
   /** False when the stored tab marks failed to load: marked tabs are unknown, so a run closes nothing. */
   tabMarksLoaded: () => boolean;
+  /** Called right before the archiver closes a tab, so the close isn't recorded as Recently Closed. */
+  beforeClose: (tabId: number) => void;
 }
 
 /** The stored setting, as one run reads it. */
@@ -347,6 +349,7 @@ export class TabAutoArchiver
 
       // The bookmark exists now; the tab closes only if nobody started using it meanwhile
       if (!await this.#stillClosable(tab, runStartedAt)) return;
+      this.#deps.beforeClose(tab.id);
       await chrome.tabs.remove(tab.id);
 
       if (import.meta.env.DEV)
@@ -365,6 +368,7 @@ export class TabAutoArchiver
     try
     {
       if (!await this.#stillClosable(tab, runStartedAt)) return;
+      this.#deps.beforeClose(tab.id);
       await chrome.tabs.remove(tab.id);
 
       if (import.meta.env.DEV)

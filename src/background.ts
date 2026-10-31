@@ -29,11 +29,29 @@ import { buildSpaceCards, buildTabCards, findLastUsedTab, WindowSpaces } from '.
 import { SwitcherMessageAction } from './utils/switcherMessages';
 import { BookmarkSpaceResolver } from './utils/bookmarkSpaceResolver';
 import { tabListTopIndexForLinkTab } from './utils/linkTabPlacement';
+import { OpenTabPages } from './stores/openTabPages';
+import { RecentlyClosedManager } from './managers/impl/recentlyClosedManager';
+import { closedTabRecord } from './utils/closedTabRecording';
 
 // Set side panel to open when clicking the extension toolbar button
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 
-const tabSpaceRegistry = new TabSpaceRegistry();
+// Page, Space and association flag of every open tab, so a close can still be recorded in
+// Recently Closed when it wakes the worker (see stores/openTabPages.ts). Background is the only writer.
+const openTabPages = new OpenTabPages({
+  get: (key) => chrome.storage.session.get(key),
+  set: (values) => chrome.storage.session.set(values),
+});
+// Started at once: events arriving before the startup chain wait for it inside the cache
+void openTabPages.load();
+
+const tabSpaceRegistry = new TabSpaceRegistry({
+  onAssigned: (tabId, spaceId) =>
+  {
+    openTabPages.assignSpace(tabId, spaceId)
+      .catch((error) => console.error('[OpenTabPages] failed to store a tab\'s Space:', error));
+  },
+});
 
 // Space membership comes only from the extension's TabSpaceRegistry;
 // Chrome's native groupId belongs to the user.
@@ -162,6 +180,11 @@ const favoriteIconsManager = new FavoriteIconsManager({
     set: (values) => chrome.storage.local.set(values),
   },
   broadcast: (message) => chrome.runtime.sendMessage(message),
+});
+// Per-Space Recently Closed lists; the sidebar reopens and clears through its proxy
+const recentlyClosedManager = new RecentlyClosedManager({
+  getSpaceIds: () => spaceManager.getSpaces().map(space => space.id),
+  registerTab: (windowId, tabId, spaceId) => tabSpaceRegistry.register(windowId, tabId, spaceId),
 });
 // Mark for Attention on tabs and bookmarks; auto-archive keeps marked tabs open
 const attentionMarkManager = new AttentionMarkManager();
@@ -322,14 +345,49 @@ const sameBrowserSession = browserSessionMarker.isSameBrowserSession().then((sam
   return same;
 });
 
+/**
+ * Brings the page cache up to date with the live tabs once the registry knows their Spaces.
+ * Runs before assignUntrackedTabsToSpaces, whose registrations reach the cache through onAssigned.
+ * A failure is logged only: the cache then misses pages, which loses Recently Closed records, not tabs.
+ */
+async function seedOpenTabPages(): Promise<void>
+{
+  try
+  {
+    const tabs = await chrome.tabs.query({});
+    const windowOfTab = new Map(tabs.flatMap(tab => tab.id === undefined ? [] : [[tab.id, tab.windowId] as const]));
+    const windowIds = new Set(windowOfTab.values());
+    const associatedTabIds: number[] = [];
+    for (const windowId of windowIds)
+    {
+      const associations = await getTabAssociations(windowId);
+      associatedTabIds.push(...Object.keys(associations).map(Number));
+    }
+    await openTabPages.seed(
+      tabs,
+      (tabId) =>
+      {
+        const windowId = windowOfTab.get(tabId);
+        return windowId === undefined ? undefined : tabSpaceRegistry.getSpace(windowId, tabId);
+      },
+      associatedTabIds,
+    );
+  }
+  catch (error)
+  {
+    console.error('[OpenTabPages] failed to seed from the open tabs:', error);
+  }
+}
+
 // Pinned tab associations must wait for the managers to load; the Side Panel waits for this point.
 const managerLoadPromise = Promise.all([
   spaceStateManager.load(),
-  spaceManager.load(),
+  // After the Spaces: the load drops records of Spaces deleted meanwhile, and never rejects
+  spaceManager.load().then(() => recentlyClosedManager.load()),
   historyManager.load(),
   lastAudibleTracker.load(),
   favoriteIconsManager.load(),
-  sameBrowserSession.then((same) => tabSpaceRegistry.load(same)),
+  sameBrowserSession.then((same) => tabSpaceRegistry.load(same)).then(seedOpenTabPages),
   sameBrowserSession.then((same) => attentionMarkManager.load(same)),
   loadTabActivity()
 ])
@@ -401,6 +459,25 @@ chrome.storage.onChanged.addListener((changes, areaName) =>
   }
 });
 
+// A tab with a bookmark or Favorite association is never recorded as Recently Closed: its item
+// stays in the sidebar. Flagged here, when the association appears, because the sidebar removes
+// it at the same moment the tab's close reaches background.
+chrome.storage.onChanged.addListener((changes, areaName) =>
+{
+  if (areaName !== 'session') return;
+
+  for (const [key, change] of Object.entries(changes))
+  {
+    if (!/^tabAssociations_\d+$/.test(key)) continue;
+    const before = (change.oldValue ?? {}) as Record<string, string>;
+    const after = (change.newValue ?? {}) as Record<string, string>;
+    const addedTabIds = Object.keys(after).filter(tabId => !(tabId in before)).map(Number);
+    if (addedTabIds.length === 0) continue;
+    openTabPages.markAssociated(addedTabIds)
+      .catch((error) => console.error('[OpenTabPages] failed to flag associated tabs:', error));
+  }
+});
+
 chrome.bookmarks.onRemoved.addListener((id, removeInfo) =>
 {
   const ids = removeInfo.node ? collectBookmarkIds(removeInfo.node) : [id];
@@ -457,6 +534,20 @@ chrome.storage.onChanged.addListener((changes, areaName) =>
   if (areaName === 'local' && SPACES_STORAGE_KEY in changes) runFavoritesMigration();
 });
 
+// A deleted Space's Recently Closed list goes with it
+chrome.storage.onChanged.addListener((changes, areaName) =>
+{
+  if (areaName !== 'local' || !(SPACES_STORAGE_KEY in changes)) return;
+  void managerLoadPromise
+    .then(() =>
+    {
+      const spaceIds = spaceManager.getSpaces().map(space => space.id);
+      // No Spaces means they aren't known, not that every Space is gone
+      if (spaceIds.length > 0) return recentlyClosedManager.retainSpaces(spaceIds);
+    })
+    .catch((error) => console.error('[RecentlyClosedManager] failed to drop deleted Spaces\' records:', error));
+});
+
 // =============================================================================
 // Tab auto-archive - closes tabs unused for the "Archive tabs
 // after" period, saving regular tabs to their Space's asd_Archive folder first.
@@ -470,6 +561,8 @@ const tabAutoArchiver = new TabAutoArchiver({
   getSpaces: () => spaceManager.getSpaces(),
   isTabMarked: (tabId) => attentionMarkManager.isTabMarked(tabId),
   tabMarksLoaded: () => attentionMarkManager.tabMarksLoaded,
+  // The tab is in the Archive already (or was an empty page), so it isn't Recently Closed
+  beforeClose: (tabId) => recentlyClosedManager.expectArchiveClose([tabId]),
 });
 
 // Registered at top level so the alarm wakes the worker
@@ -689,10 +782,58 @@ async function migrateParkedTabAssociation(tab: chrome.tabs.Tab): Promise<boolea
   return true;
 }
 
+/**
+ * Adds a closed tab to its Space's Recently Closed list. The registry Space and the archive flag
+ * are read by the caller before anything else forgets them. A failure is logged only.
+ */
+async function recordClosedTab(
+  tabId: number,
+  windowId: number,
+  isWindowClosing: boolean,
+  registrySpaceId: string | undefined,
+  closedByArchive: boolean,
+): Promise<void>
+{
+  try
+  {
+    const page = await openTabPages.take(tabId);
+    const decision = closedTabRecord({
+      page,
+      registrySpaceId,
+      existingSpaceIds: new Set(spaceManager.getSpaces().map(space => space.id)),
+      closedByArchive,
+      now: Date.now(),
+      id: crypto.randomUUID(),
+    });
+    if (!decision) return;
+
+    // A tab suspender closes the tab after opening its park page: the page lives on there
+    if (!isWindowClosing)
+    {
+      const windowTabs = await chrome.tabs.query({ windowId });
+      if (findParkedReplacementTab(windowTabs, tabId)) return;
+    }
+
+    await recentlyClosedManager.recordClose(decision.spaceId, decision.record);
+  }
+  catch (error)
+  {
+    console.error('[RecentlyClosed] failed to record a closed tab:', error);
+  }
+}
+
 // Clean up history, last audible tracker, tab registry, and local backup when tab is closed
 chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) =>
 {
   await stateReady;
+  // Read before unregister below forgets the tab's Space
+  void recordClosedTab(
+    tabId,
+    removeInfo.windowId,
+    removeInfo.isWindowClosing,
+    tabSpaceRegistry.getSpace(removeInfo.windowId, tabId),
+    recentlyClosedManager.consumeArchiveClose(tabId),
+  );
   historyManager.remove(removeInfo.windowId, tabId);
   lastAudibleTracker.clearIfMatches(tabId);
   attentionMarkManager.handleTabRemoved(tabId, removeInfo.isWindowClosing)
@@ -796,8 +937,15 @@ chrome.tabs.onAttached.addListener(async (tabId, attachInfo) =>
 });
 
 // Favicon loading scenario 5 - see "Favicon loading" in docs/development.md
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) =>
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, updatedTab) =>
 {
+  // The event's tab already carries the new page, so no tabs.get is needed for the cache
+  if (changeInfo.url !== undefined || changeInfo.title !== undefined || changeInfo.favIconUrl !== undefined)
+  {
+    openTabPages.update(updatedTab)
+      .catch((error) => console.error('[OpenTabPages] failed to store a tab\'s page:', error));
+  }
+
   await stateReady;
   if (changeInfo.audible === false)
   {
@@ -946,6 +1094,8 @@ chrome.windows.onCreated.addListener((createdWindow) =>
 chrome.tabs.onCreated.addListener(async (tab) =>
 {
   if (!tab.id || !tab.windowId) return;
+  openTabPages.update(tab)
+    .catch((error) => console.error('[OpenTabPages] failed to store a new tab\'s page:', error));
   // Decided now: after the await below the window may no longer count as just created
   const openedUnvisited = isOpenedUnvisited(tab, recentWindows, Date.now());
   await stateReady;
@@ -1001,6 +1151,7 @@ registerManager(historyManager);
 registerManager(lastAudibleTracker);
 registerManager(favoriteIconsManager);
 registerManager(attentionMarkManager);
+registerManager(recentlyClosedManager);
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) =>
 {
