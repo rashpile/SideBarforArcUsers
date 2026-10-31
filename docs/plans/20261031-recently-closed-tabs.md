@@ -182,10 +182,10 @@ records.
 - Create: `src/utils/closedTabRecording.ts`
 - Create: `tests/closedTabRecording.test.mjs`
 
-- [ ] create `closedTabRecord(input)` as in Technical Details
-- [ ] write tests for Space attribution: registry Space wins over cached Space; cached Space used when the registry doesn't know the tab (worker wake); tabs of one window closed together each land in their own Space
-- [ ] write tests for skips: no Space, deleted Space, incognito, internal pages and new tab page, page flagged `associated`, archived tab; parked URL is unwrapped
-- [ ] run `make lint && make test` - must pass before task 4
+- [x] create `closedTabRecord(input)` as in Technical Details
+- [x] write tests for Space attribution: registry Space wins over cached Space; cached Space used when the registry doesn't know the tab (worker wake); tabs of one window closed together each land in their own Space
+- [x] write tests for skips: no Space, deleted Space, incognito, internal pages and new tab page, page flagged `associated`, archived tab; parked URL is unwrapped
+- [x] run `make lint && make test` - must pass before task 4
 
 ### Task 4: RecentlyClosedManager, API and proxy
 
