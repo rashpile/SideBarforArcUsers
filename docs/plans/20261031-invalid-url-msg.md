@@ -20,7 +20,7 @@
 ## Technical Details
 - `console.error('Bookmark create bookmark error:', message)` - matches the existing `${context} ${operation} error:` format with the context `Bookmark` that `useBookmarks` passes to `createChromeErrorHandler`.
 - [known-limitation] A successful create no longer clears an older error under the tree from another operation (move, URL edit); the next such operation clears it. Intended: `createBookmark` no longer owns that state.
-- [known-limitation] A URL Chrome rejects from tree drag & drop or TabList add-to-bookmark is logged to the console only; those URLs come from tabs or bookmarks Chrome already accepted.
+- [known-limitation] A create that Chrome rejects from tree drag & drop, TabList add-to-bookmark, `duplicateBookmark` or `createBookmarksBatch` is logged to the console only. Before this change a failed Duplicate showed under the tree; it is rare (the parent folder is not writable, or a URL Chrome already accepted is now rejected), so Duplicate gets no UI of its own.
 - Drop `handleError` from `createBookmark`'s `useCallback` dependency list.
 - No change to `BookmarkTree.tsx`'s error line: other operations (edit URL, move, sort) still report there.
 
@@ -32,7 +32,7 @@
 - Modify: `src/hooks/useBookmarks.ts`
 
 - [x] in `createBookmark`, replace `handleError('create bookmark')` with a `console.error` in the same format and keep resolving `{ node: null, error: lastError.message || 'Unknown error' }`
-- [x] update the comment above the call to say why the hook state is not set (the caller shows the error; the tree line would stick)
+- [x] update the comment above the call to say why the hook state is not set (the error goes back to the caller, which decides whether to show it; the tree line would stick)
 - [x] remove `handleError` from the `useCallback` dependencies
 - [x] run `make lint && make test` - must pass
 
