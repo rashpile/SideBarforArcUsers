@@ -184,10 +184,10 @@
 **Files:**
 - Modify: `src/components/BookmarkTree.tsx`
 
-- [ ] "Copy as YAML" calls `copyBookmarksAsYaml(chrome.bookmarks, navigator.clipboard, folderId, { childrenOnly: false })`, toasts `Copied <summary> as YAML`, toasts the error on failure
-- [ ] add "Copy as YAML" and "Paste from YAML..." to the folder single-item menu after Sort, before Open All, hidden for `isPermanentRootFolder` and `isSystemFolder` nodes
-- [ ] "Paste from YAML..." opens `PasteYamlDialog` for that folder with `onPerformAction`; `onPasted` expands the target folder
-- [ ] run `make lint && make build` - must pass before task 5
+- [x] "Copy as YAML" calls `copyBookmarksAsYaml(chrome.bookmarks, navigator.clipboard, folderId, { childrenOnly: false })`, toasts `Copied <summary> as YAML`, toasts the error on failure
+- [x] add "Copy as YAML" and "Paste from YAML..." to the folder single-item menu after Sort, before Open All, hidden for `isPermanentRootFolder` and `isSystemFolder` nodes
+- [x] "Paste from YAML..." opens `PasteYamlDialog` for that folder with `onPerformAction`; `onPasted` expands the target folder
+- [x] run `make lint && make build` - must pass before task 5
 
 ### Task 5: Space menu items
 

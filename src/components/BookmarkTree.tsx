@@ -48,7 +48,9 @@ import {
   SquareStack,
   Link,
   Sparkles,
-  Search
+  Search,
+  Copy,
+  ClipboardPaste
 } from 'lucide-react';
 import { getRandomGroupColor } from '../utils/groupColors';
 import { SpaceFolderIcon } from './SpaceFolderIcon';
@@ -81,6 +83,8 @@ import { resolveArcFolderIconState } from '../utils/folderIconState';
 import { isSystemFolder } from '../utils/archiveFolder';
 import { resolveItemDoubleClick } from '../utils/itemDoubleClick';
 import { useAttentionMarks } from '../hooks/useAttentionMarks';
+import { PasteYamlDialog } from './PasteYamlDialog';
+import { copyBookmarksAsYaml } from '../utils/bookmarkYamlCopy';
 
 // Storage key for persisting folder expand/collapse state across restarts (keyed by space only)
 const getExpandedStateKey = (spaceId: string) =>
@@ -135,6 +139,8 @@ interface BookmarkRowProps {
   onDuplicate: (id: string) => void;
   onAiRename?: (node: chrome.bookmarks.BookmarkTreeNode) => void;
   onExpandAll?: (folderId: string) => void;
+  onCopyAsYaml?: (folderId: string) => void;
+  onPasteFromYaml?: (folderId: string) => void;
   onPin?: (url: string, title: string, faviconUrl?: string) => void;
   matchingSpace?: Space;  // Space that uses this folder as its bookmark folder
   globalDragActive?: boolean;  // True when any drag is in progress (disables hover borders)
@@ -229,6 +235,8 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
   onDuplicate,
   onAiRename,
   onExpandAll,
+  onCopyAsYaml,
+  onPasteFromYaml,
   onPin,
   matchingSpace,
   globalDragActive,
@@ -733,6 +741,21 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
                 <Calendar size={14} className="mr-2" /> Sort by Date
               </ContextMenu.Item>
               <ContextMenu.Separator />
+              {!isSpecialFolder && !isSystemFolder(node) && (onCopyAsYaml || onPasteFromYaml) && (
+                <>
+                  {onCopyAsYaml && (
+                    <ContextMenu.Item onSelect={() => onCopyAsYaml(node.id)}>
+                      <Copy size={14} className="mr-2" /> Copy as YAML
+                    </ContextMenu.Item>
+                  )}
+                  {onPasteFromYaml && (
+                    <ContextMenu.Item onSelect={() => onPasteFromYaml(node.id)}>
+                      <ClipboardPaste size={14} className="mr-2" /> Paste from YAML...
+                    </ContextMenu.Item>
+                  )}
+                  <ContextMenu.Separator />
+                </>
+              )}
               {onOpenAllTabs && (
                 <ContextMenu.Item onSelect={() => onOpenAllTabs(node.id)}>
                   <ExternalLink size={14} className="mr-2" /> Open All Tabs
@@ -1313,6 +1336,7 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
     bookmarkIds: string[];
   } | null>(null);
   const [creatingBookmarkParentId, setCreatingBookmarkParentId] = useState<string | null>(null);
+  const [pasteYamlFolderId, setPasteYamlFolderId] = useState<string | null>(null);
   const [showSpaceFolderPicker, setShowSpaceFolderPicker] = useState(false);
   const [moveToSpaceDialog, setMoveToSpaceDialog] = useState<{
     isOpen: boolean;
@@ -2270,6 +2294,19 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
     await navigator.clipboard.writeText(url);
   }, []);
 
+  const handleCopyFolderAsYaml = useCallback(async (folderId: string) =>
+  {
+    try
+    {
+      const summary = await copyBookmarksAsYaml(chrome.bookmarks, navigator.clipboard, folderId, { childrenOnly: false });
+      onShowToast?.(`Copied ${summary} as YAML`);
+    }
+    catch (err)
+    {
+      onShowToast?.(`Copy as YAML failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [onShowToast]);
+
   // Copy URLs of all selected bookmarks to clipboard
   const handleCopyUrls = useCallback(async () =>
   {
@@ -2713,6 +2750,8 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
                 ? (bookmark) => onAiRename(bookmark, getTabIdForBookmark(bookmark.id))
                 : undefined}
               onExpandAll={handleExpandAll}
+              onCopyAsYaml={handleCopyFolderAsYaml}
+              onPasteFromYaml={setPasteYamlFolderId}
               onPin={handlePinSelectedBookmarks}
               globalDragActive={!!unifiedActiveId}
               isMultiDrag={isMultiDrag}
@@ -2831,6 +2870,21 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
           setEditingNode(null);
           setCreatingBookmarkParentId(null);
         }}
+      />
+
+      <PasteYamlDialog
+        isOpen={pasteYamlFolderId !== null}
+        targetFolderId={pasteYamlFolderId}
+        onPerformAction={onPerformAction}
+        onPasted={() =>
+        {
+          const folderId = pasteYamlFolderId;
+          if (folderId)
+          {
+            setExpandedState(prev => ({ ...prev, [folderId]: true }));
+          }
+        }}
+        onClose={() => setPasteYamlFolderId(null)}
       />
 
       <ConfirmDeleteDialog
