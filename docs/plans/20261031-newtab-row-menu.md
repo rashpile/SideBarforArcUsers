@@ -67,11 +67,11 @@
 - [x] run full checks: `make lint && make test && make build`
 
 ### Task 3: [Final] Update documentation
-- [ ] `README.md` line 76: the "+ New Tab" row has a `...` menu with **Archive** and **Clear**; line 92: "Clear and Archive in the '+ New Tab' row's `...` menu"
-- [ ] `docs/changelog.md`: amend the unreleased "Archive button next to Clear on the '+ New Tab' row" entry to describe the `...` menu with Archive and Clear
-- [ ] `src/data/changelog.ts`: amend the 1.0.352 entry the same way
-- [ ] `docs/state-reference.md`: no new storage keys, no change
-- [ ] move this plan to `docs/plans/completed/`
+- [x] `README.md` line 76: the "+ New Tab" row has a `...` menu with **Archive** and **Clear**; line 92: "Clear and Archive in the '+ New Tab' row's `...` menu"
+- [x] `docs/changelog.md`: amend the unreleased "Archive button next to Clear on the '+ New Tab' row" entry to describe the `...` menu with Archive and Clear
+- [x] `src/data/changelog.ts`: amend the 1.0.352 entry the same way
+- [x] `docs/state-reference.md`: no new storage keys, no change
+- [x] move this plan to `docs/plans/completed/` (left to the orchestrator)
 
 ## Post-Completion
 **Manual verification**:
