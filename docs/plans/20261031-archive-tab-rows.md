@@ -132,14 +132,14 @@ export class TabArchiveCandidates
 - Create: `src/utils/tabArchiveCandidates.ts`
 - Create: `tests/tabArchiveCandidates.test.mjs`
 
-- [ ] create `TabArchiveCandidates` with `canArchiveRow` and `pick` as in Technical Details (Allman braces,
+- [x] create `TabArchiveCandidates` with `canArchiveRow` and `pick` as in Technical Details (Allman braces,
       `.ts` imports, no `chrome.*`)
-- [ ] write tests: marked tabs skipped from `pick` and refused by `canArchiveRow`; tabs not in the Space
+- [x] write tests: marked tabs skipped from `pick` and refused by `canArchiveRow`; tabs not in the Space
       list (another Space) skipped; a group expands to its Space tabs only (a same-group tab outside the
       list stays); de-dup when a tab is listed and in a listed group; result in Space-list order
-- [ ] write tests: empty pages refused by `canArchiveRow` but kept in `pick`; tabs without id skipped;
+- [x] write tests: empty pages refused by `canArchiveRow` but kept in `pick`; tabs without id skipped;
       empty input gives an empty list
-- [ ] run `make lint && make test` - must pass before task 2
+- [x] run `make lint && make test` - must pass before task 2
 
 ### Task 2: Archive button and menu items on tab rows
 
