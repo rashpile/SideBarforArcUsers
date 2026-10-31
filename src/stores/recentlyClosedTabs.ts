@@ -134,6 +134,27 @@ export class RecentlyClosedTabs
     return this.#withSpace(spaceId, []);
   }
 
+  /**
+   * Puts back records taken from this Space earlier (Undo of a Space delete). Records the
+   * Space gained since stay; per URL the newest record wins, and the cap still applies.
+   */
+  restoreSpace(spaceId: string, records: readonly ClosedTabRecord[]): RecentlyClosedTabs
+  {
+    if (records.length === 0) return this;
+    const seenUrls = new Set<string>();
+    const merged = [...this.forSpace(spaceId), ...records.filter(isClosedTabRecord)]
+      .sort((a, b) => b.closedAt - a.closedAt)
+      .filter(record =>
+      {
+        if (seenUrls.has(record.url)) return false;
+        seenUrls.add(record.url);
+        return true;
+      })
+      .slice(0, RECENTLY_CLOSED_PER_SPACE)
+      .map(copyRecord);
+    return this.#withSpace(spaceId, merged);
+  }
+
   /** Drops the records of Spaces that no longer exist. */
   retainSpaces(spaceIds: Iterable<string>): RecentlyClosedTabs
   {

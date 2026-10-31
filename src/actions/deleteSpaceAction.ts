@@ -3,6 +3,8 @@ import { truncateTitle } from '../utils/truncateTitle';
 import { Space } from '../contexts/SpacesContext';
 import { spaceManagerProxy } from '../managers/proxies/spaceManagerProxy';
 import { tabSpaceRegistryProxy } from '../managers/proxies/tabSpaceRegistryProxy';
+import { recentlyClosedProxy } from '../managers/proxies/recentlyClosedProxy';
+import type { ClosedTabRecord } from '../managers/shared/recentlyClosedApi';
 import { reportTabReopenedByUndo } from '../utils/tabReopenedByUndo';
 
 interface TabSnapshot
@@ -19,6 +21,7 @@ interface SpaceSnapshot
   space: Space;
   index: number;
   tabs: TabSnapshot[];
+  recentlyClosed: ClosedTabRecord[];
 }
 
 /**
@@ -67,7 +70,19 @@ export class DeleteSpaceAction implements UndoableAction
       space: { ...space },
       index: spaceIndex,
       tabs: [],
+      recentlyClosed: [],
     };
+
+    // Background drops the list once the Space is gone, so Undo needs its own copy.
+    // Taken before the tabs close: Undo reopens those tabs, they don't belong in the list.
+    try
+    {
+      this.snapshot.recentlyClosed = await recentlyClosedProxy.spaceRecords(space.id);
+    }
+    catch (err)
+    {
+      console.error('[DeleteSpaceAction] do: failed to snapshot Recently Closed tabs:', err);
+    }
 
     // Snapshot the tabs the extension registered to this Space; native Chrome groups play no part.
     try
@@ -157,6 +172,15 @@ export class DeleteSpaceAction implements UndoableAction
     const insertAt = Math.min(this.snapshot.index, currentSpaces.length);
     currentSpaces.splice(insertAt, 0, this.snapshot.space);
     await spaceManagerProxy.updateSpaces(currentSpaces);
+
+    try
+    {
+      await recentlyClosedProxy.restoreSpace(this.snapshot.space.id, this.snapshot.recentlyClosed);
+    }
+    catch (err)
+    {
+      console.error('[DeleteSpaceAction] undo: failed to restore Recently Closed tabs:', err);
+    }
 
     // Recreate tabs sorted by index ascending
     if (this.snapshot.tabs.length > 0)

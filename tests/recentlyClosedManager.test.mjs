@@ -167,3 +167,57 @@ test('an archive close is skipped once', () =>
   assert.equal(manager.consumeArchiveClose(4), false);
   assert.equal(manager.consumeArchiveClose(6), false);
 });
+
+test('Undo of a Space delete brings back the records the delete snapshotted', async () =>
+{
+  const { local } = installChrome({
+    stored: {
+      [RECENTLY_CLOSED_TABS_KEY]: storedList({
+        work: [record('a', 'https://a.test/', 3), record('b', 'https://b.test/', 2)],
+        home: [record('c', 'https://c.test/', 1)],
+      }),
+    },
+  });
+  const spaceIds = ['work', 'home'];
+  const { manager } = createManager(spaceIds);
+  await manager.load();
+
+  const snapshot = await manager.spaceRecords('work');
+  spaceIds.splice(0, 1);
+  await manager.retainSpaces(spaceIds);
+  assert.deepEqual(RecentlyClosedTabs.fromStored(local[RECENTLY_CLOSED_TABS_KEY]).forSpace('work'), []);
+
+  spaceIds.unshift('work');
+  await manager.restoreSpace('work', snapshot);
+
+  const after = RecentlyClosedTabs.fromStored(local[RECENTLY_CLOSED_TABS_KEY]);
+  assert.deepEqual(after.forSpace('work').map(entry => entry.id), ['a', 'b']);
+  assert.deepEqual(after.forSpace('home').map(entry => entry.id), ['c']);
+});
+
+test('restoreSpace keeps newer records and drops the older record of the same URL', async () =>
+{
+  const { local } = installChrome({
+    stored: {
+      [RECENTLY_CLOSED_TABS_KEY]: storedList({ work: [record('new', 'https://a.test/', 5)] }),
+    },
+  });
+  const { manager } = createManager();
+  await manager.load();
+
+  await manager.restoreSpace('work', [record('old', 'https://a.test/', 3), record('b', 'https://b.test/', 4)]);
+
+  const after = RecentlyClosedTabs.fromStored(local[RECENTLY_CLOSED_TABS_KEY]);
+  assert.deepEqual(after.forSpace('work').map(entry => entry.id), ['new', 'b']);
+});
+
+test('restoreSpace does nothing while the Space is still deleted', async () =>
+{
+  const { local } = installChrome({ stored: { [RECENTLY_CLOSED_TABS_KEY]: storedList({}) } });
+  const { manager } = createManager(['home']);
+  await manager.load();
+
+  await manager.restoreSpace('work', [record('a', 'https://a.test/', 1)]);
+
+  assert.deepEqual(RecentlyClosedTabs.fromStored(local[RECENTLY_CLOSED_TABS_KEY]).forSpace('work'), []);
+});

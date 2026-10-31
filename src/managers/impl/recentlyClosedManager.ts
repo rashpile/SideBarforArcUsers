@@ -53,6 +53,12 @@ export class RecentlyClosedManager implements RoutedManager, RecentlyClosedApi
       case 'clear':
         return this.clear(message.spaceId as string);
 
+      case 'spaceRecords':
+        return this.spaceRecords(message.spaceId as string);
+
+      case 'restoreSpace':
+        return this.restoreSpace(message.spaceId as string, message.records as ClosedTabRecord[]);
+
       case 'expectArchiveClose':
         return this.expectArchiveClose(message.tabIds as number[]);
 
@@ -95,6 +101,24 @@ export class RecentlyClosedManager implements RoutedManager, RecentlyClosedApi
   {
     const ids = [...spaceIds];
     return this.#change(tabs => tabs.retainSpaces(ids));
+  }
+
+  /** The Space's records once pending changes are applied. */
+  async spaceRecords(spaceId: string): Promise<ClosedTabRecord[]>
+  {
+    await this.#writeTail;
+    return [...this.#tabs.forSpace(spaceId)];
+  }
+
+  restoreSpace(spaceId: string, records: ClosedTabRecord[]): Promise<void>
+  {
+    // Run after the Space is back: records of a Space that doesn't exist would be
+    // dropped by the next retainSpaces anyway
+    return this.#change(tabs =>
+    {
+      if (!new Set(this.#deps.getSpaceIds()).has(spaceId)) return tabs;
+      return tabs.restoreSpace(spaceId, records);
+    });
   }
 
   clear(spaceId: string): Promise<void>
