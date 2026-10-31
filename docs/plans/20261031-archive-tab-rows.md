@@ -183,11 +183,12 @@ export class TabArchiveCandidates
 
 ### Task 4: Verify acceptance criteria
 
-- [ ] verify: button hidden for marked tabs, empty pages, Spaces without a folder and the All view
-- [ ] verify: multi-selection button/menu/drop skip marked tabs and tabs of other Spaces; groups archive
-      their tabs; bookmarks, Favorites, folders and external links are refused by the drop zone
-- [ ] verify: archiving the last tabs of a window goes through the existing confirm (`mode: 'archive'`)
-- [ ] run full checks: `make lint && make test && make build`
+- [x] verify: button hidden for marked tabs, empty pages, Spaces without a folder and the All view (code review: `canArchiveRow` + `activeSpaceFolderId` undefined for All / no folder; in-Chrome check in Post-Completion)
+- [x] verify: multi-selection button/menu/drop skip marked tabs and tabs of other Spaces; groups archive
+      their tabs; bookmarks, Favorites, folders and external links are refused by the drop zone (code review: `pick` drops marked / non-Space tabs and expands groups;
+      `canAccept` requires TAB/TAB_GROUP and `sourceZone === 'tabList'`, Favorites live in `pinnedBar`)
+- [x] verify: archiving the last tabs of a window goes through the existing confirm (`mode: 'archive'`) (code review: `runManualArchive` checks `closesWholeWindow` first)
+- [x] run full checks: `make lint && make test && make build`
 
 ### Task 5: [Final] Update documentation
 
@@ -196,12 +197,12 @@ export class TabArchiveCandidates
 - Modify: `docs/changelog.md`
 - Modify: `src/data/changelog.ts`
 
-- [ ] `README.md`: Tab list section (hover Archive button, Archive menu item, multi-selection) and Archive
+- [x] `README.md`: Tab list section (hover Archive button, Archive menu item, multi-selection) and Archive
       section (drop tabs onto it, also collapsed; marked tabs stay open)
-- [ ] `docs/changelog.md`: a "New:" line under Latest Version
-- [ ] `src/data/changelog.ts`: What's New entry at the top of the current version's list
-- [ ] no new storage keys: `docs/state-reference.md` unchanged
-- [ ] move this plan to `docs/plans/completed/`
+- [x] `docs/changelog.md`: a "New:" line under Latest Version
+- [x] `src/data/changelog.ts`: What's New entry at the top of the current version's list
+- [x] no new storage keys: `docs/state-reference.md` unchanged
+- [x] move this plan to `docs/plans/completed/` (left in place - the orchestrator moves it at the end)
 
 ## Post-Completion
 

@@ -2,6 +2,7 @@
 
 ## Latest Version
 
+- New: Archive button on hover and Archive in the right-click menu of a tab or a multi-selection - saves the tabs to the Space's Archive and closes them, with Undo; marked tabs stay open. Dragging tabs or a tab group onto the Archive section (collapsed or expanded) does the same
 - Fixed: an invalid URL in New Bookmark shows its error only in the dialog; it no longer stays under the Bookmarks tree after the dialog closes
 - New: the search button on the Space title (hover or click, Arc style) shows the recently used pages of the whole Space folder, newest first, with search, like the button on a folder row
 - Changed: hovering a tab or bookmark shows a flag button that marks it for attention or clears the mark, in place of the Pin button. Pin to Sidebar stays in the right-click menu and is now also in a single bookmark's menu and in the menu of a selection of several bookmarks
