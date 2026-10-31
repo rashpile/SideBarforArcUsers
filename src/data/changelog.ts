@@ -3,6 +3,7 @@
 // Entries are shown in the "What's New" dialog when the user upgrades past them.
 export const CHANGELOG: Record<string, string[]> = {
   '1.0.352': [
+    'New: Copy as YAML and Paste from YAML in the bookmark folder menu and the Space menu - share a set of links, keep them in notes or write them by hand, with Undo',
     'New: Archive button on hover and Archive in the right-click menu of tabs - also for a multi-selection, or drag tabs onto the Archive section; marked tabs stay open, with Undo',
     'New: Recently Closed button on the Space title - hover or click it to reopen the Space\'s recently closed tabs',
     'New: search button on the Space title - hover or click it to see the Space\'s recently used pages, with search',

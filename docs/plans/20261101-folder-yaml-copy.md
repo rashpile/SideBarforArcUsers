@@ -206,11 +206,11 @@
 - [x] run full checks: `make lint && make test && make build`
 
 ### Task 7: [Final] Update documentation
-- [ ] update `README.md` (bookmarks section and Space menu)
-- [ ] add an entry to `docs/changelog.md`
-- [ ] add a What's New entry to `src/data/changelog.ts`
-- [ ] confirm `docs/state-reference.md` needs no change (no new storage keys)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] update `README.md` (bookmarks section and Space menu)
+- [x] add an entry to `docs/changelog.md`
+- [x] add a What's New entry to `src/data/changelog.ts`
+- [x] confirm `docs/state-reference.md` needs no change (no new storage keys)
+- [x] move this plan to `docs/plans/completed/` (left to the orchestrator, which moves it at the end)
 
 ## Post-Completion
 
