@@ -174,10 +174,10 @@
 - Create: `src/components/PasteYamlDialog.tsx`
 - Create: `src/utils/bookmarkYamlCopy.ts`
 
-- [ ] create `copyBookmarksAsYaml` in `src/utils/bookmarkYamlCopy.ts` as in Technical Details (returns the summary; throws on clipboard/Chrome error)
-- [ ] create `PasteYamlDialog` on top of `Dialog`: title `Paste from YAML`, monospace textarea, parse on change, show `Will create <summary>` or the errors as `Line <n>: <reason>`, Add disabled while empty or invalid
-- [ ] on Add build `PasteBookmarkYamlAction` for `targetFolderId`, run it through `onPerformAction` (or `do()` when absent, catching the error), read `action.failure`: keep the dialog open with the message when set, otherwise call `onPasted()` and close
-- [ ] run `make lint && make build` - must pass before task 4
+- [x] create `copyBookmarksAsYaml` in `src/utils/bookmarkYamlCopy.ts` as in Technical Details (returns the summary; throws on clipboard/Chrome error)
+- [x] create `PasteYamlDialog` on top of `Dialog`: title `Paste from YAML`, monospace textarea, parse on change, show `Will create <summary>` or the errors as `Line <n>: <reason>`, Add disabled while empty or invalid
+- [x] on Add build `PasteBookmarkYamlAction` for `targetFolderId`, run it through `onPerformAction` (or `do()` when absent, catching the error), read `action.failure`: keep the dialog open with the message when set, otherwise call `onPasted()` and close
+- [x] run `make lint && make build` - must pass before task 4
 
 ### Task 4: Folder context menu items
 
