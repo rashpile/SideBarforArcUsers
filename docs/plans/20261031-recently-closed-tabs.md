@@ -172,9 +172,9 @@ records.
 - Create: `src/stores/openTabPages.ts`
 - Create: `tests/openTabPages.test.mjs`
 
-- [ ] create `OpenTabPages` with `load`, `update`, `assignSpace`, `markAssociated`, `take`, `seed`, no-op writes skipped, and a write tail, taking the storage area in its constructor
-- [ ] write tests: a fresh instance loaded from the stored value still returns a closed tab's page and Space via `take` (worker woken by the close); `seed` keeps stored entries for tabs that are not live and keeps a known `spaceId` when a live tab's page is updated; `associated` survives an update and a reload; `take` removes the entry from storage
-- [ ] run `make lint && make test` - must pass before task 3
+- [x] create `OpenTabPages` with `load`, `update`, `assignSpace`, `markAssociated`, `take`, `seed`, no-op writes skipped, and a write tail, taking the storage area in its constructor
+- [x] write tests: a fresh instance loaded from the stored value still returns a closed tab's page and Space via `take` (worker woken by the close); `seed` keeps stored entries for tabs that are not live and keeps a known `spaceId` when a live tab's page is updated; `associated` survives an update and a reload; `take` removes the entry from storage
+- [x] run `make lint && make test` - must pass before task 3
 
 ### Task 3: Close recording decision
 
