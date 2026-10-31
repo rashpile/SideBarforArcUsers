@@ -35,6 +35,8 @@ test('round trip keeps tricky titles, nesting and empty folders', () =>
       children: [
         ...titles.map((title, i) => ({ title, url: `https://example.com/${i}?q=a#frag` })),
         { title: 'Empty', children: [] },
+        { title: '', children: [{ title: 'In unnamed', url: 'https://unnamed.example' }] },
+        { title: '   ', children: [] },
         { title: 'Deep: "x"', children: [{ title: '', url: 'https://deep.example' }] },
       ],
     },
@@ -52,6 +54,8 @@ test('round trip keeps tricky titles, nesting and empty folders', () =>
       items: [
         ...titles.map((title, i) => ({ title, url: `https://example.com/${i}?q=a#frag` })),
         { folder: 'Empty', items: [] },
+        { folder: '', items: [{ title: 'In unnamed', url: 'https://unnamed.example' }] },
+        { folder: '   ', items: [] },
         // An empty title falls back to the URL on paste
         { folder: 'Deep: "x"', items: [{ title: 'https://deep.example', url: 'https://deep.example' }] },
       ],
@@ -105,6 +109,7 @@ test('structural errors report the line and return no list', () =>
     ['- title: a\n  title: b\n  url: https://a', 2, /Duplicate key/],
     ['- folder: a\n  url: https://a', 1, /both "url" and "folder"/],
     ['- title: a\n- title: b\n  url: https://b', 1, /needs "url"/],
+    ['- items: []', 1, /needs "url"/],
     ['- title: "unterminated\n  url: https://a', 1, /Unterminated quote/],
     ['- title: \'open\n  url: https://a', 1, /Unterminated quote/],
     ['- title: "a" b\n  url: https://a', 1, /after the closing quote/],
@@ -122,6 +127,14 @@ test('structural errors report the line and return no list', () =>
     assert.equal(errors[0].line, line, text);
     assert.match(errors[0].message, message, text);
   }
+});
+
+test('a folder key with an empty value is an unnamed folder', () =>
+{
+  assert.deepEqual(parseOk('- folder: ""\n  items: []\n- folder:\n  items:\n    - url: https://a.example'), [
+    { folder: '', items: [] },
+    { folder: '', items: [{ title: 'https://a.example', url: 'https://a.example' }] },
+  ]);
 });
 
 test('system folder titles are rejected', () =>

@@ -65,7 +65,7 @@
   url: "https://mail.google.com"
 ```
 - bookmark: `title` (optional on paste; falls back to the normalized URL) and `url`.
-- folder: `folder` (required, non-empty) and `items` (missing or `[]` = empty folder).
+- folder: `folder` (required key; an empty name is allowed, since Copy writes unnamed folders as `""`) and `items` (missing or `[]` = empty folder).
 - Copy on a folder: a one-item list (the folder itself). Copy on the Space: the Space folder's children.
 
 ### Serializer `YamlBookmarkList.fromBookmarkNodes(nodes)` + `list.toYaml()`

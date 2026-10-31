@@ -534,11 +534,8 @@ function validateItems(items: readonly YamlItem[], errors: YamlParseError[]): vo
   {
     if (item instanceof YamlFolder)
     {
-      if (item.title.trim() === '')
-      {
-        errors.push(new YamlParseError(item.line, 'A folder needs a name.'));
-      }
-      else if (SYSTEM_FOLDER_TITLES.includes(item.title))
+      // An unnamed folder is legal in Chrome and Copy writes it as `folder: ""`, so paste must take it back.
+      if (SYSTEM_FOLDER_TITLES.includes(item.title))
       {
         errors.push(new YamlParseError(item.line, `"${item.title}" is reserved for the sidebar; rename the folder.`));
       }

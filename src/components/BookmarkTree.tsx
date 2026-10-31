@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, forwardRef, useMemo } from 'react';
-import { useBookmarks, SortOption } from '../hooks/useBookmarks';
+import { runBatchOperation, useBookmarks, SortOption } from '../hooks/useBookmarks';
 import { Space, useSpacesContext } from '../contexts/SpacesContext';
 import { useBookmarkTabsContext, OpenItemTabOptions } from '../contexts/BookmarkTabsContext';
 import { SelectionItem } from '../contexts/SelectionContext';
@@ -2240,6 +2240,8 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
       parentId,
       title,
       folderSelectionToCreate.bookmarkIds,
+      chrome.bookmarks,
+      runBatchOperation,
       regroupAssociatedTab,
       (folderId) =>
       {
