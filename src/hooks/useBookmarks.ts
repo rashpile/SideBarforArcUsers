@@ -280,15 +280,17 @@ export const useBookmarks = () => {
         const lastError = chrome.runtime.lastError;
         if (lastError)
         {
-          // Log the error but also return it for caller to handle
-          handleError('create bookmark');
+          // Not handleError: the error goes back to the caller, which decides whether to show it.
+          // Only the New Bookmark dialog does; the hook's error state would stick under the
+          // Bookmarks tree after the dialog closes
+          console.error('Bookmark create bookmark error:', lastError.message);
           resolve({ node: null, error: lastError.message || 'Unknown error' });
           return;
         }
         resolve({ node: node || null, error: null });
       });
     });
-  }, [handleError]);
+  }, []);
 
   // Get a single bookmark by ID
   const getBookmark = useCallback((
