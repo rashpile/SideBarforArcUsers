@@ -22,6 +22,7 @@ export const ManagerId = {
   LAST_AUDIBLE: 'LastAudibleTracker',
   FAVORITE_ICONS: 'FavoriteIconsManager',
   ATTENTION_MARKS: 'AttentionMarkManager',
+  RECENTLY_CLOSED: 'RecentlyClosedManager',
 } as const;
 
 export type ManagerIdType = typeof ManagerId[keyof typeof ManagerId];

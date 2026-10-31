@@ -196,11 +196,11 @@ records.
 - Modify: `src/managers/proxies/messageRouting.ts`
 - Create: `tests/recentlyClosedManager.test.mjs`
 
-- [ ] add `ManagerId.RECENTLY_CLOSED`; `recentlyClosedApi.ts` with `RECENTLY_CLOSED_TABS_KEY = 'recentlyClosedTabs'`, record type and `RecentlyClosedApi` (`reopen`, `clear`, `expectArchiveClose`)
-- [ ] implement `RecentlyClosedManager` (load guard, write tail, JSON-string storage, `recordClose` with deleted-Space drop, archive skip set, `retainSpaces`, `clear`, `reopen` with injected `registerTab`, `dispatch`)
-- [ ] implement the proxy with `callManager`
-- [ ] write tests: `reopen` creates the tab in the given window and registers it in the record's Space (not another Space), then removes the record; `tabs.create` failure keeps the record; a failed initial read never writes over the stored list
-- [ ] run `make lint && make test` - must pass before task 5
+- [x] add `ManagerId.RECENTLY_CLOSED`; `recentlyClosedApi.ts` with `RECENTLY_CLOSED_TABS_KEY = 'recentlyClosedTabs'`, record type and `RecentlyClosedApi` (`reopen`, `clear`, `expectArchiveClose`)
+- [x] implement `RecentlyClosedManager` (load guard, write tail, JSON-string storage, `recordClose` with deleted-Space drop, archive skip set, `retainSpaces`, `clear`, `reopen` with injected `registerTab`, `dispatch`)
+- [x] implement the proxy with `callManager`
+- [x] write tests: `reopen` creates the tab in the given window and registers it in the record's Space (not another Space), then removes the record; `tabs.create` failure keeps the record; a failed initial read never writes over the stored list
+- [x] run `make lint && make test` - must pass before task 5
 
 ### Task 5: Wire recording into background
 
