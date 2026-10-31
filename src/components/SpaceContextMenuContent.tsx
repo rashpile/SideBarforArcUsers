@@ -1,6 +1,6 @@
 import React from 'react';
 import * as ContextMenu from './menu/ContextMenu';
-import { Pencil, X, Trash2, FolderPlus } from 'lucide-react';
+import { Pencil, X, Trash2, FolderPlus, Copy, ClipboardPaste } from 'lucide-react';
 
 interface SpaceContextMenuContentProps
 {
@@ -8,6 +8,8 @@ interface SpaceContextMenuContentProps
   onDelete?: () => void;
   onCloseAllTabs?: () => void;
   onCreateFolder?: () => void;  // shown only when provided (space has a resolvable root folder)
+  onCopyAsYaml?: () => void;  // same condition as onCreateFolder
+  onPasteFromYaml?: () => void;  // same condition as onCreateFolder
   canDelete?: boolean;
 }
 
@@ -16,6 +18,8 @@ export const SpaceContextMenuContent: React.FC<SpaceContextMenuContentProps> = (
   onDelete,
   onCloseAllTabs,
   onCreateFolder,
+  onCopyAsYaml,
+  onPasteFromYaml,
   canDelete = true,
 }) =>
 {
@@ -29,6 +33,22 @@ export const SpaceContextMenuContent: React.FC<SpaceContextMenuContentProps> = (
         <ContextMenu.Item onSelect={onCreateFolder}>
           <FolderPlus size={14} className="mr-2 flex-shrink-0" /> New Folder
         </ContextMenu.Item>
+      )}
+
+      {(onCopyAsYaml || onPasteFromYaml) && (
+        <>
+          <ContextMenu.Separator />
+          {onCopyAsYaml && (
+            <ContextMenu.Item onSelect={onCopyAsYaml}>
+              <Copy size={14} className="mr-2 flex-shrink-0" /> Copy Space as YAML
+            </ContextMenu.Item>
+          )}
+          {onPasteFromYaml && (
+            <ContextMenu.Item onSelect={onPasteFromYaml}>
+              <ClipboardPaste size={14} className="mr-2 flex-shrink-0" /> Paste from YAML...
+            </ContextMenu.Item>
+          )}
+        </>
       )}
 
       <ContextMenu.Separator />

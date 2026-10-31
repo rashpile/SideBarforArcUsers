@@ -195,15 +195,15 @@
 - Modify: `src/components/SpaceContextMenuContent.tsx`
 - Modify: `src/App.tsx`
 
-- [ ] add optional `onCopyAsYaml` and `onPasteFromYaml` props to `SpaceContextMenuContent` ("Copy Space as YAML", "Paste from YAML..."), shown only when provided
-- [ ] pass `showToast` into `SpaceTitleWrapper` as `onShowToast` (it has `onPerformAction` but no toast today)
-- [ ] in `App.tsx` pass the two props from `SpaceTitle` only when `spaceRoot` resolves (same condition as `onCreateFolder`; no hard-coded root ids); copy uses `copyBookmarksAsYaml(..., spaceRoot.id, { childrenOnly: true })` (system folders skipped); paste opens `PasteYamlDialog` for `spaceRoot.id` with the same `onPerformAction`; `onPasted` expands the collapsed Bookmarks section the way `handleSaveFolder` does
-- [ ] `SpaceIcon.tsx` (Space bar icons) gets no YAML items: it passes no resolved folder and no `onCreateFolder` either (deviation from the design, which named it)
-- [ ] run `make lint && make build` - must pass before task 6
+- [x] add optional `onCopyAsYaml` and `onPasteFromYaml` props to `SpaceContextMenuContent` ("Copy Space as YAML", "Paste from YAML..."), shown only when provided
+- [x] pass `showToast` into `SpaceTitleWrapper` as `onShowToast` (it has `onPerformAction` but no toast today)
+- [x] in `App.tsx` pass the two props from `SpaceTitle` only when `spaceRoot` resolves (same condition as `onCreateFolder`; no hard-coded root ids); copy uses `copyBookmarksAsYaml(..., spaceRoot.id, { childrenOnly: true })` (system folders skipped); paste opens `PasteYamlDialog` for `spaceRoot.id` with the same `onPerformAction`; `onPasted` expands the collapsed Bookmarks section the way `handleSaveFolder` does
+- [x] `SpaceIcon.tsx` (Space bar icons) gets no YAML items: it passes no resolved folder and no `onCreateFolder` either (deviation from the design, which named it)
+- [x] run `make lint && make build` - must pass before task 6
 
 ### Task 6: Verify acceptance criteria
-- [ ] verify all requirements from Overview and issue #44 Rules are implemented (system folders skipped on copy, never created or targeted on paste; validation before writing; append, no merge; one Undo; summary before Add)
-- [ ] run full checks: `make lint && make test && make build`
+- [x] verify all requirements from Overview and issue #44 Rules are implemented (system folders skipped on copy, never created or targeted on paste; validation before writing; append, no merge; one Undo; summary before Add)
+- [x] run full checks: `make lint && make test && make build`
 
 ### Task 7: [Final] Update documentation
 - [ ] update `README.md` (bookmarks section and Space menu)
