@@ -40,3 +40,15 @@ test('a selection of one item never acts as a multi-selection, even on the selec
   assert.equal(new TabRowSelection(['group-5']).actsOnSelection(9, 5), false);
   assert.equal(new TabRowSelection([]).actsOnSelection(1, -1), false);
 });
+
+test('a drag carries the selection only when a dragged tab or group is in it', () =>
+{
+  const selection = new TabRowSelection(['1', '2', 'group-5']);
+
+  assert.equal(selection.isCarriedBy([3], []), false);
+  assert.equal(selection.isCarriedBy([], [6]), false);
+  assert.equal(selection.isCarriedBy([1, 2], [5]), true);
+  assert.equal(selection.isCarriedBy([2], []), true);
+  assert.equal(selection.isCarriedBy([], [5]), true);
+  assert.equal(new TabRowSelection([]).isCarriedBy([3], []), false);
+});

@@ -17,4 +17,11 @@ export class TabRowSelection
     if (this.selectedIds.has(String(tabId))) return true;
     return groupId !== undefined && groupId !== -1 && this.selectedIds.has(`group-${groupId}`);
   }
+
+  // True when a drag of these tabs and groups carried the selection: only then may the drop clear it
+  isCarriedBy(tabIds: number[], groupIds: number[]): boolean
+  {
+    return tabIds.some(id => this.selectedIds.has(String(id)))
+      || groupIds.some(id => this.selectedIds.has(`group-${id}`));
+  }
 }

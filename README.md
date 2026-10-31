@@ -75,7 +75,7 @@ Everything is stored in Chrome: bookmarks for Spaces, pinned pages, the archive 
 - Drag to reorder, click to switch. On hover, a flag button marks the tab for attention, the Archive button saves it to the Archive and closes it, and X closes it. Marked tabs and empty pages have no Archive button, and neither does a Space without a bookmark folder
 - "+ New Tab" row at the bottom, with **Clear** (close the list's tabs) and **Archive** (save them to the Archive, then close). Both can be undone
 - Right-click: Pin to Sidebar, Add to Group, Add to Bookmark, Move to New Window, Duplicate, Mark for Attention, Archive, Close, Close Tabs Before / After / Other Tabs
-- With several tabs or groups selected, **Archive** in the right-click menu archives them all; marked tabs stay open. Every Archive can be undone
+- With several tabs selected, **Archive** in the right-click menu archives them all; marked tabs stay open. Every Archive can be undone
 - Sort by domain, then title (A-Z or Z-A)
 - Chrome tab groups show with their color and title. Group menu: New Tab, Sort by Domain, Save to Bookmarks, Rename, Change Color, Close All. Drag tabs in and out of groups, reorder groups, drop a group on the bookmark tree to save it as a folder
 
@@ -117,7 +117,7 @@ Off by default. Turn it on with **Archive tabs after** in Settings: 12 hours, 24
 
 The **Archive** section sits between Bookmarks and Tabs. Click the header to list everything, newest first, with the time each was archived. While it is expanded, a search field in the header row narrows the list. Click an item to reopen it in the active Space. Right-click to delete it (with Undo).
 
-Drag tabs, a multi-selection or a tab group from the Tab list onto the Archive section, collapsed or expanded, to archive them, with Undo. Marked tabs stay open. The section shows once the Archive has an item; until then use the Archive button on a tab row.
+Drag a tab or a multi-selection from the Tab list onto the Archive section, collapsed or expanded, to archive them, with Undo. Marked tabs stay open. The section shows once the Archive has an item; until then use the Archive button on a tab row.
 
 The header's `...` menu has **Clear**: Clear All, Older than 24 Hours, Older than 7 Days or Older than 30 Days. It works on the whole Archive of the active Space, whatever the search shows. Each option shows how many pages it removes and is grayed out when there are none. Clear All asks first; the age options run at once. One Undo brings back everything a Clear removed.
 

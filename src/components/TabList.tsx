@@ -2406,6 +2406,42 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     performClose(tabIds);
   }, [visibleTabs, isTabMarked, performClose]);
 
+  // Get selection info for multi-selection actions
+  const getTabSelectionInfo = useCallback(() =>
+  {
+    const items = getSelectedItems();
+    const hasTabs = items.some(item => item.type === 'tab');
+    const hasGroups = items.some(item => item.type === 'group');
+    const onlyGroups = hasGroups && !hasTabs;
+
+    // Get selected tab IDs
+    const selectedTabIds = items
+      .filter(item => item.type === 'tab')
+      .map(item => parseInt(item.id, 10))
+      .filter(id => !isNaN(id));
+
+    // Get actual tab objects
+    const selectedTabs = visibleTabs.filter(t => t.id && selectedTabIds.includes(t.id));
+
+    // Get selected group IDs
+    const selectedGroupIds = items
+      .filter(item => item.type === 'group')
+      .map(item => parseInt(item.id.replace('group-', ''), 10))
+      .filter(id => !isNaN(id));
+
+    // Get actual group objects
+    const selectedGroups = visibleTabGroups.filter(g => selectedGroupIds.includes(g.id));
+
+    // Collect all tab IDs including those in selected groups
+    const allTabIds = new Set(selectedTabIds);
+    for (const group of selectedGroups)
+    {
+      visibleTabs.filter(t => t.groupId === group.id).forEach(t => { if (t.id) allTabIds.add(t.id); });
+    }
+
+    return { items, hasTabs, hasGroups, onlyGroups, selectedTabs, selectedGroups, allTabIds: Array.from(allTabIds) };
+  }, [getSelectedItems, visibleTabs, visibleTabGroups]);
+
   const isRowInMultiSelection = useCallback((clickedTabId: number) =>
     new TabRowSelection(getSelectedItems().map(item => item.id))
       .actsOnSelection(clickedTabId, visibleTabs.find(tab => tab.id === clickedTabId)?.groupId),
@@ -2416,13 +2452,9 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
   {
     if (isRowInMultiSelection(clickedTabId))
     {
-      const selectedItems = getSelectedItems();
-      // Multiple selected - close directly (undo via toast); marked tabs stay open
-      const tabIds = selectedItems
-        .filter(item => item.type === 'tab')
-        .map(item => parseInt(item.id, 10))
-        .filter(id => !isNaN(id) && !isTabMarked(id));
-      performClose(tabIds);
+      // Multiple selected - close directly (undo via toast), the tabs of selected groups included;
+      // marked tabs stay open
+      performClose(getTabSelectionInfo().allTabIds.filter(id => !isTabMarked(id)));
       clearSelection();
     }
     else
@@ -2430,7 +2462,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
       // Single tab - close directly, even when marked: closing one tab is an explicit act on it
       performClose([clickedTabId]);
     }
-  }, [isRowInMultiSelection, getSelectedItems, isTabMarked, performClose, clearSelection]);
+  }, [isRowInMultiSelection, getTabSelectionInfo, isTabMarked, performClose, clearSelection]);
 
   // Pin selected tabs to sidebar (or single tab if not in selection). In Arc style each tab
   // becomes its new Favorite's tab, as "Add to bookmark" makes it the bookmark's tab
@@ -2481,42 +2513,6 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     }
   }, [onPin, onPinMultiple, getSelectedItems, visibleTabs, clearSelection, arcStyleEnabled, associateExistingPinnedTab]);
 
-  // Confirm multi-close
-  // Get selection info for multi-selection actions
-  const getTabSelectionInfo = useCallback(() =>
-  {
-    const items = getSelectedItems();
-    const hasTabs = items.some(item => item.type === 'tab');
-    const hasGroups = items.some(item => item.type === 'group');
-    const onlyGroups = hasGroups && !hasTabs;
-
-    // Get selected tab IDs
-    const selectedTabIds = items
-      .filter(item => item.type === 'tab')
-      .map(item => parseInt(item.id, 10))
-      .filter(id => !isNaN(id));
-
-    // Get actual tab objects
-    const selectedTabs = visibleTabs.filter(t => t.id && selectedTabIds.includes(t.id));
-
-    // Get selected group IDs
-    const selectedGroupIds = items
-      .filter(item => item.type === 'group')
-      .map(item => parseInt(item.id.replace('group-', ''), 10))
-      .filter(id => !isNaN(id));
-
-    // Get actual group objects
-    const selectedGroups = visibleTabGroups.filter(g => selectedGroupIds.includes(g.id));
-
-    // Collect all tab IDs including those in selected groups
-    const allTabIds = new Set(selectedTabIds);
-    for (const group of selectedGroups)
-    {
-      visibleTabs.filter(t => t.groupId === group.id).forEach(t => { if (t.id) allTabIds.add(t.id); });
-    }
-
-    return { items, hasTabs, hasGroups, onlyGroups, selectedTabs, selectedGroups, allTabIds: Array.from(allTabIds) };
-  }, [getSelectedItems, visibleTabs, visibleTabGroups]);
 
   // Multi-selection dialogs
   const [addToBookmarkMultiDialog, setAddToBookmarkMultiDialog] = useState({ isOpen: false });
@@ -2713,8 +2709,12 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
       .map(item => item.tabGroup?.groupId)
       .filter((id): id is number => id !== undefined);
     runManualArchive(archiveCandidates.pick(tabIds, groupIds));
-    clearSelection();
-  }, [activeSpace, activeSpaceFolderId, runManualArchive, archiveCandidates, clearSelection]);
+    // A dragged row outside the selection drags alone; dropping it must not drop the unrelated selection
+    if (new TabRowSelection(getSelectedItems().map(item => item.id)).isCarriedBy(tabIds, groupIds))
+    {
+      clearSelection();
+    }
+  }, [activeSpace, activeSpaceFolderId, runManualArchive, archiveCandidates, getSelectedItems, clearSelection]);
 
   useEffect(() =>
   {

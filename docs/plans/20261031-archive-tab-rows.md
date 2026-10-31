@@ -7,7 +7,7 @@ Archive button or by auto-archive:
 
 1. a hover **Archive** button on Tab-list rows (Mark · Archive · Close) and an **Archive** item in the tab
    context menu (single tab and multi-selection);
-2. dragging tabs (or a multi-selection, or a tab group) onto the **Archive** section archives them.
+2. dragging tabs (or a multi-selection) onto the **Archive** section archives them.
 
 All three entry points run the existing `ArchiveTabsAction` + `TabArchiveBatch` through
 `createArchiveTabsAction` in `TabList.tsx`, with Undo, the `closesWholeWindow` confirm and the
@@ -117,7 +117,10 @@ export class TabArchiveCandidates
   passed to all three `TabRow` call sites.
 - Drop handler for `archive`: return when `dropData.targetId !== activeSpace?.id` or no folder; tab ids
   from `getItemsByFormat(dragData, TAB)`, group ids from `getItemsByFormat(dragData, TAB_GROUP)`;
-  `runManualArchive(candidates.pick(...))`; `clearSelection()`.
+  `runManualArchive(candidates.pick(...))`; `clearSelection()` only when the drag carried the selection
+  (a dragged tab or group is in it), so dropping one unselected row keeps an unrelated selection.
+  A Space view shows groups as flat tab rows, so no group can be dragged or selected there; the
+  TAB_GROUP branch stays for safety. Group header menus get no Archive item.
 
 ## What Goes Where
 
@@ -176,7 +179,7 @@ export class TabArchiveCandidates
 - [x] `ArchiveSection`: highlight while `overZone === 'archive'`; visibility unchanged (a hidden section is
       no drop target)
 - [x] `TabList`: register a drop handler for `archive` (refuse a stale `targetId` or no folder; tab ids and
-      group ids from the drag items; `runManualArchive(candidates.pick(...))`; `clearSelection()`), unregister on
+      group ids from the drag items; `runManualArchive(candidates.pick(...))`; `clearSelection()` when the drag carried the selection), unregister on
       unmount
 - [x] no new tests (wiring; `pick` covered by task 1); run `make lint && make test && make build` - must
       pass before task 4
