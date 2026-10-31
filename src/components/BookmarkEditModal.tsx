@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Dialog } from './Dialog';
+import { normalizeBookmarkUrl } from '../utils/bookmarkUrl';
 
 export interface BookmarkEditModalProps
 {
@@ -56,20 +57,10 @@ export const BookmarkEditModal = ({
 
   const isFolder = !isCreateMode && node && !node.url;
 
-  // Normalize URL by adding https:// if no protocol is specified
-  const normalizeUrl = (inputUrl: string): string =>
-  {
-    const trimmed = inputUrl.trim();
-    if (!trimmed) return trimmed;
-    // Check if URL already has a protocol
-    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)) return trimmed;
-    return `https://${trimmed}`;
-  };
-
   const handleSubmit = async (e: React.FormEvent) =>
   {
     e.preventDefault();
-    const normalizedUrl = normalizeUrl(url);
+    const normalizedUrl = normalizeBookmarkUrl(url);
     if (isCreateMode && onCreate && createInParentId)
     {
       const errorMsg = await onCreate(createInParentId, title, normalizedUrl);

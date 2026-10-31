@@ -147,13 +147,13 @@
 - Modify: `src/components/BookmarkEditModal.tsx`
 - Create: `tests/bookmarkYaml.test.mjs`
 
-- [ ] move `normalizeUrl` from `BookmarkEditModal.tsx` into `src/utils/bookmarkUrl.ts` as `normalizeBookmarkUrl` and use it there
-- [ ] create `src/utils/bookmarkYaml.ts` with `YamlBookmark`, `YamlFolder`, `YamlBookmarkList` (`fromBookmarkNodes` skipping system folders at any depth, `toYaml()` with always-quoted scalars, `counts()`, `summary()`)
-- [ ] add `parseBookmarkYaml` for the subset in Technical Details, with line-numbered errors
-- [ ] add validation: system folder titles rejected, URLs normalized and checked with `new URL()`, all invalid URLs reported, missing title falls back to the URL
-- [ ] write tests: round trip with titles containing `:`, `#`, `"`, `'`, `\`, leading `-`, unicode, newline; nested and empty folders; system folders skipped at any depth on copy
-- [ ] write tests: invalid input returns errors with the right line and no list (tab indent, unknown key, both url and folder, bookmark without url, unterminated quote, top-level mapping, empty input); system folder titles rejected; every invalid URL reported; scheme-less URL normalized; missing title falls back to URL; hand-written plain and single-quoted input parses; `items:` followed by a same-indent sequence parses; unquoted `title: Foo: bar` gives `Foo: bar`
-- [ ] run `make test` - must pass before task 2
+- [x] move `normalizeUrl` from `BookmarkEditModal.tsx` into `src/utils/bookmarkUrl.ts` as `normalizeBookmarkUrl` and use it there
+- [x] create `src/utils/bookmarkYaml.ts` with `YamlBookmark`, `YamlFolder`, `YamlBookmarkList` (`fromBookmarkNodes` skipping system folders at any depth, `toYaml()` with always-quoted scalars, `counts()`, `summary()`)
+- [x] add `parseBookmarkYaml` for the subset in Technical Details, with line-numbered errors
+- [x] add validation: system folder titles rejected, URLs normalized and checked with `new URL()`, all invalid URLs reported, missing title falls back to the URL
+- [x] write tests: round trip with titles containing `:`, `#`, `"`, `'`, `\`, leading `-`, unicode, newline; nested and empty folders; system folders skipped at any depth on copy
+- [x] write tests: invalid input returns errors with the right line and no list (tab indent, unknown key, both url and folder, bookmark without url, unterminated quote, top-level mapping, empty input); system folder titles rejected; every invalid URL reported; scheme-less URL normalized; missing title falls back to URL; hand-written plain and single-quoted input parses; `items:` followed by a same-indent sequence parses; unquoted `title: Foo: bar` gives `Foo: bar`
+- [x] run `make test` - must pass before task 2
 
 ### Task 2: Undoable paste action
 
