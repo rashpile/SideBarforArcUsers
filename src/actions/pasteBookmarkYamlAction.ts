@@ -9,31 +9,42 @@ import { YamlFolder, type YamlBookmarkList, type YamlItem } from '../utils/bookm
 export interface PasteBookmarkYamlApi
 {
   create: (bookmark: { parentId: string; title: string; url?: string }) => Promise<{ id: string }>;
+  /** Like chrome.bookmarks.remove: rejects for a folder that still has children. */
   remove: (id: string) => Promise<void>;
-  removeTree: (id: string) => Promise<void>;
 }
 
-/** A top-level item the paste created; removing it removes everything below it. */
-class CreatedRoot
+/**
+ * Every node one paste created, in creation order. Removal goes newest first and never uses
+ * removeTree: a pasted folder the user has since filled with other bookmarks fails to remove and
+ * stays, so Undo can't take bookmarks the paste didn't create.
+ */
+class CreatedNodes
 {
-  id: string;
-  isFolder: boolean;
+  #ids: string[] = [];
 
-  constructor(id: string, isFolder: boolean)
+  add(id: string): void
   {
-    this.id = id;
-    this.isFolder = isFolder;
+    this.#ids.push(id);
   }
 
-  async remove(api: PasteBookmarkYamlApi): Promise<void>
+  /** Removes the recorded nodes and forgets them, so a second call removes nothing. */
+  async removeAll(api: PasteBookmarkYamlApi): Promise<void>
   {
-    if (this.isFolder)
+    const ids = this.#ids;
+    this.#ids = [];
+
+    // Newest first, so each folder's pasted children are gone before the folder itself.
+    for (let index = ids.length - 1; index >= 0; index--)
     {
-      await api.removeTree(this.id);
-    }
-    else
-    {
-      await api.remove(this.id);
+      try
+      {
+        await api.remove(ids[index]);
+      }
+      catch (error)
+      {
+        // Already deleted by the user, or a folder now holding bookmarks the paste didn't create.
+        console.warn('[PasteBookmarkYamlAction] Kept or missing pasted item', ids[index], error);
+      }
     }
   }
 }
@@ -45,7 +56,7 @@ export class PasteBookmarkYamlAction implements UndoableAction
   #list: YamlBookmarkList;
   #api: PasteBookmarkYamlApi;
   #batch: BatchRunner;
-  #createdRoots: CreatedRoot[] = [];
+  #created = new CreatedNodes();
   #failure: string | null = null;
 
   constructor(
@@ -74,29 +85,19 @@ export class PasteBookmarkYamlAction implements UndoableAction
   async do(): Promise<void>
   {
     this.#failure = null;
-    this.#createdRoots = [];
+    this.#created = new CreatedNodes();
 
     try
     {
       await this.#batch(async () =>
       {
-        for (const item of this.#list.items)
-        {
-          // Recorded before its children, so a failure inside a folder still removes the folder.
-          const created = await this.#createItem(this.#targetFolderId, item);
-          const root = new CreatedRoot(created.id, item instanceof YamlFolder);
-          this.#createdRoots.push(root);
-          if (item instanceof YamlFolder)
-          {
-            await this.#createChildren(created.id, item.items);
-          }
-        }
+        await this.#createItems(this.#targetFolderId, this.#list.items);
       });
     }
     catch (error)
     {
       // A half-made paste can't be undone as one step, so remove what was created.
-      await this.#removeCreatedRoots();
+      await this.#removeCreated();
       this.#failure = error instanceof Error ? error.message : String(error);
       throw error;
     }
@@ -104,17 +105,19 @@ export class PasteBookmarkYamlAction implements UndoableAction
 
   async undo(): Promise<void>
   {
-    await this.#removeCreatedRoots();
+    await this.#removeCreated();
   }
 
-  async #createChildren(parentId: string, items: YamlItem[]): Promise<void>
+  async #createItems(parentId: string, items: YamlItem[]): Promise<void>
   {
     for (const item of items)
     {
+      // Recorded before its children, so a failure inside a folder still removes the folder.
       const created = await this.#createItem(parentId, item);
+      this.#created.add(created.id);
       if (item instanceof YamlFolder)
       {
-        await this.#createChildren(created.id, item.items);
+        await this.#createItems(created.id, item.items);
       }
     }
   }
@@ -129,25 +132,8 @@ export class PasteBookmarkYamlAction implements UndoableAction
     return this.#api.create({ parentId, title: item.title, url: item.url });
   }
 
-  async #removeCreatedRoots(): Promise<void>
+  async #removeCreated(): Promise<void>
   {
-    const roots = this.#createdRoots;
-    this.#createdRoots = [];
-
-    await this.#batch(async () =>
-    {
-      for (const root of roots)
-      {
-        try
-        {
-          await root.remove(this.#api);
-        }
-        catch (error)
-        {
-          // Usually the user already deleted it; the rest must still go.
-          console.error('[PasteBookmarkYamlAction] Failed to remove pasted item', root.id, error);
-        }
-      }
-    });
+    await this.#batch(() => this.#created.removeAll(this.#api));
   }
 }

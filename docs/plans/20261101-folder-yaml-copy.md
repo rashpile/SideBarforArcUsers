@@ -104,19 +104,17 @@
 - `batch` uses the existing `BatchRunner` type (moved from `clearArchiveAction.ts` to `actions/types.ts`,
   re-exported or imported from there by `clearArchiveAction.ts`).
 - `do()`: inside `batch`, creates each root item at the end of `targetFolderId` (no `index`: Chrome
-  appends), then its children depth first in order; records the created root ids. On a Chrome error
-  part way through, removes the roots already created (`removeTree` for folders, `remove` for bookmarks),
-  clears the record, stores the message in a `failure` getter and rethrows. `do()` resets `failure` and the
+  appends), then its children depth first in order; records the id of every node it creates. On a Chrome
+  error part way through, removes the nodes already created (newest first, `remove` only), clears the record, stores the message in a `failure` getter and rethrows. `do()` resets `failure` and the
   record at its start.
 - `App.tsx`'s `performAction` catches errors from `do()`, toasts them and resolves normally, so callers
   cannot see a failure from its return value. The paste flow reads `action.failure` after
   `await onPerformAction(action)` to keep the dialog open with the message. `performAction` is not changed.
-- `undo()`: removes every recorded root, ignoring roots already gone (removed by the user), and clears
-  the record.
+- `undo()`: removes every recorded node newest first with `remove` (never `removeTree`), ignoring nodes
+  already gone (removed by the user) and keeping a pasted folder that now holds bookmarks the paste did
+  not create, then clears the record.
 - `description`: `Pasted 3 folders, 12 bookmarks`.
-- known limitation: undo uses `removeTree` on pasted folders, so bookmarks the user moved into a pasted
-  folder before Undo are removed with it (rare; `[known-limitation]`, no extra code).
-- `bookmarksApi` is `{ create, remove, removeTree }`, injected; the call site passes `chrome.bookmarks`
+- `bookmarksApi` is `{ create, remove }`, injected; the call site passes `chrome.bookmarks`
   and `runBatchOperation` from `useBookmarks`.
 
 ### Shared copy and paste flow

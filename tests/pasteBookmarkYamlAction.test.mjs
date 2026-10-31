@@ -4,7 +4,7 @@ import test from 'node:test';
 import { PasteBookmarkYamlAction } from '../src/actions/pasteBookmarkYamlAction.ts';
 import { parseBookmarkYaml } from '../src/utils/bookmarkYaml.ts';
 
-/** In-memory chrome.bookmarks: create (appends when no index), remove, removeTree. */
+/** In-memory chrome.bookmarks: create (appends when no index), remove, removeTree, move. */
 class FakeBookmarks
 {
   #nodes = new Map();
@@ -61,6 +61,16 @@ class FakeBookmarks
     if (!node) throw new Error(`Can't find bookmark for id ${id}`);
     this.#detach(node);
   };
+
+  /** Moves a node to the end of another folder, as the Move to... dialog or drag-and-drop would. */
+  move(id, parentId)
+  {
+    const node = this.#nodes.get(id);
+    const oldParent = this.#nodes.get(node.parentId);
+    oldParent.children = oldParent.children.filter(child => child !== node);
+    node.parentId = parentId;
+    this.#nodes.get(parentId).children.push(node);
+  }
 
   #detach(node)
   {
@@ -192,6 +202,26 @@ test('undo tolerates pasted items the user already removed', async () =>
   await action.undo();
 
   assert.deepEqual(bookmarks.shape(target), [{ title: 'Existing', url: 'https://example.com/' }]);
+});
+
+test('undo keeps a bookmark the user moved into a pasted folder, and the folders holding it', async () =>
+{
+  const { bookmarks, target, other } = setup();
+  const action = new PasteBookmarkYamlAction(target, parse(PASTE), bookmarks);
+  await action.do();
+
+  const tools = bookmarks.childId(target, 'Tools');
+  const docs = bookmarks.childId(tools, 'Docs');
+  bookmarks.move(bookmarks.childId(other, 'Keep'), docs);
+
+  await action.undo();
+
+  // Only the pasted folders on the path to "Keep" stay; every other pasted item is gone
+  assert.deepEqual(bookmarks.shape(target), [
+    { title: 'Existing', url: 'https://example.com/' },
+    { folder: 'Tools', items: [{ folder: 'Docs', items: [{ title: 'Keep', url: 'https://keep.example/' }] }] },
+  ]);
+  assert.deepEqual(bookmarks.shape(other), []);
 });
 
 test('redo after undo pastes again and a second undo removes it', async () =>

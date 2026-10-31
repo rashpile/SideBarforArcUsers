@@ -98,7 +98,15 @@ export class CreateBookmarkFolderAction implements UndoableAction
         await this.#onBookmarkMoved?.(location.id, location.parentId);
       }
 
-      await chrome.bookmarks.removeTree(this.#createdFolderId!);
+      // remove, not removeTree: bookmarks the user added to the folder since must not go with it.
+      try
+      {
+        await chrome.bookmarks.remove(this.#createdFolderId!);
+      }
+      catch (error)
+      {
+        console.warn('[CreateBookmarkFolderAction] Kept the folder, it holds other bookmarks', this.#createdFolderId, error);
+      }
       this.#createdFolderId = null;
     });
   }
