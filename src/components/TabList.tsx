@@ -45,6 +45,7 @@ import type { PinnedSite } from '../hooks/usePinnedSites';
 import { TabArchiveBatch } from '../utils/tabArchiveBatch';
 import type { ArchivableTab } from '../utils/tabArchiveBatch';
 import { TabArchiveCandidates } from '../utils/tabArchiveCandidates';
+import { TabRowSelection } from '../utils/tabRowSelection';
 import type { ArchiveBookmarksApi } from '../utils/archiveFolder';
 import { SpaceNavigatorDialog } from './SpaceNavigatorDialog';
 import { AddToGroupDialog } from './AddToGroupDialog';
@@ -2405,12 +2406,17 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     performClose(tabIds);
   }, [visibleTabs, isTabMarked, performClose]);
 
+  const isRowInMultiSelection = useCallback((clickedTabId: number) =>
+    new TabRowSelection(getSelectedItems().map(item => item.id))
+      .actsOnSelection(clickedTabId, visibleTabs.find(tab => tab.id === clickedTabId)?.groupId),
+  [getSelectedItems, visibleTabs]);
+
   // Close selected tabs (or single tab if not in selection)
   const handleCloseSelectedTabs = useCallback((clickedTabId: number) =>
   {
-    const selectedItems = getSelectedItems();
-    if (selectedItems.length > 1)
+    if (isRowInMultiSelection(clickedTabId))
     {
+      const selectedItems = getSelectedItems();
       // Multiple selected - close directly (undo via toast); marked tabs stay open
       const tabIds = selectedItems
         .filter(item => item.type === 'tab')
@@ -2424,7 +2430,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
       // Single tab - close directly, even when marked: closing one tab is an explicit act on it
       performClose([clickedTabId]);
     }
-  }, [getSelectedItems, isTabMarked, performClose, clearSelection]);
+  }, [isRowInMultiSelection, getSelectedItems, isTabMarked, performClose, clearSelection]);
 
   // Pin selected tabs to sidebar (or single tab if not in selection). In Arc style each tab
   // becomes its new Favorite's tab, as "Add to bookmark" makes it the bookmark's tab
@@ -2679,10 +2685,10 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     );
   }, [getTabSelectionInfo, archiveCandidates]);
 
-  // Row button and single-tab menu item: like Close, a multi-selection archives the whole selection
+  // Row button and single-tab menu item: like Close, a row in the multi-selection archives the whole selection
   const handleArchiveSelectedTabs = useCallback((clickedTabId: number) =>
   {
-    if (getSelectedItems().length > 1)
+    if (isRowInMultiSelection(clickedTabId))
     {
       runManualArchive(pickSelectionToArchive());
       clearSelection();
@@ -2693,7 +2699,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     {
       runManualArchive(archiveCandidates.pick([clickedTabId], []));
     }
-  }, [getSelectedItems, runManualArchive, pickSelectionToArchive, clearSelection, visibleTabs, archiveCandidates]);
+  }, [isRowInMultiSelection, runManualArchive, pickSelectionToArchive, clearSelection, visibleTabs, archiveCandidates]);
 
   // Drop on the Archive section: the dragged tabs and the tabs of dragged groups, without marked ones.
   // A drop aimed at a Space that is no longer active would archive tabs the user can't see
