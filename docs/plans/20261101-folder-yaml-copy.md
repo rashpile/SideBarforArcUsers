@@ -161,12 +161,12 @@
 - Create: `src/actions/pasteBookmarkYamlAction.ts`
 - Create: `tests/pasteBookmarkYamlAction.test.mjs`
 
-- [ ] move `BatchRunner` from `clearArchiveAction.ts` to `src/actions/types.ts` and import it in both actions
-- [ ] create `PasteBookmarkYamlAction` implementing `UndoableAction` with injected bookmarks API and `batch: BatchRunner = fn => fn()` (no `chrome.*` at import time; don't import `useBookmarks` from this module, the call site passes `runBatchOperation`)
-- [ ] `do()` appends roots to the target folder, children depth first, and records created roots; rolls back created roots, sets `failure` and rethrows on a Chrome error
-- [ ] `undo()` removes each created root, tolerating ones already removed
-- [ ] write tests with a fake bookmarks API: items land only in the target folder, appended after existing children, order and nesting kept; undo removes everything the paste created and nothing else; a create failure on a nested child of the second root leaves nothing created (the first root and the partly created second root are removed), rethrows and sets `failure`
-- [ ] run `make test` - must pass before task 3
+- [x] move `BatchRunner` from `clearArchiveAction.ts` to `src/actions/types.ts` and import it in both actions
+- [x] create `PasteBookmarkYamlAction` implementing `UndoableAction` with injected bookmarks API and `batch: BatchRunner = fn => fn()` (no `chrome.*` at import time; don't import `useBookmarks` from this module, the call site passes `runBatchOperation`)
+- [x] `do()` appends roots to the target folder, children depth first, and records created roots; rolls back created roots, sets `failure` and rethrows on a Chrome error
+- [x] `undo()` removes each created root, tolerating ones already removed
+- [x] write tests with a fake bookmarks API: items land only in the target folder, appended after existing children, order and nesting kept; undo removes everything the paste created and nothing else; a create failure on a nested child of the second root leaves nothing created (the first root and the partly created second root are removed), rethrows and sets `failure`
+- [x] run `make test` - must pass before task 3
 
 ### Task 3: Paste dialog
 

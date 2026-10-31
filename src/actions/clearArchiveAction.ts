@@ -2,7 +2,7 @@
 // folder that an ArchiveClearOption selects. The bookmarks API is injected, so
 // Node tests can load this module without chrome.*.
 
-import type { UndoableAction } from './types.ts';
+import type { BatchRunner, UndoableAction } from './types.ts';
 import { isArchiveFolder } from '../utils/archiveFolder.ts';
 import { ArchiveItems, type ArchiveClearOption } from '../utils/archiveItems.ts';
 
@@ -15,8 +15,6 @@ export interface ClearArchiveBookmarksApi
   remove: (id: string) => Promise<void>;
   create: (bookmark: { parentId: string; title: string; url: string; index: number }) => Promise<unknown>;
 }
-
-export type BatchRunner = <T>(fn: () => Promise<T>) => Promise<T>;
 
 /** What Undo needs to recreate a removed page. */
 interface RemovedPage
