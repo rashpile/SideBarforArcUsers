@@ -30,8 +30,8 @@ No user data is sent in these requests beyond standard HTTP headers.
 
 AI naming is off until you enter an API endpoint in Settings. When you rename a Favorite or pinned page with AI, or turn on automatic naming:
 
-- The extension reads the page's text, title and description from the open tab, after asking for host permission. It may also fetch the page and the site's `llms.txt` without cookies.
-- It sends the page URL, title, description, up to 12,000 characters of that text and up to 3,000 characters from `llms.txt`, together with your prompt, to the endpoint you configured, using your API key.
+- The extension reads the page's text, title and description from the open tab, after asking for host permission. It may also fetch the page, its Markdown version and the site's `llms.txt` without cookies; the Markdown version and pages listed in `llms.txt` only from the page's own site, without following redirects.
+- It sends the page URL, title, description, up to 12,000 characters of that text and up to 3,000 characters from `llms.txt`, together with your prompt, to the endpoint you configured, using your API key. The endpoint must use HTTPS unless it runs on this computer (localhost), so the key and the page text are not sent unencrypted over the network.
 - What that service does with the request is governed by its own privacy policy. The extension doesn't send this data anywhere else.
 
 ## Bookmarks and Tabs

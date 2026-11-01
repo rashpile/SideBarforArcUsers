@@ -118,11 +118,11 @@
 - [x] run full checks: `make lint && make test && make build`
 
 ### Task 5: [Final] Update documentation
-- [ ] `README.md`: in the Settings list's **AI naming** line, add that the endpoint must use HTTPS (HTTP only for localhost, e.g. Ollama or LM Studio) and that a page's Markdown version and `llms.txt` page links are read only from the page's own site
-- [ ] `PRIVACY.md` AI Naming: "It may also fetch the page, its Markdown version and the site's `llms.txt` without cookies; the Markdown version and pages listed in `llms.txt` only from the page's own site, without following redirects." Add that the endpoint must use HTTPS unless it runs on this computer
-- [ ] `docs/changelog.md`, top of Latest Version: a `Fixed:` line for derived fetches (same origin, no redirects; relative Markdown links of bookmarks read without a tab now resolve against the page) and a `Changed:` line for the HTTPS requirement (a saved remote `http://` Base URL now fails Validate and rename with the new error)
-- [ ] no `src/data/changelog.ts` entry (a fix, not a feature) and no `docs/state-reference.md` change (no new keys)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] `README.md`: in the Settings list's **AI naming** line, add that the endpoint must use HTTPS (HTTP only for localhost, e.g. Ollama or LM Studio) and that a page's Markdown version and `llms.txt` page links are read only from the page's own site
+- [x] `PRIVACY.md` AI Naming: "It may also fetch the page, its Markdown version and the site's `llms.txt` without cookies; the Markdown version and pages listed in `llms.txt` only from the page's own site, without following redirects." Add that the endpoint must use HTTPS unless it runs on this computer
+- [x] `docs/changelog.md`, top of Latest Version: a `Fixed:` line for derived fetches (same origin, no redirects; relative Markdown links of bookmarks read without a tab now resolve against the page) and a `Changed:` line for the HTTPS requirement (a saved remote `http://` Base URL now fails Validate and rename with the new error)
+- [x] no `src/data/changelog.ts` entry (a fix, not a feature) and no `docs/state-reference.md` change (no new keys)
+- [x] move this plan to `docs/plans/completed/` (left in place - the orchestrator moves the plan at the end)
 
 ## Post-Completion
 **Manual verification**:

@@ -172,7 +172,7 @@ Gear menu → Settings:
 - **Mark unvisited tabs**: a dot on tabs opened in the background that you haven't switched to yet. On by default
 - **Mark for Attention colour**: the ring around marked tabs and bookmarks - green, blue, orange, red, purple, yellow or the Space colour, each dim, normal or bright (default: Space colour - dim). Space colour follows the active Space whether or not the Space colour tints the sidebar; in the All view it is the theme violet
 - Space color tint
-- **AI naming**: rename Favorites and pinned pages with an OpenAI-compatible API you configure (endpoint, model, prompt, automatic or manual)
+- **AI naming**: rename Favorites and pinned pages with an OpenAI-compatible API you configure (endpoint, model, prompt, automatic or manual). The endpoint must use HTTPS; HTTP works only for localhost, e.g. Ollama or LM Studio. A page's Markdown version and the pages listed in its site's `llms.txt` are read only from the page's own site
 
 ### Backup
 
