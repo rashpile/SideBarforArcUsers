@@ -247,14 +247,14 @@ export function runPagePopupCommand(command: PagePopupCommand): PagePopupResult;
 - Create: `src/utils/readablePage.ts`
 - Modify: `src/services/aiRenameService.ts`
 
-- [ ] create `src/utils/readablePage.ts` with the `ReadablePage` type and the self-contained injected
+- [x] create `src/utils/readablePage.ts` with the `ReadablePage` type and the self-contained injected
   `readReadablePage(maxChars, rootRule)` per Technical Details (comment the self-contained rule as in
   `pageScripts.ts`)
-- [ ] switch `PageContentReader.#readLiveTab` to `executeScript({ func: readReadablePage, args:
+- [x] switch `PageContentReader.#readLiveTab` to `executeScript({ func: readReadablePage, args:
   [MAX_CONTENT_LENGTH, 'article-first'] })`, then map to `DocumentSnapshot` with `cleanedPage = text.replace(/\s+/g, '
   ').trim()`; the error on a missing result stays
-- [ ] no tests: an injected DOM function and wiring (repo rule)
-- [ ] run `make test`, `npx tsc --noEmit` and `make lint` - must pass before next task
+- [x] no tests: an injected DOM function and wiring (repo rule)
+- [x] run `make test`, `npx tsc --noEmit` and `make lint` - must pass before next task
 
 ### Task 3: Popup page function and page adapter methods
 
