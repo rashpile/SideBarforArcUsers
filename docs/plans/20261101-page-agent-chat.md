@@ -318,11 +318,11 @@ instructions.
 - Create: `src/services/pageAgent/chromePageAdapter.ts`
 - Create: `tests/activeTabCapture.test.mjs`
 
-- [ ] write the injected outline, inspect and marker-check functions (self-contained) per Technical Details → Page scripts
-- [ ] implement `ActiveTabCapture(tabsApi)` with the active-before-and-after guard
-- [ ] implement `ChromePageAdapter` (implements `PageAgentPageAdapter`): executeScript wrappers, insertCSS/removeCSS with `PAGE_AGENT_CSS_ORIGIN`, `readMarker(tabId)`, `pageUrl(tabId)` (`tabs.get(tabId).url`), capture through `ActiveTabCapture` plus the 1280 px downscale
-- [ ] test (fake tabs API): tab not active → no capture call, "not visible"; tab stops being active during the capture → image discarded; active before and after → image returned
-- [ ] run `make test`, `make lint`, `npx tsc --noEmit` - must pass before task 4
+- [x] write the injected outline, inspect and marker-check functions (self-contained) per Technical Details → Page scripts
+- [x] implement `ActiveTabCapture(tabsApi)` with the active-before-and-after guard
+- [x] implement `ChromePageAdapter` (implements `PageAgentPageAdapter`): executeScript wrappers, insertCSS/removeCSS with `PAGE_AGENT_CSS_ORIGIN`, `readMarker(tabId)`, `pageUrl(tabId)` (`tabs.get(tabId).url`), capture through `ActiveTabCapture` plus the 1280 px downscale
+- [x] test (fake tabs API): tab not active → no capture call, "not visible"; tab stops being active during the capture → image discarded; active before and after → image returned
+- [x] run `make test`, `make lint`, `npx tsc --noEmit` - must pass before task 4
 
 ### Task 4: Chat Completions agent client
 
