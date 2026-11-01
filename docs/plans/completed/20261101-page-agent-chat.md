@@ -25,7 +25,8 @@ and splits the work into tasks. Lives only on the local branch `experimental/pag
   styles, so it holds for both fixture variants) and the fixture comparison moves to Post-Completion.
 - **`<all_urls>`**: the design has the builder check first whether `captureVisibleTab` works with only the
   http/https origins. That needs a running Chrome, so `<all_urls>` is added to `optional_host_permissions`
-  up front and requested only for screenshots; Post-Completion checks whether it can be dropped.
+  up front and requested only for screenshots. Checked in Chrome on 2026-11-01: it can't be dropped (see
+  Post-Completion → Permissions).
 - **Sanitizer**: stricter than the design: `var(` is rejected outright (the page can define a custom
   property as a remote `url()`, and a text check can't follow `var()` to it), and so are
   `image-set(` / `-webkit-image-set(` and `src(` (they take a plain string as a URL).
@@ -493,4 +494,7 @@ report with numbers; "fit it into the screen height" edits the current CSS and r
 width condition as replaced; Undo restores the page.
 
 **Permissions:** whether screenshots work with only `http://*/*` / `https://*/*` granted (then
-`<all_urls>` could be dropped from the manifest).
+`<all_urls>` could be dropped from the manifest). Checked 2026-11-01: a build without `<all_urls>` in
+`optional_host_permissions`, page reloaded after the panel opened (no `activeTab` grant), gave the
+`screenshot` step "screenshots unavailable: Either the '<all_urls>' or 'activeTab' permission is
+required." The http/https origins aren't enough, so `<all_urls>` stays.
