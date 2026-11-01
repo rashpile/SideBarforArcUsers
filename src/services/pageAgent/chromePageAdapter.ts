@@ -1,7 +1,8 @@
 // The page agent's access to a real tab: page scripts through chrome.scripting.executeScript, the
 // stylesheet through insertCSS / removeCSS, screenshots through ActiveTabCapture, the answer popup
-// through runPagePopupCommand. Every call names its tab; nothing here looks up the active tab.
-// Scripts and CSS go to the top frame only.
+// through runPagePopupCommand, and the video transcript reader's page access through pageUrl and
+// runScript. Every call names its tab; nothing here looks up the active tab. Scripts and CSS go to the
+// top frame only.
 
 import { parseMarkdown } from '../../utils/markdown.ts';
 import { PAGE_AGENT_CSS_ORIGIN, PAGE_AGENT_MARKER_PROPERTY } from '../../utils/pageAgentCss.ts';
@@ -33,6 +34,8 @@ const INSPECT_MAX_CHARS = 12000;
 const SCREENSHOT_MAX_WIDTH = 1280;
 const SCREENSHOT_JPEG_QUALITY = 0.8;
 const PAGE_TEXT_MAX_CHARS = 30000;
+
+export type PageScriptWorld = 'MAIN' | 'ISOLATED';
 
 export class ChromePageAdapter implements PageAgentPageAdapter
 {
@@ -102,6 +105,16 @@ export class ChromePageAdapter implements PageAgentPageAdapter
     return tab.url ?? '';
   }
 
+  async runScript<Args extends unknown[], Result>(
+    tabId: number,
+    func: (...args: Args) => Result,
+    args: Args,
+    world: PageScriptWorld,
+  ): Promise<Awaited<Result>>
+  {
+    return await runInTab(tabId, func, args, { world });
+  }
+
   async capture(tabId: number): Promise<PageAgentCapture>
   {
     const capture = await this.#capture.capture(tabId);
@@ -140,24 +153,37 @@ function popupEntry(answer: PageAgentAnswer): PagePopupEntry
 // document_idle while the drawer still shows Stop.
 async function runPopupCommand(tabId: number, command: PagePopupCommand): Promise<PagePopupResult>
 {
-  return await runInTab(tabId, runPagePopupCommand, [command], true);
+  return await runInTab(tabId, runPagePopupCommand, [command], { injectImmediately: true });
 }
 
-// The default isolated world: page scripts can't replace the built-ins the injected function uses.
+interface PageScriptOptions
+{
+  injectImmediately?: boolean;
+  world?: PageScriptWorld;
+}
+
+// The isolated world by default: page scripts can't replace the built-ins the injected function uses.
+// MAIN only for code that has to reach the page's own objects, such as the player's window.fetch.
 async function runInTab<Args extends unknown[], Result>(
   tabId: number,
   func: (...args: Args) => Result,
   args: Args,
-  injectImmediately = false,
-): Promise<Result>
+  options: PageScriptOptions = {},
+): Promise<Awaited<Result>>
 {
-  const results = await chrome.scripting.executeScript({ target: { tabId }, func, args, injectImmediately });
+  const results = await chrome.scripting.executeScript({
+    target: { tabId },
+    func,
+    args,
+    injectImmediately: options.injectImmediately ?? false,
+    world: options.world ?? 'ISOLATED',
+  });
   const result = results[0]?.result;
   if (result === undefined || result === null)
   {
     throw new Error('The page script returned nothing; the page may still be loading or not allow scripts');
   }
-  return result as Result;
+  return result as Awaited<Result>;
 }
 
 // captureVisibleTab returns device pixels, twice the CSS width on a Retina screen. 1280 px wide is

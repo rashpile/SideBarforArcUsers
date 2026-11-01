@@ -411,13 +411,14 @@ export class VideoTranscriptReader
 **Files:**
 - Create: `src/services/pageAgent/videoPageScripts.ts`
 - Modify: `src/services/pageAgent/chromePageAdapter.ts`
+- Create: `tests/videoPageScripts.test.mjs`
 
-- [ ] `primeSubtitleCapture` (MAIN world, idempotent, returns the original fetch promise, clone handler attached before returning, errors swallowed, only the subtitle fields kept)
-- [ ] `fetchSubtitleFile` (isolated world, `credentials: 'omit'`, size cap)
-- [ ] `readPageVideo` (largest visible video, subtitles/captions tracks, disabled → hidden → restored, 5 s poll)
-- [ ] `runInTab` takes an optional world; the adapter exposes `VideoPageAccess` (`pageUrl`, `runScript`)
-- [ ] tests for the Prime wrapper only (a bug there breaks Prime playback), with a fake `window` / `document` on `globalThis` and Node's `Response`: the caller gets the same promise; the caller can still read the body after the capture's clone; malformed JSON and a rejected fetch are swallowed (the caller sees its own rejection); tracks are extracted and only the subtitle fields kept; a second call doesn't wrap again. No tests for `fetchSubtitleFile` and `readPageVideo`
-- [ ] `make test`, `npx tsc --noEmit`, `make lint` - must pass before task 7
+- [x] `primeSubtitleCapture` (MAIN world, idempotent, returns the original fetch promise, clone handler attached before returning, errors swallowed, only the subtitle fields kept)
+- [x] `fetchSubtitleFile` (isolated world, `credentials: 'omit'`, size cap)
+- [x] `readPageVideo` (largest visible video, subtitles/captions tracks, disabled → hidden → restored, 5 s poll)
+- [x] `runInTab` takes an optional world; the adapter exposes `VideoPageAccess` (`pageUrl`, `runScript`)
+- [x] tests for the Prime wrapper only (a bug there breaks Prime playback), with a fake `window` / `document` on `globalThis` and Node's `Response`: the caller gets the same promise; the caller can still read the body after the capture's clone; malformed JSON and a rejected fetch are swallowed (the caller sees its own rejection); tracks are extracted and only the subtitle fields kept; a second call doesn't wrap again. No tests for `fetchSubtitleFile` and `readPageVideo`. Also one test that the episode is the longest `<video>` and its position 0 reads as unknown (a 0 read as "not started" would return the ending)
+- [x] `make test`, `npx tsc --noEmit`, `make lint` - must pass before task 7
 
 ### Task 7: Video transcript reader
 
