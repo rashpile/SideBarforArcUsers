@@ -375,10 +375,10 @@ instructions.
 - Create: `src/components/pageAgent/PageAgentDrawer.tsx`
 - Create: `src/components/pageAgent/PageAgentMessages.tsx`
 
-- [ ] `usePageAgentChat(chats, tabId)`: reads the tab's chat from `PageAgentChats`, re-renders through `subscribe`, exposes `send(text)`, `stop()`, `undo()`, `reapply()`; runs `checkMarker` when a chat with applied CSS is shown
-- [ ] drawer: resize handle with `pageAgentDrawerHeight` in `chrome.storage.local`, tab chip, message list, input with Send/Stop, disabled states with reasons, **Grant page access**, **Grant screenshot access** (Technical Details → UI)
-- [ ] messages: conditions with numbers or the summary text, "N steps · show steps" with the expandable step log (CSS, in-memory screenshots), report block colored by outcome with **Undo** and **Show CSS** (copy), notice with **Re-apply**; Undo and Re-apply disabled while a run is running
-- [ ] `npx tsc --noEmit` and `make lint` pass (no tests: UI)
+- [x] `usePageAgentChat(chats, tabId)`: reads the tab's chat from `PageAgentChats`, re-renders through `subscribe`, exposes `send(text)`, `stop()`, `undo()`, `reapply()`; runs `checkMarker` when a chat with applied CSS is shown (built as `send(text, settings)`: the drawer passes the AI settings at send time)
+- [x] drawer: resize handle with `pageAgentDrawerHeight` in `chrome.storage.local`, tab chip, message list, input with Send/Stop, disabled states with reasons, **Grant page access**, **Grant screenshot access** (Technical Details → UI)
+- [x] messages: conditions with numbers or the summary text, "N steps · show steps" with the expandable step log (CSS, in-memory screenshots), report block colored by outcome with **Undo** and **Show CSS** (copy), notice with **Re-apply**; Undo and Re-apply disabled while a run is running
+- [x] `npx tsc --noEmit` and `make lint` pass (no tests: UI)
 
 ### Task 8: Wire the drawer into the side panel and the tab lifecycle
 
