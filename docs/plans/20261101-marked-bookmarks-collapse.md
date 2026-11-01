@@ -47,12 +47,12 @@ Visible side effect (intended): `hasPeek` becomes true for a collapsed folder wh
 - Modify: `src/components/BookmarkTree.tsx`
 - Modify: `tests/bookmarkTreeVisibility.test.mjs`
 
-- [ ] add `staysVisibleWhenCollapsed(isLoaded, isActive, isMarked)` to `src/utils/bookmarkTreeVisibility.ts`; rename `collectOpenBookmarks` → `collectPeekBookmarks` and the `isOpen` parameter → `staysVisible` in it and `getVisibleBookmarkChildren`; update their doc comments and the `VisibleBookmarkChild.isPeek` comment to "open or marked"
-- [ ] use `staysVisibleWhenCollapsed` at the three call sites in `BookmarkTree.tsx`: collapsed folder in `BookmarkTreeNode` (with `checkIsLoaded`/`checkIsActive`/`checkIsMarked`, optional props default to false), collapsed Bookmarks section and keyboard/range flatten (with `isBookmarkLoaded`/`isBookmarkActive`/`isBookmarkMarked`); check that any `useMemo`/`useCallback` dependency list around these includes `isBookmarkMarked`
-- [ ] update the comments that become wrong: `isPeek`/`hasPeek` prop comments (~lines 209-210), "Open pages surfaced under a collapsed folder" (~1019), "only the open pages stay" (~1279)
-- [ ] keep `hasActivePeek` on active only and the `filterLiveTabs` filter unchanged
-- [ ] test, through `staysVisibleWhenCollapsed` (so removing the mark from it fails the test): a collapsed folder with a marked closed bookmark nested two levels deep and an open one elsewhere returns both in tree order; a marked bookmark inside `asd_Archive` / `asd_Favorites` is not returned (both `getVisibleBookmarkChildren` and `collectPeekBookmarks`)
-- [ ] run `make lint && make test && make build` - must pass
+- [x] add `staysVisibleWhenCollapsed(isLoaded, isActive, isMarked)` to `src/utils/bookmarkTreeVisibility.ts`; rename `collectOpenBookmarks` → `collectPeekBookmarks` and the `isOpen` parameter → `staysVisible` in it and `getVisibleBookmarkChildren`; update their doc comments and the `VisibleBookmarkChild.isPeek` comment to "open or marked"
+- [x] use `staysVisibleWhenCollapsed` at the three call sites in `BookmarkTree.tsx`: collapsed folder in `BookmarkTreeNode` (with `checkIsLoaded`/`checkIsActive`/`checkIsMarked`, optional props default to false), collapsed Bookmarks section and keyboard/range flatten (with `isBookmarkLoaded`/`isBookmarkActive`/`isBookmarkMarked`); check that any `useMemo`/`useCallback` dependency list around these includes `isBookmarkMarked`
+- [x] update the comments that become wrong: `isPeek`/`hasPeek` prop comments (~lines 209-210), "Open pages surfaced under a collapsed folder" (~1019), "only the open pages stay" (~1279)
+- [x] keep `hasActivePeek` on active only and the `filterLiveTabs` filter unchanged
+- [x] test, through `staysVisibleWhenCollapsed` (so removing the mark from it fails the test): a collapsed folder with a marked closed bookmark nested two levels deep and an open one elsewhere returns both in tree order; a marked bookmark inside `asd_Archive` / `asd_Favorites` is not returned (both `getVisibleBookmarkChildren` and `collectPeekBookmarks`)
+- [x] run `make lint && make test && make build` - must pass
 
 ### Task 2: Verify acceptance criteria
 - [ ] verify all requirements from Overview are implemented (all three call sites use the mark)

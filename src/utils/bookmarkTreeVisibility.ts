@@ -9,7 +9,7 @@ export interface BookmarkTreeNodeLike {
 
 export interface VisibleBookmarkChild<TNode extends BookmarkTreeNodeLike> {
   node: TNode;
-  /** Open bookmark surfaced from inside a collapsed folder. */
+  /** Open or marked bookmark surfaced from inside a collapsed folder. */
   isPeek: boolean;
 }
 
@@ -32,16 +32,27 @@ export const getVisibleSpaceRootItems = <TNode extends BookmarkTreeNodeLike>(
   (spaceRoot.children ?? []).filter(node => !isSystemFolder(node)) as TNode[];
 
 /**
- * The open bookmarks among the nodes and everything inside them, in tree order:
+ * What keeps a bookmark in view under a collapsed folder or the collapsed Bookmarks section:
+ * an open page (loaded or active), or a mark for attention, whose point is to keep the item in view.
+ */
+export const staysVisibleWhenCollapsed = (
+  isLoaded: (bookmarkId: string) => boolean,
+  isActive: (bookmarkId: string) => boolean,
+  isMarked: (bookmarkId: string) => boolean,
+): ((bookmarkId: string) => boolean) =>
+  (bookmarkId) => isLoaded(bookmarkId) || isActive(bookmarkId) || isMarked(bookmarkId);
+
+/**
+ * The open or marked bookmarks among the nodes and everything inside them, in tree order:
  * what a collapsed folder - or the collapsed Bookmarks section -
  * still shows. System folders (archive, Favorites) are skipped, with everything inside them.
  */
-export const collectOpenBookmarks = <TNode extends BookmarkTreeNodeLike>(
+export const collectPeekBookmarks = <TNode extends BookmarkTreeNodeLike>(
   nodes: readonly TNode[],
-  isOpen: (bookmarkId: string) => boolean,
+  staysVisible: (bookmarkId: string) => boolean,
 ): TNode[] =>
 {
-  const open: TNode[] = [];
+  const peek: TNode[] = [];
 
   const visit = (level: readonly BookmarkTreeNodeLike[]) =>
   {
@@ -50,9 +61,9 @@ export const collectOpenBookmarks = <TNode extends BookmarkTreeNodeLike>(
     {
       if (isSystemFolder(node)) continue;
 
-      if (node.url && isOpen(node.id))
+      if (node.url && staysVisible(node.id))
       {
-        open.push(node as TNode);
+        peek.push(node as TNode);
       }
 
       if (node.children?.length)
@@ -63,19 +74,19 @@ export const collectOpenBookmarks = <TNode extends BookmarkTreeNodeLike>(
   };
 
   visit(nodes);
-  return open;
+  return peek;
 };
 
 /**
- * A collapsed folder still shows every open pinned tab below it: the folder stays collapsed, but
- * the user sees which pages are open and which folder holds the current page. The active item is
- * still marked by the row's own active style.
+ * A collapsed folder still shows every open or marked pinned tab below it: the folder stays
+ * collapsed, but the user sees which pages are open, which are marked for attention, and which
+ * folder holds the current page. The active item is still marked by the row's own active style.
  * System folders (archive, Favorites) are skipped in both modes, with everything inside them.
  */
 export const getVisibleBookmarkChildren = <TNode extends BookmarkTreeNodeLike>(
   folder: TNode,
   isExpanded: boolean,
-  isOpen: (bookmarkId: string) => boolean,
+  staysVisible: (bookmarkId: string) => boolean,
 ): VisibleBookmarkChild<TNode>[] =>
 {
   const children = (folder.children ?? []) as TNode[];
@@ -87,7 +98,7 @@ export const getVisibleBookmarkChildren = <TNode extends BookmarkTreeNodeLike>(
       .map((node) => ({ node, isPeek: false }));
   }
 
-  return collectOpenBookmarks(children, isOpen).map((node) => ({ node, isPeek: true }));
+  return collectPeekBookmarks(children, staysVisible).map((node) => ({ node, isPeek: true }));
 };
 
 export const resolveBookmarkRowClickIntent = (

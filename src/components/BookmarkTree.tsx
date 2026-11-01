@@ -73,8 +73,9 @@ import { CreateBookmarkFolderAction } from '../actions/createBookmarkFolderActio
 import { resolveNewFolderParentId } from '../utils/newFolderSelection';
 import { resolveBookmarkRowVisualState } from '../utils/bookmarkRowVisualState';
 import {
-  collectOpenBookmarks,
+  collectPeekBookmarks,
   getVisibleBookmarkChildren,
+  staysVisibleWhenCollapsed,
   getVisibleSpaceRootItems,
   resolveBookmarkRowClickIntent,
   resolveBookmarkRowKeyIntent,
@@ -206,8 +207,8 @@ interface BookmarkRowProps {
   onToggleMark?: (bookmarkId: string) => void;
   selectionMarkAction?: 'mark' | 'clear';  // Undefined when the selection holds no bookmark
   onToggleSelectionMark?: () => void;
-  isPeek?: boolean;  // Open bookmark surfaced from inside a collapsed folder
-  hasPeek?: boolean; // Collapsed folder currently surfacing open descendants
+  isPeek?: boolean;  // Open or marked bookmark surfaced from inside a collapsed folder
+  hasPeek?: boolean; // Collapsed folder currently surfacing open or marked descendants
   hasActivePeek?: boolean; // ...and one of them is the active page
   allSelectedAreBookmarks?: boolean;
   selectedLiveBookmarkCount?: number;
@@ -1013,10 +1014,14 @@ const BookmarkItem = (props: BookmarkRowProps) => {
     ? getVisibleBookmarkChildren(
         node,
         !!expandedState[node.id],
-        (bookmarkId) => (checkIsLoaded?.(bookmarkId) || checkIsActive?.(bookmarkId)) ?? false,
+        staysVisibleWhenCollapsed(
+          (bookmarkId) => checkIsLoaded?.(bookmarkId) ?? false,
+          (bookmarkId) => checkIsActive?.(bookmarkId) ?? false,
+          (bookmarkId) => checkIsMarked?.(bookmarkId) ?? false,
+        ),
       )
     : [];
-  // Open pages surfaced under a collapsed folder; the folder row is highlighted only when one is active
+  // Open or marked pages surfaced under a collapsed folder; the folder row is highlighted only when one is active
   const hasPeek = visibleChildren.some(child => child.isPeek);
   const hasActivePeek = visibleChildren.some(child => child.isPeek && !!checkIsActive?.(child.node.id));
 
@@ -1275,13 +1280,13 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
     visibleBookmarks = getVisibleSpaceRootItems(spaceFolder);
   }
 
-  // Collapsed Bookmarks section: only the open pages stay, as in a collapsed folder.
+  // Collapsed Bookmarks section: only the open or marked pages stay, as in a collapsed folder.
   // App passes it expanded while the text filter is active.
   if (isCollapsed)
   {
-    visibleBookmarks = collectOpenBookmarks(
+    visibleBookmarks = collectPeekBookmarks(
       visibleBookmarks,
-      (bookmarkId) => isBookmarkLoaded(bookmarkId) || isBookmarkActive(bookmarkId),
+      staysVisibleWhenCollapsed(isBookmarkLoaded, isBookmarkActive, isBookmarkMarked),
     );
   }
 
@@ -1386,7 +1391,7 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
         const visibleChildren = getVisibleBookmarkChildren(
           node,
           isExpanded,
-          (bookmarkId) => isBookmarkLoaded(bookmarkId) || isBookmarkActive(bookmarkId),
+          staysVisibleWhenCollapsed(isBookmarkLoaded, isBookmarkActive, isBookmarkMarked),
         );
 
         for (const { node: child } of visibleChildren)
@@ -1402,7 +1407,7 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
     }
 
     return items;
-  }, [visibleBookmarks, expandedState, isBookmarkLoaded, isBookmarkActive]);
+  }, [visibleBookmarks, expandedState, isBookmarkLoaded, isBookmarkActive, isBookmarkMarked]);
 
   // Get items in range for shift-click selection
   const getBookmarkItemsInRange = useCallback((startIndex: number, endIndex: number): SelectionItem[] =>

@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  collectPeekBookmarks,
   getVisibleSpaceRootItems,
   getVisibleBookmarkChildren,
+  staysVisibleWhenCollapsed,
   resolveBookmarkRowKeyIntent,
   resolveBookmarkRowClickIntent,
 } from '../src/utils/bookmarkTreeVisibility.ts';
@@ -159,6 +161,65 @@ test('a Space asd_Favorites folder stays out of the bookmark section at the Spac
   assert.deepEqual(ids(getVisibleBookmarkChildren(nested, true, () => true)), ['report']);
   // Collapsed, an open Favorite tab is not lifted into the bookmark section as a peek row
   assert.deepEqual(ids(getVisibleBookmarkChildren(space, false, () => true)), ['docs', 'report']);
+});
+
+test('a collapsed folder keeps marked closed bookmarks in view, in tree order with the open ones', () =>
+{
+  const tree = {
+    id: 'folder-work',
+    title: 'Work',
+    children: [
+      { id: 'open', title: 'Open', url: 'https://open.example.com' },
+      { id: 'idle', title: 'Idle', url: 'https://idle.example.com' },
+      {
+        id: 'folder-a',
+        title: 'A',
+        children: [
+          {
+            id: 'folder-b',
+            title: 'B',
+            children: [{ id: 'marked', title: 'Marked', url: 'https://marked.example.com' }],
+          },
+        ],
+      },
+    ],
+  };
+  const staysVisible = staysVisibleWhenCollapsed(
+    (id) => id === 'open',
+    () => false,
+    (id) => id === 'marked',
+  );
+
+  assert.deepEqual(
+    getVisibleBookmarkChildren(tree, false, staysVisible).map(({ node, isPeek }) => [node.id, isPeek]),
+    [['open', true], ['marked', true]],
+  );
+  assert.deepEqual(collectPeekBookmarks(tree.children, staysVisible).map((node) => node.id), ['open', 'marked']);
+});
+
+test('a marked bookmark inside asd_Archive or asd_Favorites does not surface from a collapsed folder', () =>
+{
+  const tree = {
+    id: 'folder-work',
+    title: 'Work',
+    children: [
+      {
+        id: 'work-archive',
+        title: 'asd_Archive',
+        children: [{ id: 'marked-archived', title: 'Old', url: 'https://old.example.com' }],
+      },
+      {
+        id: 'work-favorites',
+        title: 'asd_Favorites',
+        children: [{ id: 'marked-favorite', title: 'Mail', url: 'https://mail.example.com' }],
+      },
+      { id: 'marked-docs', title: 'Docs', url: 'https://docs.example.com' },
+    ],
+  };
+  const staysVisible = staysVisibleWhenCollapsed(() => false, () => false, () => true);
+
+  assert.deepEqual(getVisibleBookmarkChildren(tree, false, staysVisible).map(({ node }) => node.id), ['marked-docs']);
+  assert.deepEqual(collectPeekBookmarks(tree.children, staysVisible).map((node) => node.id), ['marked-docs']);
 });
 
 test('a plain click on a folder row toggles it; a modifier click still only selects', () =>
