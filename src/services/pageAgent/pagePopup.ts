@@ -5,7 +5,8 @@
 // and nested functions. Types are fine: they are erased.
 //
 // The popup keeps no storage: its state is a reference on the extension's isolated-world window,
-// so a reload or a cross-document navigation drops it with the page.
+// so a reload or a cross-document navigation drops it with the page. A page kept in the back/forward
+// cache keeps that reference, so pagehide closes the popup too.
 
 import type { MarkdownBlock, MarkdownInline } from '../../utils/markdown.ts';
 
@@ -309,6 +310,9 @@ export function runPagePopupCommand(command: PagePopupCommand): PagePopupResult
       }
       state.url = url;
     };
+    // A document left for the back/forward cache keeps its DOM and this world's state, and Back brings
+    // it back at the same URL, so the URL check above would keep the popup: pagehide marks the leaving.
+    const onPageHide = (): void => state.close();
     const state: PagePopupState = {
       host,
       body,
@@ -316,6 +320,7 @@ export function runPagePopupCommand(command: PagePopupCommand): PagePopupResult
       close: () =>
       {
         navigation?.removeEventListener('currententrychange', onEntryChange);
+        window.removeEventListener('pagehide', onPageHide);
         host.remove();
         if (holder[stateKey] === state)
         {
@@ -325,6 +330,7 @@ export function runPagePopupCommand(command: PagePopupCommand): PagePopupResult
     };
     closeButton.addEventListener('click', () => state.close());
     navigation?.addEventListener('currententrychange', onEntryChange);
+    window.addEventListener('pagehide', onPageHide);
     holder[stateKey] = state;
     document.documentElement.appendChild(host);
   }

@@ -420,6 +420,27 @@ test('a question run started on tab A reads the text and shows the popup on tab 
   assert.deepEqual(listener.finished, [result]);
 });
 
+test('a show_popup the page rejects still ends as answered with the markdown, without openedPopup', async () =>
+{
+  const page = new FakePage(TAB_A);
+  page.showPopup = async () =>
+  {
+    throw new Error('Cannot access contents of the page');
+  };
+  const markdown = '## Summary\n\nThe article is about **video players**.';
+  const client = new ScriptedClient([respond(call('show_popup', { title: 'Summary', markdown }))]);
+  const { run, listener } = startRun(client, page, { request: 'show a summary in a popup' });
+
+  const result = await run.run();
+
+  assert.equal(result.status, 'answered');
+  assert.equal(result.summary, markdown);
+  assert.equal(result.error, undefined);
+  assert.equal(result.openedPopup, undefined);
+  assert.equal(client.requests.length, 1);
+  assert.equal(listener.steps.at(-1).result, 'failed: Cannot access contents of the page');
+});
+
 test('show_popup after set_conditions is refused and nothing is shown', async () =>
 {
   const page = new FakePage(TAB_A);

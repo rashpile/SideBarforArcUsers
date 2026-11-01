@@ -81,7 +81,7 @@ export interface PageAgentAnswer
   markdown: string;
 }
 
-/** Everything the run does to a page. Rejections end the run as `error`. */
+/** Everything the run does to a page. Rejections end the run as `error`, except `showPopup`'s. */
 export interface PageAgentPageAdapter
 {
   /** JSON text for the model, already capped. */
@@ -90,7 +90,7 @@ export interface PageAgentPageAdapter
   inspect(tabId: number, selectors: string[]): Promise<string>;
   /** JSON text for the model: the page's readable text, already capped. */
   readText(tabId: number): Promise<string>;
-  /** Replaces any popup on the page with one holding this answer. */
+  /** Replaces any popup on the page with one holding this answer. A rejection still ends the run `answered`. */
   showPopup(tabId: number, title: string, answer: PageAgentAnswer): Promise<void>;
   insertCss(tabId: number, text: string): Promise<void>;
   /** Removes an inserted stylesheet by its exact text; a no-op when the page no longer has it. */
@@ -711,7 +711,21 @@ export class PageAgentRun
     }
 
     const { title, markdown } = parsed.value;
-    await this.#adapter.showPopup(this.tabId, title, { question: this.#userRequest, markdown });
+    try
+    {
+      await this.#adapter.showPopup(this.tabId, title, { question: this.#userRequest, markdown });
+    }
+    catch (error)
+    {
+      if (this.#controller.signal.aborted)
+      {
+        throw error;
+      }
+      // The answer is already written: a page that won't show it (the tab moved to a page that can't
+      // be scripted) must not cost it, so the turn still ends answered and the chat holds it.
+      const failed = `failed: ${errorMessage(error)}`;
+      return { content: failed, step: step(name, shortText(title), failed), finished: this.#result('answered', [], markdown) };
+    }
     return {
       content: 'shown',
       step: step(name, shortText(title), 'shown'),
