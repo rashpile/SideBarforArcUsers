@@ -346,11 +346,11 @@ export class VideoTranscriptReader
 - Modify: `src/services/pageAgent/pageAgentTools.ts`
 - Modify: `tests/pageAgentRun.test.mjs`
 
-- [ ] create `pageAgentPlugin.ts` with `PageAgentToolPlugin` and `PageAgentPluginResult`
-- [ ] `PageAgentRunOptions.plugins` (default `[]`); tool list = core + plugins' tools; `pageAgentSystemPrompt(screenshots, sections)` appends the plugins' sections
-- [ ] dispatch unknown names to the declaring plugin with `this.tabId`; thrown errors and `{ ok: false }` become tool errors; `{ ok: true }` becomes content + step with `summary`
-- [ ] tests: a fake plugin's tool is offered and its call gets the run's tab when the active tab changed (FakePage `activeTabId` pattern); without the plugin the tool isn't offered and a call is `unknown tool`; a plugin throwing gives the model a tool error and the run goes on
-- [ ] `make test`, `npx tsc --noEmit`, `make lint` - must pass before task 2
+- [x] create `pageAgentPlugin.ts` with `PageAgentToolPlugin` and `PageAgentPluginResult`
+- [x] `PageAgentRunOptions.plugins` (default `[]`); tool list = core + plugins' tools; `pageAgentSystemPrompt(screenshots, sections)` appends the plugins' sections
+- [x] dispatch unknown names to the declaring plugin with `this.tabId`; thrown errors and `{ ok: false }` become tool errors; `{ ok: true }` becomes content + step with `summary`
+- [x] tests: a fake plugin's tool is offered and its call gets the run's tab when the active tab changed (FakePage `activeTabId` pattern); without the plugin the tool isn't offered and a call is `unknown tool`; a plugin throwing gives the model a tool error and the run goes on
+- [x] `make test`, `npx tsc --noEmit`, `make lint` - must pass before task 2
 
 ### Task 2: Plugin metadata and switches in the AI settings
 
