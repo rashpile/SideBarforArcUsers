@@ -27,14 +27,16 @@ class ForbiddenConstruct
   }
 }
 
-// image-set() and src() are rejected outright, even with data: URLs: they take a URL through
-// var(), which a text check can't follow. -webkit-image-set( comes before image-set( so the
-// reason names the one the model wrote.
+// var() is rejected outright: the page can define a custom property as a remote url(), and a text
+// check can't follow var() to it. image-set() and src() are rejected outright too, even with data:
+// URLs, since they also take a plain string as a URL. -webkit-image-set( comes before image-set(
+// so the reason names the one the model wrote.
 const FORBIDDEN_CONSTRUCTS = [
   new ForbiddenConstruct(/@import/i, '@import'),
   new ForbiddenConstruct(/-webkit-image-set\(/i, '-webkit-image-set()'),
   new ForbiddenConstruct(/image-set\(/i, 'image-set()'),
   new ForbiddenConstruct(/src\(/i, 'src()'),
+  new ForbiddenConstruct(/var\(/i, 'var()'),
   new ForbiddenConstruct(/expression\(/i, 'expression()'),
   new ForbiddenConstruct(/behavior\s*:/i, 'behavior:'),
   new ForbiddenConstruct(/-moz-binding/i, '-moz-binding'),

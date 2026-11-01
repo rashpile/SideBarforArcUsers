@@ -194,7 +194,11 @@ test('report with every condition met ends the run as met', async () =>
 {
   const page = new FakePage(TAB_A);
   const client = new ScriptedClient([
-    respond(setConditions('c1', 'c2'), call('apply_css', { css: 'iframe { width: 100% !important; }' })),
+    respond(
+      setConditions('c1', 'c2'),
+      call('apply_css', { css: 'iframe { width: 100% !important; }' }),
+      call('inspect', { selectors: ['iframe'] }),
+    ),
     respond(call('report', {
       results: [{ id: 'c1', met: true, measured: '1738px' }, { id: 'c2', met: true, measured: '16:9' }],
       summary: 'Player fills the content area.',
@@ -214,7 +218,11 @@ test('a report with an unmet condition or one left out ends as not-met', async (
 {
   const page = new FakePage(TAB_A);
   const client = new ScriptedClient([
-    respond(setConditions('c1', 'c2', 'c3'), call('apply_css', { css: 'iframe { width: 100% !important; }' })),
+    respond(
+      setConditions('c1', 'c2', 'c3'),
+      call('apply_css', { css: 'iframe { width: 100% !important; }' }),
+      call('inspect', { selectors: ['iframe'] }),
+    ),
     respond(call('report', {
       results: [{ id: 'c1', met: true, measured: '1738px' }, { id: 'c2', met: false, measured: '16:10' }],
       summary: 'Wider, ratio off.',
@@ -332,4 +340,59 @@ test('a stylesheet the sanitizer rejects goes back to the model and nothing is i
   assert.deepEqual(page.inserted, []);
   assert.deepEqual(page.removed, []);
   assert.deepEqual(listener.applied, []);
+});
+
+test('a second set_conditions in the run is refused, so the report is checked against the first list', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const client = new ScriptedClient([
+    // An invalid call sets nothing, so the next valid one still counts.
+    respond(call('set_conditions', { conditions: [] })),
+    respond(
+      setConditions('c1', 'c2'),
+      call('apply_css', { css: 'iframe { width: 100% !important; }' }),
+      call('inspect', { selectors: ['iframe'] }),
+    ),
+    respond(setConditions('c1')),
+    respond(call('report', { results: [{ id: 'c1', met: true, measured: '1738px' }], summary: 'done' })),
+  ]);
+  const { run, listener } = startRun(client, page);
+
+  const result = await run.run();
+
+  assert.match(client.toolResults(3).at(-1).content, /^refused/);
+  assert.equal(result.status, 'not-met');
+  assert.deepEqual(result.conditions.map(condition => [condition.id, condition.met]), [['c1', true], ['c2', false]]);
+  assert.deepEqual(listener.conditions.map(entry => entry.conditions.map(condition => condition.id)), [['c1', 'c2']]);
+});
+
+test('a report is refused until the model has seen inspect numbers taken after its last apply_css', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const report = () => call('report', { results: [{ id: 'c1', met: true, measured: '1738px' }], summary: 'done' });
+  const client = new ScriptedClient([
+    // In the same response as apply_css and inspect: written before any numbers came back.
+    respond(
+      setConditions('c1'),
+      call('apply_css', { css: 'iframe { width: 100% !important; }' }),
+      call('inspect', { selectors: ['iframe'] }),
+      report(),
+    ),
+    // A new apply_css makes the earlier inspect stale.
+    respond(call('apply_css', { css: 'iframe { width: 99% !important; }' })),
+    respond(report()),
+    // The inspect's numbers come back only with the next request.
+    respond(call('inspect', { selectors: ['iframe'] }), report()),
+    respond(report()),
+  ]);
+  const { run, listener } = startRun(client, page);
+
+  const result = await run.run();
+
+  assert.equal(result.status, 'met');
+  assert.equal(client.requests.length, 5);
+  assert.deepEqual(
+    listener.steps.filter(entry => entry.tool === 'report').map(entry => entry.result.startsWith('refused')),
+    [true, true, true, false],
+  );
 });

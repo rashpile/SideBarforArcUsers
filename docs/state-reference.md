@@ -428,7 +428,7 @@ string  // JSON of
   baseUrl: string,         // default 'https://api.openai.com/v1'
   apiKey: string,
   model: string,
-  protocol: 'auto' | 'responses' | 'chat-completions',  // AI naming only; the page agent always uses Chat Completions
+  protocol: 'auto' | 'responses' | 'chat-completions',  // AI naming and the page agent; Auto tries Responses, then Chat Completions
   reasoningEffort: 'off' | 'low' | 'medium' | 'high',   // default 'medium'
   prompt: string,          // AI naming prompt
   autoRename: boolean,     // name new Favorites and pinned pages automatically

@@ -8,7 +8,7 @@ export interface PageAgentChatView<Settings>
   chat: PageAgentChatData | undefined;
   /** True while the tab has a run, including the moments a stopped run needs to wind down. */
   running: boolean;
-  /** Why the last Undo or Re-apply failed; cleared by the next action and on a tab switch. */
+  /** Why the last Undo or Re-apply failed; shown only for the tab it happened on, until the next action. */
   actionError: string | null;
   send(text: string, settings: Settings): void;
   stop(): void;

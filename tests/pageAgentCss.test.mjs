@@ -71,6 +71,14 @@ test('rejects image-set( and -webkit-image-set( outright, also with var() or dat
   assertRejected('body { background-image: \\69mage-set(var(--x) 1x); }', /image-set/);
 });
 
+test('rejects var( outright, since the page may define the variable as a remote url(', () =>
+{
+  assertRejected('input[value^=a] { background-image: var(--x) !important; }', /var\(\)/);
+  assertRejected('input[value^=a] { list-style: VAR(--x) !important; }', /var\(\)/);
+  assertRejected('main { width: var(--w, 100%) !important; }', /var\(\)/);
+  assertRejected('input[value^=a] { background: v\\61r(--x) !important; }', /var\(\)/);
+});
+
 test('rejects src(, expression(, behavior: and -moz-binding', () =>
 {
   assertRejected('body { background-image: src(var(--x)); }', /src\(\)/);

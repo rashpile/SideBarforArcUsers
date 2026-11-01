@@ -23,8 +23,16 @@ and splits the work into tasks. Lives only on the local branch `experimental/pag
 - **`<all_urls>`**: the design has the builder check first whether `captureVisibleTab` works with only the
   http/https origins. That needs a running Chrome, so `<all_urls>` is added to `optional_host_permissions`
   up front and requested only for screenshots; Post-Completion checks whether it can be dropped.
-- **Sanitizer**: stricter than the design: `image-set(` / `-webkit-image-set(` and `src(` are rejected
-  outright (they can take a URL through `var()`, which a text check can't follow).
+- **Sanitizer**: stricter than the design: `var(` is rejected outright (the page can define a custom
+  property as a remote `url()`, and a text check can't follow `var()` to it), and so are
+  `image-set(` / `-webkit-image-set(` and `src(` (they take a plain string as a URL).
+- **API protocol** (decided by the user after the first real run, overturning the design's non-goal
+  "Responses API tool calling" and its "Chat Completions regardless of the protocol setting"): an
+  OpenAI model rejected function tools together with `reasoning_effort` on `/v1/chat/completions`, so
+  the agent follows the AI protocol setting like AI Rename. Responses and Chat Completions as chosen;
+  Auto lets a Base URL ending in `/responses` or `/chat/completions` decide, else tries Responses first
+  and falls back to Chat Completions on a 405 or a 404 that doesn't name the model, and keeps the
+  protocol that answered for the rest of the run.
 
 ## Context (from discovery)
 
@@ -61,7 +69,7 @@ and splits the work into tasks. Lives only on the local branch `experimental/pag
 - Repo code rules (`CLAUDE.md`): Allman braces, classes over raw Records/Maps, comments say why, debug
   logs only under `import.meta.env.DEV`, no new npm packages.
 - Modules imported by tests (`pageAgentCss.ts`, `pageAgentTools.ts`, `pageAgentRun.ts`,
-  `pageAgentChat.ts`, `pageAgentChatStore.ts`, `pageAgentChats.ts`, `activeTabCapture.ts` and whatever
+  `pageAgentApiFormats.ts`, `pageAgentChat.ts`, `pageAgentChatStore.ts`, `pageAgentChats.ts`, `activeTabCapture.ts` and whatever
   they import): `.ts` sibling imports, chrome/storage/clock passed in, never touch `chrome.*` at import
   time, never read `import.meta.env` (pass a `debug` flag), no enums / parameter properties / namespaces.
   Type-only imports must use `import type` (`tsc` here doesn't enforce it, but Node's type stripping
@@ -87,8 +95,8 @@ Toolbar [Sparkles] ──toggles──> PageAgentDrawer             │         
                                             tools, conditions,    chrome.storage.session
                                             step limit, report    `pageAgentChat:<tabId>`
                                              │              │
-                         ChatCompletionsAgentClient     ChromePageAdapter
-                         (fetch, tools, abort)          executeScript (outline, inspect, marker),
+                         PageAgentApiClient             ChromePageAdapter
+                         (protocol, fetch, abort)       executeScript (outline, inspect, marker),
                                                         insertCSS/removeCSS (origin USER),
                                                         ActiveTabCapture + downscale
 ```
@@ -114,7 +122,7 @@ Toolbar [Sparkles] ──toggles──> PageAgentDrawer             │         
   naive stripping would also remove text inside strings (`content:"/*"` … `"*/"`) and with it a real
   `url(` between them. Keeping comments only adds harmless false positives.
 - Rejected (case-insensitive): `@import`; any `url(` whose argument (quoted or not, trimmed) does not
-  start with `data:`; `image-set(` and `-webkit-image-set(` outright; `src(`; `expression(`; `behavior:`;
+  start with `data:`; `image-set(` and `-webkit-image-set(` outright; `src(`; `var(`; `expression(`; `behavior:`;
   `-moz-binding`; size over 20 KB. The reason names the construct; it goes back to the model as the tool
   result.
 - `PAGE_AGENT_MARKER_PROPERTY = '--sidebar-page-agent'` and `withMarker(css, appliedId)` appends
@@ -125,16 +133,17 @@ Toolbar [Sparkles] ──toggles──> PageAgentDrawer             │         
 
 ### Tools (`src/services/pageAgent/pageAgentTools.ts`)
 
-Chat Completions function tools (JSON schemas) and the system prompt text:
+Function tools (JSON schemas in the Chat Completions shape; the Responses format flattens them) and the
+system prompt text:
 
 | Tool | Arguments | Result to the model |
 |---|---|---|
 | `get_page_outline` | none | JSON: viewport, URL, title, outline tree |
-| `set_conditions` | `conditions: [{ id, text }]`, `replaced?: [{ id, reason }]` (ids of earlier conditions the new request replaces) | `ok` |
+| `set_conditions` | `conditions: [{ id, text }]`, `replaced?: [{ id, reason }]` (ids of earlier conditions the new request replaces) | `ok`; a second call in the same run is refused |
 | `apply_css` | `css` (complete stylesheet) | `ok`, or the sanitizer's reason; refused with "call set_conditions first" before this run's `set_conditions` |
 | `inspect` | `selectors: string[]` (max 10) | JSON per selector (see Page scripts) + page-level horizontal overflow |
 | `screenshot` | none | "attached" (image follows in a user message) or "not visible, use inspect" / "screenshots unavailable: <reason>" |
-| `report` | `results: [{ id, met, measured }]`, `summary` | ends the run |
+| `report` | `results: [{ id, met, measured }]`, `summary` | ends the run; refused until the model has seen `inspect` numbers taken after its last `apply_css` |
 
 `screenshot` is offered only when images are on. System prompt (wording left to the builder) states the
 order: `get_page_outline` (and `screenshot` if offered) → `set_conditions` → `apply_css`/`inspect` until
@@ -170,7 +179,12 @@ instructions.
   page closed) end the run as `error` with the message; looping on them would only burn the step limit.
   Model API errors end it as `error` (except the image retry below).
 - Conditions are per user message: `apply_css` is refused until this run's `set_conditions`. `replaced`
-  ids are shown as "replaced: <reason>", not failed.
+  ids are shown as "replaced: <reason>", not failed. A second `set_conditions` in the same run is refused
+  (a later list could drop a condition the model failed to meet, and the run would end `met` on it).
+- A `report` is refused (a tool error; the run goes on) while the model hasn't seen `inspect` numbers
+  taken after its last `apply_css`. Tool results reach the model only with the next request, so an
+  `inspect` in the same response as the `report` doesn't count. A report with no conditions set still
+  ends the run as `not-met`.
 - `apply_css`: sanitize → `removeCss(previous inserted text)` when there is one (a no-op if the sheet is
   already gone) → `insertCss(withMarker(css, newId))` → `onCssApplied({ css, insertedText, appliedId,
   url })` (one object: the chat needs `appliedId` too). It is called right after `insertCss` resolves,
@@ -212,18 +226,31 @@ instructions.
 - The adapter downscales a captured image to max 1280 px wide with `createImageBitmap` +
   `OffscreenCanvas` (`convertToBlob({ type: 'image/jpeg' })`) → data URL.
 
-### Model client (`src/services/pageAgent/chatCompletionsAgentClient.ts`)
+### Model client (`pageAgentModelClient.ts`, `pageAgentApiFormats.ts` in `src/services/pageAgent/`)
 
-- Endpoint `normalizeAiEndpoint(settings.baseUrl, 'chat-completions')` regardless of the protocol setting.
-- Body: `model`, `messages`, `tools`, `tool_choice: 'auto'`, `max_completion_tokens: 16000`,
-  `reasoning_effort` unless `off` (same rule as `buildAiRequestBody`).
+- `PageAgentApiClient` follows the AI protocol setting (see Deviations): the endpoints come from
+  `resolveAiEndpointCandidates(baseUrl, protocol)`; with two (Auto), a 405 or a 404 that doesn't name the
+  model (`aiEndpointLacksProtocol`, shared with AI Rename) moves on to Chat Completions. The protocol that
+  answered serves the rest of the run (one client per run, built in `pageAgentRuntime.ts`).
+- The run keeps its conversation in the Chat Completions shape; `pageAgentApiFormats.ts` builds each
+  protocol's body and parses its answer (no HTTP, tested in `tests/pageAgentApiFormats.test.mjs`).
+- Chat Completions body: `model`, `messages`, `tools`, `tool_choice: 'auto'`, `max_completion_tokens:
+  16000`, `reasoning_effort` unless `off` (same rule as `buildAiRequestBody`).
+- Responses body: `model`, `instructions` (the system prompt), `input`, flat function tools
+  `{ type, name, description, parameters, strict: false }` (strict mode would need every property in
+  `required`), `tool_choice: 'auto'`, `max_output_tokens: 16000`, `reasoning: { effort }` unless `off`,
+  `store: false`. Input items: user text → `input_text` parts, a screenshot → `input_image` with the data
+  URL, assistant text → an assistant message, tool calls → `function_call` with `call_id`, tool results →
+  `function_call_output` with the same `call_id`. The answer's `function_call` items become tool calls
+  with `id = call_id`, `output_text` parts the content; reasoning items are ignored.
 - `fetch` with `credentials: 'omit'`, the run's `AbortSignal` combined with a 120 s timeout. Errors carry
   the HTTP status (400 is needed for the image retry) and a short message; the API key never appears in
   messages.
 - Status wording is shared with AI Rename (`aiHttpStatusMessage` in `aiConfig.ts`). Except for 401/403,
   the provider's `error.message` (JSON only, key redacted, ~300 chars) is appended, so "model does not
-  support tools/images" reaches the user (the design's "show the API error"). 405 says the endpoint
-  lacks Chat Completions; an empty answer cut off by `finish_reason: 'length'` is an error.
+  support tools/images" reaches the user (the design's "show the API error"). An empty answer cut off by
+  the output limit (`finish_reason: 'length'`, or `status: 'incomplete'` with `max_output_tokens`) is an
+  error suggesting a lower reasoning effort.
 
 ### Chat state (`pageAgentChat.ts`, `pageAgentChatStore.ts`, `pageAgentChats.ts` in `src/services/pageAgent/`)
 
@@ -302,6 +329,7 @@ instructions.
 - [x] add `PAGE_AGENT_MARKER_PROPERTY`, `withMarker(css, appliedId)` and `PAGE_AGENT_CSS_ORIGIN = 'USER'`
 - [x] test: rejects `@import`, remote `url(` (quoted, unquoted, `http:`, `https:`, protocol-relative `//`), a `url(` hidden by a CSS escape, a remote `url(` between two strings that look like a comment (`content:"/*"` … `content:"*/"`, also with the `/*` written as escapes), `image-set(` / `-webkit-image-set(` (including `image-set(var(--x) 1x)`), `src(`, `expression(`, `behavior:`, `-moz-binding`, a stylesheet over 20 KB
 - [x] test: accepts plain declarations with `!important` and `data:` URLs in `url(`
+- [x] ➕ test (review): rejects `var(`, also escaped and in a property that takes no URL
 - [x] run `make test`, `make lint`, `npx tsc --noEmit` - must pass before task 2
 
 ### Task 2: Agent loop and tool definitions
@@ -317,6 +345,7 @@ instructions.
 - [x] implement the HTTP 400 image retry and the screenshots-off note
 - [x] test (fake client + fake adapter recording tab ids): a run started on tab A sends every adapter call to tab A, also after the fake's active tab switches to B mid-run
 - [x] test: ends on `report` (met / not-met by results; a condition missing from results is unmet; a report with no conditions set is not-met); ends at the step limit as not-met; ends on an answer without tool calls as not-met with its text as summary; `apply_css` before `set_conditions` is refused and nothing is inserted; a sanitizer rejection is returned to the model and nothing is inserted
+- [x] ➕ test (review): a second `set_conditions` in a run is refused (one after an invalid call still counts), so the report is checked against the first list; a `report` is refused in the same response as `apply_css` + `inspect`, after an `apply_css` with no `inspect`, and with the `inspect` in its own response, and accepted once the numbers came back
 - [x] run `make test`, `make lint`, `npx tsc --noEmit` - must pass before task 3
 
 ### Task 3: Page scripts, screenshot guard and Chrome page adapter
@@ -337,6 +366,8 @@ instructions.
 
 **Files:**
 - Create: `src/services/pageAgent/chatCompletionsAgentClient.ts`
+- ➕ Replaced in review by `pageAgentModelClient.ts` + `pageAgentApiFormats.ts` and
+  `tests/pageAgentApiFormats.test.mjs` (the agent follows the protocol setting; see Deviations)
 
 - [x] implement the client (implements `PageAgentModelClient`) per Technical Details → Model client: endpoint, body, abort + 120 s timeout, errors as `PageAgentModelError` with HTTP status and safe messages (reuse the wording of `aiRenameService.ts` `#statusMessage` by extracting it to a shared function if that keeps both simple, else copy)
 - [x] `npx tsc --noEmit` and `make lint` pass (no tests: HTTP wiring)
@@ -386,9 +417,9 @@ instructions.
 - Modify: `src/components/Toolbar.tsx`
 - Modify: `src/App.tsx`
 - ➕ Create: `src/services/pageAgent/panelPageAgent.ts` (the panel's `PageAgentChats`; loads the runtime on first use)
-- ➕ Create: `src/services/pageAgent/pageAgentRuntime.ts` (run factory with `ChatCompletionsAgentClient` and `ChromePageAdapter`, a lazy chunk)
+- ➕ Create: `src/services/pageAgent/pageAgentRuntime.ts` (run factory with `PageAgentApiClient` and `ChromePageAdapter`, a lazy chunk)
 
-- [x] create one `PageAgentChats` for the panel in `App` (over `chrome.storage.session`, a run factory with `ChatCompletionsAgentClient` and `ChromePageAdapter`, `import.meta.env.DEV` as the debug flag); it outlives the drawer (built by `createPanelPageAgentChats`; the run loop, client and page scripts load on first use and the drawer is `React.lazy`, so the panel's main chunk grows ~10 kB instead of ~49 kB)
+- [x] create one `PageAgentChats` for the panel in `App` (over `chrome.storage.session`, a run factory with the model client and `ChromePageAdapter`, `import.meta.env.DEV` as the debug flag); it outlives the drawer (built by `createPanelPageAgentChats`; the run loop, client and page scripts load on first use and the drawer is `React.lazy`, so the panel's main chunk grows ~10 kB instead of ~49 kB)
 - [x] `Sparkles` button in `Toolbar` toggles the drawer (title "Page agent (experimental)")
 - [x] render `PageAgentDrawer` between `SwipeableContainer` and `SpaceBar`, bound to this window's active tab id (follows tab switches); pass the AI settings and a callback that opens Settings
 - [x] lifecycle in `App` (runs whether the drawer is open or not): `tabs.onRemoved` → `chats.tabClosed`; `tabs.onUpdated` with `status: 'complete'` → `chats.checkMarker`; once at panel start, `chats.sweep` with the ids from `chrome.tabs.query({})`
@@ -440,6 +471,8 @@ In addition to the design's list:
   CSS on the page that the chat doesn't know about (no Undo for it); a reload clears it.
 - [known-limitation] Extension reload or update clears `chrome.storage.session`, so all chats are gone
   while CSS stays on the pages until they reload.
+- [known-limitation] A quick double-click on Re-apply can insert two stylesheets; Undo removes only the
+  last one, and a reload clears the other.
 
 ## Post-Completion
 

@@ -3,6 +3,7 @@ import {
   AiRenameSettings,
   ResolvedAiApiProtocol,
   SelectedPageContent,
+  aiEndpointLacksProtocol,
   aiHttpStatusMessage,
   buildAiRequestBody,
   buildLlmsTxtCandidates,
@@ -354,8 +355,7 @@ ${content}`;
     if (!response.ok)
     {
       const responseText = await response.text().catch(() => '');
-      const isModelError = /\bmodel\b/i.test(responseText);
-      const canFallback = response.status === 405 || (response.status === 404 && !isModelError);
+      const canFallback = aiEndpointLacksProtocol(response.status, responseText);
       throw new AiHttpError(aiHttpStatusMessage(response.status), response.status, canFallback);
     }
 

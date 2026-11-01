@@ -30,7 +30,8 @@ tab, it checks its own result, and the user sees and can undo what happened.
 - Tools that act on the page (click, type, fill forms, scroll). Next step after the POC.
 - Keeping changes per site across reloads or visits (Stylus / Arc Boosts style).
 - An "Experimental" switch in Settings. The branch is the experiment.
-- Responses API tool calling (see Model and API).
+- ~~Responses API tool calling (see Model and API).~~ Overturned by the user after the first real run:
+  the agent follows the AI protocol setting (see Deviations in `20261101-page-agent-chat.md`).
 
 ## Anti-goals
 
@@ -174,7 +175,8 @@ Injected function, output capped (~12k characters) *(thresholds my call, tune in
 - New setting **Model accepts images** (checkbox in the AI section, field `acceptsImages` in
   `AiRenameSettings`, default `false`, defaulted in `parseAiRenameSettings`) *(my call)*. If the API
   still rejects an image, the run continues without screenshots and says so.
-- POC uses Chat Completions tool calling (`tools`, `tool_calls`, `role: "tool"`) regardless of the
+- (Overturned: the agent now follows the protocol setting, see Deviations in
+  `20261101-page-agent-chat.md`.) POC uses Chat Completions tool calling (`tools`, `tool_calls`, `role: "tool"`) regardless of the
   protocol setting *(my call)*: widest support across OpenAI-compatible providers (OpenAI, OpenRouter,
   Ollama, LM Studio). The model must support function calling; if it doesn't, show the API error.
   The demo runs on OpenAI (user's answer), which supports tool calling and images in Chat Completions.

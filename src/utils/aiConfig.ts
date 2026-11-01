@@ -255,6 +255,15 @@ export function resolveAiEndpointCandidates(
 }
 
 /**
+ * Whether an error answer means the endpoint lacks this protocol, so Auto tries the next candidate.
+ * A 404 that names the model is a wrong model name, which the other protocol wouldn't fix.
+ */
+export function aiEndpointLacksProtocol(status: number, responseText: string): boolean
+{
+  return status === 405 || (status === 404 && !/\bmodel\b/i.test(responseText));
+}
+
+/**
  * Shared by AI Rename and the page agent, so both say the same thing for the same failure.
  */
 export function aiHttpStatusMessage(status: number): string

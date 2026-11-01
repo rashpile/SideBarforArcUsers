@@ -178,14 +178,14 @@ A second message in the same chat edits the current CSS, so "a bit narrower" wor
 - While the agent works, Send becomes **Stop**
 - **Undo** removes everything the agent applied to the tab. **Show CSS** shows the current stylesheet with a Copy button, to put into your own site
 - A reload drops the CSS. The chat then says "Page reloaded, changes removed" and offers **Re-apply**. When the tab has moved on to another page it says "Page changed, changes removed", without Re-apply
-- The agent writes CSS only, never JavaScript. The extension rejects CSS that would load anything from the network (`@import`, `url()` other than `data:`, `image-set()`) before it reaches the page
+- The agent writes CSS only, never JavaScript. The extension rejects CSS that would load anything from the network (`@import`, `url()` other than `data:`, `image-set()`, and `var()`, which could pick up a URL the page defines) before it reaches the page
 - A run stays on the tab it started on when you switch tabs
 
-The agent uses the AI settings of AI naming: Base URL, API key, model and reasoning effort. It always calls the endpoint's Chat Completions API with tool calling, whatever the protocol setting says, so the model must support function calling. It needs access to http and https pages; the drawer shows **Grant page access** until you allow it. Screenshots need **Model accepts images** in Settings and access to all pages, which **Grant screenshot access** in the drawer asks for. Without them the agent checks numbers only. If the API rejects images, the run goes on without screenshots and says so.
+The agent uses the AI settings of AI naming: Base URL, API key, model, API protocol and reasoning effort. It calls the model with tool calling through the protocol you chose: Responses API or Chat Completions. Auto works as for AI naming: a Base URL ending in `/responses` or `/chat/completions` decides, otherwise it tries the Responses API first and falls back to Chat Completions when the endpoint doesn't have it. The model must support function calling. It needs access to http and https pages; the drawer shows **Grant page access** until you allow it. Screenshots need **Model accepts images** in Settings and access to all pages, which **Grant screenshot access** in the drawer asks for. Without them the agent checks numbers only. If the API rejects images, the run goes on without screenshots and says so.
 
 The input is disabled on pages that aren't http or https, such as `chrome://` and other extensions' pages, and on the Chrome Web Store. On a PDF the run ends with Chrome's error.
 
-Chats last for the browser session. They survive closing the panel. Closing the tab, restarting the browser or reloading the extension deletes them.
+Chats last for the browser session. They survive closing the panel. Closing the tab deletes its chat, or the next time a side panel opens if none was open then. Restarting the browser or reloading the extension deletes all chats.
 
 Known limitations:
 

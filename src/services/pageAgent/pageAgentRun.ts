@@ -50,6 +50,7 @@ export interface PageAgentModelRequest
   tools: PageAgentToolDefinition[];
 }
 
+/** Takes and returns the Chat Completions shape; a client for another API translates it. */
 export interface PageAgentModelClient
 {
   complete(request: PageAgentModelRequest, signal: AbortSignal): Promise<PageAgentAssistantMessage>;
@@ -200,10 +201,19 @@ class RunConditions
     return [...this.#replaced];
   }
 
-  set(conditions: PageAgentConditionSpec[], replaced: PageAgentReplacedCondition[]): void
+  /**
+   * Only the first list of a run counts; false when the run has one. A later list could drop a
+   * condition the model failed to meet, and the run would then end met on an easier list.
+   */
+  set(conditions: PageAgentConditionSpec[], replaced: PageAgentReplacedCondition[]): boolean
   {
+    if (this.isSet)
+    {
+      return false;
+    }
     this.#conditions = [...conditions];
     this.#replaced = [...replaced];
+    return true;
   }
 
   /** A condition the report leaves out counts as unmet: silence is not success. */
@@ -221,6 +231,34 @@ class RunConditions
   allUnmet(measured: string): PageAgentConditionOutcome[]
   {
     return this.#conditions.map(condition => ({ id: condition.id, text: condition.text, met: false, measured }));
+  }
+}
+
+/**
+ * Whether the model has seen numbers measured after its last apply_css. Tool results reach the
+ * model only with the next request, so an inspect in the same response as the report doesn't count:
+ * the report's numbers would be written before the model saw any.
+ */
+class StylesheetMeasurement
+{
+  #applyCalled = false;
+  #inspectRound: number | undefined;
+
+  applyCalled(): void
+  {
+    this.#applyCalled = true;
+    this.#inspectRound = undefined;
+  }
+
+  inspected(round: number): void
+  {
+    this.#inspectRound ??= round;
+  }
+
+  /** True when the run called no apply_css, or an inspect after the last one ran in an earlier response. */
+  seenBefore(round: number): boolean
+  {
+    return !this.#applyCalled || (this.#inspectRound !== undefined && this.#inspectRound < round);
   }
 }
 
@@ -371,9 +409,11 @@ export class PageAgentRun
   readonly #debug: boolean;
   readonly #controller = new AbortController();
   readonly #conditions = new RunConditions();
+  readonly #measurement = new StylesheetMeasurement();
   #insertedText: string;
   #imagesRejected = false;
   #started = false;
+  #round = 0;
 
   constructor(options: PageAgentRunOptions)
   {
@@ -429,6 +469,7 @@ export class PageAgentRun
   {
     for (let round = 0; round < PAGE_AGENT_MAX_ROUNDS; round++)
     {
+      this.#round = round;
       this.#throwIfStopped();
       const message = await this.#complete();
       this.#throwIfStopped();
@@ -548,23 +589,31 @@ export class PageAgentRun
 
   #setConditions(args: unknown): ToolOutcome
   {
+    const name = PAGE_AGENT_TOOL_NAMES.setConditions;
     const parsed = parseSetConditionsArgs(args);
     if (!parsed.ok)
     {
-      return toolError(PAGE_AGENT_TOOL_NAMES.setConditions, '', parsed.error);
+      return toolError(name, '', parsed.error);
     }
 
     const { conditions } = parsed.value;
+    const summary = shortText(conditions.map(condition => `${condition.id}: ${condition.text}`).join('; '));
     const replaced = parsed.value.replaced.map(entry => ({
       id: entry.id,
       text: this.#history.conditionText(entry.id),
       reason: entry.reason,
     }));
-    this.#conditions.set(conditions, replaced);
+    if (!this.#conditions.set(conditions, replaced))
+    {
+      return toolError(
+        name,
+        summary,
+        `refused: this request's conditions are already set and can't change; work on them and report any you can't meet as unmet`,
+      );
+    }
     this.#listener.onConditions(conditions, replaced);
 
-    const summary = conditions.map(condition => `${condition.id}: ${condition.text}`).join('; ');
-    return { content: 'ok', step: step(PAGE_AGENT_TOOL_NAMES.setConditions, shortText(summary), 'ok') };
+    return { content: 'ok', step: step(name, summary, 'ok') };
   }
 
   async #applyCss(args: unknown): Promise<ToolOutcome>
@@ -575,6 +624,8 @@ export class PageAgentRun
     {
       return toolError(name, '', `refused: call ${PAGE_AGENT_TOOL_NAMES.setConditions} first`);
     }
+    // Whatever its outcome, the model learns it only from the next request.
+    this.#measurement.applyCalled();
     const parsed = parseApplyCssArgs(args);
     if (!parsed.ok)
     {
@@ -612,6 +663,7 @@ export class PageAgentRun
       return toolError(PAGE_AGENT_TOOL_NAMES.inspect, '', parsed.error);
     }
     const result = await this.#adapter.inspect(this.tabId, parsed.value);
+    this.#measurement.inspected(this.#round);
     return {
       content: result,
       step: step(PAGE_AGENT_TOOL_NAMES.inspect, shortText(parsed.value.join(', ')), shortText(result)),
@@ -650,6 +702,14 @@ export class PageAgentRun
     {
       const text = summary ? `No conditions were set. ${summary}` : 'No conditions were set.';
       return { content: 'done', step: reportStep, finished: this.#result('not-met', [], text) };
+    }
+    if (!this.#measurement.seenBefore(this.#round))
+    {
+      return toolError(
+        name,
+        shortText(summary),
+        `refused: ${PAGE_AGENT_TOOL_NAMES.inspect} after your last ${PAGE_AGENT_TOOL_NAMES.applyCss} and call ${name} in a later response, once you have seen the numbers`,
+      );
     }
 
     const conditions = this.#conditions.fromReport(results);
