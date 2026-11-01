@@ -234,7 +234,10 @@ export function parseTtml(xml: string): SubtitleCue[];                      // s
   everything else (including unparsable URLs) `page-video`. On a shopping page the capture is harmless:
   the wrapper reacts only to `GetVodPlaybackResources`, and the message names Prime Video
 - `TranscriptTrack { code: string; name: string; kind: 'sdh' | 'subtitles' | 'captions'; showing: boolean }`
-- `chooseTrack(tracks, language?)` → track or `{ error }`:
+- `trackLabel(track)` → `code name` (the name dropped when empty or equal to the code), for the
+  result's `language` / `languages` and the no-match error
+- `chooseTrack(tracks, language?)` → track or `{ error }`; generic over the track type, so the reader
+  gets back the page-video track with its `index`; an empty list → error:
   - with `language`: tracks whose code starts with it, case-insensitive (`ru` → `ru-ru`, `EN-GB` →
     `en-gb`); none → error listing the available `code name` pairs
   - among the candidates (all tracks when no `language`): `showing`, else `sdh`, else a code starting
@@ -397,11 +400,11 @@ export class VideoTranscriptReader
 - Create: `src/services/pageAgent/videoTranscriptSources.ts`
 - Modify: `tests/videoTranscript.test.mjs`
 
-- [ ] `videoTranscriptSource`, `TranscriptTrack`, `chooseTrack`, `isPrimeSubtitleUrl` per Technical Details
-- [ ] tests: Prime URLs (`www.amazon.com/gp/video/detail/…`, `www.amazon.com/Clarksons-Farm/dp/B095RK8QWV`, `www.amazon.co.uk/-/en/gp/video/…`, `www.primevideo.com/detail/…`) vs `amazon.com.evil.org`, `notamazon.com` and other sites
-- [ ] tests: default track order showing → sdh → en → first; prefix match `ru` → `ru-ru`; no match lists the languages
-- [ ] tests: `isPrimeSubtitleUrl` accepts `https://cf-timedtext.aux.pv-cdn.net/…`, rejects `http:`, `pv-cdn.net.evil.com`, other hosts and garbage
-- [ ] `make test`, `npx tsc --noEmit`, `make lint` - must pass before task 6
+- [x] `videoTranscriptSource`, `TranscriptTrack`, `chooseTrack`, `isPrimeSubtitleUrl` per Technical Details
+- [x] tests: Prime URLs (`www.amazon.com/gp/video/detail/…`, `www.amazon.com/Clarksons-Farm/dp/B095RK8QWV`, `www.amazon.co.uk/-/en/gp/video/…`, `www.primevideo.com/detail/…`) vs `amazon.com.evil.org`, `notamazon.com` and other sites
+- [x] tests: default track order showing → sdh → en → first; prefix match `ru` → `ru-ru`; no match lists the languages
+- [x] tests: `isPrimeSubtitleUrl` accepts `https://cf-timedtext.aux.pv-cdn.net/…`, rejects `http:`, `pv-cdn.net.evil.com`, other hosts and garbage
+- [x] `make test`, `npx tsc --noEmit`, `make lint` - must pass before task 6
 
 ### Task 6: Page scripts for video subtitles
 

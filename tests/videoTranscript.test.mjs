@@ -7,6 +7,11 @@ import {
   parseTimeArg,
   resolveTranscriptRange,
 } from '../src/services/pageAgent/videoTranscriptRange.ts';
+import {
+  chooseTrack,
+  isPrimeSubtitleUrl,
+  videoTranscriptSource,
+} from '../src/services/pageAgent/videoTranscriptSources.ts';
 
 // A cue every 10 s for ten minutes; each text names its start so a test can tell which cues came back.
 function cuesEvery10s(until = 600)
@@ -185,5 +190,101 @@ test('parseTimeArg rejects "end" for from, a leading minus for to, and malformed
   {
     assert.equal(parseTimeArg(value, 'from'), null, `from ${JSON.stringify(value)}`);
     assert.equal(parseTimeArg(value, 'to'), null, `to ${JSON.stringify(value)}`);
+  }
+});
+
+test('Prime Video pages on store hosts and primevideo.com read from Prime; look-alike hosts do not', () =>
+{
+  for (const url of [
+    'https://www.amazon.com/gp/video/detail/B0B8TR4ZLD/ref=atv_dp',
+    'https://www.amazon.com/Clarksons-Farm/dp/B095RK8QWV',
+    'https://www.amazon.co.uk/-/en/gp/video/detail/amzn1.dv.gti.123',
+    'https://amazon.de/gp/video/storefront',
+    'https://www.primevideo.com/detail/0GQ0LW2Q1X4B3V7Y',
+    'https://primevideo.com/',
+  ])
+  {
+    assert.equal(videoTranscriptSource(url), 'prime-video', url);
+  }
+
+  for (const url of [
+    'https://www.amazon.com.evil.org/gp/video/detail/B0B8TR4ZLD',
+    'https://notamazon.com/gp/video/detail/B0B8TR4ZLD',
+    'https://amazon.example/gp/video/detail/B0B8TR4ZLD',
+    'https://primevideo.com.evil.org/detail/x',
+    'https://notprimevideo.com/detail/x',
+    'https://www.youtube.com/watch?v=abc',
+    'https://developer.mozilla.org/en-US/docs/Web/HTML/Element/track',
+    'not a url',
+    '',
+  ])
+  {
+    assert.equal(videoTranscriptSource(url), 'page-video', url);
+  }
+});
+
+function track(code, overrides = {})
+{
+  return { code, name: code, kind: 'subtitles', showing: false, ...overrides };
+}
+
+test('the default track is the one shown, else SDH, else English, else the first', () =>
+{
+  const shown = track('de-de', { showing: true });
+  const sdh = track('fr-fr', { kind: 'sdh' });
+  const english = track('en-gb');
+  const first = track('da-dk');
+
+  assert.equal(chooseTrack([first, english, sdh, shown]), shown);
+  assert.equal(chooseTrack([first, english, sdh]), sdh);
+  assert.equal(chooseTrack([first, english]), english);
+  assert.equal(chooseTrack([first, track('ru-ru')]), first);
+});
+
+test('a language picks tracks by code prefix, case-insensitive, then applies the default order', () =>
+{
+  const russian = track('ru-ru', { name: 'Русский' });
+  const britishSdh = track('en-gb', { kind: 'sdh' });
+  const american = track('en-us');
+  const tracks = [track('da-dk', { showing: true }), american, russian, britishSdh];
+
+  assert.equal(chooseTrack(tracks, 'ru'), russian);
+  assert.equal(chooseTrack(tracks, 'RU-RU'), russian);
+  // The shown Danish track is not a candidate for "en"; among English tracks SDH wins.
+  assert.equal(chooseTrack(tracks, 'en'), britishSdh);
+  assert.equal(chooseTrack(tracks, 'EN-US'), american);
+});
+
+test('a language without a matching track is an error listing the available languages', () =>
+{
+  const tracks = [track('en-gb', { name: 'English [CC]' }), track('ru-ru', { name: 'Русский' })];
+
+  const result = chooseTrack(tracks, 'fr');
+
+  assert.ok('error' in result);
+  assert.match(result.error, /"fr"/);
+  assert.match(result.error, /en-gb English \[CC\], ru-ru Русский/);
+});
+
+test('only https URLs on Prime\'s subtitle CDN pass the subtitle URL check', () =>
+{
+  assert.equal(isPrimeSubtitleUrl('https://cf-timedtext.aux.pv-cdn.net/1a2b/3c4d/5e6f.ttml2'), true);
+
+  for (const url of [
+    'http://cf-timedtext.aux.pv-cdn.net/1a2b/3c4d/5e6f.ttml2',
+    'https://pv-cdn.net.evil.com/5e6f.ttml2',
+    'https://evil.com/cf-timedtext.aux.pv-cdn.net/5e6f.ttml2',
+    'https://evilpv-cdn.net/5e6f.ttml2',
+    'https://atv-ps.amazon.com/playback/prs/GetVodPlaybackResources',
+    'javascript:alert(1)//.pv-cdn.net',
+    'cf-timedtext.aux.pv-cdn.net/5e6f.ttml2',
+    'not a url',
+    '',
+    null,
+    42,
+    { url: 'https://cf-timedtext.aux.pv-cdn.net/x.ttml2' },
+  ])
+  {
+    assert.equal(isPrimeSubtitleUrl(url), false, JSON.stringify(url));
   }
 });
