@@ -408,9 +408,9 @@ instructions.
 
 ### Task 10: Verify acceptance criteria
 
-- [ ] every Goal and Anti-goal of the design is implemented (per-tab chat in a drawer, tool-call loop, conditions first and measured, screenshots when on, Undo; no success claim on unmet or missing conditions, no remote loads, no other tab)
-- [ ] the design's Tests list is covered by `tests/pageAgentCss.test.mjs`, `tests/pageAgentRun.test.mjs`, `tests/activeTabCapture.test.mjs`, `tests/pageAgentChats.test.mjs`
-- [ ] run `make test`, `make lint`, `npx tsc --noEmit`, `make build` - all pass
+- [x] every Goal and Anti-goal of the design is implemented (per-tab chat in a drawer, tool-call loop, conditions first and measured, screenshots when on, Undo; no success claim on unmet or missing conditions, no remote loads, no other tab)
+- [x] the design's Tests list is covered by `tests/pageAgentCss.test.mjs`, `tests/pageAgentRun.test.mjs`, `tests/activeTabCapture.test.mjs`, `tests/pageAgentChats.test.mjs`
+- [x] run `make test`, `make lint`, `npx tsc --noEmit`, `make build` - all pass
 
 ### Task 11: [Final] Update documentation
 
