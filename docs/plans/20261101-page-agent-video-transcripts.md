@@ -454,8 +454,8 @@ export class VideoTranscriptReader
 **Files:**
 - Modify: `src/components/SettingsDialog.tsx`
 
-- [ ] in the AI tab, below "Model accepts images", a "Page agent plugins" group: one checkbox per `PAGE_AGENT_PLUGINS` entry with its title and description, bound to `tempAiSettings.agentPlugins` through `PageAgentPluginSwitches`, saved with the AI settings
-- [ ] no tests (UI wiring); `npx tsc --noEmit`, `make lint`, `make test` - must pass before task 10
+- [x] in the AI tab, below "Model accepts images", a "Page agent plugins" group: one checkbox per `PAGE_AGENT_PLUGINS` entry with its title and description, bound to `tempAiSettings.agentPlugins` through `PageAgentPluginSwitches`, saved with the AI settings
+- [x] no tests (UI wiring); `npx tsc --noEmit`, `make lint`, `make test` - must pass before task 10
 
 ### Task 10: Verify acceptance criteria
 

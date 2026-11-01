@@ -12,6 +12,7 @@ import {
   getHostPermissionPattern,
 } from '../utils/aiConfig';
 import { OpenAiCompatibleClient } from '../services/aiRenameService';
+import { PAGE_AGENT_PLUGINS, PageAgentPluginSwitches } from '../services/pageAgent/pageAgentPlugins';
 
 export type BookmarkOpenMode = 'arc' | 'newTab' | 'activeTab';
 export type TabGroupDisplayOrder = 'groupsFirst' | 'groupsLast' | 'chromeOrder';
@@ -193,6 +194,8 @@ export function SettingsDialog({
       setTempPinnedIconSize(newSize);
     }
   };
+
+  const pluginSwitches = new PageAgentPluginSwitches(tempAiSettings.agentPlugins);
 
   const tabClass = (tab: SettingsTab) =>
     `flex-1 px-3 py-2 text-sm font-medium transition-colors ${
@@ -618,6 +621,29 @@ export function SettingsDialog({
               <p className="mt-1 text-gray-500 dark:text-gray-400">
                 Lets the page agent send screenshots of the page to the model.
               </p>
+            </div>
+
+            <div className="rounded border border-gray-200 dark:border-gray-700 p-2 space-y-2">
+              <div className="font-medium text-gray-700 dark:text-gray-300">Page agent plugins</div>
+              {PAGE_AGENT_PLUGINS.map(plugin => (
+                <div key={plugin.id}>
+                  <label className="flex items-center gap-2 text-gray-700 dark:text-gray-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={pluginSwitches.isEnabled(plugin)}
+                      onChange={(event) => setTempAiSettings({
+                        ...tempAiSettings,
+                        agentPlugins: pluginSwitches.with(plugin.id, event.target.checked).toStored(),
+                      })}
+                      className="rounded border-gray-300 dark:border-gray-600"
+                    />
+                    {plugin.title}
+                  </label>
+                  <p className="mt-1 text-gray-500 dark:text-gray-400">
+                    {plugin.description}
+                  </p>
+                </div>
+              ))}
             </div>
 
             <div>
