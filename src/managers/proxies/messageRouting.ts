@@ -23,6 +23,7 @@ export const ManagerId = {
   FAVORITE_ICONS: 'FavoriteIconsManager',
   ATTENTION_MARKS: 'AttentionMarkManager',
   RECENTLY_CLOSED: 'RecentlyClosedManager',
+  PAGE_STYLES: 'PageStyleManager',
 } as const;
 
 export type ManagerIdType = typeof ManagerId[keyof typeof ManagerId];

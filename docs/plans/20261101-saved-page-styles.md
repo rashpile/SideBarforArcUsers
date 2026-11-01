@@ -187,21 +187,21 @@ Chat adoption (`PageAgentChats`), through an injected `savedStyleForTab(tabId)` 
 - Modify: `src/managers/proxies/messageRouting.ts`
 - Create: `tests/pageStyleManager.test.mjs`
 
-- [ ] add `ManagerId.PAGE_STYLES = 'PageStyleManager'`, the key constant `BOOKMARK_PAGE_STYLES_KEY =
+- [x] add `ManagerId.PAGE_STYLES = 'PageStyleManager'`, the key constant `BOOKMARK_PAGE_STYLES_KEY =
   'bookmarkPageStyles'`, `PageStyleApi`, `PageStylesState` and `PAGE_STYLES_CHANGED`
-- [ ] implement `PageStyleManager` (`RoutedManager` + `PageStyleApi`) on `SavedPageStyles`: load from
+- [x] implement `PageStyleManager` (`RoutedManager` + `PageStyleApi`) on `SavedPageStyles`: load from
   `chrome.storage.local`, serialized write queue, broadcast with `senderId`, `save` refuses CSS that fails
   `PageAgentCssSanitizer.check` and pages that aren't http(s) (error with the reason), `rev` from an
   injectable id factory
-- [ ] `load()` never rejects (logs and starts empty on a storage error)
-- [ ] `handleBookmarksRemoved(ids)`: takes the ids `background.ts` computes with `collectBookmarkIds`
+- [x] `load()` never rejects (logs and starts empty on a storage error)
+- [x] `handleBookmarksRemoved(ids)`: takes the ids `background.ts` computes with `collectBookmarkIds`
   (removed node plus subtree); drops their styles; no write when nothing matched
-- [ ] "loaded" guard as in AttentionMarkManager: an unreadable stored value starts empty and background
+- [x] "loaded" guard as in AttentionMarkManager: an unreadable stored value starts empty and background
   events don't write until the user's next save/toggle/remove
-- [ ] write tests: removing a bookmark's id, and the ids of a folder holding it, drops its style and keeps
+- [x] write tests: removing a bookmark's id, and the ids of a folder holding it, drops its style and keeps
   others; save refuses CSS with `@import` / remote `url(` and keeps the stored value unchanged; an
   unreadable stored value isn't overwritten by a bookmark-removed event
-- [ ] run `make test` - must pass before next task
+- [x] run `make test` - must pass before next task
 
 ### Task 3: Sidebar proxy and hook
 
