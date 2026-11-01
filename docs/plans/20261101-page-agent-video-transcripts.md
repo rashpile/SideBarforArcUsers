@@ -181,9 +181,6 @@ export function parseTtml(xml: string): SubtitleCue[];                      // s
 
 ### Range, spoiler default and formatting (`src/services/pageAgent/videoTranscriptRange.ts`)
 
-- `parseTimeArg(value: unknown): number | 'end' | null` — non-negative number of seconds, or a string
-  `"end"`, `"s"`, `"m:ss"`, `"h:mm:ss"` (fractions allowed); anything else → `null`
-- `formatClock(seconds)`: `m:ss` under an hour, `h:mm:ss` from an hour
 - `parseTimeArg(value: unknown, field: 'from' | 'to'): TimeArg | null` with
   `TimeArg = { kind: 'at'; seconds } | { kind: 'end' } | { kind: 'beforePosition'; seconds }`:
   a non-negative number of seconds, or a string `"s"`, `"m:ss"` (minutes may be 60 or more, e.g.
@@ -207,9 +204,12 @@ export function parseTtml(xml: string): SubtitleCue[];                      // s
   a new line starts when a cue starts 30 s or more after the current line's first cue; each line
   `[clock] text …`; whole lines are added until the next would pass `maxChars` (60 000); `nextFrom` =
   start of the first line left out. Cue text arrives clean (TTML decoded by the parser, WebVTT cleaned
-  by the reader, see Reader)
-- result JSON built here (`buildTranscriptResult`), metadata and `note` before `text`, so the model
-  reads the note before the long text:
+  by the reader, see Reader). A single line longer than `maxChars` (only from a broken track with cues
+  stacked on one time) is cut at `maxChars`, and `nextFrom` is the start of the line after it, so the
+  next call still moves on
+- result JSON built here (`buildTranscriptResult(meta, cues, range, maxChars)` → `{ content, summary }`;
+  the reader passes both on), metadata and `note` before `text`, so the model reads the note before the
+  long text:
 
   ```json
   { "source": "prime-video", "page_title": "…", "language": "en-gb English [CC]",
@@ -221,7 +221,8 @@ export function parseTtml(xml: string): SubtitleCue[];                      // s
   `position` reads `"unknown"` when not known; `subtitles_until` is the last cue's end (for tracks that
   hold only the cues loaded so far, the model can compare it with `duration`); `to` reads `"end"` when
   the range runs to the end; `note` is present only when cut, empty or the position is unknown; an
-  empty range gives `"text": ""` and the note "no subtitles in this range"
+  empty range gives `"text": ""` and the note "no subtitles in this range"; an unknown position gives
+  the metadata and the note only (no `from`, `to`, `text`)
 
 ### Sources, tracks, URL check (`src/services/pageAgent/videoTranscriptSources.ts`)
 
@@ -384,11 +385,11 @@ export class VideoTranscriptReader
 - Create: `src/services/pageAgent/videoTranscriptRange.ts`
 - Create: `tests/videoTranscript.test.mjs`
 
-- [ ] `parseTimeArg`, `formatClock`, `resolveTranscriptRange`, `formatTranscriptLines`, `buildTranscriptResult` per Technical Details
-- [ ] tests: mid-way without `to` stops at the position and no cue starting at or after it is in the text; `to: 'end'` reads all; position under 60 s and position after the last cue end read all; unknown position without `to` gives no text and the unknown-position note, with `to` it reads the range
-- [ ] tests: `from: "-2:00"` mid-way reads the two minutes before the position; with an unknown position it is an error; `from` past the position without `to` is an error naming the position
-- [ ] tests: a cut result names the start of the first omitted line as the next `from` and never cuts inside a line; an empty range gives empty text and the note; `parseTimeArg` accepts seconds, `m:ss` (also `"75:30"`), `h:mm:ss`, `"end"` only for `to`, `-m:ss` only for `from`, and rejects malformed values
-- [ ] `make test`, `npx tsc --noEmit`, `make lint` - must pass before task 5
+- [x] `parseTimeArg`, `formatClock`, `resolveTranscriptRange`, `formatTranscriptLines`, `buildTranscriptResult` per Technical Details
+- [x] tests: mid-way without `to` stops at the position and no cue starting at or after it is in the text; `to: 'end'` reads all; position under 60 s and position after the last cue end read all; unknown position without `to` gives no text and the unknown-position note, with `to` it reads the range
+- [x] tests: `from: "-2:00"` mid-way reads the two minutes before the position; with an unknown position it is an error; `from` past the position without `to` is an error naming the position
+- [x] tests: a cut result names the start of the first omitted line as the next `from` and never cuts inside a line; an empty range gives empty text and the note; `parseTimeArg` accepts seconds, `m:ss` (also `"75:30"`), `h:mm:ss`, `"end"` only for `to`, `-m:ss` only for `from`, and rejects malformed values
+- [x] `make test`, `npx tsc --noEmit`, `make lint` - must pass before task 5
 
 ### Task 5: Source, track and subtitle URL rules
 
