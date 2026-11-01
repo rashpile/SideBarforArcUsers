@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { ResponsesFormat } from '../src/services/pageAgent/pageAgentApiFormats.ts';
+import { ChatCompletionsFormat, ResponsesFormat } from '../src/services/pageAgent/pageAgentApiFormats.ts';
 
 const IMAGE = 'data:image/jpeg;base64,AAAA';
 
@@ -76,4 +76,16 @@ test('a Responses tool-call round trip keeps call ids paired and sends the scree
   assert.deepEqual(body.reasoning, { effort: 'low' });
   assert.equal(body.store, false);
   assert.equal('reasoning_effort' in body, false);
+});
+
+test('a forced tool uses each protocol\'s own tool_choice shape; otherwise the model chooses', () =>
+{
+  const options = { model: 'm', reasoningEffort: 'off' };
+  const messages = [{ role: 'user', content: 'report now' }];
+  const forced = { messages, tools: TOOLS, toolChoice: 'inspect' };
+
+  assert.deepEqual(new ChatCompletionsFormat().body(forced, options).tool_choice, { type: 'function', function: { name: 'inspect' } });
+  assert.deepEqual(new ResponsesFormat().body(forced, options).tool_choice, { type: 'function', name: 'inspect' });
+  assert.equal(new ChatCompletionsFormat().body({ messages, tools: TOOLS }, options).tool_choice, 'auto');
+  assert.equal(new ResponsesFormat().body({ messages, tools: TOOLS }, options).tool_choice, 'auto');
 });

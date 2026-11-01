@@ -171,7 +171,7 @@ Type what you want, for example "make the video player full page width". The age
 3. It applies CSS to the tab, measures the elements and fixes the CSS until the conditions hold.
 4. It reports each condition as met or unmet, with the numbers it measured.
 
-A condition the agent couldn't meet shows as unmet. A run that set no conditions, ran out of rounds or was stopped never counts as met. "N steps · show steps" opens the log of every tool call, the CSS and the screenshots.
+A condition the agent couldn't meet shows as unmet. When the 8 rounds run out, the agent gets one more turn in which it can only report, so the report still carries the numbers it measured; a condition it didn't measure after its last CSS change shows as unmet. A run that set no conditions or was stopped never counts as met. "N steps · show steps" opens the log of every tool call, the CSS and the screenshots.
 
 A second message in the same chat edits the current CSS, so "a bit narrower" works. When the new request replaces an earlier condition, the report shows it as replaced, not failed.
 

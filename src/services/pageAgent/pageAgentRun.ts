@@ -48,6 +48,8 @@ export interface PageAgentModelRequest
 {
   messages: PageAgentMessage[];
   tools: PageAgentToolDefinition[];
+  /** When set, the model must call this tool instead of choosing one. */
+  toolChoice?: string;
 }
 
 /** Takes and returns the Chat Completions shape; a client for another API translates it. */
@@ -173,6 +175,7 @@ const SCREENSHOT_OMITTED = '[screenshot omitted]';
 const SCREENSHOTS_REJECTED = 'screenshots unavailable: the API rejected images';
 const SCREENSHOTS_REJECTED_NOTE = 'Screenshots were turned off for this request: the API rejected images.';
 const NO_REPORT = 'no report';
+const NOT_MEASURED = 'not measured after the last CSS change';
 const NOT_REPORTED = 'not reported';
 const STEP_TEXT_LIMIT = 500;
 
@@ -339,6 +342,11 @@ class RunConversation
     this.#messages.push({ role: 'tool', tool_call_id: toolCallId, content });
   }
 
+  addUserText(text: string): void
+  {
+    this.#messages.push({ role: 'user', content: text });
+  }
+
   queueScreenshot(dataUrl: string): void
   {
     this.#pendingScreenshot = dataUrl;
@@ -498,18 +506,72 @@ export class PageAgentRun
       this.#conversation.flushScreenshot();
     }
 
-    return this.#result(
+    return await this.#finalReport();
+  }
+
+  // At the round limit the model has often measured everything and only lacks the response for the
+  // report, so one more request that can only call report gets its numbers instead of "no report".
+  async #finalReport(): Promise<PageAgentRunResult>
+  {
+    const limitReached = this.#result(
       'not-met',
       this.#conditions.allUnmet(NO_REPORT),
       `No report after ${PAGE_AGENT_MAX_ROUNDS} steps.`,
     );
+    if (!this.#conditions.isSet)
+    {
+      return limitReached;
+    }
+
+    this.#round = PAGE_AGENT_MAX_ROUNDS;
+    const report = PAGE_AGENT_TOOL_NAMES.report;
+    this.#conversation.addUserText(
+      `You have used all ${PAGE_AGENT_MAX_ROUNDS} responses for this request. Call ${report} now: give each ` +
+      `condition the last value you measured, and mark it met only if an ${PAGE_AGENT_TOOL_NAMES.inspect} after ` +
+      `your last ${PAGE_AGENT_TOOL_NAMES.applyCss} showed it.`,
+    );
+    let message: PageAgentAssistantMessage;
+    try
+    {
+      message = await this.#complete(report);
+    }
+    catch (error)
+    {
+      // A provider that can't force a tool must not turn a finished run into an error.
+      if (this.#controller.signal.aborted)
+      {
+        throw error;
+      }
+      this.#log('final report request failed', error);
+      return limitReached;
+    }
+    this.#throwIfStopped();
+
+    const call = message.tool_calls?.find(entry => entry.function?.name === report);
+    if (!call)
+    {
+      return limitReached;
+    }
+    if (!this.#measurement.seenBefore(this.#round))
+    {
+      // The model's numbers predate its last CSS change, so none of them counts.
+      this.#listener.onStep(step(report, '', `refused: no ${PAGE_AGENT_TOOL_NAMES.inspect} after the last ${PAGE_AGENT_TOOL_NAMES.applyCss}`));
+      return this.#result(
+        'not-met',
+        this.#conditions.allUnmet(NOT_MEASURED),
+        `No measurement after the last CSS change within ${PAGE_AGENT_MAX_ROUNDS} steps.`,
+      );
+    }
+    const outcome = await this.#runTool(call);
+    this.#listener.onStep(outcome.step);
+    return outcome.finished ?? limitReached;
   }
 
   // A 400 on a request with an image usually means the model doesn't take images: the request is
   // sent again once without them, and screenshots stay off for the rest of the run.
-  async #complete(): Promise<PageAgentAssistantMessage>
+  async #complete(toolChoice?: string): Promise<PageAgentAssistantMessage>
   {
-    const request = this.#request();
+    const request = this.#request(toolChoice);
     try
     {
       return await this.#send(request);
@@ -524,13 +586,18 @@ export class PageAgentRun
       this.#log('images rejected, retrying without them');
       this.#imagesRejected = true;
       this.#conversation.dropImages();
-      return await this.#send(this.#request());
+      return await this.#send(this.#request(toolChoice));
     }
   }
 
-  #request(): PageAgentModelRequest
+  #request(toolChoice?: string): PageAgentModelRequest
   {
-    return { messages: this.#conversation.requestMessages(), tools: this.#tools };
+    const messages = this.#conversation.requestMessages();
+    if (toolChoice === undefined)
+    {
+      return { messages, tools: this.#tools };
+    }
+    return { messages, tools: this.#tools.filter(tool => tool.function.name === toolChoice), toolChoice };
   }
 
   // Raced against the run's signal, so Stop ends the run at once even if a client ignores the signal.

@@ -37,7 +37,7 @@ export class ChatCompletionsFormat implements PageAgentApiFormat
       model: options.model,
       messages: request.messages,
       tools: request.tools,
-      tool_choice: 'auto',
+      tool_choice: request.toolChoice ? { type: 'function', function: { name: request.toolChoice } } : 'auto',
       max_completion_tokens: MAX_OUTPUT_TOKENS,
       ...(options.reasoningEffort !== 'off' && { reasoning_effort: options.reasoningEffort }),
     };
@@ -101,7 +101,7 @@ export class ResponsesFormat implements PageAgentApiFormat
         // `replaced`; false keeps the schemas valid whatever the provider's default is.
         strict: false,
       })),
-      tool_choice: 'auto',
+      tool_choice: request.toolChoice ? { type: 'function', name: request.toolChoice } : 'auto',
       max_output_tokens: MAX_OUTPUT_TOKENS,
       ...(options.reasoningEffort !== 'off' && { reasoning: { effort: options.reasoningEffort } }),
       store: false,

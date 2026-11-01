@@ -17,6 +17,10 @@ and splits the work into tasks. Lives only on the local branch `experimental/pag
 
 ### Deviations from the design
 
+- **Final report at the step limit** (user's request after the run): the design ends a run that hits the
+  limit as not met with every condition unchecked. A real run used all 8 responses with one tool per
+  response and showed every condition as "no report" although the CSS worked, so the limit now gets one
+  more report-only request (Technical Details → Loop).
 - **Re-apply on another page** (user's request after the run): the design offers Re-apply only when the
   URL is the same. It is now offered on any page of the same origin too (e.g. the next video), not on
   another site, whose elements the CSS was not written for.
@@ -173,7 +177,11 @@ instructions.
   - `report` → `met` only when this run set at least one condition and every one is met; a condition
     from `set_conditions` missing in `report.results` counts as unmet; a report with no conditions set in
     this run ends `not-met` ("no conditions set").
-  - step limit → `not-met`, the known conditions marked unmet ("no report").
+  - step limit → one more request that offers only `report` with a forced tool choice (both protocols), after a
+    user message asking for the last measured values. A report there counts like any other when an `inspect`
+    ran after the last `apply_css`; otherwise every condition is unmet ("not measured after the last CSS
+    change"). No report, or a failed request (a provider that can't force a tool) → `not-met`, the known
+    conditions marked unmet ("no report").
   - an assistant message without tool calls → `not-met`; its text becomes the turn's summary (so a
     clarifying question from the model is shown).
   - the run's own abort signal fired (Stop, tab closed) → `stopped`, whatever error type the client threw;

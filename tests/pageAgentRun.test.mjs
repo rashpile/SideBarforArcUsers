@@ -282,9 +282,69 @@ test('the run ends at the step limit as not-met with the conditions unmet', asyn
 
   const result = await run.run();
 
-  assert.equal(client.requests.length, PAGE_AGENT_MAX_ROUNDS);
+  // One request past the limit, which may only call report; this model answers with inspect anyway.
+  assert.equal(client.requests.length, PAGE_AGENT_MAX_ROUNDS + 1);
+  const finalRequest = client.requests[PAGE_AGENT_MAX_ROUNDS];
+  assert.equal(finalRequest.toolChoice, 'report');
+  assert.deepEqual(finalRequest.tools.map(tool => tool.function.name), ['report']);
   assert.equal(result.status, 'not-met');
   assert.deepEqual(result.conditions, [{ id: 'c1', text: 'condition c1', met: false, measured: 'no report' }]);
+});
+
+test('at the step limit the forced final report counts when the CSS was measured after its last change', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const client = new ScriptedClient([
+    respond(setConditions('c1')),
+    respond(call('apply_css', { css: 'iframe { width: 100% !important; }' })),
+  ]);
+  while (client.responses.length < PAGE_AGENT_MAX_ROUNDS)
+  {
+    client.responses.push(respond(call('inspect', { selectors: ['iframe'] })));
+  }
+  client.responses.push(respond(call('report', { results: [{ id: 'c1', met: true, measured: '1738px' }], summary: 'done' })));
+  const { run } = startRun(client, page);
+
+  const result = await run.run();
+
+  assert.equal(result.status, 'met');
+  assert.deepEqual(result.conditions, [{ id: 'c1', text: 'condition c1', met: true, measured: '1738px' }]);
+});
+
+test('at the step limit a final report is not met when no inspect followed the last apply_css', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const client = new ScriptedClient([respond(setConditions('c1'))]);
+  while (client.responses.length < PAGE_AGENT_MAX_ROUNDS)
+  {
+    client.responses.push(respond(call('apply_css', { css: `iframe { width: ${client.responses.length}px !important; }` })));
+  }
+  client.responses.push(respond(call('report', { results: [{ id: 'c1', met: true, measured: 'guessed' }], summary: 'done' })));
+  const { run } = startRun(client, page);
+
+  const result = await run.run();
+
+  assert.equal(result.status, 'not-met');
+  assert.deepEqual(result.conditions, [
+    { id: 'c1', text: 'condition c1', met: false, measured: 'not measured after the last CSS change' },
+  ]);
+});
+
+test('a failed final report request ends the run as not-met, not as an error', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const client = new ScriptedClient([respond(setConditions('c1'))]);
+  while (client.responses.length < PAGE_AGENT_MAX_ROUNDS)
+  {
+    client.responses.push(respond(call('inspect', { selectors: ['iframe'] })));
+  }
+  const { run } = startRun(client, page);
+
+  const result = await run.run();
+
+  assert.equal(client.requests.length, PAGE_AGENT_MAX_ROUNDS + 1);
+  assert.equal(result.status, 'not-met');
+  assert.equal(result.error, undefined);
 });
 
 test('an answer without tool calls ends as not-met with its text as the summary', async () =>
