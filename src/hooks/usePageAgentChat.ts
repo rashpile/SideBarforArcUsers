@@ -8,12 +8,14 @@ export interface PageAgentChatView<Settings>
   chat: PageAgentChatData | undefined;
   /** True while the tab has a run, including the moments a stopped run needs to wind down. */
   running: boolean;
-  /** Why the last Undo or Re-apply failed; shown only for the tab it happened on, until the next action. */
+  /** Why the last Undo, Re-apply or Apply failed; shown only for the tab it happened on, until the next action. */
   actionError: string | null;
   send(text: string, settings: Settings): void;
   stop(): void;
   undo(): void;
   reapply(): void;
+  /** Puts the tab's saved page style on the page as the chat's stylesheet. */
+  applySaved(): void;
 }
 
 interface TabError
@@ -29,6 +31,8 @@ interface TabError
 export function usePageAgentChat<Settings>(
   chats: PageAgentChats<Settings>,
   tabId: number | undefined,
+  /** The rev of the tab's saved page style, or null when the tab's bookmark has none. */
+  savedStyleRev: string | null = null,
 ): PageAgentChatView<Settings>
 {
   // chat.data keeps its identity until the chat changes, so it is a stable snapshot.
@@ -43,7 +47,9 @@ export function usePageAgentChat<Settings>(
   const [actionError, setActionError] = useState<TabError | null>(null);
 
   // A reload while the drawer was closed or showed another tab went unseen, and tabs.onUpdated
-  // isn't reliable in the side panel, so a chat with applied CSS is checked whenever it is shown.
+  // isn't reliable in the side panel, so the chat is checked whenever it is shown (checkMarker
+  // reads the page only for a chat with applied CSS or a tab with a saved style). It is checked
+  // again when the tab's saved style changes: the styles can load after the drawer opened.
   useEffect(() =>
   {
     if (tabId === undefined)
@@ -51,15 +57,9 @@ export function usePageAgentChat<Settings>(
       return;
     }
     chats.get(tabId)
-      .then(loaded =>
-      {
-        if (loaded.appliedInsertedText)
-        {
-          return chats.checkMarker(tabId);
-        }
-      })
+      .then(() => chats.checkMarker(tabId))
       .catch(error => console.error('[usePageAgentChat] failed to load a chat:', error));
-  }, [chats, tabId]);
+  }, [chats, tabId, savedStyleRev]);
 
   const send = useCallback((text: string, settings: Settings) =>
   {
@@ -102,6 +102,17 @@ export function usePageAgentChat<Settings>(
       .catch(error => setActionError({ tabId, message: `Re-apply failed: ${errorMessage(error)}` }));
   }, [chats, tabId]);
 
+  const applySaved = useCallback(() =>
+  {
+    if (tabId === undefined)
+    {
+      return;
+    }
+    setActionError(null);
+    chats.applySaved(tabId)
+      .catch(error => setActionError({ tabId, message: `Apply failed: ${errorMessage(error)}` }));
+  }, [chats, tabId]);
+
   return {
     chat,
     running,
@@ -110,6 +121,7 @@ export function usePageAgentChat<Settings>(
     stop,
     undo,
     reapply,
+    applySaved,
   };
 }
 

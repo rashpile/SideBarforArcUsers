@@ -21,6 +21,8 @@ interface PageAgentDrawerProps
   /** This window's active tab; the drawer shows its chat and follows tab switches. */
   tabId: number | undefined;
   tabUrl: string | undefined;
+  /** The rev of the active tab's saved page style, or null; a new one is checked for on the page. */
+  savedStyleRev: string | null;
   aiSettings: AiRenameSettings;
   onOpenSettings: () => void;
   onClose: () => void;
@@ -37,12 +39,13 @@ export const PageAgentDrawer: React.FC<PageAgentDrawerProps> = ({
   chats,
   tabId,
   tabUrl,
+  savedStyleRev,
   aiSettings,
   onOpenSettings,
   onClose,
 }) =>
 {
-  const { chat, running, actionError, send, stop, undo, reapply } = usePageAgentChat(chats, tabId);
+  const { chat, running, actionError, send, stop, undo, reapply } = usePageAgentChat(chats, tabId, savedStyleRev);
   const [hasPageAccess, requestPageAccess] = useOriginsGranted(PAGE_ORIGINS);
   const [hasScreenshotAccess, requestScreenshotAccess] = useOriginsGranted(SCREENSHOT_ORIGINS);
   const { height, startResize } = useDrawerHeight();

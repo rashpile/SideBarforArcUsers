@@ -272,28 +272,30 @@ Chat adoption (`PageAgentChats`), through an injected `savedStyleForTab(tabId)` 
 - Modify: `src/services/pageAgent/panelPageAgent.ts`
 - Modify: `src/hooks/usePageAgentChat.ts`
 - Modify: `src/App.tsx`
+- Modify: `src/components/pageAgent/PageAgentDrawer.tsx` (➕ passes the active tab's saved style rev to
+  the hook; Task 7 reworks these props)
 - Modify: `tests/pageAgentChats.test.mjs`
 
-- [ ] add an optional `savedStyles` option to `PageAgentChatsOptions`: `styleForTab(tabId)` returning
+- [x] add an optional `savedStyles` option to `PageAgentChatsOptions`: `styleForTab(tabId)` returning
   `{ bookmarkId, style }` or null
-- [ ] `checkMarker`: early return without a page read when the chat has no applied sheet and the tab has
+- [x] `checkMarker`: early return without a page read when the chat has no applied sheet and the tab has
   no saved style; adopt the saved style when the marker equals its `appliedId` and differs from the
   chat's (also when the chat had no applied CSS or no turns); keep the existing stale-answer guards and add
   one for the saved style's rev changing during the read
-- [ ] `applySaved(tabId)`: refused during a run; read the marker; already the saved `appliedId` → only
+- [x] `applySaved(tabId)`: refused during a run; read the marker; already the saved `appliedId` → only
   record it; otherwise remove the chat's current sheet, insert the saved `insertedText`, record it as
   applied with the page URL
-- [ ] `usePageAgentChat`: run the show-time `checkMarker` when the chat has an applied sheet or the tab
+- [x] `usePageAgentChat`: run the show-time `checkMarker` when the chat has an applied sheet or the tab
   has a saved style; re-run it when the tab's saved style rev changes; expose `applySaved`
-- [ ] in `App.tsx`, build the resolver so it reads `getItemKeyForTab` through a ref updated every render
+- [x] in `App.tsx`, build the resolver so it reads `getItemKeyForTab` through a ref updated every render
   (the chats are created once in `useState`, and `getItemKeyForTab` is a `useCallback` over changing
   state) and the proxy's `store.getSnapshot()` at call time; pass it into `createPanelPageAgentChats`
-- [ ] write tests: adoption on a matching marker into an empty chat (no turns); a following run starts
+- [x] write tests: adoption on a matching marker into an empty chat (no turns); a following run starts
   with the saved css and inserted text (so the run's first `apply_css` removes it); no adoption for a
   marker of another rev; an empty chat with marker `''` and no saved style gets no notice and no page read;
   `applySaved` records without inserting when the marker already equals the saved id, inserts otherwise,
   and is ignored while a run is live
-- [ ] run `make test` - must pass before next task
+- [x] run `make test` - must pass before next task
 
 ### Task 7: Drawer style strip and Save button
 
@@ -401,6 +403,12 @@ Code and test checks (in-browser checks are in Post-Completion):
   while a commit still waits for the startup restore can rarely get the saved sheet twice (the waiting
   commit inserts into the newer page, which its own commit styles again; Undo then leaves one copy until
   a reload).
+- `[known-limitation]` When the background styles a page only at load complete (Back without the
+  back/forward cache, a bookmark opened on a cached page), the side panel's own load-complete check can
+  read the page just before the sheet is in. The open drawer then misses the adopted style (or shows a
+  Re-apply notice) until it shows the tab again. Re-apply there removes the saved sheet first when the
+  chat had already adopted it; right after a Save (the chat's sheet still the run's) it leaves a second
+  copy until a reload.
 
 ## Post-Completion
 
