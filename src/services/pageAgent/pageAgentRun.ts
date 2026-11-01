@@ -73,6 +73,13 @@ export class PageAgentModelError extends Error
 
 export type PageAgentCapture = { dataUrl: string } | { unavailable: string };
 
+/** An answer the agent gave, under the user request it answers. */
+export interface PageAgentAnswer
+{
+  question: string;
+  markdown: string;
+}
+
 /** Everything the run does to a page. Rejections end the run as `error`. */
 export interface PageAgentPageAdapter
 {

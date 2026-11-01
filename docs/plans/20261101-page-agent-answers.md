@@ -263,20 +263,20 @@ export function runPagePopupCommand(command: PagePopupCommand): PagePopupResult;
 - Modify: `src/services/pageAgent/chromePageAdapter.ts`
 - Modify: `src/services/pageAgent/pageAgentRun.ts` (only the `PageAgentAnswer` type)
 
-- [ ] create `pagePopup.ts` with `PagePopupEntry`, `PagePopupCommand`, `PagePopupResult` and the
+- [x] create `pagePopup.ts` with `PagePopupEntry`, `PagePopupCommand`, `PagePopupResult` and the
   self-contained injected `runPagePopupCommand(command)` per Technical Details (host, closed shadow
   root, constructed stylesheet, header with ✕, scroll body, entries rendered with `createElement` /
   `textContent`, http(s)-only links re-checked in the page, isolated-world state, `currententrychange`
   close)
-- [ ] add `PageAgentAnswer { question, markdown }` to `pageAgentRun.ts`
-- [ ] `ChromePageAdapter.readText(tabId)`: `readReadablePage(PAGE_TEXT_MAX_CHARS, 'main-first')` through
+- [x] add `PageAgentAnswer { question, markdown }` to `pageAgentRun.ts`
+- [x] `ChromePageAdapter.readText(tabId)`: `readReadablePage(PAGE_TEXT_MAX_CHARS, 'main-first')` through
   `runInTab`, JSON `{ url, title, text, note? }`
-- [ ] `ChromePageAdapter.showPopup(tabId, title, answer)` and `appendToPopup(tabId, answer)`: build the
+- [x] `ChromePageAdapter.showPopup(tabId, title, answer)` and `appendToPopup(tabId, answer)`: build the
   entry with `parseMarkdown(answer.markdown)`, run the command through `runInTab` with
   `injectImmediately: true` (new optional argument); `showPopup` throws on `shown: false`,
   `appendToPopup` returns `shown`
-- [ ] no tests: injected DOM function and Chrome wiring (repo rule)
-- [ ] run `make test`, `npx tsc --noEmit` and `make lint` - must pass before next task
+- [x] no tests: injected DOM function and Chrome wiring (repo rule)
+- [x] run `make test`, `npx tsc --noEmit` and `make lint` - must pass before next task
 
 ### Task 4: Tools, prompt and the answered status in the run
 
