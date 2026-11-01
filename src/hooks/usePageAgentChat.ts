@@ -8,7 +8,7 @@ export interface PageAgentChatView<Settings>
   chat: PageAgentChatData | undefined;
   /** True while the tab has a run, including the moments a stopped run needs to wind down. */
   running: boolean;
-  /** Why the last Undo, Re-apply or Apply failed; shown only for the tab it happened on, until the next action. */
+  /** Why the last drawer action failed; shown only for the tab it happened on, until the next action. */
   actionError: string | null;
   send(text: string, settings: Settings): void;
   stop(): void;
@@ -16,6 +16,11 @@ export interface PageAgentChatView<Settings>
   reapply(): void;
   /** Puts the tab's saved page style on the page as the chat's stylesheet. */
   applySaved(): void;
+  /**
+   * Runs another drawer action for this tab (saving its style, say); a failure shows in
+   * actionError as "<label> failed: <reason>", like Undo's.
+   */
+  runAction(label: string, action: () => Promise<unknown>): void;
 }
 
 interface TabError
@@ -80,38 +85,40 @@ export function usePageAgentChat<Settings>(
     }
   }, [chats, tabId]);
 
-  const undo = useCallback(() =>
+  const runAction = useCallback((label: string, action: () => Promise<unknown>) =>
   {
     if (tabId === undefined)
     {
       return;
     }
     setActionError(null);
-    chats.undo(tabId)
-      .catch(error => setActionError({ tabId, message: `Undo failed: ${errorMessage(error)}` }));
-  }, [chats, tabId]);
+    action()
+      .catch(error => setActionError({ tabId, message: `${label} failed: ${errorMessage(error)}` }));
+  }, [tabId]);
+
+  const undo = useCallback(() =>
+  {
+    if (tabId !== undefined)
+    {
+      runAction('Undo', () => chats.undo(tabId));
+    }
+  }, [chats, tabId, runAction]);
 
   const reapply = useCallback(() =>
   {
-    if (tabId === undefined)
+    if (tabId !== undefined)
     {
-      return;
+      runAction('Re-apply', () => chats.reapply(tabId));
     }
-    setActionError(null);
-    chats.reapply(tabId)
-      .catch(error => setActionError({ tabId, message: `Re-apply failed: ${errorMessage(error)}` }));
-  }, [chats, tabId]);
+  }, [chats, tabId, runAction]);
 
   const applySaved = useCallback(() =>
   {
-    if (tabId === undefined)
+    if (tabId !== undefined)
     {
-      return;
+      runAction('Apply', () => chats.applySaved(tabId));
     }
-    setActionError(null);
-    chats.applySaved(tabId)
-      .catch(error => setActionError({ tabId, message: `Apply failed: ${errorMessage(error)}` }));
-  }, [chats, tabId]);
+  }, [chats, tabId, runAction]);
 
   return {
     chat,
@@ -122,6 +129,7 @@ export function usePageAgentChat<Settings>(
     undo,
     reapply,
     applySaved,
+    runAction,
   };
 }
 

@@ -1,16 +1,42 @@
 import React, { useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
-import { Check, Code, Copy, Loader2, Redo2, Undo2, X } from 'lucide-react';
+import { Check, Code, Copy, Loader2, Redo2, Save, Undo2, X } from 'lucide-react';
 import type { PageAgentChatData, PageAgentTurn, PageAgentTurnStatus } from '../../services/pageAgent/pageAgentChat';
 import type { PageAgentStep } from '../../services/pageAgent/pageAgentRun';
+import type { SavedPageStyle } from '../../stores/savedPageStyles';
 
 interface PageAgentMessagesProps
 {
   chat: PageAgentChatData | undefined;
   running: boolean;
   actionError: string | null;
+  /** Whether the tab was opened from a bookmark or Favorite, which its style can be saved to. */
+  hasBookmark: boolean;
+  /** The style saved to that bookmark, or null. */
+  savedStyle: SavedPageStyle | null;
   onUndo: () => void;
   onReapply: () => void;
+  /** Saves the chat's current stylesheet to the tab's bookmark. */
+  onSave: () => void;
+}
+
+/**
+ * What Save can do with the chat's stylesheet. Compared by CSS text, not by applied id: right
+ * after a save the sheet on the page still carries the run's id.
+ */
+type SaveState = 'no-bookmark' | 'new' | 'update' | 'saved';
+
+function saveState(hasBookmark: boolean, savedStyle: SavedPageStyle | null, stylesheet: string): SaveState
+{
+  if (!hasBookmark)
+  {
+    return 'no-bookmark';
+  }
+  if (!savedStyle)
+  {
+    return 'new';
+  }
+  return savedStyle.css === stylesheet ? 'saved' : 'update';
 }
 
 interface OutcomeStyle
@@ -52,7 +78,16 @@ const buttonClass = 'inline-flex items-center gap-1 px-2 py-0.5 rounded border b
   'bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed';
 
 /** The chat of one tab: user requests, the agent's turns, and the state of the applied stylesheet. */
-export const PageAgentMessages: React.FC<PageAgentMessagesProps> = ({ chat, running, actionError, onUndo, onReapply }) =>
+export const PageAgentMessages: React.FC<PageAgentMessagesProps> = ({
+  chat,
+  running,
+  actionError,
+  hasBookmark,
+  savedStyle,
+  onUndo,
+  onReapply,
+  onSave,
+}) =>
 {
   const scrollRef = useRef<HTMLDivElement>(null);
   const turns = chat?.turns ?? [];
@@ -82,13 +117,19 @@ export const PageAgentMessages: React.FC<PageAgentMessagesProps> = ({ chat, runn
           condition. Undo removes everything it applied.
         </p>
       )}
+      {/* A saved style the chat adopted on a fresh tab has no turn to hold Undo and Show CSS. */}
+      {turns.length === 0 && chat.appliedCss && (
+        <StylesheetActions stylesheet={chat.appliedCss} running={running} onUndo={onUndo} />
+      )}
       {turns.map((turn, index) => (
         <TurnView
           key={index}
           turn={turn}
           stylesheet={index === turns.length - 1 ? chat.appliedCss : ''}
           running={running}
+          saveState={saveState(hasBookmark, savedStyle, chat.appliedCss)}
           onUndo={onUndo}
+          onSave={onSave}
         />
       ))}
       {chat.notice !== 'none' && (
@@ -112,16 +153,17 @@ export const PageAgentMessages: React.FC<PageAgentMessagesProps> = ({ chat, runn
 interface TurnViewProps
 {
   turn: PageAgentTurn;
-  /** The chat's current stylesheet, given only to the last turn, which holds Undo and Show CSS. */
+  /** The chat's current stylesheet, given only to the last turn, which holds Undo, Show CSS and Save. */
   stylesheet: string;
   running: boolean;
+  saveState: SaveState;
   onUndo: () => void;
+  onSave: () => void;
 }
 
-const TurnView: React.FC<TurnViewProps> = ({ turn, stylesheet, running, onUndo }) =>
+const TurnView: React.FC<TurnViewProps> = ({ turn, stylesheet, running, saveState, onUndo, onSave }) =>
 {
   const [showSteps, setShowSteps] = useState(false);
-  const [showCss, setShowCss] = useState(false);
   const outcome = OUTCOME_STYLES[turn.status];
   const isRunning = turn.status === 'running';
 
@@ -189,28 +231,86 @@ const TurnView: React.FC<TurnViewProps> = ({ turn, stylesheet, running, onUndo }
         )}
 
         {stylesheet && (
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                type="button"
-                className={buttonClass}
-                disabled={running}
-                title={running ? 'Wait until the agent has finished' : 'Remove everything the agent applied'}
-                onClick={onUndo}
-              >
-                <Undo2 size={12} />
-                Undo
-              </button>
-              <button type="button" className={buttonClass} onClick={() => setShowCss(!showCss)}>
-                <Code size={12} />
-                {showCss ? 'Hide CSS' : 'Show CSS'}
-              </button>
-            </div>
-            {showCss && <CssBlock css={stylesheet} />}
-          </div>
+          <StylesheetActions stylesheet={stylesheet} running={running} onUndo={onUndo}>
+            <SaveButton state={saveState} running={running} onSave={onSave} />
+          </StylesheetActions>
         )}
       </div>
     </div>
+  );
+};
+
+interface StylesheetActionsProps
+{
+  stylesheet: string;
+  running: boolean;
+  onUndo: () => void;
+  /** More buttons for the row, after Undo and Show CSS. */
+  children?: React.ReactNode;
+}
+
+const StylesheetActions: React.FC<StylesheetActionsProps> = ({ stylesheet, running, onUndo, children }) =>
+{
+  const [showCss, setShowCss] = useState(false);
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex flex-wrap gap-1.5">
+        <button
+          type="button"
+          className={buttonClass}
+          disabled={running}
+          title={running ? 'Wait until the agent has finished' : 'Remove everything the agent applied'}
+          onClick={onUndo}
+        >
+          <Undo2 size={12} />
+          Undo
+        </button>
+        <button type="button" className={buttonClass} onClick={() => setShowCss(!showCss)}>
+          <Code size={12} />
+          {showCss ? 'Hide CSS' : 'Show CSS'}
+        </button>
+        {children}
+      </div>
+      {showCss && <CssBlock css={stylesheet} />}
+    </div>
+  );
+};
+
+const SaveButton: React.FC<{ state: SaveState; running: boolean; onSave: () => void }> = ({ state, running, onSave }) =>
+{
+  if (state === 'saved')
+  {
+    return (
+      <button type="button" className={buttonClass} disabled title="The bookmark’s saved style is this stylesheet">
+        <Check size={12} />
+        Saved
+      </button>
+    );
+  }
+
+  const label = state === 'update' ? 'Update saved style' : 'Save to bookmark';
+  let title: string;
+  if (state === 'no-bookmark')
+  {
+    title = 'Open this page from a bookmark to save its style';
+  }
+  else if (running)
+  {
+    title = 'Wait until the agent has finished';
+  }
+  else
+  {
+    title = state === 'update'
+      ? 'Replace the bookmark’s saved style with this stylesheet'
+      : 'Save this stylesheet to the bookmark and apply it whenever a page of this site loads in the bookmark’s tab';
+  }
+
+  return (
+    <button type="button" className={buttonClass} disabled={running || state === 'no-bookmark'} title={title} onClick={onSave}>
+      <Save size={12} />
+      {label}
+    </button>
   );
 };
 

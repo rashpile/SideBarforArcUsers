@@ -303,25 +303,30 @@ Chat adoption (`PageAgentChats`), through an injected `savedStyleForTab(tabId)` 
 - Modify: `src/components/pageAgent/PageAgentDrawer.tsx`
 - Modify: `src/components/pageAgent/PageAgentMessages.tsx`
 - Modify: `src/App.tsx`
+- Modify: `src/hooks/usePageAgentChat.ts` (➕ `runAction(label, action)`, so save / toggle / remove
+  errors reach `actionError` like Undo's)
+- Modify: `src/hooks/usePageStyles.ts` (➕ `PageStyleActions` type; drops callManager's
+  "PageStyleManager.<method> failed:" prefix so the drawer shows only the reason)
 
-- [ ] drawer props get the active tab's bookmark (id + title) when `getItemKeyForTab` resolves to a
-  bookmark or Favorite, and the `usePageStyles` actions
-- [ ] style strip under the header (only with a bookmark): bookmark title (truncated), "style saved" /
+- [x] drawer props get the active tab's bookmark (id + title) when `getItemKeyForTab` resolves to a
+  bookmark or Favorite, and the `usePageStyles` actions (App passes the id, the saved style and the
+  actions; the drawer reads the title from the shared bookmark tree while it is open)
+- [x] style strip under the header (only with a bookmark): bookmark title (truncated), "style saved" /
   "no saved style", an **Auto-apply** switch, **Apply** when the saved style isn't the chat's current
   sheet (compared by CSS text: `chat.appliedCss !== style.css`), **Remove** (deletes the saved record,
   not the sheet on the page); buttons in the drawer's existing classes; disabled while the tab has a live
-  run
-- [ ] a chat with an applied sheet and no turns (an adopted saved style on a fresh tab or after a browser
+  run (Auto-apply, Apply and Remove show only with a saved style; the switch is the repo's checkbox)
+- [x] a chat with an applied sheet and no turns (an adopted saved style on a fresh tab or after a browser
   restart) shows **Undo** and **Show CSS** in place of the empty-chat hint (the hint text stays above
   them), so the auto-applied style can be removed from the page and seen
-- [ ] **Save to bookmark** in the last turn's report block next to Undo / Show CSS, labelled "Save to
+- [x] **Save to bookmark** in the last turn's report block next to Undo / Show CSS, labelled "Save to
   bookmark" / "Update saved style" / "Saved" (disabled, with a check) by comparing the saved css with
   `chat.appliedCss`; disabled with the tooltip "Open this page from a bookmark to save its style" when the
   tab has no bookmark
-- [ ] save / toggle / remove / apply errors go to the drawer's `actionError`
-- [ ] strip and Save work without AI settings (only the textarea is blocked by them)
-- [ ] no tests: UI (repo rule)
-- [ ] run `make test`, `make build` and `make lint` - must pass before next task
+- [x] save / toggle / remove / apply errors go to the drawer's `actionError`
+- [x] strip and Save work without AI settings (only the textarea is blocked by them)
+- [x] no tests: UI (repo rule)
+- [x] run `make test`, `make build` and `make lint` - must pass before next task
 
 ### Task 8: Brush icon and Page style submenu in the tree
 

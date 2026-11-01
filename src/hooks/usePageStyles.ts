@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { pageStyleProxy } from '../managers/proxies/pageStyleProxy';
+import { ManagerId } from '../managers/proxies/messageRouting';
 import type { SavedPageStyle } from '../stores/savedPageStyles';
+
+/** The changes to saved page styles; each rejects with the manager's reason. */
+export interface PageStyleActions
+{
+  save(bookmarkId: string, css: string, pageUrl: string): Promise<void>;
+  setAutoApply(bookmarkId: string, on: boolean): Promise<void>;
+  remove(bookmarkId: string): Promise<void>;
+}
 
 /**
  * The page styles saved to bookmarks and Favorites. The actions reject with the manager's reason
@@ -21,18 +30,37 @@ export const usePageStyles = () =>
 
   const save = useCallback(async (bookmarkId: string, css: string, pageUrl: string): Promise<void> =>
   {
-    await pageStyleProxy.save(bookmarkId, css, pageUrl);
+    await withManagerReason('save', () => pageStyleProxy.save(bookmarkId, css, pageUrl));
   }, []);
 
   const setAutoApply = useCallback(async (bookmarkId: string, on: boolean): Promise<void> =>
   {
-    await pageStyleProxy.setAutoApply(bookmarkId, on);
+    await withManagerReason('setAutoApply', () => pageStyleProxy.setAutoApply(bookmarkId, on));
   }, []);
 
   const remove = useCallback(async (bookmarkId: string): Promise<void> =>
   {
-    await pageStyleProxy.remove(bookmarkId);
+    await withManagerReason('remove', () => pageStyleProxy.remove(bookmarkId));
   }, []);
 
   return { styleFor, save, setAutoApply, remove };
 };
+
+// callManager puts "<manager>.<method> failed: " before the manager's message; the user should
+// read only the reason ("Can't save this style: ...") after the drawer's own label.
+async function withManagerReason<T>(method: string, call: () => Promise<T>): Promise<T>
+{
+  try
+  {
+    return await call();
+  }
+  catch (error)
+  {
+    const prefix = `${ManagerId.PAGE_STYLES}.${method} failed: `;
+    if (error instanceof Error && error.message.startsWith(prefix))
+    {
+      throw new Error(error.message.slice(prefix.length));
+    }
+    throw error;
+  }
+}

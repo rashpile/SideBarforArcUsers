@@ -61,6 +61,7 @@ import {
 import { OpenAiCompatibleClient } from './services/aiRenameService';
 import { createPanelPageAgentChats } from './services/pageAgent/panelPageAgent';
 import { usePageStyles } from './hooks/usePageStyles';
+import type { PageStyleActions } from './hooks/usePageStyles';
 import { pageStyleProxy } from './managers/proxies/pageStyleProxy';
 import { bookmarkIdFromItemKey } from './stores/savedPageStyles';
 import { resolveVersionDialogState } from './utils/versionDialogState';
@@ -1064,7 +1065,13 @@ function Sidebar() {
   // their saved-style lookup reads the current one through this ref.
   const getItemKeyForTabRef = useRef(getItemKeyForTab);
   getItemKeyForTabRef.current = getItemKeyForTab;
-  const { styleFor: savedPageStyleFor } = usePageStyles();
+  const { styleFor: savedPageStyleFor, save: savePageStyle, setAutoApply: setPageStyleAutoApply, remove: removePageStyle } =
+    usePageStyles();
+  const pageStyleActions = useMemo<PageStyleActions>(() => ({
+    save: savePageStyle,
+    setAutoApply: setPageStyleAutoApply,
+    remove: removePageStyle,
+  }), [savePageStyle, setPageStyleAutoApply, removePageStyle]);
   const activeTabBookmarkId = activeTab?.id === undefined ? null : bookmarkIdFromItemKey(getItemKeyForTab(activeTab.id));
   const activeTabSavedStyle = activeTabBookmarkId === null ? null : savedPageStyleFor(activeTabBookmarkId);
   // Owned by the panel, not the drawer: a run keeps applying and saving its events while the drawer
@@ -1802,7 +1809,9 @@ function Sidebar() {
             chats={pageAgentChats}
             tabId={activeTab?.id}
             tabUrl={activeTab?.url}
-            savedStyleRev={activeTabSavedStyle?.rev ?? null}
+            bookmarkId={activeTabBookmarkId}
+            savedStyle={activeTabSavedStyle}
+            pageStyles={pageStyleActions}
             aiSettings={aiSettings}
             onOpenSettings={() => setShowSettings(true)}
             onClose={() => setShowPageAgent(false)}
