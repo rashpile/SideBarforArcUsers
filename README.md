@@ -53,9 +53,9 @@ Everything is stored in Chrome: bookmarks for Spaces, pinned pages, the archive 
 ### Bookmarks and pinned pages
 
 - The Space's bookmark folder as a tree
-- Click a folder row to expand or collapse it. A collapsed folder still shows its open pages, the active one as a card
+- Click a folder row to expand or collapse it. A collapsed folder still shows its open and marked pages, the active one as a card
 - Hover or click the search button on a folder row to see its recently used pages, newest first, with search. The Space title has the same button for the whole Space folder
-- Collapse the whole section with the chevron on the Space title. Open pages stay visible. The state is kept per Space and shared across windows
+- Collapse the whole section with the chevron on the Space title. Open and marked pages stay visible. The state is kept per Space and shared across windows
 - Double-click a bookmark whose tab moved on to another page to load the bookmarked page back in that tab
 - Links you open from a bookmark or Favorite page (`Cmd+Click`) land at the top of the Tab list
 - A tab you open yourself on a bookmarked or Favorite URL stays in the Tab list. In Arc style, clicking that bookmark or Favorite opens a second tab for it; dragging the tab onto the tree, **Add to Bookmark**, pinning it or dropping it on the Favorites grid makes a new bookmark or Favorite with that tab as its page. Tabs reopened from the Archive also land in the Tab list
@@ -105,6 +105,7 @@ Hover a tab or a bookmark and click the flag button, or right-click it and pick 
 - On a marked tab the close button shows `-` instead of `x`. Click it to clear the mark; the tab stays open
 - Commands that close many tabs at once leave marked tabs open: Close Tabs Before / After, Close Other Tabs, closing a multi-selection, Close Tabs in Group, Clear and Archive in the "+ New Tab" row's `...` menu, archiving a multi-selection or dropping it on the Archive, and Close All Tabs In Space. A tab's own **Close** still closes it
 - Auto-archive never closes a marked tab. A marked bookmark doesn't keep its open tab from being archived
+- A marked bookmark stays visible in a collapsed folder and in the collapsed Bookmarks section, open or not
 - Marks survive closing the sidebar, an extension restart and a browser restart. Incognito tabs can't be marked
 
 ### Spaces

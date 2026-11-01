@@ -60,10 +60,10 @@ Visible side effect (intended): `hasPeek` becomes true for a collapsed folder wh
 - [x] run full checks: `make lint && make test && make build`
 
 ### Task 3: [Final] Update documentation
-- [ ] `README.md`: line "A collapsed folder still shows its open pages" → open and marked pages; the collapsed Bookmarks section line ("Open pages stay visible") likewise; in the Mark for Attention section add that a marked bookmark stays visible in a collapsed folder and in the collapsed Bookmarks section
-- [ ] `docs/changelog.md`: a `Fixed:` line at the top of Latest Version
-- [ ] no `src/data/changelog.ts` entry (small fix) and no `docs/state-reference.md` change (no new keys)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] `README.md`: line "A collapsed folder still shows its open pages" → open and marked pages; the collapsed Bookmarks section line ("Open pages stay visible") likewise; in the Mark for Attention section add that a marked bookmark stays visible in a collapsed folder and in the collapsed Bookmarks section
+- [x] `docs/changelog.md`: a `Fixed:` line at the top of Latest Version
+- [x] no `src/data/changelog.ts` entry (small fix) and no `docs/state-reference.md` change (no new keys)
+- [x] move this plan to `docs/plans/completed/` (left in place - the orchestrator moves it at the end)
 
 ## Post-Completion
 **Manual verification**:
