@@ -4,6 +4,7 @@ import { PinnedSite } from '../managers/shared/pinnedSitesApi';
 import type { FavoriteIconEntry } from '../managers/shared/favoriteIconsApi';
 import { favoriteIconsManagerProxy } from '../managers/proxies/favoriteIconsManagerProxy';
 import { runBatchOperation } from '../hooks/useBookmarks';
+import { PageStyleUndoSnapshot } from './pageStyleUndoSnapshot';
 
 interface FavoriteSnapshot
 {
@@ -28,13 +29,15 @@ function hasIcons(icons: FavoriteIconEntry): boolean
 /**
  * Unpin removes the Favorite's bookmark and keeps the Chrome tab open as a
  * regular tab. Undo creates the bookmark anew, so it comes back under a new id:
- * icons and the tab association (if the tab still exists) move to that id.
+ * icons, the saved page style and the tab association (if the tab still exists)
+ * move to that id.
  */
 export class DeletePinnedSiteAction implements UndoableAction
 {
   description = '';
   private pinnedIds: string[];
   private snapshots: FavoriteSnapshot[] = [];
+  private savedStyles = PageStyleUndoSnapshot.empty();
   private getCurrentPins: () => readonly PinnedSite[];
   private getTabIdForPinned?: (pinnedId: string) => number | undefined;
   private deassociatePinnedTab?: (pinnedId: string) => Promise<void> | void;
@@ -108,6 +111,9 @@ export class DeletePinnedSiteAction implements UndoableAction
       console.log(`[DeletePinnedSiteAction] do: removing ${this.snapshots.length} Favorites:`,
         this.snapshots.map(s => `"${s.pin.title}" (id=${s.pin.id}, parent=${s.parentId}, idx=${s.index}, tabId=${s.tabId ?? 'none'})`));
     }
+
+    // Like the icons, background drops a Favorite's style once its bookmark is removed
+    this.savedStyles = await PageStyleUndoSnapshot.take('[DeletePinnedSiteAction] do:');
 
     if (this.deassociatePinnedTab)
     {
@@ -198,6 +204,8 @@ export class DeletePinnedSiteAction implements UndoableAction
         console.error(`[DeletePinnedSiteAction] undo: icons of "${snapshot.pin.title}" not restored:`, err);
       }
     }
+
+    await this.savedStyles.restore(snapshot.pin.id, created.id, '[DeletePinnedSiteAction] undo:');
 
     if (this.restoreItemAssociation && snapshot.tabId !== undefined)
     {

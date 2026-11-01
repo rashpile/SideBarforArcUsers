@@ -1,8 +1,12 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { Camera, KeyRound, Send, Settings, Sparkles, Square, X } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import clsx from 'clsx';
+import { Camera, KeyRound, Paintbrush, Play, Send, Settings, Sparkles, Square, Trash2, X } from 'lucide-react';
+import { bookmarkTreeStore } from '../../hooks/useBookmarks';
 import { useChromeLocalStorage } from '../../hooks/useChromeLocalStorage';
 import { usePageAgentChat } from '../../hooks/usePageAgentChat';
+import type { PageStyleActions } from '../../hooks/usePageStyles';
 import type { PageAgentChats } from '../../services/pageAgent/pageAgentChats';
+import type { SavedPageStyle } from '../../stores/savedPageStyles';
 import type { AiRenameSettings } from '../../utils/aiConfig';
 import { PageAgentMessages } from './PageAgentMessages';
 
@@ -21,6 +25,11 @@ interface PageAgentDrawerProps
   /** This window's active tab; the drawer shows its chat and follows tab switches. */
   tabId: number | undefined;
   tabUrl: string | undefined;
+  /** The bookmark or Favorite the active tab was opened from, or null for a tab of its own. */
+  bookmarkId: string | null;
+  /** The page style saved to that bookmark, or null. */
+  savedStyle: SavedPageStyle | null;
+  pageStyles: PageStyleActions;
   aiSettings: AiRenameSettings;
   onOpenSettings: () => void;
   onClose: () => void;
@@ -37,12 +46,17 @@ export const PageAgentDrawer: React.FC<PageAgentDrawerProps> = ({
   chats,
   tabId,
   tabUrl,
+  bookmarkId,
+  savedStyle,
+  pageStyles,
   aiSettings,
   onOpenSettings,
   onClose,
 }) =>
 {
-  const { chat, running, actionError, send, stop, undo, reapply } = usePageAgentChat(chats, tabId);
+  const { chat, running, actionError, send, stop, undo, reapply, applySaved, runAction } =
+    usePageAgentChat(chats, tabId, savedStyle?.rev ?? null);
+  const bookmarkTitle = useBookmarkTitle(bookmarkId);
   const [hasPageAccess, requestPageAccess] = useOriginsGranted(PAGE_ORIGINS);
   const [hasScreenshotAccess, requestScreenshotAccess] = useOriginsGranted(SCREENSHOT_ORIGINS);
   const { height, startResize } = useDrawerHeight();
@@ -67,6 +81,32 @@ export const PageAgentDrawer: React.FC<PageAgentDrawerProps> = ({
     {
       event.preventDefault();
       submit();
+    }
+  };
+
+  // Saved with the URL the CSS was applied on: its origin is the site the style comes back on.
+  const saveStyle = () =>
+  {
+    if (bookmarkId !== null && chat)
+    {
+      const { appliedCss, appliedUrl } = chat;
+      runAction('Save', () => pageStyles.save(bookmarkId, appliedCss, appliedUrl));
+    }
+  };
+
+  const setAutoApply = (on: boolean) =>
+  {
+    if (bookmarkId !== null)
+    {
+      runAction('Auto-apply', () => pageStyles.setAutoApply(bookmarkId, on));
+    }
+  };
+
+  const removeStyle = () =>
+  {
+    if (bookmarkId !== null)
+    {
+      runAction('Remove', () => pageStyles.remove(bookmarkId));
     }
   };
 
@@ -98,14 +138,29 @@ export const PageAgentDrawer: React.FC<PageAgentDrawerProps> = ({
         </button>
       </div>
 
+      {bookmarkId !== null && (
+        <StyleStrip
+          title={bookmarkTitle}
+          savedStyle={savedStyle}
+          stylesheet={chat?.appliedCss}
+          running={running}
+          onSetAutoApply={setAutoApply}
+          onApply={applySaved}
+          onRemove={removeStyle}
+        />
+      )}
+
       {/* Keyed by tab, so expanded steps and Show CSS don't carry over to another tab's chat. */}
       <PageAgentMessages
         key={tabId ?? 'none'}
         chat={chat}
         running={running}
         actionError={actionError}
+        hasBookmark={bookmarkId !== null}
+        savedStyle={savedStyle}
         onUndo={undo}
         onReapply={reapply}
+        onSave={saveStyle}
       />
 
       <div className="shrink-0 border-t border-gray-200 dark:border-gray-700 px-2 py-1.5 space-y-1.5">
@@ -160,7 +215,114 @@ export const PageAgentDrawer: React.FC<PageAgentDrawerProps> = ({
 };
 
 const actionButtonClass = 'shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded border border-gray-300 dark:border-gray-600 ' +
-  'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700';
+  'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 ' +
+  'disabled:opacity-50 disabled:cursor-not-allowed';
+
+interface StyleStripProps
+{
+  title: string;
+  savedStyle: SavedPageStyle | null;
+  /** The chat's current stylesheet; undefined while the chat loads. */
+  stylesheet: string | undefined;
+  running: boolean;
+  onSetAutoApply: (on: boolean) => void;
+  onApply: () => void;
+  onRemove: () => void;
+}
+
+/**
+ * The tab's bookmark and the style saved to it. Toggle and Remove change only later page loads;
+ * the page in front of the user changes through Apply and Undo.
+ */
+const StyleStrip: React.FC<StyleStripProps> = ({
+  title,
+  savedStyle,
+  stylesheet,
+  running,
+  onSetAutoApply,
+  onApply,
+  onRemove,
+}) =>
+{
+  const waitTitle = 'Wait until the agent has finished';
+  // By CSS text, not applied id: right after a save the sheet on the page still has the run's id.
+  const showApply = savedStyle !== null && stylesheet !== undefined && stylesheet !== savedStyle.css;
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 px-2 pb-1 text-[0.85em] text-gray-600 dark:text-gray-300">
+      <Paintbrush size={12} className={clsx('shrink-0', savedStyle ? 'text-blue-500' : 'text-gray-400')} />
+      <span className="min-w-0 flex-1 truncate" title={title}>{title}</span>
+      <span className="shrink-0 text-gray-500 dark:text-gray-400">{savedStyle ? 'style saved' : 'no saved style'}</span>
+      {savedStyle && (
+        <span className="shrink-0 flex items-center gap-1.5">
+          <label
+            className={clsx('inline-flex items-center gap-1', running ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer')}
+            title={running ? waitTitle : 'Apply the saved style whenever a page of this site loads in the bookmark’s tab'}
+          >
+            <input
+              type="checkbox"
+              checked={savedStyle.autoApply}
+              disabled={running}
+              onChange={event => onSetAutoApply(event.target.checked)}
+              className="rounded border-gray-300 dark:border-gray-600"
+            />
+            Auto-apply
+          </label>
+          {showApply && (
+            <button
+              type="button"
+              className={actionButtonClass}
+              disabled={running}
+              title={running ? waitTitle : 'Put the saved style on this page in place of the current one'}
+              onClick={onApply}
+            >
+              <Play size={12} />
+              Apply
+            </button>
+          )}
+          <button
+            type="button"
+            className={actionButtonClass}
+            disabled={running}
+            title={running ? waitTitle : 'Delete the saved style; this page keeps its look until a reload or Undo'}
+            onClick={onRemove}
+          >
+            <Trash2 size={12} />
+            Remove
+          </button>
+        </span>
+      )}
+    </div>
+  );
+};
+
+/** The title of a bookmark or Favorite, kept current through renames; a placeholder for an untitled one. */
+function useBookmarkTitle(bookmarkId: string | null): string
+{
+  const tree = useSyncExternalStore(bookmarkTreeStore.subscribe, bookmarkTreeStore.getSnapshot);
+  return useMemo(() =>
+  {
+    const title = bookmarkId === null ? null : findBookmarkTitle(tree.bookmarks, bookmarkId);
+    return title || 'Untitled bookmark';
+  }, [tree, bookmarkId]);
+}
+
+function findBookmarkTitle(nodes: readonly chrome.bookmarks.BookmarkTreeNode[], id: string): string | null
+{
+  for (const node of nodes)
+  {
+    if (node.id === id)
+    {
+      return node.title;
+    }
+    const title = node.children ? findBookmarkTitle(node.children, id) : null;
+    if (title !== null)
+    {
+      return title;
+    }
+  }
+  return null;
+}
 
 const TabChip: React.FC<{ url: string | undefined }> = ({ url }) =>
 {

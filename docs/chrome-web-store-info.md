@@ -42,7 +42,8 @@ For the Privacy practices tab of the Chrome Web Store dashboard. Not part of the
 - `sidePanel`, `bookmarks`, `tabs`, `tabGroups` - Core features: show and manage bookmarks, tabs, and tab groups in the side panel
 - `storage` - Save settings and sidebar state locally
 - `favicon` - Show website icons
-- `scripting` - Read page content only when requested for AI-assisted naming. For the experimental page agent: read the layout and element sizes of the page the user asks it to change, and insert or remove the CSS it applies there
+- `scripting` - Read page content only when requested for AI-assisted naming. For the experimental page agent: read the layout and element sizes of the page the user asks it to change, and insert or remove the CSS it applies there. When the user saved that CSS to a bookmark with Auto-apply on, insert it again into the bookmark's tab when a page of the same site loads there
+- `webNavigation` - Notice when a page starts loading (`webNavigation.onCommitted`, top frame only) in a tab the user opened from a bookmark or Favorite, so a page style the user saved to that bookmark is applied as the page loads. Only tabs linked to a bookmark with a saved style and Auto-apply on are acted on; the navigation data is not stored or sent anywhere
 - `activeTab` - Draw the Tab Switcher and Space Switcher list over the current page when the user presses their shortcut
 - `alarms` - Wake the extension every few minutes while "Archive tabs after" is on, to close tabs left unused longer than the chosen period. Not used while the setting is Never
 - Optional host permissions `http://*/*` and `https://*/*` - Requested at use time, only for reading a page's content for AI-assisted naming, for the page agent to read and restyle the page the user asks it to change, and for calling the AI endpoint the user configured

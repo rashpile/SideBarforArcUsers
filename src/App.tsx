@@ -60,6 +60,10 @@ import {
 } from './utils/aiConfig';
 import { OpenAiCompatibleClient } from './services/aiRenameService';
 import { createPanelPageAgentChats } from './services/pageAgent/panelPageAgent';
+import { usePageStyles } from './hooks/usePageStyles';
+import type { PageStyleActions } from './hooks/usePageStyles';
+import { pageStyleProxy } from './managers/proxies/pageStyleProxy';
+import { bookmarkIdFromItemKey } from './stores/savedPageStyles';
 import { resolveVersionDialogState } from './utils/versionDialogState';
 
 // Loaded on demand to keep the settings, import and emoji data off the cold start path.
@@ -1056,9 +1060,30 @@ function Sidebar() {
   const { tabs, refreshTabs } = useTabs();
   // The drawer shows the chat of this window's active tab and follows tab switches.
   const activeTab = tabs.find(tab => tab.active);
+  const { getItemKeyForTab } = useBookmarkTabsContext();
+  // The chats below are created once, and getItemKeyForTab changes with every association, so
+  // their saved-style lookup reads the current one through this ref.
+  const getItemKeyForTabRef = useRef(getItemKeyForTab);
+  getItemKeyForTabRef.current = getItemKeyForTab;
+  const { styleFor: savedPageStyleFor, save: savePageStyle, setAutoApply: setPageStyleAutoApply, remove: removePageStyle } =
+    usePageStyles();
+  const pageStyleActions = useMemo<PageStyleActions>(() => ({
+    save: savePageStyle,
+    setAutoApply: setPageStyleAutoApply,
+    remove: removePageStyle,
+  }), [savePageStyle, setPageStyleAutoApply, removePageStyle]);
+  const activeTabBookmarkId = activeTab?.id === undefined ? null : bookmarkIdFromItemKey(getItemKeyForTab(activeTab.id));
+  const activeTabSavedStyle = activeTabBookmarkId === null ? null : savedPageStyleFor(activeTabBookmarkId);
   // Owned by the panel, not the drawer: a run keeps applying and saving its events while the drawer
   // shows another tab or is closed.
-  const [pageAgentChats] = useState(() => createPanelPageAgentChats(chrome.storage.session, import.meta.env.DEV));
+  const [pageAgentChats] = useState(() => createPanelPageAgentChats(chrome.storage.session, import.meta.env.DEV, {
+    styleForTab: (tabId) =>
+    {
+      const bookmarkId = bookmarkIdFromItemKey(getItemKeyForTabRef.current(tabId));
+      const style = bookmarkId === null ? null : pageStyleProxy.store.getSnapshot().styleFor(bookmarkId);
+      return bookmarkId !== null && style ? { bookmarkId, style } : null;
+    },
+  }));
   const [showPageAgent, setShowPageAgent] = useState(false);
 
   // Whether the drawer is open or not: a closed tab's chat is deleted, and a finished load tells
@@ -1784,6 +1809,9 @@ function Sidebar() {
             chats={pageAgentChats}
             tabId={activeTab?.id}
             tabUrl={activeTab?.url}
+            bookmarkId={activeTabBookmarkId}
+            savedStyle={activeTabSavedStyle}
+            pageStyles={pageStyleActions}
             aiSettings={aiSettings}
             onOpenSettings={() => setShowSettings(true)}
             onClose={() => setShowPageAgent(false)}

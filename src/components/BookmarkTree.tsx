@@ -84,6 +84,8 @@ import { resolveArcFolderIconState } from '../utils/folderIconState';
 import { isSystemFolder } from '../utils/archiveFolder';
 import { resolveItemDoubleClick } from '../utils/itemDoubleClick';
 import { useAttentionMarks } from '../hooks/useAttentionMarks';
+import { usePageStyles, type PageStyleState } from '../hooks/usePageStyles';
+import { PageStyleBadge, PageStyleSubmenu } from './PageStyleMenu';
 import { PasteYamlDialog } from './PasteYamlDialog';
 import { copyBookmarksAsYaml } from '../utils/bookmarkYamlCopy';
 
@@ -207,6 +209,10 @@ interface BookmarkRowProps {
   onToggleMark?: (bookmarkId: string) => void;
   selectionMarkAction?: 'mark' | 'clear';  // Undefined when the selection holds no bookmark
   onToggleSelectionMark?: () => void;
+  pageStyleState?: PageStyleState;  // The bookmark's saved page style; folders have none
+  checkPageStyleState?: (bookmarkId: string) => PageStyleState;
+  onSetPageStyleAutoApply?: (bookmarkId: string, on: boolean) => void;
+  onRemovePageStyle?: (bookmarkId: string) => void;
   isPeek?: boolean;  // Open or marked bookmark surfaced from inside a collapsed folder
   hasPeek?: boolean; // Collapsed folder currently surfacing open or marked descendants
   hasActivePeek?: boolean; // ...and one of them is the active page
@@ -287,6 +293,9 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
   onToggleMark,
   selectionMarkAction,
   onToggleSelectionMark,
+  pageStyleState = 'none',
+  onSetPageStyleAutoApply,
+  onRemovePageStyle,
   isPeek,
   hasPeek,
   hasActivePeek,
@@ -302,6 +311,7 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
   const dndId = `bookmark-${node.id}`;
   const isSpecialFolder = isPermanentRootFolder(node);
   const showMark = !isFolder && !!isMarked;
+  const savedPageStyle = !isFolder && node.url ? pageStyleState : 'none';
   // Whether the bookmark had a tab when a double-click's first press went down, before that click opened one
   const hadTabOnPressRef = useRef(false);
 
@@ -542,6 +552,17 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
     </div>
   );
 
+  // Hidden, without moving the title, while the hover actions cover it. The active row's close
+  // button is always shown, so there the brush moves to its left.
+  const closeAlwaysShown = !isFolder && bookmarkOpenMode === 'arc' && !!isLoaded && !!onCloseBookmark && visualState === 'active';
+  const badges = savedPageStyle !== 'none'
+    ? <PageStyleBadge state={savedPageStyle} className={clsx('group-hover:invisible', closeAlwaysShown && 'mr-7')} />
+    : undefined;
+  // The brush's own tooltip never shows: hovering the row hides it
+  const pageStyleTooltip = savedPageStyle === 'none'
+    ? undefined
+    : `Saved page style · auto-apply ${savedPageStyle}`;
+
   // Speaker indicator - at absolute left edge (Arc-style only)
   const leadingIndicator = !isFolder && bookmarkOpenMode === 'arc' && isAudible
     ? <Volume2 size={SPEAKER_ICON_SIZE} />
@@ -557,7 +578,7 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
               depth={depth}
               title={node.title}
               tooltip={node.url
-                ? [node.title, liveTitle && liveTitle !== node.title ? liveTitle : undefined, node.url]
+                ? [node.title, liveTitle && liveTitle !== node.title ? liveTitle : undefined, node.url, pageStyleTooltip]
                     .filter(Boolean)
                     .join('\n')
                 : undefined}
@@ -611,6 +632,7 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
                 !isSpecialFolder && "touch-none"
               )}
               actions={actions}
+              badges={badges}
               leadingIndicator={leadingIndicator}
             >
               {/* Overlay so the row's own background and shadow keep the active and selected styles */}
@@ -815,6 +837,13 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
                   </ContextMenu.Item>
                 </ContextMenu.SubContent>
               </ContextMenu.Sub>
+              {onSetPageStyleAutoApply && onRemovePageStyle && (
+                <PageStyleSubmenu
+                  state={savedPageStyle}
+                  onSetAutoApply={(on) => onSetPageStyleAutoApply(node.id, on)}
+                  onRemove={() => onRemovePageStyle(node.id)}
+                />
+              )}
               {isLoaded && (
                 <ContextMenu.Item onSelect={() => onToggleBookmarkMuted?.(node.id)}>
                   {isMuted ? 'Unmute' : 'Mute'}
@@ -997,6 +1026,7 @@ const BookmarkItem = (props: BookmarkRowProps) => {
     checkIsMuted,
     checkIsActive,
     checkIsMarked,
+    checkPageStyleState,
     getLiveTitle,
     getMatchingSpace,
     checkIsSelected,
@@ -1067,6 +1097,7 @@ const BookmarkItem = (props: BookmarkRowProps) => {
                 isMuted={checkIsMuted ? checkIsMuted(child.id) : false}
                 isActive={checkIsActive ? checkIsActive(child.id) : false}
                 isMarked={checkIsMarked ? checkIsMarked(child.id) : false}
+                pageStyleState={checkPageStyleState ? checkPageStyleState(child.id) : 'none'}
                 liveTitle={getLiveTitle ? getLiveTitle(child.id) : undefined}
                 isSelected={checkIsSelected ? checkIsSelected(child.id) : false}
                 onSelectionClick={onChildSelectionClick
@@ -1110,6 +1141,7 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
   const { bookmarks, updateBookmark, updateBookmarkUrl, createFolder, createBookmark, sortBookmarks, moveBookmark, duplicateBookmark, findFolderBySegments, getAllBookmarksInFolder, getBookmarkSegments, getBookmarkFolderLocation, getBookmark, error } = useBookmarks();
   const { openBookmarkTab, closeBookmarkTab, isBookmarkLoaded, isBookmarkAudible, isBookmarkMuted, isBookmarkActive, getBookmarkLiveTitle, deassociateBookmarkTab, getTabIdForBookmark, getItemKeyForTab, restoreItemAssociation, associateExistingTab } = useBookmarkTabsContext();
   const { isBookmarkMarked, markBookmarks, clearBookmarks } = useAttentionMarks();
+  const { styleStateFor: pageStyleStateFor, setAutoApply: setPageStyleAutoApply, remove: removePageStyle } = usePageStyles();
   const { spaces, updateSpace, updateSpaceFolderPaths, windowId } = useSpacesContext();
   const findSpaceForFolder = useFindSpaceForFolder(getBookmarkFolderLocation, spaces);
 
@@ -2155,6 +2187,18 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
     }
   }, [isBookmarkMarked, markBookmarks, clearBookmarks]);
 
+  // The tree has no error display; after a failed write the proxy re-reads the stored styles, so
+  // the brush and the menu show what is saved
+  const handleSetPageStyleAutoApply = useCallback((bookmarkId: string, on: boolean) =>
+  {
+    setPageStyleAutoApply(bookmarkId, on).catch(error => console.error('[PageStyles] setAutoApply failed:', error));
+  }, [setPageStyleAutoApply]);
+
+  const handleRemovePageStyle = useCallback((bookmarkId: string) =>
+  {
+    removePageStyle(bookmarkId).catch(error => console.error('[PageStyles] remove failed:', error));
+  }, [removePageStyle]);
+
   // One mark item for the selected bookmarks: any unmarked one marks all, all marked clears all
   const selectedMarkableBookmarkIds = selectionCount > 1 && allSelectedItemsAreBookmarks()
     ? getSelectedBookmarkItems().map(item => item.id)
@@ -2780,6 +2824,10 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
               checkIsActive={isBookmarkActive}
               checkIsMarked={isBookmarkMarked}
               onToggleMark={toggleBookmarkMark}
+              pageStyleState={pageStyleStateFor(node.id)}
+              checkPageStyleState={pageStyleStateFor}
+              onSetPageStyleAutoApply={handleSetPageStyleAutoApply}
+              onRemovePageStyle={handleRemovePageStyle}
               getLiveTitle={getBookmarkLiveTitle}
               onOpenBookmark={(bookmarkId, url, options) => openBookmarkTab(bookmarkId, url, activeSpace?.id, options)}
               onCloseBookmark={handleCloseBookmarkTab}

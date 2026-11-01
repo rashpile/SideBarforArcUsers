@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import { PageAgentChatStore } from '../src/services/pageAgent/pageAgentChatStore.ts';
 import { PageAgentChats } from '../src/services/pageAgent/pageAgentChats.ts';
+import { SavedPageStyle } from '../src/stores/savedPageStyles.ts';
 
 const TAB_A = 11;
 const TAB_B = 22;
@@ -113,6 +114,7 @@ class FakePage
     this.url = URL_A;
     this.removed = [];
     this.inserted = [];
+    this.markerReads = 0;
   }
 
   async insertCss(tabId, text)
@@ -127,6 +129,7 @@ class FakePage
 
   async readMarker()
   {
+    this.markerReads++;
     return this.marker;
   }
 
@@ -136,21 +139,44 @@ class FakePage
   }
 }
 
+/** The side panel's lookup of a tab's saved style; tests set a tab's style as its bookmark gets one. */
+class FakeSavedStyles
+{
+  constructor()
+  {
+    this.byTab = new Map();
+  }
+
+  set(tabId, bookmarkId, style)
+  {
+    this.byTab.set(tabId, { bookmarkId, style });
+  }
+
+  styleForTab(tabId)
+  {
+    return this.byTab.get(tabId) ?? null;
+  }
+}
+
 function setup(initialItems = {})
 {
   const area = new FakeSessionArea(initialItems);
   const store = new PageAgentChatStore(area);
   const factory = new FakeRunFactory();
   const page = new FakePage();
+  const savedStyles = new FakeSavedStyles();
   let nextId = 0;
   const chats = new PageAgentChats({
     store,
     runFactory: factory.create,
     page,
+    savedStyles,
     createId: () => `reapplied-${++nextId}`,
   });
-  return { area, store, factory, page, chats };
+  return { area, store, factory, page, savedStyles, chats };
 }
+
+const savedStyle = (rev, css = CSS) => new SavedPageStyle(css, true, 'https://site.test', rev);
 
 function storedChatWithCss(tabId, overrides = {})
 {
@@ -316,4 +342,136 @@ test('undo removes the inserted stylesheet by its exact text even when a notice 
   assert.equal(chat.appliedInsertedText, '');
   assert.equal(chat.notice, 'none');
   assert.equal((await store.load(TAB_A)).appliedInsertedText, '');
+});
+
+test('checkMarker adopts the saved style the background put on the page into an empty chat, and the next run replaces it', async () =>
+{
+  const { store, factory, page, savedStyles, chats } = setup();
+  const style = savedStyle('r1');
+  savedStyles.set(TAB_A, '42', style);
+  await chats.get(TAB_A);
+  page.marker = 'saved-r1';
+
+  await chats.checkMarker(TAB_A);
+
+  const chat = chats.peek(TAB_A);
+  assert.equal(chat.data.turns.length, 0);
+  assert.equal(chat.appliedCss, CSS);
+  assert.equal(chat.appliedInsertedText, style.insertedText);
+  assert.equal(chat.appliedId, 'saved-r1');
+  assert.equal(chat.appliedUrl, URL_A);
+  assert.equal(chat.notice, 'none');
+  assert.equal((await store.load(TAB_A)).appliedId, 'saved-r1');
+
+  const sending = chats.send(TAB_A, 'make the title bigger', SETTINGS);
+  const run = await factory.runFor(TAB_A);
+  assert.equal(run.start.currentCss, CSS);
+  assert.equal(run.start.insertedText, style.insertedText, 'so the run removes the saved sheet before it inserts its own');
+  run.finish(metResult);
+  await sending;
+});
+
+test('after a reload checkMarker adopts the saved sheet in place of the dropped one of the run, without a notice', async () =>
+{
+  const { page, savedStyles, chats } = setup({ [`pageAgentChat:${TAB_A}`]: storedChatWithCss(TAB_A) });
+  const style = savedStyle('r1');
+  savedStyles.set(TAB_A, '42', style);
+  await chats.get(TAB_A);
+  page.marker = 'saved-r1';
+
+  await chats.checkMarker(TAB_A);
+
+  const chat = chats.peek(TAB_A);
+  assert.equal(chat.data.turns.length, 1, 'the turns stay');
+  assert.equal(chat.appliedId, 'saved-r1');
+  assert.equal(chat.appliedInsertedText, style.insertedText);
+  assert.equal(chat.notice, 'none');
+});
+
+test('checkMarker adopts nothing for the marker of an older save, and an empty chat gets no notice', async () =>
+{
+  const { store, page, savedStyles, chats } = setup();
+  savedStyles.set(TAB_A, '42', savedStyle('r2'));
+  await chats.get(TAB_A);
+
+  for (const marker of ['saved-r1', ''])
+  {
+    page.marker = marker;
+    await chats.checkMarker(TAB_A);
+
+    const chat = chats.peek(TAB_A);
+    assert.equal(chat.appliedId, '', `marker "${marker}"`);
+    assert.equal(chat.appliedInsertedText, '', `marker "${marker}"`);
+    assert.equal(chat.notice, 'none', `marker "${marker}"`);
+  }
+  assert.equal(await store.load(TAB_A), null, 'nothing written');
+});
+
+test('checkMarker does not read the page of an empty chat on a tab without a saved style', async () =>
+{
+  const { store, page, chats } = setup();
+  await chats.get(TAB_A);
+  page.marker = '';
+
+  await chats.checkMarker(TAB_A);
+
+  assert.equal(page.markerReads, 0);
+  assert.equal(chats.peek(TAB_A).notice, 'none');
+  assert.equal(await store.load(TAB_A), null);
+});
+
+test('applySaved only records the saved style when the page already has it', async () =>
+{
+  const { page, savedStyles, chats } = setup();
+  const style = savedStyle('r1');
+  savedStyles.set(TAB_A, '42', style);
+  await chats.get(TAB_A);
+  page.marker = 'saved-r1';
+
+  await chats.applySaved(TAB_A);
+
+  assert.deepEqual(page.inserted, [], 'a second copy would stay on the page after Undo');
+  assert.deepEqual(page.removed, []);
+  const chat = chats.peek(TAB_A);
+  assert.equal(chat.appliedId, 'saved-r1');
+  assert.equal(chat.appliedInsertedText, style.insertedText);
+});
+
+test('applySaved replaces the chat stylesheet on the page with the saved one', async () =>
+{
+  const stored = storedChatWithCss(TAB_A);
+  const { store, page, savedStyles, chats } = setup({ [`pageAgentChat:${TAB_A}`]: stored });
+  const style = savedStyle('r1', 'video { width: 100% !important; }');
+  savedStyles.set(TAB_A, '42', style);
+  await chats.get(TAB_A);
+  page.marker = 'id-1';
+  page.url = 'https://site.test/videos/2';
+
+  await chats.applySaved(TAB_A);
+
+  assert.deepEqual(page.removed, [{ tabId: TAB_A, text: stored.appliedInsertedText }]);
+  assert.deepEqual(page.inserted, [{ tabId: TAB_A, text: style.insertedText }]);
+  const chat = chats.peek(TAB_A);
+  assert.equal(chat.appliedCss, style.css);
+  assert.equal(chat.appliedInsertedText, style.insertedText);
+  assert.equal(chat.appliedId, 'saved-r1');
+  assert.equal(chat.appliedUrl, 'https://site.test/videos/2');
+  assert.equal((await store.load(TAB_A)).appliedId, 'saved-r1');
+});
+
+test('applySaved is ignored while the tab has a live run', async () =>
+{
+  const { factory, page, savedStyles, chats } = setup();
+  savedStyles.set(TAB_A, '42', savedStyle('r1'));
+  const sending = chats.send(TAB_A, 'make the player full width', SETTINGS);
+  const run = await factory.runFor(TAB_A);
+
+  await chats.applySaved(TAB_A);
+
+  assert.equal(page.markerReads, 0);
+  assert.deepEqual(page.inserted, []);
+  assert.deepEqual(page.removed, []);
+  assert.equal(chats.peek(TAB_A).appliedId, '');
+  run.finish(metResult);
+  await sending;
 });

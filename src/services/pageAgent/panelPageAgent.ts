@@ -5,7 +5,7 @@
 
 import type { AiRenameSettings } from '../../utils/aiConfig.ts';
 import { PageAgentChats } from './pageAgentChats.ts';
-import type { PageAgentChatPage, PageAgentLiveRun, PageAgentRunStart } from './pageAgentChats.ts';
+import type { PageAgentChatPage, PageAgentLiveRun, PageAgentRunStart, PageAgentSavedStyles } from './pageAgentChats.ts';
 import { PageAgentChatStore } from './pageAgentChatStore.ts';
 import type { PageAgentChatStorageArea } from './pageAgentChatStore.ts';
 import type { PageAgentRunResult } from './pageAgentRun.ts';
@@ -68,7 +68,7 @@ class DeferredRun implements PageAgentLiveRun
   }
 }
 
-/** Undo, Re-apply and the marker check, through the runtime's ChromePageAdapter. */
+/** Undo, Re-apply, applying a saved style and the marker check, through the runtime's ChromePageAdapter. */
 class LazyChatPage implements PageAgentChatPage
 {
   readonly #runtime: LazyPageAgentRuntime;
@@ -103,6 +103,7 @@ class LazyChatPage implements PageAgentChatPage
 export function createPanelPageAgentChats(
   storageArea: PageAgentChatStorageArea,
   debug: boolean,
+  savedStyles: PageAgentSavedStyles,
 ): PageAgentChats<AiRenameSettings>
 {
   const runtime = new LazyPageAgentRuntime(debug);
@@ -110,6 +111,7 @@ export function createPanelPageAgentChats(
     store: new PageAgentChatStore(storageArea),
     runFactory: start => new DeferredRun(runtime, start),
     page: new LazyChatPage(runtime),
+    savedStyles,
     debug,
   });
 }

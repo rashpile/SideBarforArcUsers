@@ -32,6 +32,10 @@ import { tabListTopIndexForLinkTab } from './utils/linkTabPlacement';
 import { OpenTabPages } from './stores/openTabPages';
 import { RecentlyClosedManager } from './managers/impl/recentlyClosedManager';
 import { closedTabRecord } from './utils/closedTabRecording';
+import { PageStyleManager } from './managers/impl/pageStyleManager';
+import { PageStyleApplier } from './services/pageStyleApplier';
+import { readPageMarker } from './services/pageAgent/pageScripts';
+import { PAGE_AGENT_CSS_ORIGIN, PAGE_AGENT_MARKER_PROPERTY } from './utils/pageAgentCss';
 
 // Set side panel to open when clicking the extension toolbar button
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
@@ -188,6 +192,15 @@ const recentlyClosedManager = new RecentlyClosedManager({
 });
 // Mark for Attention on tabs and bookmarks; auto-archive keeps marked tabs open
 const attentionMarkManager = new AttentionMarkManager();
+// Page styles the page agent saved to bookmarks and Favorites; pageStyleApplier puts them on pages
+const pageStyleManager = new PageStyleManager({
+  storage: {
+    get: (key) => chrome.storage.local.get(key),
+    set: (values) => chrome.storage.local.set(values),
+  },
+  broadcast: (message) => chrome.runtime.sendMessage(message),
+  newRev: () => crypto.randomUUID(),
+});
 // Reads the history manager's activation order, so it has to come after it.
 const lastAudibleTracker = new LastAudibleTracker(historyManager);
 // The Space of a bookmark's tab, from the bookmark's folder (getSpaceForActivatedTab)
@@ -387,6 +400,9 @@ const managerLoadPromise = Promise.all([
   historyManager.load(),
   lastAudibleTracker.load(),
   favoriteIconsManager.load(),
+  // Never rejects. Loaded before stateReady, because a page commit often wakes the worker and
+  // the applier reads the styles as soon as stateReady resolves
+  pageStyleManager.load(),
   sameBrowserSession.then((same) => tabSpaceRegistry.load(same)).then(seedOpenTabPages),
   sameBrowserSession.then((same) => attentionMarkManager.load(same)),
   loadTabActivity()
@@ -491,6 +507,10 @@ chrome.bookmarks.onRemoved.addListener((id, removeInfo) =>
   void stateReady
     .then(() => favoriteIconsManager.removeIcons(ids))
     .catch((error) => console.error('[FavoriteIconsManager] failed to drop icons of removed bookmarks:', error));
+  // After the styles load, so the load can't bring back a style this removal dropped
+  void stateReady
+    .then(() => pageStyleManager.handleBookmarksRemoved(ids))
+    .catch((error) => console.error('[PageStyleManager] failed to drop styles of removed bookmarks:', error));
 });
 
 // =============================================================================
@@ -580,6 +600,53 @@ chrome.storage.onChanged.addListener((changes, areaName) =>
 });
 
 void tabAutoArchiver.start();
+
+// =============================================================================
+// Saved page styles - puts a bookmark's saved page style back on the page when a
+// page of the saved site loads in the bookmark's or Favorite's tab, with the
+// sidebar closed too. See services/pageStyleApplier.ts.
+// =============================================================================
+
+// The same marker read as the side panel's ChromePageAdapter: top frame, default isolated world
+async function readPageMarkerInTab(tabId: number): Promise<string>
+{
+  const [injection] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: readPageMarker,
+    args: [PAGE_AGENT_MARKER_PROPERTY],
+  });
+  // No answer is not an empty marker: treating it as one could insert a second copy of the sheet
+  if (typeof injection?.result !== 'string')
+  {
+    throw new Error('the marker script returned nothing; the page may be gone or not allow scripts');
+  }
+  return injection.result;
+}
+
+const pageStyleApplier = new PageStyleApplier({
+  ready: stateReady,
+  sameBrowserSession,
+  associationsOf: getTabAssociations,
+  styles: () => pageStyleManager.styles,
+  getTab: (tabId) => chrome.tabs.get(tabId),
+  queryTabs: () => chrome.tabs.query({}),
+  insertCss: (tabId, text) => chrome.scripting.insertCSS({ target: { tabId }, css: text, origin: PAGE_AGENT_CSS_ORIGIN }),
+  readMarker: readPageMarkerInTab,
+  debug: import.meta.env.DEV,
+});
+
+// Registered at top level so a page commit wakes the worker; the applier filters the frames
+chrome.webNavigation.onCommitted.addListener((details) =>
+{
+  void pageStyleApplier.committed(details.tabId, details.frameId, details.transitionQualifiers);
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) =>
+{
+  if (changeInfo.status === 'complete') void pageStyleApplier.loadComplete(tabId);
+});
+
+void pageStyleApplier.start();
 
 // =============================================================================
 // Keyboard switchers (spike) - Cmd+Tab-style lists of the current Space's tabs
@@ -1152,6 +1219,7 @@ registerManager(lastAudibleTracker);
 registerManager(favoriteIconsManager);
 registerManager(attentionMarkManager);
 registerManager(recentlyClosedManager);
+registerManager(pageStyleManager);
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) =>
 {

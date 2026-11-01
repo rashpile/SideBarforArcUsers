@@ -2,12 +2,14 @@
 // the drawer: a run on tab A keeps applying its events to A's chat and saving them while the drawer
 // shows tab B or is closed. The hook and the tab lifecycle handlers change chats only through it.
 
+import type { SavedPageStyle } from '../../stores/savedPageStyles.ts';
 import { isSameOriginHttpUrl } from '../../utils/aiConfig.ts';
 import { withMarker } from '../../utils/pageAgentCss.ts';
 import { PageAgentChat } from './pageAgentChat.ts';
 import type { PageAgentNotice } from './pageAgentChat.ts';
 import type { PageAgentChatStore } from './pageAgentChatStore.ts';
 import type {
+  PageAgentAppliedCss,
   PageAgentHistoryTurn,
   PageAgentPageAdapter,
   PageAgentRunListener,
@@ -34,11 +36,24 @@ export interface PageAgentRunStart<Settings>
 
 export type PageAgentRunFactory<Settings> = (start: PageAgentRunStart<Settings>) => PageAgentLiveRun;
 
-/** What Undo, Re-apply and the marker check do to a page. */
+/** What Undo, Re-apply, applying a saved style and the marker check do to a page. */
 export interface PageAgentChatPage extends Pick<PageAgentPageAdapter, 'insertCss' | 'removeCss' | 'pageUrl'>
 {
   /** The applied id of the agent's stylesheet on the page, or '' when the page has none. */
   readMarker(tabId: number): Promise<string>;
+}
+
+/** The saved page style of the bookmark or Favorite a tab was opened from. */
+export interface PageAgentTabSavedStyle
+{
+  bookmarkId: string;
+  style: SavedPageStyle;
+}
+
+export interface PageAgentSavedStyles
+{
+  /** Read at call time: the tab's association and the saved styles change while the panel is open. */
+  styleForTab(tabId: number): PageAgentTabSavedStyle | null;
 }
 
 export interface PageAgentChatsOptions<Settings>
@@ -46,6 +61,8 @@ export interface PageAgentChatsOptions<Settings>
   store: PageAgentChatStore;
   runFactory: PageAgentRunFactory<Settings>;
   page: PageAgentChatPage;
+  /** Without it no tab has a saved style. */
+  savedStyles?: PageAgentSavedStyles;
   createId?: () => string;
   debug?: boolean;
 }
@@ -55,6 +72,7 @@ export class PageAgentChats<Settings>
   readonly #store: PageAgentChatStore;
   readonly #runFactory: PageAgentRunFactory<Settings>;
   readonly #page: PageAgentChatPage;
+  readonly #savedStyles: PageAgentSavedStyles | null;
   readonly #createId: () => string;
   readonly #debug: boolean;
   readonly #chats = new Map<number, PageAgentChat>();
@@ -69,6 +87,7 @@ export class PageAgentChats<Settings>
     this.#store = options.store;
     this.#runFactory = options.runFactory;
     this.#page = options.page;
+    this.#savedStyles = options.savedStyles ?? null;
     this.#createId = options.createId ?? (() => crypto.randomUUID());
     this.#debug = options.debug ?? false;
   }
@@ -229,24 +248,78 @@ export class PageAgentChats<Settings>
   }
 
   /**
+   * Puts the tab's saved style on the page as the chat's stylesheet, in place of the chat's own.
+   * Rejects when the page refused.
+   */
+  async applySaved(tabId: number): Promise<void>
+  {
+    if (this.#runs.has(tabId))
+    {
+      return;
+    }
+    const chat = await this.get(tabId);
+    const saved = this.#savedStyleFor(tabId);
+    if (!saved || this.#runs.has(tabId))
+    {
+      return;
+    }
+    const { style } = saved;
+    // The background may have inserted it already; a second copy of the same text stays after Undo.
+    const marker = await this.#page.readMarker(tabId);
+    const url = await this.#page.pageUrl(tabId);
+    if (marker !== style.appliedId)
+    {
+      if (chat.appliedInsertedText)
+      {
+        await this.#page.removeCss(tabId, chat.appliedInsertedText);
+      }
+      await this.#page.insertCss(tabId, style.insertedText);
+    }
+    if (this.#owns(chat))
+    {
+      chat.recordApplied(savedAsApplied(style, url));
+      this.#changed(chat);
+    }
+  }
+
+  /**
    * Tells whether the page still has the applied stylesheet (a reload or navigation drops it) and
-   * sets the chat's notice. Only chats this panel has loaded are checked, so a panel never writes
-   * the chat of a tab in another window; a chat is checked again when it is shown. Never rejects.
+   * sets the chat's notice, or adopts the tab's saved style when the background put it on the
+   * page. Only chats this panel has loaded are checked, so a panel never writes the chat of a tab
+   * in another window; a chat is checked again when it is shown. Never rejects.
    */
   async checkMarker(tabId: number): Promise<void>
   {
     const chat = this.#chats.get(tabId);
     // During a run the marker can be read between removeCSS and insertCSS.
-    if (!chat || !chat.appliedInsertedText || this.#runs.has(tabId))
+    if (!chat || this.#runs.has(tabId))
+    {
+      return;
+    }
+    const saved = this.#savedStyleFor(tabId);
+    // Nothing to check or adopt: no page read on every load, and no notice in an empty chat.
+    if (!chat.appliedInsertedText && !saved)
     {
       return;
     }
     const appliedId = chat.appliedId;
-    let notice: PageAgentNotice;
+    const savedRev = saved?.style.rev ?? null;
+    let adopted: PageAgentAppliedCss | null = null;
+    let notice: PageAgentNotice = 'none';
     try
     {
       const marker = await this.#page.readMarker(tabId);
-      if (marker === appliedId)
+      if (saved && marker === saved.style.appliedId && marker !== appliedId)
+      {
+        // The background's sheet becomes the chat's, so Undo removes it, Show CSS shows it and a
+        // run's apply_css replaces it instead of stacking a second sheet.
+        adopted = savedAsApplied(saved.style, await this.#page.pageUrl(tabId));
+      }
+      else if (!chat.appliedInsertedText)
+      {
+        return;
+      }
+      else if (marker === appliedId)
       {
         notice = 'none';
       }
@@ -273,12 +346,22 @@ export class PageAgentChats<Settings>
       this.#log('marker check failed', error);
       return;
     }
-    // The answer is stale if a run or Re-apply changed the stylesheet while the page was read.
-    if (!this.#owns(chat) || this.#runs.has(tabId) || chat.appliedId !== appliedId)
+    // The answer is stale if a run, Re-apply or a new save changed the stylesheet while the page was read.
+    if (
+      !this.#owns(chat)
+      || this.#runs.has(tabId)
+      || chat.appliedId !== appliedId
+      || (this.#savedStyleFor(tabId)?.style.rev ?? null) !== savedRev
+    )
     {
       return;
     }
-    if (chat.setNotice(notice))
+    if (adopted)
+    {
+      chat.recordApplied(adopted);
+      this.#changed(chat);
+    }
+    else if (chat.setNotice(notice))
     {
       this.#changed(chat);
     }
@@ -364,6 +447,11 @@ export class PageAgentChats<Settings>
     this.#changed(chat);
   }
 
+  #savedStyleFor(tabId: number): PageAgentTabSavedStyle | null
+  {
+    return this.#savedStyles?.styleForTab(tabId) ?? null;
+  }
+
   #owns(chat: PageAgentChat): boolean
   {
     return !this.#closedTabs.has(chat.tabId) && this.#chats.get(chat.tabId) === chat;
@@ -390,6 +478,11 @@ export class PageAgentChats<Settings>
       console.log('[page-agent]', ...values);
     }
   }
+}
+
+function savedAsApplied(style: SavedPageStyle, url: string): PageAgentAppliedCss
+{
+  return { css: style.css, insertedText: style.insertedText, appliedId: style.appliedId, url };
 }
 
 function errorMessage(error: unknown): string
