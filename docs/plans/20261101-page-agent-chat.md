@@ -385,12 +385,14 @@ instructions.
 **Files:**
 - Modify: `src/components/Toolbar.tsx`
 - Modify: `src/App.tsx`
+- ➕ Create: `src/services/pageAgent/panelPageAgent.ts` (the panel's `PageAgentChats`; loads the runtime on first use)
+- ➕ Create: `src/services/pageAgent/pageAgentRuntime.ts` (run factory with `ChatCompletionsAgentClient` and `ChromePageAdapter`, a lazy chunk)
 
-- [ ] create one `PageAgentChats` for the panel in `App` (over `chrome.storage.session`, a run factory with `ChatCompletionsAgentClient` and `ChromePageAdapter`, `import.meta.env.DEV` as the debug flag); it outlives the drawer
-- [ ] `Sparkles` button in `Toolbar` toggles the drawer (title "Page agent (experimental)")
-- [ ] render `PageAgentDrawer` between `SwipeableContainer` and `SpaceBar`, bound to this window's active tab id (follows tab switches); pass the AI settings and a callback that opens Settings
-- [ ] lifecycle in `App` (runs whether the drawer is open or not): `tabs.onRemoved` → `chats.tabClosed`; `tabs.onUpdated` with `status: 'complete'` → `chats.checkMarker`; once at panel start, `chats.sweep` with the ids from `chrome.tabs.query({})`
-- [ ] `npx tsc --noEmit`, `make test`, `make lint`, `make build` pass
+- [x] create one `PageAgentChats` for the panel in `App` (over `chrome.storage.session`, a run factory with `ChatCompletionsAgentClient` and `ChromePageAdapter`, `import.meta.env.DEV` as the debug flag); it outlives the drawer (built by `createPanelPageAgentChats`; the run loop, client and page scripts load on first use and the drawer is `React.lazy`, so the panel's main chunk grows ~10 kB instead of ~49 kB)
+- [x] `Sparkles` button in `Toolbar` toggles the drawer (title "Page agent (experimental)")
+- [x] render `PageAgentDrawer` between `SwipeableContainer` and `SpaceBar`, bound to this window's active tab id (follows tab switches); pass the AI settings and a callback that opens Settings
+- [x] lifecycle in `App` (runs whether the drawer is open or not): `tabs.onRemoved` → `chats.tabClosed`; `tabs.onUpdated` with `status: 'complete'` → `chats.checkMarker`; once at panel start, `chats.sweep` with the ids from `chrome.tabs.query({})`
+- [x] `npx tsc --noEmit`, `make test`, `make lint`, `make build` pass
 
 ### Task 9: Fixture pages for manual testing
 

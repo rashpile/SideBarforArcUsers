@@ -59,6 +59,7 @@ import {
   parseAiRenameSettings,
 } from './utils/aiConfig';
 import { OpenAiCompatibleClient } from './services/aiRenameService';
+import { createPanelPageAgentChats } from './services/pageAgent/panelPageAgent';
 import { resolveVersionDialogState } from './utils/versionDialogState';
 
 // Loaded on demand to keep the settings, import and emoji data off the cold start path.
@@ -69,6 +70,7 @@ const ImportDialog = React.lazy(() => import('./components/ImportDialog').then(m
 const ArcImportDialog = React.lazy(() => import('./components/ArcImportDialog').then(m => ({ default: m.ArcImportDialog })));
 const WelcomeDialog = React.lazy(() => import('./components/WelcomeDialog').then(m => ({ default: m.WelcomeDialog })));
 const WhatsNewDialog = React.lazy(() => import('./components/WhatsNewDialog').then(m => ({ default: m.WhatsNewDialog })));
+const PageAgentDrawer = React.lazy(() => import('./components/pageAgent/PageAgentDrawer').then(m => ({ default: m.PageAgentDrawer })));
 
 // Inner component that renders content for a single space
 interface SidebarContentProps
@@ -1052,6 +1054,40 @@ function Sidebar() {
     restoreIcons: restorePinnedSiteIcons,
   }), [replacePinnedSites, appendPinnedSites, restorePinnedSiteIcons]);
   const { tabs, refreshTabs } = useTabs();
+  // The drawer shows the chat of this window's active tab and follows tab switches.
+  const activeTab = tabs.find(tab => tab.active);
+  // Owned by the panel, not the drawer: a run keeps applying and saving its events while the drawer
+  // shows another tab or is closed.
+  const [pageAgentChats] = useState(() => createPanelPageAgentChats(chrome.storage.session, import.meta.env.DEV));
+  const [showPageAgent, setShowPageAgent] = useState(false);
+
+  // Whether the drawer is open or not: a closed tab's chat is deleted, and a finished load tells
+  // whether a reload or navigation dropped the applied stylesheet.
+  useEffect(() =>
+  {
+    const onRemoved = (tabId: number) =>
+    {
+      void pageAgentChats.tabClosed(tabId);
+    };
+    const onUpdated = (tabId: number, changeInfo: chrome.tabs.TabChangeInfo) =>
+    {
+      if (changeInfo.status === 'complete')
+      {
+        void pageAgentChats.checkMarker(tabId);
+      }
+    };
+    chrome.tabs.onRemoved.addListener(onRemoved);
+    chrome.tabs.onUpdated.addListener(onUpdated);
+    // Tabs closed while no side panel was open left their chats behind.
+    chrome.tabs.query({})
+      .then(allTabs => pageAgentChats.sweep(allTabs.flatMap(tab => (tab.id === undefined ? [] : [tab.id]))))
+      .catch(error => console.error('[PageAgent] failed to list tabs for the chat sweep:', error));
+    return () =>
+    {
+      chrome.tabs.onRemoved.removeListener(onRemoved);
+      chrome.tabs.onUpdated.removeListener(onUpdated);
+    };
+  }, [pageAgentChats]);
 
   const handleApplySettings = (newSettings: SettingsValues) => {
     setFontSize(newSettings.fontSize);
@@ -1580,6 +1616,8 @@ function Sidebar() {
               setFilterText('');
             }
           }}
+          pageAgentOpen={showPageAgent}
+          onTogglePageAgent={() => setShowPageAgent(open => !open)}
         />
 
         {/* Settings popup menu */}
@@ -1739,6 +1777,19 @@ function Sidebar() {
         highlightTabAge={shownTabAgeHighlight !== 'off'}
         markUnvisitedTabs={shownUnvisitedTabMarker === 'on'}
       />
+
+      {showPageAgent && (
+        <Suspense fallback={null}>
+          <PageAgentDrawer
+            chats={pageAgentChats}
+            tabId={activeTab?.id}
+            tabUrl={activeTab?.url}
+            aiSettings={aiSettings}
+            onOpenSettings={() => setShowSettings(true)}
+            onClose={() => setShowPageAgent(false)}
+          />
+        </Suspense>
+      )}
 
       {/* Space Dialogs */}
       <SpaceDialogs
