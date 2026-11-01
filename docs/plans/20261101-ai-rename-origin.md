@@ -93,11 +93,11 @@
 - Modify: `tests/aiConfig.test.mjs`
 - Modify: `src/components/SettingsDialog.tsx`
 
-- [ ] add module-private `isLoopbackHost(hostname)` and the `http:` rule to `parseSafeHttpUrl` per Technical Details; update its doc comment (why: the key and page text must not cross the network unencrypted; local Ollama / LM Studio need HTTP)
-- [ ] Settings › AI Base URL hint in `SettingsDialog.tsx`: add that HTTPS is required and HTTP is allowed only for localhost
-- [ ] test `parseSafeHttpUrl`: `https` accepted for a public host and for a LAN IP; `http` accepted for `localhost`, `localhost:11434`, `ollama.localhost`, `127.0.0.1`, `127.1.2.3`, `[::1]`; `http` rejected with exactly `Base URL must use HTTPS (HTTP is allowed only for localhost)` for `api.example.com`, `192.168.1.1`, `10.0.0.1`, `0.0.0.0`, `localhost.example.com`, `127.0.0.1.example.com`; `ftp://localhost` still gets `Base URL must use HTTP or HTTPS`
-- [ ] test that `getHostPermissionPattern('http://192.168.1.1:8080/v1')` throws the HTTPS error (the check every Validate and rename runs first) and `getHostPermissionPattern('http://localhost:11434/v1')` returns `http://localhost:11434/*`
-- [ ] run `make lint && make test && make build` - must pass before task 3
+- [x] add module-private `isLoopbackHost(hostname)` and the `http:` rule to `parseSafeHttpUrl` per Technical Details; update its doc comment (why: the key and page text must not cross the network unencrypted; local Ollama / LM Studio need HTTP)
+- [x] Settings › AI Base URL hint in `SettingsDialog.tsx`: add that HTTPS is required and HTTP is allowed only for localhost
+- [x] test `parseSafeHttpUrl`: `https` accepted for a public host and for a LAN IP; `http` accepted for `localhost`, `localhost:11434`, `ollama.localhost`, `127.0.0.1`, `127.1.2.3`, `[::1]`; `http` rejected with exactly `Base URL must use HTTPS (HTTP is allowed only for localhost)` for `api.example.com`, `192.168.1.1`, `10.0.0.1`, `0.0.0.0`, `localhost.example.com`, `127.0.0.1.example.com`; `ftp://localhost` still gets `Base URL must use HTTP or HTTPS`
+- [x] test that `getHostPermissionPattern('http://192.168.1.1:8080/v1')` throws the HTTPS error (the check every Validate and rename runs first) and `getHostPermissionPattern('http://localhost:11434/v1')` returns `http://localhost:11434/*`
+- [x] run `make lint && make test && make build` - must pass before task 3
 
 ### Task 3: Wire the origin gate and no-redirect fetch into `PageContentReader`
 

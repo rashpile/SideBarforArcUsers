@@ -138,7 +138,21 @@ export function buildAiRequestBody(
 }
 
 /**
+ * The URL parser rewrites every IPv4 form (`127.1`, `0x7f.0.0.1`) to dotted decimal, so the regex
+ * sees the canonical address; `127.0.0.1.example.com` stays a domain and fails it.
+ */
+function isLoopbackHost(hostname: string): boolean
+{
+  return hostname === 'localhost'
+    || hostname.endsWith('.localhost')
+    || /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)
+    || hostname === '[::1]';
+}
+
+/**
  * Validates the Base URL, so a key put in it can't leak through logs, history or error messages.
+ * The API key and the page text must not cross the network unencrypted, so plain HTTP is allowed
+ * only for a server on this computer (Ollama, LM Studio).
  */
 export function parseSafeHttpUrl(value: string): URL
 {
@@ -155,6 +169,10 @@ export function parseSafeHttpUrl(value: string): URL
   if (url.protocol !== 'http:' && url.protocol !== 'https:')
   {
     throw new Error('Base URL must use HTTP or HTTPS');
+  }
+  if (url.protocol === 'http:' && !isLoopbackHost(url.hostname))
+  {
+    throw new Error('Base URL must use HTTPS (HTTP is allowed only for localhost)');
   }
   if (url.username || url.password)
   {

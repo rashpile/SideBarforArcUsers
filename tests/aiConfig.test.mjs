@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { findMatchingLlmsLink, isSameOriginHttpUrl } from '../src/utils/aiConfig.ts';
+import {
+  findMatchingLlmsLink,
+  getHostPermissionPattern,
+  isSameOriginHttpUrl,
+  parseSafeHttpUrl,
+} from '../src/utils/aiConfig.ts';
 
 test('isSameOriginHttpUrl accepts the same https origin with another path and query', () =>
 {
@@ -105,4 +110,53 @@ test('findMatchingLlmsLink returns undefined for a same-origin link to another p
   const llmsText = '- [Install](/guide/install.md)';
 
   assert.equal(findMatchingLlmsLink(llmsText, PAGE_URL, LLMS_URL), undefined);
+});
+
+const HTTPS_REQUIRED = { message: 'Base URL must use HTTPS (HTTP is allowed only for localhost)' };
+
+test('parseSafeHttpUrl accepts HTTPS for a public host and a LAN address', () =>
+{
+  assert.equal(parseSafeHttpUrl('https://api.openai.com/v1').href, 'https://api.openai.com/v1');
+  assert.equal(parseSafeHttpUrl('https://192.168.1.1:8443/v1').href, 'https://192.168.1.1:8443/v1');
+});
+
+test('parseSafeHttpUrl accepts HTTP for loopback hosts', () =>
+{
+  for (const value of [
+    'http://localhost/v1',
+    'http://localhost:11434/v1',
+    'http://ollama.localhost/v1',
+    'http://127.0.0.1:1234/v1',
+    'http://127.1.2.3/v1',
+    'http://[::1]:11434/v1',
+  ])
+  {
+    assert.equal(parseSafeHttpUrl(value).protocol, 'http:', value);
+  }
+});
+
+test('parseSafeHttpUrl rejects HTTP for hosts off this computer', () =>
+{
+  for (const value of [
+    'http://api.example.com/v1',
+    'http://192.168.1.1/v1',
+    'http://10.0.0.1:8080/v1',
+    'http://0.0.0.0:11434/v1',
+    'http://localhost.example.com/v1',
+    'http://127.0.0.1.example.com/v1',
+  ])
+  {
+    assert.throws(() => parseSafeHttpUrl(value), HTTPS_REQUIRED, value);
+  }
+});
+
+test('parseSafeHttpUrl still rejects schemes other than HTTP and HTTPS', () =>
+{
+  assert.throws(() => parseSafeHttpUrl('ftp://localhost/v1'), { message: 'Base URL must use HTTP or HTTPS' });
+});
+
+test('getHostPermissionPattern applies the HTTPS rule that Validate and every rename run first', () =>
+{
+  assert.throws(() => getHostPermissionPattern('http://192.168.1.1:8080/v1'), HTTPS_REQUIRED);
+  assert.equal(getHostPermissionPattern('http://localhost:11434/v1'), 'http://localhost:11434/*');
 });
