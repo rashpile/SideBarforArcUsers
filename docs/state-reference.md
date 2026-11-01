@@ -173,17 +173,17 @@ Array<{ tabId: number, url: string, title: string, incognito: boolean, spaceId?:
 - Instances: 1 per extension
 
 ### `pageAgentChat:${tabId}`
-Page agent chat of one tab (experimental): the user's requests, the agent's turns and the stylesheet it applied last
+Page agent chat of one tab (experimental): the user's requests, the agent's turns (style changes and answers) and the stylesheet it applied last
 ```typescript
 {
   tabId: number,
   turns: Array<{
     request: string,
-    status: 'running' | 'met' | 'not-met' | 'stopped' | 'error',
+    status: 'running' | 'met' | 'not-met' | 'answered' | 'stopped' | 'error',  // answered: a question was answered (or asked back), nothing changed
     conditions: Array<{ id: string, text: string, met: boolean, measured: string }>,
     replaced: Array<{ id: string, text: string, reason: string }>,  // earlier conditions this request replaced
-    steps: Array<{ tool: string, args: string, result: string, css?: string }>,  // no screenshots
-    summary: string,
+    steps: Array<{ tool: string, args: string, result: string, css?: string }>,  // no screenshots; outline and page text keep a 500-character preview
+    summary: string,             // the full markdown answer for answered turns; follow-up history cuts it at 4000 characters
     error?: string,
     screenshotsNote?: string
   }>,
@@ -202,6 +202,7 @@ Page agent chat of one tab (experimental): the user's requests, the agent's turn
 - Saved styles (`bookmarkPageStyles`): when the marker is the `saved-<rev>` id of the style saved to the tab's bookmark or Favorite and differs from `appliedId`, `checkMarker` adopts that sheet as the applied fields (also into a chat with no turns), so Undo, Show CSS and the next `apply_css` work on it. The strip's Apply removes the chat's sheet, inserts the saved one unless the marker already shows it, and records it the same way; it is ignored during a run
 - Loading: a turn stored as `running` loads as `stopped` ("Side panel closed during the run"), since runs live only in the panel that started them. A value that isn't a chat of that tab loads as no chat
 - Screenshots stay in the open panel's memory and are never written
+- The answer popup has no key: its state is a reference on the extension's isolated-world `window` in the page (`runPagePopupCommand`, `src/services/pageAgent/pagePopup.ts`), dropped by ✕, a reload, or a push or back/forward navigation to another path or query (a `replace` that rewrites the query keeps it). At the end of an answered turn the panel appends the answer to the run's tab only when that popup is still there; Show on page opens a new one from the turn's `summary`
 - Why session storage: chats are keyed by tab ID, which is valid for one browser session. An extension reload or update clears them while their CSS stays on the pages until a reload
 - Instances: 1 per tab with a chat
 

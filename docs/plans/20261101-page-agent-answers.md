@@ -367,10 +367,10 @@ export function runPagePopupCommand(command: PagePopupCommand): PagePopupResult;
 
 ### Task 7: Verify acceptance criteria
 
-- [ ] verify every item of the issue's Change list (1–7) and Tests list is implemented
-- [ ] verify edge cases: `show_popup` after `set_conditions`, empty reply, round limit without
+- [x] verify every item of the issue's Change list (1–7) and Tests list is implemented
+- [x] verify edge cases: `show_popup` after `set_conditions`, empty reply, round limit without
   conditions, closed popup stays closed, popup-opening turn not appended twice
-- [ ] run `make lint && make test && make build`
+- [x] run `make lint && make test && make build`
 
 ### Task 8: [Final] Update documentation
 
@@ -382,23 +382,23 @@ export function runPagePopupCommand(command: PagePopupCommand): PagePopupResult;
 - Modify: `docs/changelog.md`
 - Modify: `src/data/changelog.ts`
 
-- [ ] README "Page agent (experimental)": questions and markdown answers, `read_page_text`, `show_popup`,
+- [x] README "Page agent (experimental)": questions and markdown answers, `read_page_text`, `show_popup`,
   **Show on page**, the open popup collects later answers, ✕ ends it, reload or navigation removes it;
   reword the intro ("Ask an AI model to change how the current page looks") and the bullet "The agent
   writes CSS only, never JavaScript" (it now also shows a popup the extension builds); the `scripting`
   permission row mentions reading page text and showing the popup
-- [ ] PRIVACY.md: page text (up to 30 000 characters of the main content) goes to the AI endpoint, not
+- [x] PRIVACY.md: page text (up to 30 000 characters of the main content) goes to the AI endpoint, not
   only the outline; earlier answers go with follow-ups; answers are shown in a popup inside the page;
   reword "changes the page only with CSS the extension inserts into that tab";
   `docs/chrome-web-store-info.md` `scripting` justification likewise
-- [ ] `docs/state-reference.md` `pageAgentChat:${tabId}`: `'answered'` status, `summary` holds the full
+- [x] `docs/state-reference.md` `pageAgentChat:${tabId}`: `'answered'` status, `summary` holds the full
   answer for answered turns; the popup keeps no storage (lives in the page)
-- [ ] `docs/changelog.md` Latest Version entry; in `src/data/changelog.ts` extend the unreleased
+- [x] `docs/changelog.md` Latest Version entry; in `src/data/changelog.ts` extend the unreleased
   `'1.0.352'` page agent line (it can also answer questions about the page and show answers in a popup)
   instead of adding a separate line
-- [ ] update CLAUDE.md only if a new pattern came up
-- [ ] run `make lint && make test && make build`
-- [ ] move this plan to `docs/plans/completed/`
+- [x] update CLAUDE.md only if a new pattern came up (none: no new repo-wide pattern)
+- [x] run `make lint && make test && make build`
+- [x] move this plan to `docs/plans/completed/` (left in place: the orchestrator moves it at the end)
 
 ## Post-Completion
 
