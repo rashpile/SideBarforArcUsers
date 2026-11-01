@@ -54,7 +54,7 @@ export const PageAgentDrawer: React.FC<PageAgentDrawerProps> = ({
   onClose,
 }) =>
 {
-  const { chat, running, actionError, send, stop, undo, reapply, applySaved, runAction } =
+  const { chat, running, actionError, send, stop, undo, reapply, applySaved, showOnPage, runAction } =
     usePageAgentChat(chats, tabId, savedStyle?.rev ?? null);
   const bookmarkTitle = useBookmarkTitle(bookmarkId);
   const [hasPageAccess, requestPageAccess] = useOriginsGranted(PAGE_ORIGINS);
@@ -161,6 +161,7 @@ export const PageAgentDrawer: React.FC<PageAgentDrawerProps> = ({
         onUndo={undo}
         onReapply={reapply}
         onSave={saveStyle}
+        onShowOnPage={showOnPage}
       />
 
       <div className="shrink-0 border-t border-gray-200 dark:border-gray-700 px-2 py-1.5 space-y-1.5">
@@ -183,7 +184,7 @@ export const PageAgentDrawer: React.FC<PageAgentDrawerProps> = ({
             onKeyDown={handleKeyDown}
             disabled={block !== null}
             rows={2}
-            placeholder={block ? '' : 'Describe the change, e.g. “make the video full width”'}
+            placeholder={block ? '' : 'Ask about the page or describe a change, e.g. “summarize this page” or “make the video full width”'}
             className="flex-1 min-w-0 resize-none rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-1.5 py-1 outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
           />
           {running ? (

@@ -352,18 +352,18 @@ export function runPagePopupCommand(command: PagePopupCommand): PagePopupResult;
 - Modify: `src/components/pageAgent/PageAgentDrawer.tsx`
 - Modify: `src/hooks/usePageAgentChat.ts`
 
-- [ ] `MarkdownView` renders `MarkdownBlock[]` as React elements (Tailwind: heading sizes, `list-disc` /
+- [x] `MarkdownView` renders `MarkdownBlock[]` as React elements (Tailwind: heading sizes, `list-disc` /
   `list-decimal` with padding and `start`, blockquote border, `pre` for code blocks, inline `code`,
   links `target="_blank" rel="noopener noreferrer"`), keyed by index
-- [ ] answered turns render `parseMarkdown(turn.summary)` with `MarkdownView` (memoized), other
+- [x] answered turns render `parseMarkdown(turn.summary)` with `MarkdownView` (memoized), other
   statuses keep the plain text
-- [ ] **Show on page** button on answered turns (not disabled by a run), wired through
+- [x] **Show on page** button on answered turns (not disabled by a run), wired through
   `usePageAgentChat().showOnPage(turnIndex)` = `runAction('Show on page', () => chats.showOnPage(tabId,
   turnIndex))`
-- [ ] empty-chat hint (`PageAgentMessages.tsx`) and textarea placeholder (`PageAgentDrawer.tsx`) mention questions ("summarize this page") next to
+- [x] empty-chat hint (`PageAgentMessages.tsx`) and textarea placeholder (`PageAgentDrawer.tsx`) mention questions ("summarize this page") next to
   changes
-- [ ] no tests: UI (repo rule)
-- [ ] run `make test`, `npx tsc --noEmit` and `make lint` - must pass before next task
+- [x] no tests: UI (repo rule)
+- [x] run `make test`, `npx tsc --noEmit` and `make lint` - must pass before next task
 
 ### Task 7: Verify acceptance criteria
 
