@@ -172,6 +172,38 @@ Array<{ tabId: number, url: string, title: string, incognito: boolean, spaceId?:
 - Unreadable value: starts empty
 - Instances: 1 per extension
 
+### `pageAgentChat:${tabId}`
+Page agent chat of one tab (experimental): the user's requests, the agent's turns and the stylesheet it applied last
+```typescript
+{
+  tabId: number,
+  turns: Array<{
+    request: string,
+    status: 'running' | 'met' | 'not-met' | 'stopped' | 'error',
+    conditions: Array<{ id: string, text: string, met: boolean, measured: string }>,
+    replaced: Array<{ id: string, text: string, reason: string }>,  // earlier conditions this request replaced
+    steps: Array<{ tool: string, args: string, result: string, css?: string }>,  // no screenshots
+    summary: string,
+    error?: string,
+    screenshotsNote?: string
+  }>,
+  appliedCss: string,           // sanitized stylesheet without the marker; Show CSS and Re-apply use it
+  appliedInsertedText: string,  // exact text passed to insertCSS; removeCSS finds a sheet only by its text
+  appliedId: string,            // value of the --sidebar-page-agent marker in that text
+  appliedUrl: string,           // tab URL when the stylesheet was applied
+  notice: 'none' | 'reloaded' | 'navigated'
+}
+```
+- Owner: `PageAgentChats` (`src/services/pageAgent/pageAgentChats.ts`) through `PageAgentChatStore` (`pageAgentChatStore.ts`, writes queued in order), one per side panel, created in `src/App.tsx` by `createPanelPageAgentChats` and alive as long as the panel, not the drawer
+- Writer: the side panel of the window that holds the tab. It saves after every event of a run it started, also while the drawer shows another tab or is closed, and after Undo, Re-apply and a marker check. A panel loads only the chats of tabs its drawer shows, and `tabs.onUpdated` marker checks skip chats it hasn't loaded, so it doesn't write the chat of a tab in another window. A tab moved to another window mid-chat is a known limitation
+- Deletes: any panel on `tabs.onRemoved` (`tabClosed` aborts the tab's run and keeps its later events from writing the key back); the sweep at panel start deletes the keys of tabs missing from `chrome.tabs.query({})`
+- `appliedInsertedText` stays until it has been removed: Undo, the next `apply_css` and Re-apply call `removeCSS` with it first. Undo then clears the applied fields and the notice
+- Notice (`checkMarker`, on `tabs.onUpdated` with `status: 'complete'` and whenever a chat with applied CSS is shown, since `onUpdated` is unreliable in the side panel): the page's `--sidebar-page-agent` equal to `appliedId` clears it; an empty marker sets `reloaded` when the tab URL equals `appliedUrl`, else `navigated`
+- Loading: a turn stored as `running` loads as `stopped` ("Side panel closed during the run"), since runs live only in the panel that started them. A value that isn't a chat of that tab loads as no chat
+- Screenshots stay in the open panel's memory and are never written
+- Why session storage: chats are keyed by tab ID, which is valid for one browser session. An extension reload or update clears them while their CSS stays on the pages until a reload
+- Instances: 1 per tab with a chat
+
 ---
 
 ## Chrome Local Storage
@@ -388,6 +420,35 @@ string  // JSON of Record<spaceId, Array<{ id: string, url: string, title: strin
 - Unreadable value: parsed as empty, malformed records dropped. A failed read leaves the manager not loaded, and it writes nothing until the next worker start
 - Instances: 1 per extension (shared across windows)
 
+### `sidebar-ai-rename-settings`
+AI settings, used by AI naming and the page agent
+```typescript
+string  // JSON of
+{
+  baseUrl: string,         // default 'https://api.openai.com/v1'
+  apiKey: string,
+  model: string,
+  protocol: 'auto' | 'responses' | 'chat-completions',  // AI naming only; the page agent always uses Chat Completions
+  reasoningEffort: 'off' | 'low' | 'medium' | 'high',   // default 'medium'
+  prompt: string,          // AI naming prompt
+  autoRename: boolean,     // name new Favorites and pinned pages automatically
+  acceptsImages: boolean   // "Model accepts images": the page agent may send screenshots; default false
+}
+```
+- Owner: `src/App.tsx` (via `useChromeLocalStorage`, JSON), set from `src/components/SettingsDialog.tsx` (AI tab)
+- Consumers: `src/App.tsx` (AI naming through `OpenAiCompatibleClient`, `src/services/aiRenameService.ts`), `src/components/pageAgent/PageAgentDrawer.tsx` (from `App`; each page agent run gets the settings current at send time); not read by background
+- Parsing: `parseAiRenameSettings` (`src/utils/aiConfig.ts`); missing fields take the defaults, an unknown `protocol` reads as `'auto'`, an unknown `reasoningEffort` as `'medium'`, `autoRename` and `acceptsImages` are true only when stored as `true`, and the old Chinese default prompt is replaced by the current default
+- Instances: 1 per extension (shared across windows)
+
+### `pageAgentDrawerHeight`
+Height of the page agent drawer in pixels (experimental)
+```typescript
+string  // raw integer, not JSON; absent until the first resize
+```
+- Owner: `src/components/pageAgent/PageAgentDrawer.tsx` (via `useChromeLocalStorage` with a raw-string serializer), written once when a drag on the resize handle ends
+- Default: 45% of the panel height. Stored and default heights are clamped to [160 px, panel height - 160 px]; an unreadable value reads as absent
+- Instances: 1 per extension (shared across windows)
+
 ---
 
 ## Browser localStorage
@@ -470,7 +531,9 @@ Lost on page reload or service worker restart.
 │  ├─ attentionMarkedTabs             (marked tabs)               │
 │  ├─ attentionMarkedBookmarks        (marked bookmarks)          │
 │  ├─ sectionCollapsedState           (per Space)                 │
-│  └─ recentlyClosedTabs              (closed tabs per Space)     │
+│  ├─ recentlyClosedTabs              (closed tabs per Space)     │
+│  ├─ sidebar-ai-rename-settings      (AI naming, page agent)     │
+│  └─ pageAgentDrawerHeight           (page agent drawer)         │
 ├─────────────────────────────────────────────────────────────────┤
 │  browser localStorage (survives browser restart)                │
 │  └─ sidebar-* settings (10 keys)                                │
@@ -489,7 +552,8 @@ Lost on page reload or service worker restart.
 │  ├─ tabActivitySessionStarted       (browser session marker)    │
 │  ├─ tabRestoreSessionStarted        (browser session marker)    │
 │  ├─ autoArchiveLastRunAt            (last auto-archive run)     │
-│  └─ openTabPages                    (open tab pages)            │
+│  ├─ openTabPages                    (open tab pages)            │
+│  └─ pageAgentChat:{tabId}           (page agent chat per tab)   │
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐

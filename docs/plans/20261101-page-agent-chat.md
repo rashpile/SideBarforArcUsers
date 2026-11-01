@@ -421,12 +421,12 @@ instructions.
 - Modify: `docs/changelog.md`
 - Modify: `docs/chrome-web-store-info.md`
 
-- [ ] `README.md`: section "Page agent (experimental)" - what it does, the drawer, Undo / Show CSS / Re-apply, "Model accepts images", the known limitations from the design and this plan
-- [ ] `docs/state-reference.md`: `pageAgentChat:<tabId>` (session; written by the side panel of the tab's window, deleted by any panel on tab close and by the sweep for tabs that no longer exist), `pageAgentDrawerHeight` (local), and an entry for `sidebar-ai-rename-settings` (local, written by Settings, read by AI Rename and the page agent) that lists the new `acceptsImages` field
-- [ ] `PRIVACY.md`: the page outline, inspect results and screenshots go to the configured AI endpoint when the user runs the page agent
-- [ ] `docs/changelog.md`: an entry marked experimental (no `src/data/changelog.ts` What's New entry)
-- [ ] `docs/chrome-web-store-info.md`: justification for the optional `<all_urls>` permission (screenshots for the page agent)
-- [ ] move this plan to `docs/plans/completed/` (the orchestrator does it at the end; mark only)
+- [x] `README.md`: section "Page agent (experimental)" - what it does, the drawer, Undo / Show CSS / Re-apply, "Model accepts images", the known limitations from the design and this plan
+- [x] `docs/state-reference.md`: `pageAgentChat:<tabId>` (session; written by the side panel of the tab's window, deleted by any panel on tab close and by the sweep for tabs that no longer exist), `pageAgentDrawerHeight` (local), and an entry for `sidebar-ai-rename-settings` (local, written by Settings, read by AI Rename and the page agent) that lists the new `acceptsImages` field
+- [x] `PRIVACY.md`: the page outline, inspect results and screenshots go to the configured AI endpoint when the user runs the page agent
+- [x] `docs/changelog.md`: an entry marked experimental (no `src/data/changelog.ts` What's New entry)
+- [x] `docs/chrome-web-store-info.md`: justification for the optional `<all_urls>` permission (screenshots for the page agent)
+- [x] move this plan to `docs/plans/completed/` (the orchestrator does it at the end; mark only - not moved here)
 
 ## Known limitations
 
