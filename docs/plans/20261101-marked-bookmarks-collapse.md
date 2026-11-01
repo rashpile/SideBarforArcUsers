@@ -55,9 +55,9 @@ Visible side effect (intended): `hasPeek` becomes true for a collapsed folder wh
 - [x] run `make lint && make test && make build` - must pass
 
 ### Task 2: Verify acceptance criteria
-- [ ] verify all requirements from Overview are implemented (all three call sites use the mark)
-- [ ] verify system folders stay skipped and `hasActivePeek` / live-tabs filter are unchanged
-- [ ] run full checks: `make lint && make test && make build`
+- [x] verify all requirements from Overview are implemented (all three call sites use the mark)
+- [x] verify system folders stay skipped and `hasActivePeek` / live-tabs filter are unchanged
+- [x] run full checks: `make lint && make test && make build`
 
 ### Task 3: [Final] Update documentation
 - [ ] `README.md`: line "A collapsed folder still shows its open pages" → open and marked pages; the collapsed Bookmarks section line ("Open pages stay visible") likewise; in the Mark for Attention section add that a marked bookmark stays visible in a collapsed folder and in the collapsed Bookmarks section
