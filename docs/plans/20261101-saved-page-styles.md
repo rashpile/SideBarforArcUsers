@@ -225,22 +225,22 @@ Chat adoption (`PageAgentChats`), through an injected `savedStyleForTab(tabId)` 
 - Create: `src/services/pageStyleApplier.ts`
 - Create: `tests/pageStyleApplier.test.mjs`
 
-- [ ] implement `PageStyleApplier` with its dependencies passed in: `ready: Promise<boolean>`,
+- [x] implement `PageStyleApplier` with its dependencies passed in: `ready: Promise<boolean>`,
   `sameBrowserSession: Promise<boolean>`, `associationsOf(windowId)`, `styles()` (current
   `SavedPageStyles`), `getTab(tabId)`, `queryTabs()`, `insertCss(tabId, text)`, `readMarker(tabId)`,
   `debug` flag
-- [ ] `committed(tabId, frameId, transitionQualifiers)`, `loadComplete(tabId)` and `sweep()` per
+- [x] `committed(tabId, frameId, transitionQualifiers)`, `loadComplete(tabId)` and `sweep()` per
   Technical Details; every entry point awaits `ready` and does nothing when it is `false`; a
   `forward_back` commit inserts nothing (left to `loadComplete`); `start()` awaits `ready` and sweeps only
   when `sameBrowserSession` is `false`
-- [ ] errors (no host permission, unscriptable page, closed tab) are caught and logged only when `debug`
-- [ ] write tests: inserts for a `bookmark-` and a `pinned-` association on the saved origin; nothing for
+- [x] errors (no host permission, unscriptable page, closed tab) are caught and logged only when `debug`
+- [x] write tests: inserts for a `bookmark-` and a `pinned-` association on the saved origin; nothing for
   a hand-opened tab on the same site, an unrelated item key, another origin, `autoApply` off, CSS failing
   the sanitizer, an incognito tab; nothing at all when `ready` resolved false; `loadComplete` inserts only
   when the marker is empty; `start()` in a new browser session inserts into an already-loaded associated
   tab; `start()` on a worker restart (same session) inserts nothing into an associated tab whose marker is
   empty; a `forward_back` commit inserts nothing
-- [ ] run `make test` - must pass before next task
+- [x] run `make test` - must pass before next task
 
 ### Task 5: Wire manager and applier into the background
 
@@ -396,9 +396,11 @@ Code and test checks (in-browser checks are in Post-Completion):
 - `[known-limitation]` Saved styles aren't in Backup / Restore (restore creates new bookmark ids).
 - `[known-limitation]` Two bookmarks on one site each keep their own style; only the tab's own bookmark
   counts.
-- `[known-limitation]` At browser start a queued commit, the sweep and the load-complete check can reach
-  the same tab within milliseconds; the commit path inserts without a marker check, so a tab can rarely
-  get the saved sheet twice (Undo then leaves one copy until a reload).
+- `[known-limitation]` The applier runs the work for one tab one at a time, so a commit's insert lands
+  before the load-complete check or the startup sweep reads that tab's marker. A tab that navigates again
+  while a commit still waits for the startup restore can rarely get the saved sheet twice (the waiting
+  commit inserts into the newer page, which its own commit styles again; Undo then leaves one copy until
+  a reload).
 
 ## Post-Completion
 
