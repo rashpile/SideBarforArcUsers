@@ -1,0 +1,769 @@
+// One run of the page agent: the tool-call loop for one user message on one tab. The model client
+// and the page adapter are passed in, so Node tests drive the loop with fakes; nothing in here
+// touches chrome.*. The tab id is fixed when the run is created and every adapter call gets it,
+// so a run keeps acting on its own tab whichever tab the user switches to.
+
+import { PageAgentCssSanitizer, withMarker } from '../../utils/pageAgentCss.ts';
+import {
+  PAGE_AGENT_MAX_ROUNDS,
+  PAGE_AGENT_TOOL_NAMES,
+  pageAgentSystemPrompt,
+  pageAgentToolDefinitions,
+  parseApplyCssArgs,
+  parseInspectArgs,
+  parseReportArgs,
+  parseSetConditionsArgs,
+} from './pageAgentTools.ts';
+import type {
+  PageAgentConditionSpec,
+  PageAgentReportEntry,
+  PageAgentToolDefinition,
+} from './pageAgentTools.ts';
+
+export interface PageAgentToolCall
+{
+  id: string;
+  type: 'function';
+  function: { name: string; arguments: string };
+}
+
+export type PageAgentContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } };
+
+export interface PageAgentAssistantMessage
+{
+  role: 'assistant';
+  content: string | null;
+  tool_calls?: PageAgentToolCall[];
+}
+
+export type PageAgentMessage =
+  | { role: 'system'; content: string }
+  | { role: 'user'; content: string | PageAgentContentPart[] }
+  | PageAgentAssistantMessage
+  | { role: 'tool'; tool_call_id: string; content: string };
+
+export interface PageAgentModelRequest
+{
+  messages: PageAgentMessage[];
+  tools: PageAgentToolDefinition[];
+}
+
+export interface PageAgentModelClient
+{
+  complete(request: PageAgentModelRequest, signal: AbortSignal): Promise<PageAgentAssistantMessage>;
+}
+
+/** A failed model request; `status` is the HTTP status when the API answered. */
+export class PageAgentModelError extends Error
+{
+  readonly status: number | undefined;
+
+  constructor(message: string, status?: number)
+  {
+    super(message);
+    this.name = 'PageAgentModelError';
+    this.status = status;
+  }
+}
+
+export type PageAgentCapture = { dataUrl: string } | { unavailable: string };
+
+/** Everything the run does to a page. Rejections end the run as `error`. */
+export interface PageAgentPageAdapter
+{
+  /** JSON text for the model, already capped. */
+  outline(tabId: number): Promise<string>;
+  /** JSON text for the model. */
+  inspect(tabId: number, selectors: string[]): Promise<string>;
+  insertCss(tabId: number, text: string): Promise<void>;
+  /** Removes an inserted stylesheet by its exact text; a no-op when the page no longer has it. */
+  removeCss(tabId: number, text: string): Promise<void>;
+  capture(tabId: number): Promise<PageAgentCapture>;
+  pageUrl(tabId: number): Promise<string>;
+}
+
+export interface PageAgentConditionOutcome
+{
+  id: string;
+  text: string;
+  met: boolean;
+  measured: string;
+}
+
+export interface PageAgentReplacedCondition
+{
+  id: string;
+  /** Text of the earlier condition; empty when the chat history doesn't have the id. */
+  text: string;
+  reason: string;
+}
+
+export type PageAgentRunStatus = 'met' | 'not-met' | 'stopped' | 'error';
+
+export interface PageAgentRunResult
+{
+  status: PageAgentRunStatus;
+  conditions: PageAgentConditionOutcome[];
+  replaced: PageAgentReplacedCondition[];
+  summary: string;
+  error?: string;
+  screenshotsNote?: string;
+}
+
+export interface PageAgentStep
+{
+  tool: string;
+  args: string;
+  result: string;
+  css?: string;
+  /** Kept in side panel memory only; never persisted. */
+  screenshotDataUrl?: string;
+}
+
+export interface PageAgentAppliedCss
+{
+  /** The sanitized stylesheet without the marker. */
+  css: string;
+  /** The exact text inserted into the page; removeCSS needs it. */
+  insertedText: string;
+  appliedId: string;
+  url: string;
+}
+
+export interface PageAgentRunListener
+{
+  onStep(step: PageAgentStep): void;
+  onConditions(conditions: PageAgentConditionSpec[], replaced: PageAgentReplacedCondition[]): void;
+  onCssApplied(applied: PageAgentAppliedCss): void;
+  onFinished(result: PageAgentRunResult): void;
+}
+
+/** An earlier turn of the chat, condensed for a follow-up request. */
+export interface PageAgentHistoryTurn
+{
+  request: string;
+  status: PageAgentRunStatus | 'running';
+  conditions: PageAgentConditionOutcome[];
+  replaced: PageAgentReplacedCondition[];
+  summary: string;
+}
+
+export interface PageAgentRunOptions
+{
+  tabId: number;
+  request: string;
+  client: PageAgentModelClient;
+  adapter: PageAgentPageAdapter;
+  listener: PageAgentRunListener;
+  /** "Model accepts images": the screenshot tool is offered. */
+  screenshots: boolean;
+  history?: readonly PageAgentHistoryTurn[];
+  /** The stylesheet the chat applied last, without the marker; the model edits it. */
+  currentCss?: string;
+  /** The exact text inserted last, removed before the next insert; empty when there is none. */
+  insertedText?: string;
+  createId?: () => string;
+  debug?: boolean;
+}
+
+const SCREENSHOT_OMITTED = '[screenshot omitted]';
+const SCREENSHOTS_REJECTED = 'screenshots unavailable: the API rejected images';
+const SCREENSHOTS_REJECTED_NOTE = 'Screenshots were turned off for this request: the API rejected images.';
+const NO_REPORT = 'no report';
+const NOT_REPORTED = 'not reported';
+const STEP_TEXT_LIMIT = 500;
+
+class RunStoppedError extends Error
+{
+  constructor()
+  {
+    super('The run was stopped');
+    this.name = 'RunStoppedError';
+  }
+}
+
+/** The conditions set in this run; a follow-up request starts with none. */
+class RunConditions
+{
+  #conditions: PageAgentConditionSpec[] = [];
+  #replaced: PageAgentReplacedCondition[] = [];
+
+  get isSet(): boolean
+  {
+    return this.#conditions.length > 0;
+  }
+
+  get replaced(): PageAgentReplacedCondition[]
+  {
+    return [...this.#replaced];
+  }
+
+  set(conditions: PageAgentConditionSpec[], replaced: PageAgentReplacedCondition[]): void
+  {
+    this.#conditions = [...conditions];
+    this.#replaced = [...replaced];
+  }
+
+  /** A condition the report leaves out counts as unmet: silence is not success. */
+  fromReport(results: readonly PageAgentReportEntry[]): PageAgentConditionOutcome[]
+  {
+    return this.#conditions.map(condition =>
+    {
+      const result = results.find(entry => entry.id === condition.id);
+      return result
+        ? { id: condition.id, text: condition.text, met: result.met, measured: result.measured }
+        : { id: condition.id, text: condition.text, met: false, measured: NOT_REPORTED };
+    });
+  }
+
+  allUnmet(measured: string): PageAgentConditionOutcome[]
+  {
+    return this.#conditions.map(condition => ({ id: condition.id, text: condition.text, met: false, measured }));
+  }
+}
+
+class ChatHistory
+{
+  readonly #turns: readonly PageAgentHistoryTurn[];
+
+  constructor(turns: readonly PageAgentHistoryTurn[])
+  {
+    this.#turns = turns;
+  }
+
+  /** The text of an earlier condition, from the latest turn that has the id. */
+  conditionText(id: string): string
+  {
+    for (let index = this.#turns.length - 1; index >= 0; index--)
+    {
+      const condition = this.#turns[index].conditions.find(entry => entry.id === id);
+      if (condition)
+      {
+        return condition.text;
+      }
+    }
+    return '';
+  }
+
+  /**
+   * The first user message of a run. Earlier tool calls are not resent; the condensed turns and
+   * the current stylesheet are enough for "a bit narrower" to edit the current result.
+   */
+  firstUserMessage(request: string, currentCss: string): string
+  {
+    const sections = [`Request: ${request}`];
+    if (this.#turns.length > 0)
+    {
+      const turns = this.#turns.map((turn, index) => describeTurn(turn, index + 1));
+      sections.push(`Earlier requests in this chat (their tool calls are not repeated):\n${turns.join('\n')}`);
+    }
+    if (currentCss.trim())
+    {
+      sections.push(`Current stylesheet (applied by the last apply_css; a new apply_css replaces it as a whole):\n${currentCss}`);
+    }
+    else if (this.#turns.length > 0)
+    {
+      sections.push('No stylesheet is applied now.');
+    }
+    return sections.join('\n\n');
+  }
+}
+
+/** The messages of one run, and the view of them that goes into each request. */
+class RunConversation
+{
+  readonly #messages: PageAgentMessage[];
+  #pendingScreenshot: string | undefined;
+  #imagesDropped = false;
+
+  constructor(systemPrompt: string, firstUserMessage: string)
+  {
+    this.#messages = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: firstUserMessage },
+    ];
+  }
+
+  addAssistant(message: PageAgentAssistantMessage): void
+  {
+    const toolCalls = message.tool_calls ?? [];
+    this.#messages.push({
+      role: 'assistant',
+      content: message.content ?? null,
+      ...(toolCalls.length > 0 && { tool_calls: toolCalls }),
+    });
+  }
+
+  addToolResult(toolCallId: string, content: string): void
+  {
+    this.#messages.push({ role: 'tool', tool_call_id: toolCallId, content });
+  }
+
+  queueScreenshot(dataUrl: string): void
+  {
+    this.#pendingScreenshot = dataUrl;
+  }
+
+  // Chat Completions tool messages carry text only, and every tool message of a response has to
+  // follow it directly, so the image goes into one user message after all of them.
+  flushScreenshot(): void
+  {
+    if (this.#pendingScreenshot === undefined)
+    {
+      return;
+    }
+    this.#messages.push({
+      role: 'user',
+      content: [
+        { type: 'text', text: 'Screenshot of the visible part of the page, from your screenshot call.' },
+        { type: 'image_url', image_url: { url: this.#pendingScreenshot } },
+      ],
+    });
+    this.#pendingScreenshot = undefined;
+  }
+
+  dropImages(): void
+  {
+    this.#imagesDropped = true;
+  }
+
+  // Only the latest screenshot is sent, to bound tokens; older ones become a text placeholder.
+  requestMessages(): PageAgentMessage[]
+  {
+    let latestImage = -1;
+    if (!this.#imagesDropped)
+    {
+      for (let index = this.#messages.length - 1; index >= 0; index--)
+      {
+        if (hasImage(this.#messages[index]))
+        {
+          latestImage = index;
+          break;
+        }
+      }
+    }
+    return this.#messages.map((message, index) =>
+      index === latestImage || !hasImage(message) ? message : withoutImages(message));
+  }
+}
+
+interface ToolOutcome
+{
+  content: string;
+  step: PageAgentStep;
+  /** Set by a valid report: the run ends with it. */
+  finished?: PageAgentRunResult;
+}
+
+export class PageAgentRun
+{
+  readonly tabId: number;
+  readonly #client: PageAgentModelClient;
+  readonly #adapter: PageAgentPageAdapter;
+  readonly #listener: PageAgentRunListener;
+  readonly #screenshots: boolean;
+  readonly #history: ChatHistory;
+  readonly #conversation: RunConversation;
+  readonly #tools: PageAgentToolDefinition[];
+  readonly #createId: () => string;
+  readonly #debug: boolean;
+  readonly #controller = new AbortController();
+  readonly #conditions = new RunConditions();
+  #insertedText: string;
+  #imagesRejected = false;
+  #started = false;
+
+  constructor(options: PageAgentRunOptions)
+  {
+    this.tabId = options.tabId;
+    this.#client = options.client;
+    this.#adapter = options.adapter;
+    this.#listener = options.listener;
+    this.#screenshots = options.screenshots;
+    this.#history = new ChatHistory(options.history ?? []);
+    this.#conversation = new RunConversation(
+      pageAgentSystemPrompt(options.screenshots),
+      this.#history.firstUserMessage(options.request, options.currentCss ?? ''),
+    );
+    this.#tools = pageAgentToolDefinitions(options.screenshots);
+    this.#insertedText = options.insertedText ?? '';
+    this.#createId = options.createId ?? (() => crypto.randomUUID());
+    this.#debug = options.debug ?? false;
+  }
+
+  /** Ends the run as `stopped`: the model request is abandoned and no further tool runs. */
+  stop(): void
+  {
+    this.#controller.abort();
+  }
+
+  /** Runs the loop once and calls `onFinished` with the result it also returns. */
+  async run(): Promise<PageAgentRunResult>
+  {
+    if (this.#started)
+    {
+      throw new Error('A PageAgentRun runs only once');
+    }
+    this.#started = true;
+
+    let result: PageAgentRunResult;
+    try
+    {
+      result = await this.#loop();
+    }
+    catch (error)
+    {
+      // Whatever the client or adapter threw after Stop (AbortError, a network error), the run was stopped.
+      result = this.#controller.signal.aborted
+        ? this.#result('stopped', this.#conditions.allUnmet(NO_REPORT), 'Stopped.')
+        : this.#result('error', this.#conditions.allUnmet(NO_REPORT), '', errorMessage(error));
+    }
+    this.#log('finished', result);
+    this.#listener.onFinished(result);
+    return result;
+  }
+
+  async #loop(): Promise<PageAgentRunResult>
+  {
+    for (let round = 0; round < PAGE_AGENT_MAX_ROUNDS; round++)
+    {
+      this.#throwIfStopped();
+      const message = await this.#complete();
+      this.#throwIfStopped();
+      this.#conversation.addAssistant(message);
+
+      const toolCalls = message.tool_calls ?? [];
+      this.#log(`round ${round + 1}`, toolCalls.map(call => call.function?.name));
+      if (toolCalls.length === 0)
+      {
+        // Often a clarifying question; its text is what the user sees.
+        const text = message.content?.trim() || 'The model answered without a report.';
+        return this.#result('not-met', this.#conditions.allUnmet(NO_REPORT), text);
+      }
+
+      for (const call of toolCalls)
+      {
+        this.#throwIfStopped();
+        const outcome = await this.#runTool(call);
+        this.#listener.onStep(outcome.step);
+        if (outcome.finished)
+        {
+          return outcome.finished;
+        }
+        this.#conversation.addToolResult(call.id, outcome.content);
+      }
+      this.#conversation.flushScreenshot();
+    }
+
+    return this.#result(
+      'not-met',
+      this.#conditions.allUnmet(NO_REPORT),
+      `No report after ${PAGE_AGENT_MAX_ROUNDS} steps.`,
+    );
+  }
+
+  // A 400 on a request with an image usually means the model doesn't take images: the request is
+  // sent again once without them, and screenshots stay off for the rest of the run.
+  async #complete(): Promise<PageAgentAssistantMessage>
+  {
+    const request = this.#request();
+    try
+    {
+      return await this.#send(request);
+    }
+    catch (error)
+    {
+      const imageRejected = error instanceof PageAgentModelError && error.status === 400;
+      if (this.#controller.signal.aborted || !imageRejected || !request.messages.some(hasImage))
+      {
+        throw error;
+      }
+      this.#log('images rejected, retrying without them');
+      this.#imagesRejected = true;
+      this.#conversation.dropImages();
+      return await this.#send(this.#request());
+    }
+  }
+
+  #request(): PageAgentModelRequest
+  {
+    return { messages: this.#conversation.requestMessages(), tools: this.#tools };
+  }
+
+  // Raced against the run's signal, so Stop ends the run at once even if a client ignores the signal.
+  async #send(request: PageAgentModelRequest): Promise<PageAgentAssistantMessage>
+  {
+    const signal = this.#controller.signal;
+    const stopped = new Promise<never>((_resolve, reject) =>
+    {
+      if (signal.aborted)
+      {
+        reject(new RunStoppedError());
+        return;
+      }
+      signal.addEventListener('abort', () => reject(new RunStoppedError()), { once: true });
+    });
+    return await Promise.race([this.#client.complete(request, signal), stopped]);
+  }
+
+  async #runTool(call: PageAgentToolCall): Promise<ToolOutcome>
+  {
+    const name = call.function?.name ?? '';
+    const rawArguments = call.function?.arguments ?? '';
+    const parsed = parseJsonArguments(rawArguments);
+    if (!parsed.ok)
+    {
+      return toolError(name, shortText(rawArguments), parsed.error);
+    }
+
+    switch (name)
+    {
+      case PAGE_AGENT_TOOL_NAMES.outline:
+        return this.#outline();
+      case PAGE_AGENT_TOOL_NAMES.setConditions:
+        return this.#setConditions(parsed.value);
+      case PAGE_AGENT_TOOL_NAMES.applyCss:
+        return await this.#applyCss(parsed.value);
+      case PAGE_AGENT_TOOL_NAMES.inspect:
+        return await this.#inspect(parsed.value);
+      case PAGE_AGENT_TOOL_NAMES.screenshot:
+        if (this.#screenshots)
+        {
+          return await this.#screenshot();
+        }
+        break;
+      case PAGE_AGENT_TOOL_NAMES.report:
+        return this.#report(parsed.value);
+    }
+    return toolError(name, shortText(rawArguments), `unknown tool "${name}"`);
+  }
+
+  async #outline(): Promise<ToolOutcome>
+  {
+    const outline = await this.#adapter.outline(this.tabId);
+    return { content: outline, step: step(PAGE_AGENT_TOOL_NAMES.outline, '', shortText(outline)) };
+  }
+
+  #setConditions(args: unknown): ToolOutcome
+  {
+    const parsed = parseSetConditionsArgs(args);
+    if (!parsed.ok)
+    {
+      return toolError(PAGE_AGENT_TOOL_NAMES.setConditions, '', parsed.error);
+    }
+
+    const { conditions } = parsed.value;
+    const replaced = parsed.value.replaced.map(entry => ({
+      id: entry.id,
+      text: this.#history.conditionText(entry.id),
+      reason: entry.reason,
+    }));
+    this.#conditions.set(conditions, replaced);
+    this.#listener.onConditions(conditions, replaced);
+
+    const summary = conditions.map(condition => `${condition.id}: ${condition.text}`).join('; ');
+    return { content: 'ok', step: step(PAGE_AGENT_TOOL_NAMES.setConditions, shortText(summary), 'ok') };
+  }
+
+  async #applyCss(args: unknown): Promise<ToolOutcome>
+  {
+    const name = PAGE_AGENT_TOOL_NAMES.applyCss;
+    // Conditions first, so every change is checked against what the user asked for.
+    if (!this.#conditions.isSet)
+    {
+      return toolError(name, '', `refused: call ${PAGE_AGENT_TOOL_NAMES.setConditions} first`);
+    }
+    const parsed = parseApplyCssArgs(args);
+    if (!parsed.ok)
+    {
+      return toolError(name, '', parsed.error);
+    }
+
+    const css = parsed.value;
+    const argsSummary = `${css.length} characters`;
+    const check = PageAgentCssSanitizer.check(css);
+    if (!check.ok)
+    {
+      return { content: `rejected: ${check.reason}`, step: { ...step(name, argsSummary, `rejected: ${check.reason}`), css } };
+    }
+
+    const url = await this.#adapter.pageUrl(this.tabId);
+    if (this.#insertedText)
+    {
+      await this.#adapter.removeCss(this.tabId, this.#insertedText);
+    }
+    const appliedId = this.#createId();
+    const insertedText = withMarker(css, appliedId);
+    await this.#adapter.insertCss(this.tabId, insertedText);
+    this.#insertedText = insertedText;
+    // Recorded before any stop check: the stylesheet is on the page now, and Undo needs its text.
+    this.#listener.onCssApplied({ css, insertedText, appliedId, url });
+
+    return { content: 'ok', step: { ...step(name, argsSummary, 'ok'), css } };
+  }
+
+  async #inspect(args: unknown): Promise<ToolOutcome>
+  {
+    const parsed = parseInspectArgs(args);
+    if (!parsed.ok)
+    {
+      return toolError(PAGE_AGENT_TOOL_NAMES.inspect, '', parsed.error);
+    }
+    const result = await this.#adapter.inspect(this.tabId, parsed.value);
+    return {
+      content: result,
+      step: step(PAGE_AGENT_TOOL_NAMES.inspect, shortText(parsed.value.join(', ')), shortText(result)),
+    };
+  }
+
+  async #screenshot(): Promise<ToolOutcome>
+  {
+    const name = PAGE_AGENT_TOOL_NAMES.screenshot;
+    if (this.#imagesRejected)
+    {
+      return { content: SCREENSHOTS_REJECTED, step: step(name, '', SCREENSHOTS_REJECTED) };
+    }
+    const capture = await this.#adapter.capture(this.tabId);
+    if ('unavailable' in capture)
+    {
+      return { content: capture.unavailable, step: step(name, '', capture.unavailable) };
+    }
+    this.#conversation.queueScreenshot(capture.dataUrl);
+    return { content: 'attached', step: { ...step(name, '', 'attached'), screenshotDataUrl: capture.dataUrl } };
+  }
+
+  #report(args: unknown): ToolOutcome
+  {
+    const name = PAGE_AGENT_TOOL_NAMES.report;
+    const parsed = parseReportArgs(args);
+    if (!parsed.ok)
+    {
+      return toolError(name, '', parsed.error);
+    }
+
+    const { results, summary } = parsed.value;
+    const reportStep = step(name, shortText(summary), 'done');
+    // Success needs conditions set in this run; a report without them has nothing to check against.
+    if (!this.#conditions.isSet)
+    {
+      const text = summary ? `No conditions were set. ${summary}` : 'No conditions were set.';
+      return { content: 'done', step: reportStep, finished: this.#result('not-met', [], text) };
+    }
+
+    const conditions = this.#conditions.fromReport(results);
+    const status = conditions.every(condition => condition.met) ? 'met' : 'not-met';
+    return { content: 'done', step: reportStep, finished: this.#result(status, conditions, summary) };
+  }
+
+  #result(
+    status: PageAgentRunStatus,
+    conditions: PageAgentConditionOutcome[],
+    summary: string,
+    error?: string,
+  ): PageAgentRunResult
+  {
+    return {
+      status,
+      conditions,
+      replaced: this.#conditions.replaced,
+      summary,
+      ...(error !== undefined && { error }),
+      ...(this.#imagesRejected && { screenshotsNote: SCREENSHOTS_REJECTED_NOTE }),
+    };
+  }
+
+  #throwIfStopped(): void
+  {
+    if (this.#controller.signal.aborted)
+    {
+      throw new RunStoppedError();
+    }
+  }
+
+  #log(...values: unknown[]): void
+  {
+    if (this.#debug)
+    {
+      console.log('[page-agent]', `tab ${this.tabId}`, ...values);
+    }
+  }
+}
+
+function describeTurn(turn: PageAgentHistoryTurn, number: number): string
+{
+  const lines = [`${number}. Request: ${turn.request}`, `   Outcome: ${turn.status}`];
+  for (const condition of turn.conditions)
+  {
+    const measured = condition.measured ? ` (${condition.measured})` : '';
+    lines.push(`   - [${condition.id}] ${condition.text}: ${condition.met ? 'met' : 'unmet'}${measured}`);
+  }
+  for (const entry of turn.replaced)
+  {
+    lines.push(`   - [${entry.id}] replaced: ${entry.reason}`);
+  }
+  if (turn.summary)
+  {
+    lines.push(`   Summary: ${turn.summary}`);
+  }
+  return lines.join('\n');
+}
+
+function hasImage(message: PageAgentMessage): boolean
+{
+  return message.role === 'user' && Array.isArray(message.content) &&
+    message.content.some(part => part.type === 'image_url');
+}
+
+// Text only, so a provider that rejected the image gets a plain message.
+function withoutImages(message: PageAgentMessage): PageAgentMessage
+{
+  if (message.role !== 'user' || !Array.isArray(message.content))
+  {
+    return message;
+  }
+  const text = message.content.map(part => part.type === 'text' ? part.text : SCREENSHOT_OMITTED).join('\n');
+  return { role: 'user', content: text };
+}
+
+function parseJsonArguments(text: string): { ok: true; value: unknown } | { ok: false; error: string }
+{
+  // Some providers send an empty string for a tool without arguments.
+  if (!text.trim())
+  {
+    return { ok: true, value: {} };
+  }
+  try
+  {
+    return { ok: true, value: JSON.parse(text) };
+  }
+  catch
+  {
+    return { ok: false, error: 'invalid arguments: not valid JSON' };
+  }
+}
+
+function toolError(name: string, args: string, error: string): ToolOutcome
+{
+  return { content: error, step: step(name, args, error) };
+}
+
+function step(tool: string, args: string, result: string): PageAgentStep
+{
+  return { tool, args, result };
+}
+
+function shortText(text: string): string
+{
+  return text.length > STEP_TEXT_LIMIT ? `${text.slice(0, STEP_TEXT_LIMIT)}...` : text;
+}
+
+function errorMessage(error: unknown): string
+{
+  if (error instanceof Error && error.message)
+  {
+    return error.message;
+  }
+  return typeof error === 'string' && error ? error : 'Unknown error';
+}

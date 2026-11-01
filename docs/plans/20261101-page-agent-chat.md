@@ -147,7 +147,13 @@ instructions.
 - Interfaces (exported types): `PageAgentModelClient.complete(request, signal) → assistant message`
   (`content`, `tool_calls`), `PageAgentPageAdapter` (`outline(tabId)`, `inspect(tabId, selectors)`,
   `insertCss(tabId, text)`, `removeCss(tabId, text)`, `capture(tabId) → { dataUrl } | { unavailable:
-  reason }`), `PageAgentRunListener` (`onStep`, `onConditions`, `onCssApplied`, `onFinished`).
+  reason }`, `pageUrl(tabId)`), `PageAgentRunListener` (`onStep`, `onConditions`, `onCssApplied`,
+  `onFinished`). `outline` and `inspect` return the JSON text for the model (the adapter caps it).
+  `pageUrl(tabId)` gives the URL recorded as `appliedUrl` (a follow-up run may skip the outline, so
+  the outline's URL isn't always there). `PageAgentModelError(message, status)` is the error class
+  model clients throw; the run checks its `status` for the image retry.
+- The run owns its `AbortController`: `stop()` aborts it, and the model call is raced against it so
+  Stop ends the run even if a client ignores the signal.
 - Step limit: 8 model rounds (one round = one assistant response) per user message. Multiple tool calls
   in one response run in order; tool calls after `report` in the same response are not run.
 - End states:
@@ -166,7 +172,12 @@ instructions.
 - Conditions are per user message: `apply_css` is refused until this run's `set_conditions`. `replaced`
   ids are shown as "replaced: <reason>", not failed.
 - `apply_css`: sanitize → `removeCss(previous inserted text)` when there is one (a no-op if the sheet is
-  already gone) → `insertCss(withMarker(css, newId))` → `onCssApplied(css, insertedText, url)`.
+  already gone) → `insertCss(withMarker(css, newId))` → `onCssApplied({ css, insertedText, appliedId,
+  url })` (one object: the chat needs `appliedId` too). It is called right after `insertCss` resolves,
+  before any stop check, so a stylesheet that reached the page is always recorded.
+- `replaced` entries carry the earlier condition's text, looked up by id in the history (latest turn
+  first); the system prompt asks for condition ids not used earlier in the chat.
+- Stopped and error results list this run's conditions as unmet with "no report".
 - Message assembly: after an assistant message with `tool_calls`, every `role: "tool"` message for its
   `tool_call_id`s comes first; a screenshot goes in one `role: "user"` message after them
   (`[{ type: 'text', ... }, { type: 'image_url', image_url: { url: dataUrl } }]`). When building a
@@ -291,13 +302,13 @@ instructions.
 - Create: `src/services/pageAgent/pageAgentRun.ts`
 - Create: `tests/pageAgentRun.test.mjs`
 
-- [ ] define tool schemas and the system prompt in `pageAgentTools.ts` (Technical Details → Tools); `screenshot` only when images are on
-- [ ] implement `PageAgentRun` with the interfaces, tool dispatch, per-run conditions, sanitizer check before insert, previous-text removal, marker, step limit 8, end states, error classification, abort handling by the run's own signal (Technical Details → Loop)
-- [ ] implement message assembly: tool messages first, screenshot user message after them, older screenshots replaced by "[screenshot omitted]", condensed follow-up context
-- [ ] implement the HTTP 400 image retry and the screenshots-off note
-- [ ] test (fake client + fake adapter recording tab ids): a run started on tab A sends every adapter call to tab A, also after the fake's active tab switches to B mid-run
-- [ ] test: ends on `report` (met / not-met by results; a condition missing from results is unmet; a report with no conditions set is not-met); ends at the step limit as not-met; ends on an answer without tool calls as not-met with its text as summary; `apply_css` before `set_conditions` is refused and nothing is inserted; a sanitizer rejection is returned to the model and nothing is inserted
-- [ ] run `make test`, `make lint`, `npx tsc --noEmit` - must pass before task 3
+- [x] define tool schemas and the system prompt in `pageAgentTools.ts` (Technical Details → Tools); `screenshot` only when images are on
+- [x] implement `PageAgentRun` with the interfaces, tool dispatch, per-run conditions, sanitizer check before insert, previous-text removal, marker, step limit 8, end states, error classification, abort handling by the run's own signal (Technical Details → Loop)
+- [x] implement message assembly: tool messages first, screenshot user message after them, older screenshots replaced by "[screenshot omitted]", condensed follow-up context
+- [x] implement the HTTP 400 image retry and the screenshots-off note
+- [x] test (fake client + fake adapter recording tab ids): a run started on tab A sends every adapter call to tab A, also after the fake's active tab switches to B mid-run
+- [x] test: ends on `report` (met / not-met by results; a condition missing from results is unmet; a report with no conditions set is not-met); ends at the step limit as not-met; ends on an answer without tool calls as not-met with its text as summary; `apply_css` before `set_conditions` is refused and nothing is inserted; a sanitizer rejection is returned to the model and nothing is inserted
+- [x] run `make test`, `make lint`, `npx tsc --noEmit` - must pass before task 3
 
 ### Task 3: Page scripts, screenshot guard and Chrome page adapter
 
@@ -309,7 +320,7 @@ instructions.
 
 - [ ] write the injected outline, inspect and marker-check functions (self-contained) per Technical Details → Page scripts
 - [ ] implement `ActiveTabCapture(tabsApi)` with the active-before-and-after guard
-- [ ] implement `ChromePageAdapter` (implements `PageAgentPageAdapter`): executeScript wrappers, insertCSS/removeCSS with `PAGE_AGENT_CSS_ORIGIN`, `readMarker(tabId)`, capture through `ActiveTabCapture` plus the 1280 px downscale
+- [ ] implement `ChromePageAdapter` (implements `PageAgentPageAdapter`): executeScript wrappers, insertCSS/removeCSS with `PAGE_AGENT_CSS_ORIGIN`, `readMarker(tabId)`, `pageUrl(tabId)` (`tabs.get(tabId).url`), capture through `ActiveTabCapture` plus the 1280 px downscale
 - [ ] test (fake tabs API): tab not active → no capture call, "not visible"; tab stops being active during the capture → image discarded; active before and after → image returned
 - [ ] run `make test`, `make lint`, `npx tsc --noEmit` - must pass before task 4
 
@@ -318,7 +329,7 @@ instructions.
 **Files:**
 - Create: `src/services/pageAgent/chatCompletionsAgentClient.ts`
 
-- [ ] implement the client (implements `PageAgentModelClient`) per Technical Details → Model client: endpoint, body, abort + 120 s timeout, errors with HTTP status and safe messages (reuse the wording of `aiRenameService.ts` `#statusMessage` by extracting it to a shared function if that keeps both simple, else copy)
+- [ ] implement the client (implements `PageAgentModelClient`) per Technical Details → Model client: endpoint, body, abort + 120 s timeout, errors as `PageAgentModelError` with HTTP status and safe messages (reuse the wording of `aiRenameService.ts` `#statusMessage` by extracting it to a shared function if that keeps both simple, else copy)
 - [ ] `npx tsc --noEmit` and `make lint` pass (no tests: HTTP wiring)
 
 ### Task 5: Chat model, session store and the panel's chat owner
