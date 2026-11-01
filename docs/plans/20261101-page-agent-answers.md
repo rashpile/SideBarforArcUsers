@@ -326,23 +326,23 @@ export function runPagePopupCommand(command: PagePopupCommand): PagePopupResult;
 - Modify: `src/services/pageAgent/panelPageAgent.ts`
 - Modify: `tests/pageAgentChats.test.mjs`
 
-- [ ] `PageAgentChat.history()` caps answered turns' summary at `ANSWER_HISTORY_LIMIT` with the cut
+- [x] `PageAgentChat.history()` caps answered turns' summary at `ANSWER_HISTORY_LIMIT` with the cut
   note; add `answerOf(turnIndex)`
-- [ ] `PageAgentChatPage` + `showPopup` / `appendToPopup`; `LazyChatPage` forwards both to the
+- [x] `PageAgentChatPage` + `showPopup` / `appendToPopup`; `LazyChatPage` forwards both to the
   runtime's `ChromePageAdapter`
-- [ ] `PageAgentChats.send`: keep the run's result; when it is `answered` without `openedPopup` and the
+- [x] `PageAgentChats.send`: keep the run's result; when it is `answered` without `openedPopup` and the
   chat is still owned, `appendToPopup` on the run's tab with the request and the answer, before the run
   leaves `#runs`; a rejection is logged and never changes the turn
-- [ ] `PageAgentChats.showOnPage(tabId, turnIndex)`: `answerOf` → `page.showPopup(tabId, 'Page agent',
+- [x] `PageAgentChats.showOnPage(tabId, turnIndex)`: `answerOf` → `page.showPopup(tabId, 'Page agent',
   answer)`; nothing for a turn that isn't answered
-- [ ] update `FakePage` in the tests: per-tab popup (`showPopup` opens with one entry, `appendToPopup`
+- [x] update `FakePage` in the tests: per-tab popup (`showPopup` opens with one entry, `appendToPopup`
   appends and returns true only while open, `closePopup(tabId)` for the ✕), recording tab ids
-- [ ] write tests: the history passed to the second run has the first answer's full text, and an answer
+- [x] write tests: the history passed to the second run has the first answer's full text, and an answer
   over 4 000 characters arrives cut with the note
-- [ ] write tests: a run on tab A that ends `answered` while the drawer shows tab B appends to A's open
+- [x] write tests: a run on tab A that ends `answered` while the drawer shows tab B appends to A's open
   popup (and nothing goes to B); after `closePopup(A)` the next answered turn appends nothing and opens
   no popup; a turn with `openedPopup` and a `met` turn don't call `appendToPopup`
-- [ ] run `make test`, `npx tsc --noEmit` and `make lint` - must pass before next task
+- [x] run `make test`, `npx tsc --noEmit` and `make lint` - must pass before next task
 
 ### Task 6: Answers in the drawer
 
