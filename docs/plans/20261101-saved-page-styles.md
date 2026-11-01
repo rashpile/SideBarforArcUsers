@@ -334,18 +334,21 @@ Chat adoption (`PageAgentChats`), through an injected `savedStyleForTab(tabId)` 
 - Modify: `src/components/BookmarkTree.tsx`
 - Modify: `src/components/PinnedIcon.tsx`
 - Modify: `src/components/PinnedBar.tsx` (if the hook is called there rather than in `PinnedIcon.tsx`)
+- Create: `src/components/PageStyleMenu.tsx` (➕ the brush badge and the Page style submenu, shared by
+  the tree and the Favorites)
+- Modify: `src/hooks/usePageStyles.ts` (➕ `styleStateFor(bookmarkId)` returning the primitive state)
 
-- [ ] call `usePageStyles()` in `BookmarkTree.tsx` (as it already calls `useAttentionMarks()`) and in
+- [x] call `usePageStyles()` in `BookmarkTree.tsx` (as it already calls `useAttentionMarks()`) and in
   `PinnedBar.tsx` or `PinnedIcon.tsx`; pass each row a primitive style state (`'none' | 'on' | 'off'`) so
   memoized rows keep working
-- [ ] bookmark rows with a saved style show a lucide `Paintbrush` icon (size 12-14) at the right: accent
+- [x] bookmark rows with a saved style show a lucide `Paintbrush` icon (size 12-14) at the right: accent
   (blue) when auto-apply is on, gray when off, `title` "Saved page style · auto-apply on" / "off"; hidden
   while the hover actions show (`group-hover:hidden` or equivalent) so the row doesn't jump
-- [ ] bookmark context menu (single bookmark, not multi-select): **Page style ▸** submenu when the
+- [x] bookmark context menu (single bookmark, not multi-select): **Page style ▸** submenu when the
   bookmark has a saved style, with "Auto-apply on load" (check mark when on) and "Remove saved style"
-- [ ] Favorite context menu in `PinnedIcon.tsx`: the same submenu; no badge on the tile
-- [ ] no tests: UI (repo rule)
-- [ ] run `make test`, `make build` and `make lint` - must pass before next task
+- [x] Favorite context menu in `PinnedIcon.tsx`: the same submenu; no badge on the tile
+- [x] no tests: UI (repo rule)
+- [x] run `make test`, `make build` and `make lint` - must pass before next task
 
 ### Task 9: Verify acceptance criteria
 

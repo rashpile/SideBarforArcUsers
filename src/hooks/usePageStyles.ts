@@ -3,6 +3,9 @@ import { pageStyleProxy } from '../managers/proxies/pageStyleProxy';
 import { ManagerId } from '../managers/proxies/messageRouting';
 import type { SavedPageStyle } from '../stores/savedPageStyles';
 
+/** Whether a bookmark has a saved style and whether it auto-applies; a primitive, so memoized rows can take it. */
+export type PageStyleState = 'none' | 'on' | 'off';
+
 /** The changes to saved page styles; each rejects with the manager's reason. */
 export interface PageStyleActions
 {
@@ -27,6 +30,12 @@ export const usePageStyles = () =>
 
   // A new identity per mirror change, so memoized consumers that take it re-render
   const styleFor = useCallback((bookmarkId: string): SavedPageStyle | null => styles.styleFor(bookmarkId), [styles]);
+  const styleStateFor = useCallback((bookmarkId: string): PageStyleState =>
+  {
+    const style = styles.styleFor(bookmarkId);
+    if (!style) return 'none';
+    return style.autoApply ? 'on' : 'off';
+  }, [styles]);
 
   const save = useCallback(async (bookmarkId: string, css: string, pageUrl: string): Promise<void> =>
   {
@@ -43,7 +52,7 @@ export const usePageStyles = () =>
     await withManagerReason('remove', () => pageStyleProxy.remove(bookmarkId));
   }, []);
 
-  return { styleFor, save, setAutoApply, remove };
+  return { styleFor, styleStateFor, save, setAutoApply, remove };
 };
 
 // callManager puts "<manager>.<method> failed: " before the manager's message; the user should

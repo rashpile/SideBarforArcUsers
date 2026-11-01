@@ -5,6 +5,7 @@ import { PinnedSite } from '../hooks/usePinnedSites';
 import { UndoableAction } from '../actions/types';
 import { DeletePinnedSiteAction } from '../actions/deletePinnedSiteAction';
 import { useBookmarkTabsContext } from '../contexts/BookmarkTabsContext';
+import { usePageStyles } from '../hooks/usePageStyles';
 import { useSpacesContext, type Space } from '../contexts/SpacesContext';
 import { tabSpaceRegistryProxy } from '../managers/proxies/tabSpaceRegistryProxy';
 import { FAVORITE_ITEM_KEY_PREFIX, findTabsForItemKey } from '../utils/tabAssociations';
@@ -59,6 +60,19 @@ export const PinnedBar = ({
   const { openPinnedTab, closePinnedTab, isPinnedLoaded, isPinnedActive, isPinnedAudible, getTabIdForPinned, associateExistingPinnedTab, deassociatePinnedTab, restoreItemAssociation } = useBookmarkTabsContext();
   const { windowId, activeSpace, allSpaces } = useSpacesContext();
   const { activeDragData, overId, dropPosition, registerDropHandler, unregisterDropHandler } = useUnifiedDnd();
+  const { styleStateFor: pageStyleStateFor, setAutoApply: setPageStyleAutoApply, remove: removePageStyle } = usePageStyles();
+
+  // A Favorite's id is its bookmark node id, which the saved style is keyed by. No error display
+  // here; after a failed write the proxy re-reads the stored styles, so the menu shows what is saved.
+  const handleSetPageStyleAutoApply = useCallback((pinnedId: string, on: boolean) =>
+  {
+    setPageStyleAutoApply(pinnedId, on).catch(error => console.error('[PageStyles] setAutoApply failed:', error));
+  }, [setPageStyleAutoApply]);
+
+  const handleRemovePageStyle = useCallback((pinnedId: string) =>
+  {
+    removePageStyle(pinnedId).catch(error => console.error('[PageStyles] remove failed:', error));
+  }, [removePageStyle]);
 
   // Move pinned tab to a new window
   const movePinnedToNewWindow = (pinnedId: string) =>
@@ -294,6 +308,9 @@ export const PinnedBar = ({
           onMoveToTabs={bookmarkOpenMode === 'arc' ? deassociatePinnedTab : undefined}
           getMoveTargets={getPinMoveTargets}
           onMoveToSpace={handleMovePinToSpace}
+          pageStyleState={pageStyleStateFor(site.id)}
+          onSetPageStyleAutoApply={handleSetPageStyleAutoApply}
+          onRemovePageStyle={handleRemovePageStyle}
           isLoaded={bookmarkOpenMode === 'arc' ? isPinnedLoaded(site.id) : false}
           isActive={bookmarkOpenMode === 'arc' ? isPinnedActive(site.id) : false}
           isAudible={bookmarkOpenMode === 'arc' ? isPinnedAudible(site.id) : false}

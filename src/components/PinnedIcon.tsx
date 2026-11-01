@@ -10,6 +10,8 @@ import { iconToDataUrl } from '../utils/iconify';
 import { createPinDragData, DropData, DropPosition, DragFormat, acceptsFormats } from '../types/dragDrop';
 import { resolveItemDoubleClick } from '../utils/itemDoubleClick';
 import type { Space } from '../utils/spaceMessages';
+import type { PageStyleState } from '../hooks/usePageStyles';
+import { PageStyleSubmenu } from './PageStyleMenu';
 
 const IconColorPicker = lazy(() =>
   import('./IconColorPicker').then(module => ({ default: module.IconColorPicker }))
@@ -77,6 +79,10 @@ interface PinnedIconProps
   // Read when the menu opens, so the list follows bookmark folder changes
   getMoveTargets?: () => Space[];
   onMoveToSpace?: (id: string, target: Space) => void;
+  // The tile shows no badge; the saved style shows only in the context menu
+  pageStyleState?: PageStyleState;
+  onSetPageStyleAutoApply?: (id: string, on: boolean) => void;
+  onRemovePageStyle?: (id: string) => void;
   isLoaded?: boolean;
   isActive?: boolean;
   isAudible?: boolean;
@@ -101,6 +107,9 @@ export const PinnedIcon = ({
   onMoveToTabs,
   getMoveTargets,
   onMoveToSpace,
+  pageStyleState = 'none',
+  onSetPageStyleAutoApply,
+  onRemovePageStyle,
   isLoaded,
   isActive,
   isAudible,
@@ -391,6 +400,13 @@ export const PinnedIcon = ({
             <ContextMenu.Item onSelect={handleEdit}>
               <Pencil size={14} className="mr-2" /> Edit
             </ContextMenu.Item>
+            {onSetPageStyleAutoApply && onRemovePageStyle && (
+              <PageStyleSubmenu
+                state={pageStyleState}
+                onSetAutoApply={(on) => onSetPageStyleAutoApply(site.id, on)}
+                onRemove={() => onRemovePageStyle(site.id)}
+              />
+            )}
             {isLoaded && onClose && (
               <ContextMenu.Item onSelect={() => onClose(site.id)}>
                 <X size={14} className="mr-2" /> Close Tab
