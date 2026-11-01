@@ -6,14 +6,17 @@ import { ChromePageAdapter } from './chromePageAdapter.ts';
 import type { PageAgentRunStart } from './pageAgentChats.ts';
 import { PageAgentApiClient } from './pageAgentModelClient.ts';
 import type { PageAgentToolPlugin } from './pageAgentPlugin.ts';
-import { PageAgentPluginSwitches } from './pageAgentPlugins.ts';
+import { PageAgentPluginSwitches, VIDEO_TRANSCRIPTS_PLUGIN_ID } from './pageAgentPlugins.ts';
 import { PageAgentRun } from './pageAgentRun.ts';
+import { VideoTranscriptPlugin } from './videoTranscriptPlugin.ts';
 
 type PageAgentPluginFactory = (page: ChromePageAdapter) => PageAgentToolPlugin;
 
 // Keyed by the ids in PAGE_AGENT_PLUGINS. Kept here rather than in the metadata, so Settings can list
 // the plugins without loading their code.
-const PLUGIN_FACTORIES = new Map<string, PageAgentPluginFactory>();
+const PLUGIN_FACTORIES = new Map<string, PageAgentPluginFactory>([
+  [VIDEO_TRANSCRIPTS_PLUGIN_ID, page => new VideoTranscriptPlugin(page)],
+]);
 
 export class PageAgentRuntime
 {

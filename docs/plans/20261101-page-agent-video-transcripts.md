@@ -327,6 +327,8 @@ export class VideoTranscriptReader
     the current position; default the beginning
   - `to` (string or number): end, same absolute formats or `"end"`; default the current position while
     the video is mid-way, else the end
+- the schema declares `from` and `to` as `string` (a `["string", "number"]` type list is rejected by
+  some OpenAI-compatible endpoints); the parser still takes numbers. `null` and `""` read as absent
 - argument errors go back as `{ ok: false }` (e.g. `invalid arguments: to must be "end", seconds or
   h:mm:ss`)
 - prompt section "Questions about a video on the page (summarize it, what happened so far, what was
@@ -443,9 +445,9 @@ export class VideoTranscriptReader
 - Modify: `src/services/pageAgent/pageAgentRuntime.ts`
 - Modify: `src/services/pageAgent/pageAgentTools.ts` (only if the core prompt needs a pointer to plugins; otherwise untouched)
 
-- [ ] plugin with the `read_video_transcript` definition, argument parsing via `parseTimeArg`, the prompt section and the step summary
-- [ ] register the `video-transcripts` factory in the runtime (reader built on the adapter's `VideoPageAccess`)
-- [ ] no new tests (wiring and wording, CLAUDE.md); `make test`, `npx tsc --noEmit`, `make lint` - must pass before task 9
+- [x] plugin with the `read_video_transcript` definition, argument parsing via `parseTimeArg`, the prompt section and the step summary
+- [x] register the `video-transcripts` factory in the runtime (reader built on the adapter's `VideoPageAccess`)
+- [x] no new tests (wiring and wording, CLAUDE.md); `make test`, `npx tsc --noEmit`, `make lint` - must pass before task 9
 
 ### Task 9: Settings: Page agent plugins group
 

@@ -9,9 +9,11 @@ export interface PageAgentPluginInfo
   defaultEnabled: boolean;
 }
 
+export const VIDEO_TRANSCRIPTS_PLUGIN_ID = 'video-transcripts';
+
 export const PAGE_AGENT_PLUGINS: readonly PageAgentPluginInfo[] = [
   {
-    id: 'video-transcripts',
+    id: VIDEO_TRANSCRIPTS_PLUGIN_ID,
     title: 'Video transcripts',
     description: 'Read the subtitles of the video on the page: Prime Video and videos with subtitle tracks',
     defaultEnabled: true,
