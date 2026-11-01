@@ -60,7 +60,21 @@ Everything is stored in Chrome: bookmarks for Spaces, pinned pages, the archive 
 - Links you open from a bookmark or Favorite page (`Cmd+Click`) land at the top of the Tab list
 - A tab you open yourself on a bookmarked or Favorite URL stays in the Tab list. In Arc style, clicking that bookmark or Favorite opens a second tab for it; dragging the tab onto the tree, **Add to Bookmark**, pinning it or dropping it on the Favorites grid makes a new bookmark or Favorite with that tab as its page. Tabs reopened from the Archive also land in the Tab list
 - Drag and drop to organize. Drag a tab onto the tree to bookmark it
-- `...` menu: New Folder, New Bookmark, Sort by Name/Date, Edit, Duplicate, Delete, Pin, Move to New Window, Expand All, Open as Tab Group
+- `...` menu: New Folder, New Bookmark, Sort by Name/Date, Copy as YAML, Paste from YAML..., Edit, Duplicate, Delete, Pin, Move to New Window, Expand All, Open as Tab Group
+- **Copy as YAML** puts the folder, its subfolders and bookmarks on the clipboard as YAML. **Paste from YAML...** opens a box for YAML text and adds the folders and bookmarks to the end of the folder; same-named folders are not merged. The box shows what it will create ("3 folders, 12 bookmarks") or the line and reason of each error, and nothing is created until the whole text is valid. A URL without `https://` gets it added. One Undo removes the whole paste. `asd_Archive` and `asd_Favorites` are left out of a copy and can't be pasted. The format:
+
+  ```yaml
+  - folder: "Tools"
+    items:
+      - title: "GitHub"
+        url: "https://github.com"
+      - folder: "Docs"
+        items: []
+  - title: "Inbox"
+    url: "https://mail.google.com"
+  ```
+
+  A bookmark has `url` and an optional `title` (the URL is used when it is missing); a folder has `folder` and `items`.
 - Right-click a bookmark: Copy Link, Share, AI Rename, Edit, Mute/Unmute, Duplicate, Move to..., Remove Pin, Mark for Attention, Pin to Sidebar. With several bookmarks selected, **Pin to Sidebar** pins them all. **Edit** opens a submenu: **Replace Pinned URL with Current** (when the page is open) saves the tab's current address as the bookmark's URL and keeps its title; **Edit Pinned Page** opens the dialog to change title and URL
 - Hover a bookmark for a flag button that marks it for attention. A speaker icon shows pages playing audio, an X on hover closes the tab
 
@@ -102,6 +116,7 @@ Hover a tab or a bookmark and click the flag button, or right-click it and pick 
 - Space membership doesn't depend on Chrome tab groups. Your own groups work normally inside a Space, and moving a tab between windows keeps its Space
 - Create with "+" in the bar: name, icon, color and bookmark folder (created if missing)
 - Right-click a Space icon to edit or delete it. The last Space can't be deleted
+- The Space title's `...` menu has **Copy Space as YAML** (the Space folder's bookmarks and folders, without `asd_Archive` and `asd_Favorites`) and **Paste from YAML...** (adds to the end of the Space folder). Both work as for a folder and are hidden when the Space has no bookmark folder
 - Optionally tint the sidebar with the Space's color
 - Use a bookmark folder for one Space only. Two Spaces on one folder aren't blocked, but bookmarks then resolve to whichever Space comes first
 

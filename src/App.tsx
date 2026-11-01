@@ -25,6 +25,8 @@ import { BookmarkTabsProvider, useBookmarkTabsContext } from './contexts/Bookmar
 import { CloseTabAction } from './actions/closeTabAction';
 import { ConfirmDeleteDialog } from './components/ConfirmDeleteDialog';
 import { BookmarkCreateFolderModal } from './components/BookmarkCreateFolderModal';
+import { PasteYamlDialog } from './components/PasteYamlDialog';
+import { copyBookmarksAsYaml } from './utils/bookmarkYamlCopy';
 import { SpacesProvider, Space, useSpacesContext } from './contexts/SpacesContext';
 import { SelectionProvider } from './contexts/SelectionContext';
 import { UnifiedDndProvider, useUnifiedDndOptional } from './contexts/UnifiedDndContext';
@@ -270,12 +272,14 @@ interface SpaceTitleProps
   onDeleteSpace: (space: Space) => void;
   onCloseAllTabs: (space: Space) => void;
   onCreateFolder?: () => void;
+  onCopyAsYaml?: () => void;
+  onPasteFromYaml?: () => void;
   bookmarksCollapsed: boolean;  // Bookmarks section as shown (chevron direction)
   onToggleBookmarks?: () => void;  // Omitted while the text filter shows the section expanded
   headerActions?: React.ReactNode;  // Search recent pages and Recently Closed buttons, before the "..." button
 }
 
-const SpaceTitle: React.FC<SpaceTitleProps> = ({ onEditSpace, onDeleteSpace, onCloseAllTabs, onCreateFolder, bookmarksCollapsed, onToggleBookmarks, headerActions }) =>
+const SpaceTitle: React.FC<SpaceTitleProps> = ({ onEditSpace, onDeleteSpace, onCloseAllTabs, onCreateFolder, onCopyAsYaml, onPasteFromYaml, bookmarksCollapsed, onToggleBookmarks, headerActions }) =>
 {
   const { spaces, activeSpace } = useSpacesContext();
   const fontSize = useFontSize();
@@ -301,6 +305,8 @@ const SpaceTitle: React.FC<SpaceTitleProps> = ({ onEditSpace, onDeleteSpace, onC
       onDelete={() => onDeleteSpace(activeSpace)}
       onCloseAllTabs={() => onCloseAllTabs(activeSpace)}
       onCreateFolder={onCreateFolder}
+      onCopyAsYaml={onCopyAsYaml}
+      onPasteFromYaml={onPasteFromYaml}
       canDelete={spaces.length > 1}
     />
   );
@@ -327,6 +333,7 @@ interface SpaceTitleWrapperProps
   onEditSpace: (space: Space) => void;
   onDeleteSpace: (space: Space) => void;
   onPerformAction?: (action: UndoableAction) => Promise<void>;
+  onShowToast?: (message: string) => void;
   sectionCollapseState: SectionCollapseState;  // As shown (see App)
   onToggleSection?: ToggleSection;  // Undefined while the text filter shows every section expanded
   bookmarkOpenMode: BookmarkOpenMode;
@@ -336,6 +343,7 @@ const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({
   onEditSpace,
   onDeleteSpace,
   onPerformAction,
+  onShowToast,
   sectionCollapseState,
   onToggleSection,
   bookmarkOpenMode,
@@ -351,6 +359,7 @@ const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({
     tabIds: number[];
   }>({ isOpen: false, tabIds: [] });
   const [creatingFolderParentId, setCreatingFolderParentId] = useState<string | null>(null);
+  const [pasteYamlFolderId, setPasteYamlFolderId] = useState<string | null>(null);
 
   // Root folder of the active space - target for "New Folder" in the space menu
   const spaceRoot = findFolderBySegments(activeSpace.bookmarkFolderSegments ?? [], activeSpace.bookmarkFolderInAccount);
@@ -465,6 +474,38 @@ const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({
     }
   }, [createFolder, bookmarksCollapsed, handleToggleBookmarks]);
 
+  const handleCopyAsYaml = useCallback(async () =>
+  {
+    if (!spaceRoot) return;
+    try
+    {
+      // Children only: the Space folder itself is not part of the copy, and system folders are skipped
+      const summary = await copyBookmarksAsYaml(chrome.bookmarks, navigator.clipboard, spaceRoot.id, { childrenOnly: true });
+      onShowToast?.(`Copied ${summary} as YAML`);
+    }
+    catch (err)
+    {
+      onShowToast?.(`Copy as YAML failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [spaceRoot, onShowToast]);
+
+  const handlePasteFromYaml = useCallback(() =>
+  {
+    if (spaceRoot)
+    {
+      setPasteYamlFolderId(spaceRoot.id);
+    }
+  }, [spaceRoot]);
+
+  const handleYamlPasted = useCallback(() =>
+  {
+    // Pasted items would stay hidden in a collapsed Bookmarks section - expand it
+    if (bookmarksCollapsed)
+    {
+      handleToggleBookmarks();
+    }
+  }, [bookmarksCollapsed, handleToggleBookmarks]);
+
   const handleCloseAllTabs = useCallback(async (space: Space) =>
   {
     if (!windowId) return;
@@ -511,6 +552,8 @@ const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({
         onDeleteSpace={onDeleteSpace}
         onCloseAllTabs={handleCloseAllTabs}
         onCreateFolder={spaceRoot ? handleCreateFolder : undefined}
+        onCopyAsYaml={spaceRoot ? handleCopyAsYaml : undefined}
+        onPasteFromYaml={spaceRoot ? handlePasteFromYaml : undefined}
         bookmarksCollapsed={bookmarksCollapsed}
         onToggleBookmarks={onToggleSection && handleToggleBookmarks}
         headerActions={headerActions}
@@ -546,6 +589,13 @@ const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({
         parentId={creatingFolderParentId}
         onSave={handleSaveFolder}
         onClose={() => setCreatingFolderParentId(null)}
+      />
+      <PasteYamlDialog
+        isOpen={pasteYamlFolderId !== null}
+        targetFolderId={pasteYamlFolderId}
+        onPerformAction={onPerformAction}
+        onPasted={handleYamlPasted}
+        onClose={() => setPasteYamlFolderId(null)}
       />
       <ConfirmDeleteDialog
         isOpen={confirmCloseAllDialog.isOpen}
@@ -1658,6 +1708,7 @@ function Sidebar() {
         onEditSpace={handleEditSpace}
         onDeleteSpace={handleDeleteSpace}
         onPerformAction={performAction}
+        onShowToast={showToast}
         sectionCollapseState={sectionCollapseState}
         onToggleSection={toggleShownSection}
         bookmarkOpenMode={bookmarkOpenMode}
