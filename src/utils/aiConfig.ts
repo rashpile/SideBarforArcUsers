@@ -251,6 +251,20 @@ export function resolveAiEndpointCandidates(
   ];
 }
 
+/**
+ * Shared by AI Rename and the page agent, so both say the same thing for the same failure.
+ */
+export function aiHttpStatusMessage(status: number): string
+{
+  if (status === 401) return 'The API Key is invalid';
+  if (status === 403) return 'The API Key does not have permission to use this service';
+  if (status === 404) return 'The API endpoint or model was not found';
+  if (status === 405) return 'The selected API protocol is not supported by this endpoint';
+  if (status === 429) return 'The API rate limit or quota was exceeded';
+  if (status >= 500) return `The API service returned HTTP ${status}`;
+  return `The API request failed with HTTP ${status}`;
+}
+
 export function getHostPermissionPattern(urlValue: string): string
 {
   const url = parseSafeHttpUrl(urlValue);

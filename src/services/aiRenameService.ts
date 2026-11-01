@@ -3,6 +3,7 @@ import {
   AiRenameSettings,
   ResolvedAiApiProtocol,
   SelectedPageContent,
+  aiHttpStatusMessage,
   buildAiRequestBody,
   buildLlmsTxtCandidates,
   extractAiResponseText,
@@ -355,7 +356,7 @@ ${content}`;
       const responseText = await response.text().catch(() => '');
       const isModelError = /\bmodel\b/i.test(responseText);
       const canFallback = response.status === 405 || (response.status === 404 && !isModelError);
-      throw new AiHttpError(this.#statusMessage(response.status), response.status, canFallback);
+      throw new AiHttpError(aiHttpStatusMessage(response.status), response.status, canFallback);
     }
 
     try
@@ -366,16 +367,5 @@ ${content}`;
     {
       throw new AiHttpError('The API returned invalid JSON', response.status);
     }
-  }
-
-  #statusMessage(status: number): string
-  {
-    if (status === 401) return 'The API Key is invalid';
-    if (status === 403) return 'The API Key does not have permission to use this service';
-    if (status === 404) return 'The API endpoint or model was not found';
-    if (status === 405) return 'The selected API protocol is not supported by this endpoint';
-    if (status === 429) return 'The API rate limit or quota was exceeded';
-    if (status >= 500) return `The API service returned HTTP ${status}`;
-    return `The API request failed with HTTP ${status}`;
   }
 }

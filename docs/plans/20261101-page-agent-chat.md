@@ -220,6 +220,10 @@ instructions.
 - `fetch` with `credentials: 'omit'`, the run's `AbortSignal` combined with a 120 s timeout. Errors carry
   the HTTP status (400 is needed for the image retry) and a short message; the API key never appears in
   messages.
+- Status wording is shared with AI Rename (`aiHttpStatusMessage` in `aiConfig.ts`). Except for 401/403,
+  the provider's `error.message` (JSON only, key redacted, ~300 chars) is appended, so "model does not
+  support tools/images" reaches the user (the design's "show the API error"). 405 says the endpoint
+  lacks Chat Completions; an empty answer cut off by `finish_reason: 'length'` is an error.
 
 ### Chat state (`pageAgentChat.ts`, `pageAgentChatStore.ts`, `pageAgentChats.ts` in `src/services/pageAgent/`)
 
@@ -329,8 +333,8 @@ instructions.
 **Files:**
 - Create: `src/services/pageAgent/chatCompletionsAgentClient.ts`
 
-- [ ] implement the client (implements `PageAgentModelClient`) per Technical Details → Model client: endpoint, body, abort + 120 s timeout, errors as `PageAgentModelError` with HTTP status and safe messages (reuse the wording of `aiRenameService.ts` `#statusMessage` by extracting it to a shared function if that keeps both simple, else copy)
-- [ ] `npx tsc --noEmit` and `make lint` pass (no tests: HTTP wiring)
+- [x] implement the client (implements `PageAgentModelClient`) per Technical Details → Model client: endpoint, body, abort + 120 s timeout, errors as `PageAgentModelError` with HTTP status and safe messages (reuse the wording of `aiRenameService.ts` `#statusMessage` by extracting it to a shared function if that keeps both simple, else copy)
+- [x] `npx tsc --noEmit` and `make lint` pass (no tests: HTTP wiring)
 
 ### Task 5: Chat model, session store and the panel's chat owner
 
