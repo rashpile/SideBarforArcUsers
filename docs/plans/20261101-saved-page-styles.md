@@ -248,22 +248,22 @@ Chat adoption (`PageAgentChats`), through an injected `savedStyleForTab(tabId)` 
 - Modify: `src/background.ts`
 - Modify: `public/manifest.json`
 
-- [ ] create and `registerManager` the `PageStyleManager`; add `pageStyleManager.load()` to
+- [x] create and `registerManager` the `PageStyleManager`; add `pageStyleManager.load()` to
   `managerLoadPromise`, so `styles()` is loaded by the time `stateReady` resolves (`onCommitted` is often
   the event that wakes the worker)
-- [ ] in the existing `chrome.bookmarks.onRemoved` handler, call
+- [x] in the existing `chrome.bookmarks.onRemoved` handler, call
   `stateReady.then(() => pageStyleManager.handleBookmarksRemoved(ids))` next to the attention-mark and
   favorite-icon calls (after the load, so the load can't bring back a removed style)
-- [ ] create the applier with `stateReady`, `sameBrowserSession`, `getTabAssociations`, the manager's
+- [x] create the applier with `stateReady`, `sameBrowserSession`, `getTabAssociations`, the manager's
   current styles,
   `chrome.scripting.insertCSS` with `PAGE_AGENT_CSS_ORIGIN`, and a marker read through
   `chrome.scripting.executeScript` with `readPageMarker` / `PAGE_AGENT_MARKER_PROPERTY`; debug flag from
   `import.meta.env.DEV`
-- [ ] listen to `chrome.webNavigation.onCommitted` (top frame, passing `transitionQualifiers`) and
+- [x] listen to `chrome.webNavigation.onCommitted` (top frame, passing `transitionQualifiers`) and
   `chrome.tabs.onUpdated` (`complete`); call `start()` once
-- [ ] add `"webNavigation"` to `permissions` in `public/manifest.json`
-- [ ] no tests: wiring (repo rule)
-- [ ] run `make test`, `make build` and `make lint` - must pass before next task
+- [x] add `"webNavigation"` to `permissions` in `public/manifest.json`
+- [x] no tests: wiring (repo rule)
+- [x] run `make test`, `make build` and `make lint` - must pass before next task
 
 ### Task 6: Chat adopts and applies saved styles
 

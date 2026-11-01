@@ -12,7 +12,8 @@
     "favicon",
     "scripting",
     "alarms",
-    "activeTab"
+    "activeTab",
+    "webNavigation"
   ],
   "optional_host_permissions": [
     "http://*/*",
