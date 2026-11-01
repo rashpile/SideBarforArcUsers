@@ -225,21 +225,21 @@ export function runPagePopupCommand(command: PagePopupCommand): PagePopupResult;
 - Create: `src/utils/markdown.ts`
 - Create: `tests/markdown.test.mjs`
 
-- [ ] create `src/utils/markdown.ts` with the `MarkdownInline` / `MarkdownBlock` types,
+- [x] create `src/utils/markdown.ts` with the `MarkdownInline` / `MarkdownBlock` types,
   `parseMarkdown(text)` and `safeLinkHref(url)` per Technical Details; parsing state in a small class
   (block parser over lines, inline parser over a string), the exported function wraps it
-- [ ] block rules: headings, paragraphs with `break` for single newlines, fenced code blocks, ordered
+- [x] block rules: headings, paragraphs with `break` for single newlines, fenced code blocks, ordered
   and unordered lists with nesting by indentation, blockquotes, thematic breaks, depth cap
-- [ ] inline rules: escapes, code spans, strong, em (`_` at word boundaries only), links with
+- [x] inline rules: escapes, code spans, strong, em (`_` at word boundaries only), links with
   `safeLinkHref`, images left as text
-- [ ] write tests: `<script>alert(1)</script>` and `<b>x</b>` in a paragraph come out as `text` nodes
+- [x] write tests: `<script>alert(1)</script>` and `<b>x</b>` in a paragraph come out as `text` nodes
   with the literal characters (no node type besides the listed ones anywhere in the tree);
   `[x](javascript:alert(1))`, `[x](data:text/html,…)`, `[x](JaVaScRiPt:…)` and a relative link give no
   `link` node and keep the label
-- [ ] write tests: one input with a heading, a paragraph with bold, italic, inline code, an http link
+- [x] write tests: one input with a heading, a paragraph with bold, italic, inline code, an http link
   and a line break, a fenced code block (with HTML inside kept verbatim), an unordered list with a
   nested ordered list, and a blockquote gives the expected tree (deepEqual)
-- [ ] run `make test` - must pass before next task
+- [x] run `make test` - must pass before next task
 
 ### Task 2: Shared readable-page function
 
