@@ -467,12 +467,12 @@ export class VideoTranscriptReader
 
 ### Task 11: [Final] Update documentation
 
-- [ ] README "Page agent (experimental)": plugins in Settings > AI; Video transcripts (what it reads, Prime: reopen the player once per page load, the spoiler rule, `<track>` videos, not embedded frames); permissions table line for `scripting` if it lists page agent uses
-- [ ] PRIVACY.md page agent part: subtitle text goes to the AI endpoint; on Prime the extension adds a `fetch` wrapper to the page that remembers the subtitle list until reload, nothing stored; plugin switches stored with the AI settings
-- [ ] `docs/state-reference.md`: `agentPlugins` in `sidebar-ai-rename-settings` (shape, default, parsing)
-- [ ] `docs/chrome-web-store-info.md`: `scripting` justification mentions reading video subtitles in the page
-- [ ] `docs/changelog.md` entry; `src/data/changelog.ts` `'1.0.352'` What's New line for the plugins and Video transcripts
-- [ ] move this plan to `docs/plans/completed/`
+- [x] README "Page agent (experimental)": plugins in Settings > AI; Video transcripts (what it reads, Prime: reopen the player once per page load, the spoiler rule, `<track>` videos, not embedded frames); permissions table line for `scripting` if it lists page agent uses
+- [x] PRIVACY.md page agent part: subtitle text goes to the AI endpoint; on Prime the extension adds a `fetch` wrapper to the page that remembers the subtitle list until reload, nothing stored; plugin switches stored with the AI settings
+- [x] `docs/state-reference.md`: `agentPlugins` in `sidebar-ai-rename-settings` (shape, default, parsing)
+- [x] `docs/chrome-web-store-info.md`: `scripting` justification mentions reading video subtitles in the page
+- [x] `docs/changelog.md` entry; `src/data/changelog.ts` `'1.0.352'` What's New line for the plugins and Video transcripts
+- [x] move this plan to `docs/plans/completed/` (left to the orchestrator, which moves the plan at the very end)
 
 ## Known limitations
 

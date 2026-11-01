@@ -434,12 +434,14 @@ string  // JSON of
   reasoningEffort: 'off' | 'low' | 'medium' | 'high',   // default 'medium'
   prompt: string,          // AI naming prompt
   autoRename: boolean,     // name new Favorites and pinned pages automatically
-  acceptsImages: boolean   // "Model accepts images": the page agent may send screenshots; default false
+  acceptsImages: boolean,  // "Model accepts images": the page agent may send screenshots; default false
+  agentPlugins: Record<string, boolean>  // "Page agent plugins": on/off by plugin id, e.g. { 'video-transcripts': false }; default {}
 }
 ```
 - Owner: `src/App.tsx` (via `useChromeLocalStorage`, JSON), set from `src/components/SettingsDialog.tsx` (AI tab)
-- Consumers: `src/App.tsx` (AI naming through `OpenAiCompatibleClient`, `src/services/aiRenameService.ts`), `src/components/pageAgent/PageAgentDrawer.tsx` (from `App`; each page agent run gets the settings current at send time); not read by background
-- Parsing: `parseAiRenameSettings` (`src/utils/aiConfig.ts`); missing fields take the defaults, an unknown `protocol` reads as `'auto'`, an unknown `reasoningEffort` as `'medium'`, `autoRename` and `acceptsImages` are true only when stored as `true`, and the old Chinese default prompt is replaced by the current default
+- Consumers: `src/App.tsx` (AI naming through `OpenAiCompatibleClient`, `src/services/aiRenameService.ts`), `src/components/pageAgent/PageAgentDrawer.tsx` (from `App`; each page agent run gets the settings current at send time, and `PageAgentRuntime.createRun` in `src/services/pageAgent/pageAgentRuntime.ts` gives the run only the enabled plugins); not read by background
+- Parsing: `parseAiRenameSettings` (`src/utils/aiConfig.ts`); missing fields take the defaults, an unknown `protocol` reads as `'auto'`, an unknown `reasoningEffort` as `'medium'`, `autoRename` and `acceptsImages` are true only when stored as `true`, and the old Chinese default prompt is replaced by the current default. `agentPlugins` keeps only entries whose value is a boolean; a value that isn't an object reads as `{}`
+- `agentPlugins` holds an entry only for a plugin the user switched in Settings. A missing id takes the plugin's `defaultEnabled` from `PAGE_AGENT_PLUGINS` (`src/services/pageAgent/pageAgentPlugins.ts`; Video transcripts: on), so a plugin added in a later version starts with its default. `PageAgentPluginSwitches` reads and writes the field
 - Instances: 1 per extension (shared across windows)
 
 ### `pageAgentDrawerHeight`

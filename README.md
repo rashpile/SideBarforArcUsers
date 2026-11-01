@@ -174,6 +174,15 @@ Ask a question, for example "summarize this page" or "explain the term in the se
 - Style changes don't touch the popup
 - The page's own styles don't reach inside the popup. It follows your system's light or dark mode
 
+**Questions about a video.** With the **Video transcripts** plugin on, the agent reads the subtitles of the video on the page with `read_video_transcript`, so "summarize this episode", "what happened so far" and "what did he just say" work. It takes the subtitles shown in the player, else the original language. Ask for another language, such as "use the Russian subtitles", and it reads that track.
+
+- Prime Video (`primevideo.com`, and Prime titles on Amazon stores such as `amazon.com/gp/video/…` or `amazon.com/<Title>/dp/<ASIN>`) loads its subtitle list only when the player opens. The first video question after a page load turns on subtitle capture in that page and asks you to close the player with ✕ (top left) and press Play again. Ask again after that. Capture stays on until you reload the page. The subtitle file is downloaded inside the page, without cookies
+- On other pages the agent reads the subtitle and caption tracks of the largest visible video. It doesn't turn captions on, so the captions you see stay as they were. Videos inside embedded frames, such as a YouTube player on another site, can't be read
+- No spoilers by default. Past the first minute and before the subtitles end, the agent reads only up to the playback position and says up to which time its answer goes. It reads the rest when you ask about the whole video or its ending. "What was just said" reads the two minutes before the position. When the position isn't known, which can happen on Prime after you close the player, the agent asks how far you watched
+- One read returns up to 60,000 characters. For a longer video the agent reads on from where the text was cut when the answer needs it
+
+**Page agent plugins** in Settings > AI switch optional tools on and off. Video transcripts is the first one and is on by default. A switch takes effect from the next request.
+
 For a change, type what you want, for example "make the video player full page width". The agent then works in rounds, up to 8 per message:
 
 1. It reads an outline of the page, plus a screenshot when **Model accepts images** is on.
@@ -213,6 +222,8 @@ Known limitations:
 - Content inside a cross-origin iframe, such as an embedded YouTube player, can't be styled. Only the iframe box can
 - The site's own scripts can fight the CSS, and a single-page app that re-renders can break the agent's selectors
 - Moving a tab to another window during a chat isn't supported. The panels of both windows may then change its chat
+- On Prime Video with ads in the stream, "so far" can reach past where you are by up to the length of the ad breaks
+- Players that load subtitles in pieces while the video plays give only the subtitles loaded so far
 - A reload during a run leaves the agent measuring the unstyled page, so it may apply the CSS again or report conditions as unmet
 - Pressing Stop or closing the panel at the moment CSS reaches the page can leave CSS the chat doesn't know about, with no Undo. A reload removes it
 - Reloading or updating the extension deletes every chat, while their CSS stays on the pages until they reload
@@ -242,7 +253,7 @@ Gear menu → Settings:
 - **Mark unvisited tabs**: a dot on tabs opened in the background that you haven't switched to yet. On by default
 - **Mark for Attention colour**: the ring around marked tabs and bookmarks - green, blue, orange, red, purple, yellow or the Space colour, each dim, normal or bright (default: Space colour - dim). Space colour follows the active Space whether or not the Space colour tints the sidebar; in the All view it is the theme violet
 - Space color tint
-- **AI naming**: rename Favorites and pinned pages with an OpenAI-compatible API you configure (endpoint, model, prompt, automatic or manual). The endpoint must use HTTPS; HTTP works only for localhost, e.g. Ollama or LM Studio. A page's Markdown version and the pages listed in its site's `llms.txt` are read only from the page's own site. The page agent uses the same endpoint and model. **Model accepts images** lets the page agent send screenshots; off by default
+- **AI naming**: rename Favorites and pinned pages with an OpenAI-compatible API you configure (endpoint, model, prompt, automatic or manual). The endpoint must use HTTPS; HTTP works only for localhost, e.g. Ollama or LM Studio. A page's Markdown version and the pages listed in its site's `llms.txt` are read only from the page's own site. The page agent uses the same endpoint and model. **Model accepts images** lets the page agent send screenshots; off by default. **Page agent plugins** switch the page agent's optional tools; Video transcripts is on by default
 
 ### Backup
 
@@ -257,7 +268,7 @@ Light and dark mode follow your system.
 | `sidePanel`, `bookmarks`, `tabs`, `tabGroups` | Show and manage bookmarks, tabs and groups |
 | `storage` | Settings and sidebar state, stored locally |
 | `favicon` | Website icons |
-| `scripting` | Read a page's text when you ask for AI naming; read the page's text and layout, insert or remove CSS and show the answer popup when you use the page agent; insert CSS when a saved page style loads |
+| `scripting` | Read a page's text when you ask for AI naming; read the page's text, layout and video subtitles, insert or remove CSS and show the answer popup when you use the page agent; insert CSS when a saved page style loads |
 | `webNavigation` | Notice when a page starts loading in a bookmark's tab, to put the bookmark's saved page style on it |
 | `activeTab` | Draw the Tab and Space Switcher over the current page |
 | `alarms` | Check for unused tabs every few minutes while auto-archive is on |
