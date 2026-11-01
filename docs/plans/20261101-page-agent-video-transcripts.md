@@ -373,10 +373,10 @@ export class VideoTranscriptReader
 - Create: `src/utils/ttmlSubtitles.ts`
 - Create: `tests/ttmlSubtitles.test.mjs`
 
-- [ ] `parseTtml` and `SubtitleCue` per Technical Details
-- [ ] tests: clock times with fractions, frames with `ttp:frameRate`, ticks with `ttp:tickRate`, offset times (`12.5s`, `90000ms`); `dur` without `end`
-- [ ] tests: `<br/>` becomes a space (no glued words), nested `<span>`, `tt:` prefix, entities, empty `<p>` and `<p>` without `begin` skipped, output sorted by start
-- [ ] `make test`, `npx tsc --noEmit`, `make lint` - must pass before task 4
+- [x] `parseTtml` and `SubtitleCue` per Technical Details
+- [x] tests: clock times with fractions, frames with `ttp:frameRate`, ticks with `ttp:tickRate`, offset times (`12.5s`, `90000ms`); `dur` without `end`
+- [x] tests: `<br/>` becomes a space (no glued words), nested `<span>`, `tt:` prefix, entities, empty `<p>` and `<p>` without `begin` skipped, output sorted by start
+- [x] `make test`, `npx tsc --noEmit`, `make lint` - must pass before task 4
 
 ### Task 4: Transcript range, spoiler default and formatting
 
