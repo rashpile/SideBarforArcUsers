@@ -401,10 +401,10 @@ instructions.
 - Create: `tests/fixtures/page-agent/video-js-sizing.html`
 - Create: `tests/fixtures/page-agent/README.md`
 
-- [ ] plain variant: left icon rail (~56 px), content column with `max-width: 1260px`, a 16:9 iframe (`srcdoc` dark box, works offline) sized by CSS, a row of playback buttons and toggles under it
-- [ ] JS variant: same layout, a script writes inline `width`/`height` on the iframe on load and on `resize`
-- [ ] README: serve with `python3 -m http.server` from that directory and open `http://localhost:8000/<file>` (http origin, covered by page access); what to type (the design's demo steps 1-6)
-- [ ] confirm `make build` does not copy `tests/fixtures/` into `dist/`
+- [x] plain variant: left icon rail (~56 px), content column with `max-width: 1260px`, a 16:9 iframe (`srcdoc` dark box, works offline) sized by CSS, a row of playback buttons and toggles under it
+- [x] JS variant: same layout, a script writes inline `width`/`height` on the iframe on load and on `resize`
+- [x] README: serve with `python3 -m http.server` from that directory and open `http://localhost:8000/<file>` (http origin, covered by page access); what to type (the design's demo steps 1-6)
+- [x] confirm `make build` does not copy `tests/fixtures/` into `dist/`
 
 ### Task 10: Verify acceptance criteria
 

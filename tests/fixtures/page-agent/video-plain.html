@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Page agent fixture: video, CSS sizing</title>
+  <!--
+    Manual test page for the page agent (see README.md). Same layout as the demo page: icon rail,
+    content column capped at 1260px, 16:9 player, controls under it. CSS alone sizes the player.
+    Loads nothing from the network.
+  -->
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body { font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #18181b; background: #fafafa; }
+
+    .icon-rail { position: fixed; top: 0; bottom: 0; left: 0; width: 56px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 0; background: #18181b; }
+    .icon-rail a { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px; color: #a1a1aa; font-weight: 600; text-decoration: none; }
+    .icon-rail a:hover { background: #27272a; color: #fff; }
+    .icon-rail a.active { background: #3f3f46; color: #fff; }
+
+    .page { margin-left: 56px; }
+    .content-column { max-width: 1260px; margin: 0 auto; padding: 20px 24px 48px; }
+
+    .video-header h1 { margin: 0 0 4px; font-size: 22px; }
+    .video-header p { margin: 0 0 16px; color: #71717a; }
+
+    .player { border-radius: 12px; overflow: hidden; background: #000; }
+    .player iframe { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border: 0; }
+
+    .player-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+    .player-controls button { height: 32px; padding: 0 12px; border: 1px solid #d4d4d8; border-radius: 8px; background: #fff; font: inherit; cursor: pointer; }
+    .player-controls button.primary { border-color: #18181b; background: #18181b; color: #fff; }
+    .player-controls .spacer { flex: 1; }
+    .toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+    .toggle input { appearance: none; position: relative; width: 32px; height: 18px; margin: 0; border-radius: 9px; background: #d4d4d8; cursor: pointer; }
+    .toggle input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left 0.15s; }
+    .toggle input:checked { background: #2563eb; }
+    .toggle input:checked::after { left: 16px; }
+
+    .notes { margin-top: 28px; }
+    .notes h2 { margin: 0 0 8px; font-size: 16px; }
+    .notes ol { margin: 0; padding-left: 20px; color: #3f3f46; }
+    .notes li + li { margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <nav class="icon-rail" aria-label="Main">
+    <a href="#" title="Home" aria-label="Home">H</a>
+    <a href="#" class="active" title="Videos" aria-label="Videos">V</a>
+    <a href="#" title="Notes" aria-label="Notes">N</a>
+    <a href="#" title="Settings" aria-label="Settings">S</a>
+  </nav>
+
+  <main class="page">
+    <div class="content-column">
+      <header class="video-header">
+        <h1>Building a sidebar for Arc users, part 3</h1>
+        <p>24 min · fixture: player sized by CSS</p>
+      </header>
+
+      <div class="player">
+        <iframe id="player-frame" title="Video player" width="560" height="315" allowfullscreen srcdoc="<!DOCTYPE html>
+<html><head><style>
+html, body { margin: 0; height: 100%; overflow: hidden; background: #0f0f0f; color: #e4e4e7; font: 13px system-ui, sans-serif; }
+.screen { position: absolute; inset: 0; background: radial-gradient(circle at 50% 45%, #27272a, #09090b 70%); }
+.play { position: absolute; left: 50%; top: 50%; width: 68px; height: 48px; margin: -24px 0 0 -34px; border-radius: 12px; background: #dc2626; }
+.play::after { content: ''; position: absolute; left: 27px; top: 14px; border-style: solid; border-width: 10px 0 10px 17px; border-color: transparent transparent transparent #fff; }
+.size { position: absolute; left: 12px; top: 10px; opacity: 0.8; }
+.bar { position: absolute; left: 12px; right: 12px; bottom: 12px; height: 4px; border-radius: 2px; background: #3f3f46; }
+.bar::before { content: ''; display: block; width: 35%; height: 100%; border-radius: 2px; background: #dc2626; }
+</style></head><body>
+<div class='screen'></div><div class='play'></div><div id='size' class='size'></div><div class='bar'></div>
+<script>
+function showSize() { var w = innerWidth, h = innerHeight; document.getElementById('size').textContent = 'Fixture player ' + w + ' x ' + h + ' px, ratio ' + (w / h).toFixed(3) + ' (16:9 = 1.778)'; }
+addEventListener('resize', showSize);
+showSize();
+</script>
+</body></html>"></iframe>
+      </div>
+
+      <div class="player-controls">
+        <button type="button" class="primary">Play</button>
+        <button type="button">-10 s</button>
+        <button type="button">+10 s</button>
+        <button type="button">1x</button>
+        <button type="button">Previous</button>
+        <button type="button">Next</button>
+        <span class="spacer"></span>
+        <label class="toggle"><input type="checkbox"> Loop</label>
+        <label class="toggle"><input type="checkbox" checked> Subtitles</label>
+        <label class="toggle"><input type="checkbox"> Autoplay next</label>
+      </div>
+
+      <section class="notes">
+        <h2>Notes</h2>
+        <ol>
+          <li>02:10 Pinned tabs and Spaces</li>
+          <li>07:45 Archive and Favorites folders</li>
+          <li>13:20 The keyboard tab switcher</li>
+          <li>19:05 Restoring tabs after a browser restart</li>
+        </ol>
+      </section>
+    </div>
+  </main>
+</body>
+</html>
