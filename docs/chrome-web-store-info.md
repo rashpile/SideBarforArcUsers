@@ -42,7 +42,8 @@ For the Privacy practices tab of the Chrome Web Store dashboard. Not part of the
 - `sidePanel`, `bookmarks`, `tabs`, `tabGroups` - Core features: show and manage bookmarks, tabs, and tab groups in the side panel
 - `storage` - Save settings and sidebar state locally
 - `favicon` - Show website icons
-- `scripting` - Read page content only when requested for AI-assisted naming
+- `scripting` - Read page content only when requested for AI-assisted naming. For the experimental page agent: read the layout and element sizes of the page the user asks it to change, and insert or remove the CSS it applies there
 - `activeTab` - Draw the Tab Switcher and Space Switcher list over the current page when the user presses their shortcut
 - `alarms` - Wake the extension every few minutes while "Archive tabs after" is on, to close tabs left unused longer than the chosen period. Not used while the setting is Never
-- Optional host permissions `http://*/*` and `https://*/*` - Requested at use time, only for reading a page's content for AI-assisted naming and for calling the AI endpoint the user configured
+- Optional host permissions `http://*/*` and `https://*/*` - Requested at use time, only for reading a page's content for AI-assisted naming, for the page agent to read and restyle the page the user asks it to change, and for calling the AI endpoint the user configured
+- Optional host permission `<all_urls>` - Requested only when the user turns on "Model accepts images" and presses "Grant screenshot access" in the page agent drawer. `chrome.tabs.captureVisibleTab` needs it to take a screenshot of the visible tab, which goes to the user's AI endpoint so the model can check the change it made. Without it the page agent works on measurements only

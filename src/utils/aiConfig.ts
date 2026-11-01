@@ -11,6 +11,7 @@ export interface AiRenameSettings
   reasoningEffort: AiReasoningEffort;
   prompt: string;
   autoRename: boolean;
+  acceptsImages: boolean;
 }
 
 export interface AiEndpointCandidate
@@ -68,6 +69,7 @@ export const DEFAULT_AI_RENAME_SETTINGS: AiRenameSettings = {
   reasoningEffort: 'medium',
   prompt: DEFAULT_AI_PROMPT,
   autoRename: false,
+  acceptsImages: false,
 };
 
 const SECRET_QUERY_KEYS = new Set([
@@ -100,6 +102,7 @@ export function parseAiRenameSettings(value: string): AiRenameSettings
     protocol,
     reasoningEffort,
     autoRename: parsed.autoRename === true,
+    acceptsImages: parsed.acceptsImages === true,
     prompt: parsed.prompt === undefined || parsed.prompt === LEGACY_DEFAULT_AI_PROMPT
       ? DEFAULT_AI_PROMPT
       : parsed.prompt,
@@ -249,6 +252,29 @@ export function resolveAiEndpointCandidates(
     { protocol: 'responses', url: normalizeAiEndpoint(baseUrl, 'responses') },
     { protocol: 'chat-completions', url: normalizeAiEndpoint(baseUrl, 'chat-completions') },
   ];
+}
+
+/**
+ * Whether an error answer means the endpoint lacks this protocol, so Auto tries the next candidate.
+ * A 404 that names the model is a wrong model name, which the other protocol wouldn't fix.
+ */
+export function aiEndpointLacksProtocol(status: number, responseText: string): boolean
+{
+  return status === 405 || (status === 404 && !/\bmodel\b/i.test(responseText));
+}
+
+/**
+ * Shared by AI Rename and the page agent, so both say the same thing for the same failure.
+ */
+export function aiHttpStatusMessage(status: number): string
+{
+  if (status === 401) return 'The API Key is invalid';
+  if (status === 403) return 'The API Key does not have permission to use this service';
+  if (status === 404) return 'The API endpoint or model was not found';
+  if (status === 405) return 'The selected API protocol is not supported by this endpoint';
+  if (status === 429) return 'The API rate limit or quota was exceeded';
+  if (status >= 500) return `The API service returned HTTP ${status}`;
+  return `The API request failed with HTTP ${status}`;
 }
 
 export function getHostPermissionPattern(urlValue: string): string

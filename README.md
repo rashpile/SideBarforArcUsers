@@ -33,7 +33,7 @@ Coming from Arc? **Import from Arc Browser...** in the sidebar menu reads Arc's 
 - **Tabs** below the bookmarks are the Space's other open tabs.
 - **Archive** keeps tabs you archive by hand or stopped using, if you turn auto-archive on.
 
-Everything is stored in Chrome: bookmarks for Spaces, pinned pages, the archive and Favorites, and the extension's local storage for settings, Favorite icons and marks. Nothing goes to a server. See [PRIVACY.md](PRIVACY.md).
+Everything is stored in Chrome: bookmarks for Spaces, pinned pages, the archive and Favorites, and the extension's local storage for settings, Favorite icons and marks. Nothing goes to a server, except what AI naming and the page agent send to the AI endpoint you set up. See [PRIVACY.md](PRIVACY.md).
 
 ## Features
 
@@ -160,6 +160,45 @@ The extension hides `asd_Archive` and `asd_Favorites` in the Bookmarks tree, sea
 
 Set or change shortcuts in `chrome://extensions/shortcuts`.
 
+### Page agent (experimental)
+
+Ask an AI model to change how the current page looks. The sparkles button in the toolbar opens a drawer at the bottom of the panel, above the Space bar. Drag its top edge to resize it. Each tab has its own chat, and the drawer shows the chat of the window's active tab. A chip at the top names that tab's site and path.
+
+Type what you want, for example "make the video player full page width". The agent then works in rounds, up to 8 per message:
+
+1. It reads an outline of the page, plus a screenshot when **Model accepts images** is on.
+2. It turns the request into conditions it can measure, such as "player width = content width ±2px" or "aspect ratio 16:9 ±1%", and shows them.
+3. It applies CSS to the tab, measures the elements and fixes the CSS until the conditions hold.
+4. It reports each condition as met or unmet, with the numbers it measured.
+
+A condition the agent couldn't meet shows as unmet. When the 8 rounds run out, the agent gets one more turn in which it can only report, so the report still carries the numbers it measured; a condition it didn't measure after its last CSS change shows as unmet. A run that set no conditions or was stopped never counts as met. "N steps · show steps" opens the log of every tool call, the CSS and the screenshots.
+
+A second message in the same chat edits the current CSS, so "a bit narrower" works. When the new request replaces an earlier condition, the report shows it as replaced, not failed.
+
+- While the agent works, Send becomes **Stop**
+- **Undo** removes everything the agent applied to the tab. **Show CSS** shows the current stylesheet with a Copy button, to put into your own site
+- A reload drops the CSS. The chat then says "Page reloaded, changes removed" and offers **Re-apply**. When the tab has moved on to another page of the same site (for example the next video) it says "Page changed, changes removed" and offers **Re-apply** too, which puts the same CSS on the new page. On another site there is no Re-apply, since the CSS was written for the first site
+- The agent writes CSS only, never JavaScript. The extension rejects CSS that would load anything from the network (`@import`, `url()` other than `data:`, `image-set()`, and `var()`, which could pick up a URL the page defines) before it reaches the page
+- A run stays on the tab it started on when you switch tabs
+
+The agent uses the AI settings of AI naming: Base URL, API key, model, API protocol and reasoning effort. It calls the model with tool calling through the protocol you chose: Responses API or Chat Completions. Auto works as for AI naming: a Base URL ending in `/responses` or `/chat/completions` decides, otherwise it tries the Responses API first and falls back to Chat Completions when the endpoint doesn't have it. The model must support function calling. It needs access to http and https pages; the drawer shows **Grant page access** until you allow it. Screenshots need **Model accepts images** in Settings and access to all pages, which **Grant screenshot access** in the drawer asks for. Without them the agent checks numbers only. If the API rejects images, the run goes on without screenshots and says so.
+
+The input is disabled on pages that aren't http or https, such as `chrome://` and other extensions' pages, and on the Chrome Web Store. On a PDF the run ends with Chrome's error.
+
+Chats last for the browser session. They survive closing the panel. Closing the tab deletes its chat, or the next time a side panel opens if none was open then. Restarting the browser or reloading the extension deletes all chats.
+
+Known limitations:
+
+- Screenshots show only the visible part of the page; the agent doesn't scroll. Chrome captures only the active tab of a window, so on a background tab the agent goes on with numbers
+- Closing the side panel stops a running agent. The chat shows the turn as stopped
+- Content inside a cross-origin iframe, such as an embedded YouTube player, can't be styled. Only the iframe box can
+- The site's own scripts can fight the CSS, and a single-page app that re-renders can break the agent's selectors
+- Moving a tab to another window during a chat isn't supported. The panels of both windows may then change its chat
+- A reload during a run leaves the agent measuring the unstyled page, so it may apply the CSS again or report conditions as unmet
+- Pressing Stop or closing the panel at the moment CSS reaches the page can leave CSS the chat doesn't know about, with no Undo. A reload removes it
+- Reloading or updating the extension deletes every chat, while their CSS stays on the pages until they reload
+- The page outline, measurements, screenshots, your requests and the CSS go to the AI endpoint you configured. See [PRIVACY.md](PRIVACY.md)
+
 ### Settings
 
 Gear menu → Settings:
@@ -172,7 +211,7 @@ Gear menu → Settings:
 - **Mark unvisited tabs**: a dot on tabs opened in the background that you haven't switched to yet. On by default
 - **Mark for Attention colour**: the ring around marked tabs and bookmarks - green, blue, orange, red, purple, yellow or the Space colour, each dim, normal or bright (default: Space colour - dim). Space colour follows the active Space whether or not the Space colour tints the sidebar; in the All view it is the theme violet
 - Space color tint
-- **AI naming**: rename Favorites and pinned pages with an OpenAI-compatible API you configure (endpoint, model, prompt, automatic or manual). The endpoint must use HTTPS; HTTP works only for localhost, e.g. Ollama or LM Studio. A page's Markdown version and the pages listed in its site's `llms.txt` are read only from the page's own site
+- **AI naming**: rename Favorites and pinned pages with an OpenAI-compatible API you configure (endpoint, model, prompt, automatic or manual). The endpoint must use HTTPS; HTTP works only for localhost, e.g. Ollama or LM Studio. A page's Markdown version and the pages listed in its site's `llms.txt` are read only from the page's own site. The page agent uses the same endpoint and model. **Model accepts images** lets the page agent send screenshots; off by default
 
 ### Backup
 
@@ -187,10 +226,11 @@ Light and dark mode follow your system.
 | `sidePanel`, `bookmarks`, `tabs`, `tabGroups` | Show and manage bookmarks, tabs and groups |
 | `storage` | Settings and sidebar state, stored locally |
 | `favicon` | Website icons |
-| `scripting` | Read a page's text, only when you ask for AI naming |
+| `scripting` | Read a page's text when you ask for AI naming; read the page's layout and insert or remove CSS when you use the page agent |
 | `activeTab` | Draw the Tab and Space Switcher over the current page |
 | `alarms` | Check for unused tabs every few minutes while auto-archive is on |
-| Optional `http://*/*`, `https://*/*` | Asked for when you use AI naming, to read the page and call your AI endpoint |
+| Optional `http://*/*`, `https://*/*` | Asked for when you use AI naming or the page agent, to read and restyle the page and call your AI endpoint |
+| Optional `<all_urls>` | Asked for only when you turn on page agent screenshots, to capture the visible tab |
 
 ## More
 

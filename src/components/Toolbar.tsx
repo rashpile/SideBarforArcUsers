@@ -1,4 +1,4 @@
-import { Settings, Volume2, ChevronDown, X, Save, Clock, Bookmark, Trash2, RotateCcwSquare, RotateCwSquare, HelpCircle, Search } from 'lucide-react';
+import { Settings, Volume2, ChevronDown, X, Save, Clock, Bookmark, Trash2, RotateCcwSquare, RotateCwSquare, HelpCircle, Search, Sparkles } from 'lucide-react';
 import React, { forwardRef, useState, useRef, useEffect, useCallback } from 'react';
 import * as DropdownMenu from './menu/DropdownMenu';
 import { useShowActiveTab } from '../hooks/useFollowActiveTab';
@@ -28,6 +28,8 @@ interface ToolbarProps
   onShowToast?: (message: string) => void;
   showFilterArea?: boolean;
   onToggleFilterArea?: () => void;
+  pageAgentOpen?: boolean;
+  onTogglePageAgent?: () => void;
 }
 
 
@@ -74,6 +76,8 @@ export const Toolbar = forwardRef<HTMLButtonElement, ToolbarProps>(({
   onShowToast,
   showFilterArea = false,
   onToggleFilterArea,
+  pageAgentOpen = false,
+  onTogglePageAgent,
 }, _ref) =>
 {
   const activeButtonClass = 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 active:bg-blue-200 dark:active:bg-blue-800';
@@ -616,6 +620,18 @@ export const Toolbar = forwardRef<HTMLButtonElement, ToolbarProps>(({
               }`}
             >
               <Search size={16} />
+            </button>
+          )}
+
+          {onTogglePageAgent && (
+            <button
+              onClick={onTogglePageAgent}
+              title="Page agent (experimental)"
+              className={`p-1.5 rounded transition-all duration-150 focus:outline-none ${
+                pageAgentOpen ? activeButtonClass : inactiveButtonClass
+              }`}
+            >
+              <Sparkles size={16} />
             </button>
           )}
 

@@ -2,7 +2,7 @@
 
 ## Data Collection
 
-This extension does not collect personal data and has no server. The developer receives nothing. The only data that leaves your device is described under External Services below, and AI naming sends data only to the endpoint you configure.
+This extension does not collect personal data and has no server. The developer receives nothing. The only data that leaves your device is described under External Services below. AI naming and the page agent send data only to the endpoint you configure.
 
 ## Local Storage
 
@@ -11,7 +11,9 @@ The extension stores the following data locally on your device using Chrome's st
 - Favorites' custom icons, emoji and icon colors (the Favorites themselves are Chrome bookmarks in each Space's `asd_Favorites` folder)
 - Favicons (stored as base64 image data)
 - User preferences (font size, icon size, display settings)
-- AI naming settings, including the API key you enter, if you configure AI naming
+- AI naming settings, including the API key you enter, if you configure AI naming. The page agent uses the same settings
+- The page agent drawer's height
+- Page agent chats: your requests, the conditions, the agent's steps and the CSS it applied, one chat per tab (stored in `chrome.storage.session`, which Chrome clears when the browser closes). Closing the tab deletes its chat; if no side panel is open at that moment, the next side panel to open deletes it, or Chrome when the browser closes. Screenshots are never stored; they stay in the open side panel's memory
 - The URL, window, position in the window, and last-use times of each open tab, and whether you have switched to it since it was opened, recorded while "Archive tabs after", "Highlight tabs by last use" or "Mark unvisited tabs" is turned on, so the extension knows how long a tab has been unused, how recently you left it and which tabs you haven't looked at yet (stored in `chrome.storage.local`; incognito tabs are never recorded). "Highlight tabs by last use" and "Mark unvisited tabs" are on by default, so the extension records them unless you turn both off. Setting "Archive tabs after" to "Never", "Highlight tabs by last use" to "Off" and turning "Mark unvisited tabs" off deletes them
 - The URL, window and position in the window of each tab you mark with "Mark for Attention", and the IDs of bookmarks you mark, so the marks survive a browser restart (stored in `chrome.storage.local`; incognito tabs can't be marked). Clearing a mark, closing the tab or deleting the bookmark deletes its entry
 - The URL, title and close time of tabs you close, up to 50 per Space, for the Recently Closed list (stored in `chrome.storage.local`). Clear in the Recently Closed list or deleting the Space deletes them. Incognito tabs are never recorded
@@ -32,6 +34,16 @@ AI naming is off until you enter an API endpoint in Settings. When you rename a 
 
 - The extension reads the page's text, title and description from the open tab, after asking for host permission. It may also fetch the page, its Markdown version and the site's `llms.txt` without cookies; the Markdown version and pages listed in `llms.txt` only from the page's own site, without following redirects.
 - It sends the page URL, title, description, up to 12,000 characters of that text and up to 3,000 characters from `llms.txt`, together with your prompt, to the endpoint you configured, using your API key. The endpoint must use HTTPS unless it runs on this computer (localhost), so the key and the page text are not sent unencrypted over the network.
+- What that service does with the request is governed by its own privacy policy. The extension doesn't send this data anywhere else.
+
+## Page Agent (experimental)
+
+The page agent sends nothing until you type a request in its drawer. While it works on a request in a tab:
+
+- The extension reads from that tab, after asking for host permission: its URL and title, an outline of the page's visible layout (element names, ids, classes, sizes and positions, and up to 40 characters of each element's own text), and the sizes, positions and computed styles of the elements the agent asks to inspect.
+- With "Model accepts images" turned on in Settings, and after you allow access to all pages, it takes screenshots of the visible part of the tab while the tab is the active one in its window.
+- It sends the outline, the inspect results, the screenshots, your requests, a summary of the tab's earlier messages and the CSS the agent wrote to the endpoint you configured, using your API key and without cookies.
+- It changes the page only with CSS the extension inserts into that tab. It doesn't run code written by the model, and it rejects CSS that would load anything from the network.
 - What that service does with the request is governed by its own privacy policy. The extension doesn't send this data anywhere else.
 
 ## Bookmarks and Tabs
