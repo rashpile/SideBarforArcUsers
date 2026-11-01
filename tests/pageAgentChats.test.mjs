@@ -287,16 +287,19 @@ test('checkMarker sets reloaded when the stylesheet is gone and the URL is the s
   assert.equal((await store.load(TAB_A)).notice, 'reloaded');
 });
 
-test('checkMarker sets navigated when the stylesheet is gone and the URL changed', async () =>
+test('checkMarker tells another page on the same site (Re-apply offered) from another site', async () =>
 {
   const { page, chats } = setup({ [`pageAgentChat:${TAB_A}`]: storedChatWithCss(TAB_A) });
   await chats.get(TAB_A);
   page.marker = '';
+
   page.url = 'https://site.test/videos/2';
-
   await chats.checkMarker(TAB_A);
+  assert.equal(chats.peek(TAB_A).notice, 'navigated-same-site');
 
-  assert.equal(chats.peek(TAB_A).notice, 'navigated');
+  page.url = 'https://other.test/videos/1';
+  await chats.checkMarker(TAB_A);
+  assert.equal(chats.peek(TAB_A).notice, 'navigated-other-site');
 });
 
 test('undo removes the inserted stylesheet by its exact text even when a notice is set', async () =>

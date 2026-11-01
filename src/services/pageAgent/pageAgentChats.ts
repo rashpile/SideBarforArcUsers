@@ -2,6 +2,7 @@
 // the drawer: a run on tab A keeps applying its events to A's chat and saving them while the drawer
 // shows tab B or is closed. The hook and the tab lifecycle handlers change chats only through it.
 
+import { isSameOriginHttpUrl } from '../../utils/aiConfig.ts';
 import { withMarker } from '../../utils/pageAgentCss.ts';
 import { PageAgentChat } from './pageAgentChat.ts';
 import type { PageAgentNotice } from './pageAgentChat.ts';
@@ -199,7 +200,7 @@ export class PageAgentChats<Settings>
     }
   }
 
-  /** Inserts the applied stylesheet again after a reload, under a new id. */
+  /** Inserts the applied stylesheet again after a reload or on another page of the same site, under a new id. */
   async reapply(tabId: number): Promise<void>
   {
     if (this.#runs.has(tabId))
@@ -252,7 +253,14 @@ export class PageAgentChats<Settings>
       else if (marker === '')
       {
         const url = await this.#page.pageUrl(tabId);
-        notice = url === chat.appliedUrl ? 'reloaded' : 'navigated';
+        if (url === chat.appliedUrl)
+        {
+          notice = 'reloaded';
+        }
+        else
+        {
+          notice = isSameOriginHttpUrl(url, chat.appliedUrl) ? 'navigated-same-site' : 'navigated-other-site';
+        }
       }
       else
       {

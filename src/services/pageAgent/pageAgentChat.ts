@@ -16,8 +16,11 @@ import type { PageAgentConditionSpec } from './pageAgentTools.ts';
 
 export type PageAgentTurnStatus = 'running' | PageAgentRunStatus;
 
-/** Set when the page dropped the applied stylesheet: a reload of the same URL, or another page. */
-export type PageAgentNotice = 'none' | 'reloaded' | 'navigated';
+/**
+ * Set when the page dropped the applied stylesheet: a reload of the same URL, another page on the same
+ * site (Re-apply is offered for both), or a page on another site, where the CSS's selectors don't apply.
+ */
+export type PageAgentNotice = 'none' | 'reloaded' | 'navigated-same-site' | 'navigated-other-site';
 
 export interface PageAgentTurn
 {
@@ -47,7 +50,7 @@ export interface PageAgentChatData
 
 const NO_REPORT = 'no report';
 const PANEL_CLOSED_SUMMARY = 'Side panel closed during the run.';
-const NOTICES: readonly PageAgentNotice[] = ['none', 'reloaded', 'navigated'];
+const NOTICES: readonly PageAgentNotice[] = ['none', 'reloaded', 'navigated-same-site', 'navigated-other-site'];
 
 export class PageAgentChat
 {

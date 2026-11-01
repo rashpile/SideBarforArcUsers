@@ -96,7 +96,7 @@ export const PageAgentMessages: React.FC<PageAgentMessagesProps> = ({ chat, runn
           <span className="flex-1 text-amber-700 dark:text-amber-300">
             {chat.notice === 'reloaded' ? 'Page reloaded, changes removed' : 'Page changed, changes removed'}
           </span>
-          {chat.notice === 'reloaded' && chat.appliedCss && (
+          {chat.notice !== 'navigated-other-site' && chat.appliedCss && (
             <button type="button" className={buttonClass} disabled={running} onClick={onReapply}>
               <Redo2 size={12} />
               Re-apply

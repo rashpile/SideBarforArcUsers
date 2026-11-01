@@ -177,7 +177,7 @@ A second message in the same chat edits the current CSS, so "a bit narrower" wor
 
 - While the agent works, Send becomes **Stop**
 - **Undo** removes everything the agent applied to the tab. **Show CSS** shows the current stylesheet with a Copy button, to put into your own site
-- A reload drops the CSS. The chat then says "Page reloaded, changes removed" and offers **Re-apply**. When the tab has moved on to another page it says "Page changed, changes removed", without Re-apply
+- A reload drops the CSS. The chat then says "Page reloaded, changes removed" and offers **Re-apply**. When the tab has moved on to another page of the same site (for example the next video) it says "Page changed, changes removed" and offers **Re-apply** too, which puts the same CSS on the new page. On another site there is no Re-apply, since the CSS was written for the first site
 - The agent writes CSS only, never JavaScript. The extension rejects CSS that would load anything from the network (`@import`, `url()` other than `data:`, `image-set()`, and `var()`, which could pick up a URL the page defines) before it reaches the page
 - A run stays on the tab it started on when you switch tabs
 

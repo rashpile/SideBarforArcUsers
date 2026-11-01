@@ -17,6 +17,9 @@ and splits the work into tasks. Lives only on the local branch `experimental/pag
 
 ### Deviations from the design
 
+- **Re-apply on another page** (user's request after the run): the design offers Re-apply only when the
+  URL is the same. It is now offered on any page of the same origin too (e.g. the next video), not on
+  another site, whose elements the CSS was not written for.
 - **USER vs AUTHOR origin**: the design has the builder try both on the fixtures. Task agents can't load
   the extension in Chrome, so the code uses `USER` (by the cascade it beats author `!important` and inline
   styles, so it holds for both fixture variants) and the fixture comparison moves to Post-Completion.
@@ -258,7 +261,7 @@ instructions.
   met | not-met | stopped | error, conditions, replaced, steps (tool name, short args summary, short
   result; CSS text for `apply_css`), summary, error, screenshotsNote }]`, `appliedCss` (sanitized text
   without marker), `appliedInsertedText` (exact text inserted, for `removeCSS`), `appliedId`,
-  `appliedUrl`, `notice` (`reloaded` | `navigated` | none).
+  `appliedUrl`, `notice` (`reloaded` | `navigated-same-site` | `navigated-other-site` | none).
 - `appliedInsertedText` stays until it has been removed: Undo and the next `apply_css` / Re-apply always
   call `removeCss` with it (a no-op if the page lost it). Undo then clears `appliedCss`,
   `appliedInsertedText` and the notice.
@@ -284,7 +287,8 @@ instructions.
   - `subscribe(listener)` so the hook re-renders on changes.
 - Reload / navigation detection (`checkMarker`): for a chat with `appliedInsertedText`, read the marker.
   It equals `appliedId` → clear any notice (the page still has the CSS, e.g. restored from the
-  back/forward cache). Empty → `notice = reloaded` if the tab URL equals `appliedUrl`, else `navigated`.
+  back/forward cache). Empty → `notice = reloaded` if the tab URL equals `appliedUrl`, else
+  `navigated-same-site` (same origin) or `navigated-other-site`.
   Runs on `tabs.onUpdated` `status: 'complete'` and whenever a chat with applied CSS is shown (drawer
   mount, tab switch), because `tabs.onUpdated` isn't reliable in the side panel and reloads while the
   panel is closed are missed.
@@ -307,8 +311,8 @@ instructions.
   run's error.
 - With "Model accepts images" on and `<all_urls>` not granted: a non-blocking **Grant screenshot access**
   button (requests `<all_urls>`); runs still work on numbers alone.
-- Notice `reloaded`: "Page reloaded, changes removed" with **Re-apply**; `navigated`: "Page changed,
-  changes removed" without it. Show CSS still shows the stylesheet. Re-apply removes the old inserted
+- Notice `reloaded`: "Page reloaded, changes removed" with **Re-apply**; `navigated-same-site`: "Page
+  changed, changes removed" with **Re-apply** too; `navigated-other-site`: the same text without it. Show CSS still shows the stylesheet. Re-apply removes the old inserted
   text, inserts `withMarker(appliedCss, newId)` and clears the notice; a successful `apply_css` clears it
   too. Undo and Re-apply are disabled while the tab's run is running.
 

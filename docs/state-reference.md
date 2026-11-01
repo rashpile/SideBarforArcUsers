@@ -191,7 +191,7 @@ Page agent chat of one tab (experimental): the user's requests, the agent's turn
   appliedInsertedText: string,  // exact text passed to insertCSS; removeCSS finds a sheet only by its text
   appliedId: string,            // value of the --sidebar-page-agent marker in that text
   appliedUrl: string,           // tab URL when the stylesheet was applied
-  notice: 'none' | 'reloaded' | 'navigated'
+  notice: 'none' | 'reloaded' | 'navigated-same-site' | 'navigated-other-site'  // Re-apply offered for the first two
 }
 ```
 - Owner: `PageAgentChats` (`src/services/pageAgent/pageAgentChats.ts`) through `PageAgentChatStore` (`pageAgentChatStore.ts`, writes queued in order), one per side panel, created in `src/App.tsx` by `createPanelPageAgentChats` and alive as long as the panel, not the drawer
