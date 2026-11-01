@@ -286,37 +286,37 @@ export function runPagePopupCommand(command: PagePopupCommand): PagePopupResult;
 - Modify: `src/components/pageAgent/PageAgentMessages.tsx` (only `OUTCOME_STYLES.answered`)
 - Modify: `tests/pageAgentRun.test.mjs`
 
-- [ ] add `read_page_text` (no arguments) and `show_popup` (`title`, `markdown`, both required) to the
+- [x] add `read_page_text` (no arguments) and `show_popup` (`title`, `markdown`, both required) to the
   tool names and `pageAgentToolDefinitions`, and `parseShowPopupArgs`
-- [ ] rewrite `pageAgentSystemPrompt`: the agent helps with the user's current page; questions →
+- [x] rewrite `pageAgentSystemPrompt`: the agent helps with the user's current page; questions →
   `read_page_text` (outline when layout matters), markdown answer in the reply, no `set_conditions`,
   `show_popup` instead of a text reply when the user wants it on the page (it ends the request);
   style changes → the existing conditions flow, unchanged; unclear → one short plain-text question;
   the untrusted-data rule names page text
-- [ ] `report` tool description: for style changes after `set_conditions`; questions are answered
+- [x] `report` tool description: for style changes after `set_conditions`; questions are answered
   with a text reply or `show_popup`
-- [ ] `PageAgentRunStatus` + `'answered'`, `PageAgentRunResult.openedPopup`, adapter +
+- [x] `PageAgentRunStatus` + `'answered'`, `PageAgentRunResult.openedPopup`, adapter +
   `readText` / `showPopup`; `#loop`: no tool calls → `answered` with the text when no conditions are
   set (empty text → `not-met` "The model gave no answer."), `not-met` as today when they are
-- [ ] `#report` without conditions set in the run → `answered` with the summary (empty → `not-met`)
-- [ ] `OUTCOME_STYLES.answered` in `PageAgentMessages.tsx`: neutral gray block, label "Answer" (the
+- [x] `#report` without conditions set in the run → `answered` with the summary (empty → `not-met`)
+- [x] `OUTCOME_STYLES.answered` in `PageAgentMessages.tsx`: neutral gray block, label "Answer" (the
   `Record<PageAgentTurnStatus, …>` needs it for tsc)
-- [ ] `#readPageText` (step result `shortText(text)`) and `#showPopup` tool handlers: `show_popup` refused after `set_conditions`,
+- [x] `#readPageText` (step result `shortText(text)`) and `#showPopup` tool handlers: `show_popup` refused after `set_conditions`,
   invalid arguments back to the model, else `adapter.showPopup(this.tabId, title, { question: request,
   markdown })`, step `show_popup (title) → shown`, run finished `answered` with `openedPopup: true`;
   round limit without conditions → "No answer after 8 steps."
-- [ ] `describeTurn` prints `Answer:` for answered turns
-- [ ] update tests: `FakePage` gets `readText` and `showPopup` (recording tab id); the old "answer
+- [x] `describeTurn` prints `Answer:` for answered turns
+- [x] update tests: `FakePage` gets `readText` and `showPopup` (recording tab id); the old "answer
   without tool calls ends as not-met" test becomes: a text reply with no `set_conditions` ends
   `answered` with the text; new: a text reply after `set_conditions` without `report` ends `not-met`;
   the existing "a report with no conditions set in the run ends as not-met" test becomes: ends
   `answered` with the report's summary
-- [ ] write tests: a run on tab A calls `read_page_text`, the user switches to tab B, the run calls
+- [x] write tests: a run on tab A calls `read_page_text`, the user switches to tab B, the run calls
   `show_popup` → every page call went to tab A, the run ends `answered` with the popup markdown and
   `openedPopup`; `show_popup` after `set_conditions` is refused and nothing is shown
-- [ ] write test: a follow-up run's first user message contains the previous answered turn's full
+- [x] write test: a follow-up run's first user message contains the previous answered turn's full
   answer text
-- [ ] run `make test`, `npx tsc --noEmit` and `make lint` - must pass before next task
+- [x] run `make test`, `npx tsc --noEmit` and `make lint` - must pass before next task
 
 ### Task 5: History of answers and the popup following the chat
 

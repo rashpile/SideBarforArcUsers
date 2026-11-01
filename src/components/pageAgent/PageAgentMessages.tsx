@@ -62,6 +62,11 @@ const OUTCOME_STYLES: Record<PageAgentTurnStatus, OutcomeStyle> = {
     block: 'border-amber-200 bg-amber-50/60 dark:border-amber-800 dark:bg-amber-950/30',
     title: 'text-amber-700 dark:text-amber-300',
   },
+  'answered': {
+    label: 'Answer',
+    block: 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50',
+    title: 'text-gray-700 dark:text-gray-200',
+  },
   'stopped': {
     label: 'Stopped',
     block: 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50',
