@@ -138,7 +138,21 @@ export function buildAiRequestBody(
 }
 
 /**
+ * The URL parser rewrites every IPv4 form (`127.1`, `0x7f.0.0.1`) to dotted decimal, so the regex
+ * sees the canonical address; `127.0.0.1.example.com` stays a domain and fails it.
+ */
+function isLoopbackHost(hostname: string): boolean
+{
+  return hostname === 'localhost'
+    || hostname.endsWith('.localhost')
+    || /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)
+    || hostname === '[::1]';
+}
+
+/**
  * Validates the Base URL, so a key put in it can't leak through logs, history or error messages.
+ * The API key and the page text must not cross the network unencrypted, so plain HTTP is allowed
+ * only for a server on this computer (Ollama, LM Studio).
  */
 export function parseSafeHttpUrl(value: string): URL
 {
@@ -155,6 +169,10 @@ export function parseSafeHttpUrl(value: string): URL
   if (url.protocol !== 'http:' && url.protocol !== 'https:')
   {
     throw new Error('Base URL must use HTTP or HTTPS');
+  }
+  if (url.protocol === 'http:' && !isLoopbackHost(url.hostname))
+  {
+    throw new Error('Base URL must use HTTPS (HTTP is allowed only for localhost)');
   }
   if (url.username || url.password)
   {
@@ -373,4 +391,65 @@ export function buildLlmsTxtCandidates(pageUrl: string, maxCandidates = 5): stri
     candidates.push(`${url.origin}/${prefix ? `${prefix}/` : ''}llms.txt`);
   }
   return [...new Set(candidates)];
+}
+
+/**
+ * A page must not choose where the extension sends requests: with page access the extension's
+ * fetches bypass CORS, so a link to another origin could read a router or a local server.
+ * Protocols are checked explicitly because every `file:` URL has the origin "null".
+ */
+export function isSameOriginHttpUrl(url: string, pageUrl: string): boolean
+{
+  let link: URL;
+  let page: URL;
+  try
+  {
+    link = new URL(url);
+    page = new URL(pageUrl);
+  }
+  catch
+  {
+    return false;
+  }
+
+  const isHttp = (value: URL) => value.protocol === 'http:' || value.protocol === 'https:';
+  return isHttp(link) && isHttp(page) && link.origin === page.origin;
+}
+
+/**
+ * llms.txt can list many documents; only a Markdown path on the page's own origin that clearly
+ * matches the page is used.
+ */
+export function findMatchingLlmsLink(
+  llmsText: string,
+  pageUrl: string,
+  llmsUrl: string
+): string | undefined
+{
+  const page = new URL(pageUrl);
+  const normalizedPath = page.pathname.replace(/\/$/, '').replace(/\.(html?|md)$/i, '');
+  const pageName = normalizedPath.split('/').filter(Boolean).pop();
+  const links = [...llmsText.matchAll(/\[[^\]]+\]\(([^)\s]+)\)/g)].map(match => match[1]);
+
+  for (const link of links)
+  {
+    try
+    {
+      const candidate = new URL(link, llmsUrl);
+      // Skipped rather than ending the search, so a cross-origin match listed first doesn't hide
+      // a later same-origin one.
+      if (!isSameOriginHttpUrl(candidate.toString(), pageUrl)) continue;
+
+      const candidatePath = candidate.pathname.replace(/\/$/, '').replace(/\.(html?|md)$/i, '');
+      if (candidatePath === normalizedPath || (pageName && candidatePath.endsWith(`/${pageName}`)))
+      {
+        return candidate.toString();
+      }
+    }
+    catch
+    {
+      // Skip an invalid link in llms.txt and keep checking the other candidates.
+    }
+  }
+  return undefined;
 }

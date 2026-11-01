@@ -6,6 +6,8 @@ import {
   buildAiRequestBody,
   buildLlmsTxtCandidates,
   extractAiResponseText,
+  findMatchingLlmsLink,
+  isSameOriginHttpUrl,
   resolveAiEndpointCandidates,
   sanitizeGeneratedTitle,
   selectPageContent,
@@ -77,8 +79,8 @@ export class PageContentReader
       ? await this.#readLiveTab(input.tabId).catch(() => this.#readUrl(input.url))
       : await this.#readUrl(input.url);
 
-    const pageMarkdown = snapshot.markdownUrl
-      ? await this.#fetchText(snapshot.markdownUrl).catch(() => undefined)
+    const pageMarkdown = snapshot.markdownUrl && isSameOriginHttpUrl(snapshot.markdownUrl, input.url)
+      ? await this.#fetchText(snapshot.markdownUrl, 'manual').catch(() => undefined)
       : undefined;
 
     if (pageMarkdown)
@@ -104,10 +106,10 @@ export class PageContentReader
     if (llmsResult?.text)
     {
       llmsSummary = llmsResult.text.slice(0, MAX_SITE_CONTEXT_LENGTH);
-      const matchingUrl = this.#findMatchingPageLink(llmsResult.text, input.url, llmsResult.llmsUrl);
+      const matchingUrl = findMatchingLlmsLink(llmsResult.text, input.url, llmsResult.llmsUrl);
       if (matchingUrl)
       {
-        matchedLlmsMarkdown = await this.#fetchText(matchingUrl).catch(() => undefined);
+        matchedLlmsMarkdown = await this.#fetchText(matchingUrl, 'manual').catch(() => undefined);
       }
     }
 
@@ -167,7 +169,7 @@ export class PageContentReader
     const document = new DOMParser().parseFromString(html, 'text/html');
     const preferredRoot = document.querySelector('article, main, [role="main"]') || document.body;
     const description = document.querySelector('meta[name="description"]')?.getAttribute('content') || '';
-    const markdownLink = document.querySelector<HTMLLinkElement>('link[rel~="alternate"][type="text/markdown"]');
+    const markdownLink = document.querySelector('link[rel~="alternate"][type="text/markdown"]');
     const readableRoot = preferredRoot?.cloneNode(true) as HTMLElement | undefined;
     readableRoot?.querySelectorAll('script, style, noscript, svg, nav, footer, aside, form, button')
       .forEach(element => element.remove());
@@ -178,40 +180,34 @@ export class PageContentReader
       description,
       language: document.documentElement.lang || '',
       cleanedPage: cleanedPage.slice(0, MAX_CONTENT_LENGTH),
-      markdownUrl: markdownLink?.href ? new URL(markdownLink.href, url).toString() : undefined,
+      markdownUrl: this.#resolveMarkdownHref(markdownLink?.getAttribute('href'), url),
     };
   }
 
   /**
-   * llms.txt can list many documents; only a Markdown path that clearly matches the page is used.
+   * A DOMParser document has the extension page's URL, so `link.href` would resolve a relative
+   * link to chrome-extension://; the raw attribute is resolved against the page URL instead.
    */
-  #findMatchingPageLink(llmsText: string, pageUrl: string, llmsUrl: string): string | undefined
+  #resolveMarkdownHref(href: string | null | undefined, pageUrl: string): string | undefined
   {
-    const page = new URL(pageUrl);
-    const normalizedPath = page.pathname.replace(/\/$/, '').replace(/\.(html?|md)$/i, '');
-    const pageName = normalizedPath.split('/').filter(Boolean).pop();
-    const links = [...llmsText.matchAll(/\[[^\]]+\]\(([^)\s]+)\)/g)].map(match => match[1]);
-
-    for (const link of links)
+    // An empty href would resolve to the page itself and feed its HTML in as Markdown.
+    if (!href?.trim()) return undefined;
+    try
     {
-      try
-      {
-        const candidate = new URL(link, llmsUrl);
-        const candidatePath = candidate.pathname.replace(/\/$/, '').replace(/\.(html?|md)$/i, '');
-        if (candidatePath === normalizedPath || (pageName && candidatePath.endsWith(`/${pageName}`)))
-        {
-          return candidate.toString();
-        }
-      }
-      catch
-      {
-        // Skip an invalid link in llms.txt and keep checking the other candidates.
-      }
+      return new URL(href, pageUrl).toString();
     }
-    return undefined;
+    catch
+    {
+      return undefined;
+    }
   }
 
-  async #fetchText(url: string): Promise<string>
+  /**
+   * Derived URLs (the Markdown link, the llms.txt page link) pass `'manual'`: a redirect would let
+   * the page choose another origin, and following it to check afterwards still sends the request.
+   * A redirect then comes back as an opaque response with status 0, which fails `ok`.
+   */
+  async #fetchText(url: string, redirect: RequestRedirect = 'follow'): Promise<string>
   {
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -220,7 +216,7 @@ export class PageContentReader
       const response = await fetch(url, {
         signal: controller.signal,
         credentials: 'omit',
-        redirect: 'follow',
+        redirect,
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return (await response.text()).slice(0, MAX_CONTENT_LENGTH);

@@ -521,6 +521,7 @@ export function SettingsDialog({
               />
               <p className="mt-1 text-gray-500 dark:text-gray-400">
                 Accepts a service root, /v1 base, or a complete /responses or /chat/completions URL.
+                Must use HTTPS; HTTP is allowed only for localhost.
               </p>
             </div>
 
