@@ -278,11 +278,11 @@ instructions.
 - Create: `src/utils/pageAgentCss.ts`
 - Create: `tests/pageAgentCss.test.mjs`
 
-- [ ] implement `PageAgentCssSanitizer` with escape resolution, no comment stripping, the rejection list and the 20 KB cap (Technical Details → CSS)
-- [ ] add `PAGE_AGENT_MARKER_PROPERTY`, `withMarker(css, appliedId)` and `PAGE_AGENT_CSS_ORIGIN = 'USER'`
-- [ ] test: rejects `@import`, remote `url(` (quoted, unquoted, `http:`, `https:`, protocol-relative `//`), a `url(` hidden by a CSS escape, a remote `url(` between two strings that look like a comment (`content:"/*"` … `content:"*/"`, also with the `/*` written as escapes), `image-set(` / `-webkit-image-set(` (including `image-set(var(--x) 1x)`), `src(`, `expression(`, `behavior:`, `-moz-binding`, a stylesheet over 20 KB
-- [ ] test: accepts plain declarations with `!important` and `data:` URLs in `url(`
-- [ ] run `make test`, `make lint`, `npx tsc --noEmit` - must pass before task 2
+- [x] implement `PageAgentCssSanitizer` with escape resolution, no comment stripping, the rejection list and the 20 KB cap (Technical Details → CSS)
+- [x] add `PAGE_AGENT_MARKER_PROPERTY`, `withMarker(css, appliedId)` and `PAGE_AGENT_CSS_ORIGIN = 'USER'`
+- [x] test: rejects `@import`, remote `url(` (quoted, unquoted, `http:`, `https:`, protocol-relative `//`), a `url(` hidden by a CSS escape, a remote `url(` between two strings that look like a comment (`content:"/*"` … `content:"*/"`, also with the `/*` written as escapes), `image-set(` / `-webkit-image-set(` (including `image-set(var(--x) 1x)`), `src(`, `expression(`, `behavior:`, `-moz-binding`, a stylesheet over 20 KB
+- [x] test: accepts plain declarations with `!important` and `data:` URLs in `url(`
+- [x] run `make test`, `make lint`, `npx tsc --noEmit` - must pass before task 2
 
 ### Task 2: Agent loop and tool definitions
 
