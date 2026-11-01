@@ -11,6 +11,7 @@ export interface AiRenameSettings
   reasoningEffort: AiReasoningEffort;
   prompt: string;
   autoRename: boolean;
+  acceptsImages: boolean;
 }
 
 export interface AiEndpointCandidate
@@ -68,6 +69,7 @@ export const DEFAULT_AI_RENAME_SETTINGS: AiRenameSettings = {
   reasoningEffort: 'medium',
   prompt: DEFAULT_AI_PROMPT,
   autoRename: false,
+  acceptsImages: false,
 };
 
 const SECRET_QUERY_KEYS = new Set([
@@ -100,6 +102,7 @@ export function parseAiRenameSettings(value: string): AiRenameSettings
     protocol,
     reasoningEffort,
     autoRename: parsed.autoRename === true,
+    acceptsImages: parsed.acceptsImages === true,
     prompt: parsed.prompt === undefined || parsed.prompt === LEGACY_DEFAULT_AI_PROMPT
       ? DEFAULT_AI_PROMPT
       : parsed.prompt,

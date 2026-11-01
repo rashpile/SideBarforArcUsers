@@ -606,6 +606,21 @@ export function SettingsDialog({
             </div>
 
             <div>
+              <label className="flex items-center gap-2 text-gray-700 dark:text-gray-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={tempAiSettings.acceptsImages}
+                  onChange={(event) => setTempAiSettings({ ...tempAiSettings, acceptsImages: event.target.checked })}
+                  className="rounded border-gray-300 dark:border-gray-600"
+                />
+                Model accepts images
+              </label>
+              <p className="mt-1 text-gray-500 dark:text-gray-400">
+                Lets the page agent send screenshots of the page to the model.
+              </p>
+            </div>
+
+            <div>
               <label className="block font-medium mb-1 text-gray-700 dark:text-gray-300">
                 Prompt
               </label>

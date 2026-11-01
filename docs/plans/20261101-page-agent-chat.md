@@ -363,10 +363,10 @@ instructions.
 - Modify: `src/components/SettingsDialog.tsx`
 - Modify: `public/manifest.json`
 
-- [ ] add `acceptsImages: boolean` to `AiRenameSettings`, default `false` in `DEFAULT_AI_RENAME_SETTINGS`, `parsed.acceptsImages === true` in `parseAiRenameSettings`
-- [ ] add the "Model accepts images" checkbox to the AI section of Settings (near reasoning effort), with a one-line hint that it enables screenshots for the page agent
-- [ ] add `<all_urls>` to `optional_host_permissions`
-- [ ] `npx tsc --noEmit`, `make test`, `make lint` pass
+- [x] add `acceptsImages: boolean` to `AiRenameSettings`, default `false` in `DEFAULT_AI_RENAME_SETTINGS`, `parsed.acceptsImages === true` in `parseAiRenameSettings`
+- [x] add the "Model accepts images" checkbox to the AI section of Settings (near reasoning effort), with a one-line hint that it enables screenshots for the page agent
+- [x] add `<all_urls>` to `optional_host_permissions`
+- [x] `npx tsc --noEmit`, `make test`, `make lint` pass
 
 ### Task 7: Drawer UI and chat hook
 
