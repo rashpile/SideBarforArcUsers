@@ -103,6 +103,14 @@ export class SavedPageStyle
     return on === this.autoApply ? this : new SavedPageStyle(this.css, on, this.origin, this.rev);
   }
 
+  equals(other: SavedPageStyle): boolean
+  {
+    return this.css === other.css
+      && this.autoApply === other.autoApply
+      && this.origin === other.origin
+      && this.rev === other.rev;
+  }
+
   toStored(): StoredPageStyle
   {
     return { css: this.css, autoApply: this.autoApply, origin: this.origin, rev: this.rev };
@@ -164,6 +172,19 @@ export class SavedPageStyles
   styleFor(bookmarkId: string): SavedPageStyle | null
   {
     return this.#byBookmarkId.get(bookmarkId) ?? null;
+  }
+
+  /** The same bookmarks with equal records, in any order. */
+  equals(other: SavedPageStyles): boolean
+  {
+    if (this === other) return true;
+    if (this.#byBookmarkId.size !== other.#byBookmarkId.size) return false;
+    for (const [bookmarkId, style] of this.#byBookmarkId)
+    {
+      const theirs = other.#byBookmarkId.get(bookmarkId);
+      if (!theirs || !theirs.equals(style)) return false;
+    }
+    return true;
   }
 
   /**

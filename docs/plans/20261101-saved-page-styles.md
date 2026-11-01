@@ -209,15 +209,15 @@ Chat adoption (`PageAgentChats`), through an injected `savedStyleForTab(tabId)` 
 - Create: `src/managers/proxies/pageStyleProxy.ts`
 - Create: `src/hooks/usePageStyles.ts`
 
-- [ ] implement the proxy like `attentionMarkProxy.ts`: mirror in an `ExternalStore`, optimistic writes
+- [x] implement the proxy like `attentionMarkProxy.ts`: mirror in an `ExternalStore`, optimistic writes
   through the same `SavedPageStyles` operations for `setAutoApply` and `remove`; `save` is not optimistic
   (the manager makes `rev`, and Save is a rare deliberate click): the mirror takes the manager's response;
   own echo skipped, foreign broadcasts held while writes are in flight
-- [ ] expose the mirror's current `SavedPageStyles` for non-React readers (`store.getSnapshot()`), which
+- [x] expose the mirror's current `SavedPageStyles` for non-React readers (`store.getSnapshot()`), which
   Task 6's resolver reads at call time
-- [ ] hook `usePageStyles()` returning `styleFor(bookmarkId)`, `save`, `setAutoApply`, `remove`
-- [ ] no tests: wiring over the tested store and manager (repo rule)
-- [ ] run `make test`, `npx tsc --noEmit` and `make lint` - must pass before next task
+- [x] hook `usePageStyles()` returning `styleFor(bookmarkId)`, `save`, `setAutoApply`, `remove`
+- [x] no tests: wiring over the tested store and manager (repo rule)
+- [x] run `make test`, `npx tsc --noEmit` and `make lint` - must pass before next task
 
 ### Task 4: PageStyleApplier
 
