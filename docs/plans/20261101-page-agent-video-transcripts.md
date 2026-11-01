@@ -459,11 +459,11 @@ export class VideoTranscriptReader
 
 ### Task 10: Verify acceptance criteria
 
-- [ ] the run offers a plugin's tool only when the plugin is passed (Task 1 tests) and the runtime passes only enabled plugins (Task 2 switches, Task 8 wiring read through)
-- [ ] spoiler default: a mid-way call without `to` never returns text past the position; an unknown position without `to` returns no text
-- [ ] no extension-side fetch of subtitle files (grep: only the injected `fetchSubtitleFile` fetches them)
-- [ ] the Prime wrapper returns the original promise and never throws into the page
-- [ ] full suite: `make test`; `npx tsc --noEmit`; `make lint`; `make build`
+- [x] the run offers a plugin's tool only when the plugin is passed (Task 1 tests) and the runtime passes only enabled plugins (Task 2 switches, Task 8 wiring read through)
+- [x] spoiler default: a mid-way call without `to` never returns text past the position; an unknown position without `to` returns no text
+- [x] no extension-side fetch of subtitle files (grep: only the injected `fetchSubtitleFile` fetches them)
+- [x] the Prime wrapper returns the original promise and never throws into the page
+- [x] full suite: `make test`; `npx tsc --noEmit`; `make lint`; `make build`
 
 ### Task 11: [Final] Update documentation
 
