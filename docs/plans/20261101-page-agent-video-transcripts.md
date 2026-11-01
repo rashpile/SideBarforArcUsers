@@ -361,11 +361,11 @@ export class VideoTranscriptReader
 - Create: `tests/pageAgentPlugins.test.mjs`
 - Modify: `tests/aiConfig.test.mjs`
 
-- [ ] `PAGE_AGENT_PLUGINS` with the `video-transcripts` entry and `PageAgentPluginSwitches`
-- [ ] `AiRenameSettings.agentPlugins` (default `{}`), sanitized in `parseAiRenameSettings`
-- [ ] `PageAgentRuntime.createRun` passes the enabled plugins through an id → factory map (empty for now; Task 8 adds the factory)
-- [ ] tests: a missing id takes `defaultEnabled`; a stored `false` disables; `with` returns a new value and leaves the old one; `parseAiRenameSettings` keeps booleans and drops other values, and an old settings JSON without the field gets `{}`
-- [ ] `make test`, `npx tsc --noEmit`, `make lint` - must pass before task 3
+- [x] `PAGE_AGENT_PLUGINS` with the `video-transcripts` entry and `PageAgentPluginSwitches`
+- [x] `AiRenameSettings.agentPlugins` (default `{}`), sanitized in `parseAiRenameSettings`
+- [x] `PageAgentRuntime.createRun` passes the enabled plugins through an id → factory map (empty for now; Task 8 adds the factory)
+- [x] tests: a missing id takes `defaultEnabled`; a stored `false` disables; `with` returns a new value and leaves the old one; `parseAiRenameSettings` keeps booleans and drops other values, and an old settings JSON without the field gets `{}`
+- [x] `make test`, `npx tsc --noEmit`, `make lint` - must pass before task 3
 
 ### Task 3: TTML parser
 
