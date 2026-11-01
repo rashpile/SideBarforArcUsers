@@ -104,13 +104,13 @@
 **Files:**
 - Modify: `src/services/aiRenameService.ts`
 
-- [ ] `#fetchText(url, redirect: RequestRedirect = 'follow')`; pass `redirect` to `fetch`; comment why derived URLs use `'manual'` (a redirect would choose another origin; following and checking afterwards still sends the request)
-- [ ] `read()`: fetch `snapshot.markdownUrl` only when `isSameOriginHttpUrl(snapshot.markdownUrl, input.url)`, with `'manual'`; otherwise behave as when the link is missing
-- [ ] `read()`: use `findMatchingLlmsLink(llmsResult.text, input.url, llmsResult.llmsUrl)` and fetch the result with `'manual'`; delete `#findMatchingPageLink`
-- [ ] `#readUrl`: resolve `markdownLink?.getAttribute('href')` against `url` in a `try`/`catch` (missing, empty or invalid → `undefined`); comment why (`DOMParser` documents resolve `href` against the extension page)
-- [ ] keep `#readUrl(input.url)` and the `llms.txt` candidate fetches on `'follow'`
-- [ ] no new tests: the decisions are covered in tasks 1-2; this task is wiring (CLAUDE.md)
-- [ ] run `make lint && make test && make build` - must pass before task 4
+- [x] `#fetchText(url, redirect: RequestRedirect = 'follow')`; pass `redirect` to `fetch`; comment why derived URLs use `'manual'` (a redirect would choose another origin; following and checking afterwards still sends the request)
+- [x] `read()`: fetch `snapshot.markdownUrl` only when `isSameOriginHttpUrl(snapshot.markdownUrl, input.url)`, with `'manual'`; otherwise behave as when the link is missing
+- [x] `read()`: use `findMatchingLlmsLink(llmsResult.text, input.url, llmsResult.llmsUrl)` and fetch the result with `'manual'`; delete `#findMatchingPageLink`
+- [x] `#readUrl`: resolve `markdownLink?.getAttribute('href')` against `url` in a `try`/`catch` (missing, empty or invalid → `undefined`); comment why (`DOMParser` documents resolve `href` against the extension page)
+- [x] keep `#readUrl(input.url)` and the `llms.txt` candidate fetches on `'follow'`
+- [x] no new tests: the decisions are covered in tasks 1-2; this task is wiring (CLAUDE.md)
+- [x] run `make lint && make test && make build` - must pass before task 4
 
 ### Task 4: Verify acceptance criteria
 - [ ] verify both parts of the Overview are implemented: Markdown link and `llms.txt` link gated by origin and fetched without redirects; page URL and `llms.txt` candidates unchanged; `http:` Base URL only for loopback with the exact error text, no rewrite of stored settings
