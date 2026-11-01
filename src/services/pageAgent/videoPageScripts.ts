@@ -38,6 +38,7 @@ export type PageVideoResult =
   | {
     video: { duration: number | null; position: number };
     tracks: PageVideoTrack[];
+    title: string;
     /** Only when a track index was given; raw cue text, WebVTT tags included. Empty when none loaded in time. */
     cues?: SubtitleCue[];
   };
@@ -235,13 +236,13 @@ export async function readPageVideo(trackIndex: number | null, timeoutMs: number
   };
   if (trackIndex === null)
   {
-    return { video, tracks };
+    return { video, tracks, title: document.title };
   }
 
   const track = chosen.textTracks[trackIndex];
   if (!track || (track.kind !== 'subtitles' && track.kind !== 'captions'))
   {
-    return { video, tracks, cues: [] };
+    return { video, tracks, title: document.title, cues: [] };
   }
 
   const switchedOn = track.mode === 'disabled';
@@ -267,7 +268,7 @@ export async function readPageVideo(trackIndex: number | null, timeoutMs: number
         text: 'text' in cue && typeof cue.text === 'string' ? cue.text : '',
       });
     }
-    return { video, tracks, cues };
+    return { video, tracks, title: document.title, cues };
   }
   finally
   {

@@ -267,7 +267,8 @@ export function parseTtml(xml: string): SubtitleCue[];                      // s
   `captions` listed as `{ index, code: language, name: label, kind, showing }`. With `trackIndex`: a
   track in mode `disabled` is set to `hidden`; poll every 100 ms until it has cues or `timeoutMs`
   (5000) passes; read `startTime`, `endTime`, `text`; set the mode back. Returns
-  `{ video: { duration, position }, tracks, cues? }`; `position` is `currentTime` (0 = not started,
+  `{ video: { duration, position }, tracks, title, cues? }` (`title` = `document.title`, the result's
+  `page_title`); `position` is `currentTime` (0 = not started,
   which reads the whole video: unlike Prime's player, a page's `<video>` doesn't go away).
 - The module is imported by Node tests (the reader's fakes compare functions by reference, and the
   wrapper has tests): it follows CLAUDE.md's Testing rules (`.ts` sibling imports, no top-level DOM or
@@ -313,7 +314,8 @@ export class VideoTranscriptReader
     no readable cues."
   - page-video: no video ("No video on this page; videos inside embedded frames can't be read."), no
     tracks ("The video on this page has no subtitle tracks."), cues not loaded in time ("The subtitles
-    didn't load; ask the user to start the video and try again.")
+    didn't load; ask the user to start the video and try again."), cues loaded but all empty after
+    cleaning (the "no readable cues" message above)
   - range or language errors: the error text, for the model to fix its call
 
 ### Video transcripts plugin (`src/services/pageAgent/videoTranscriptPlugin.ts`)
@@ -425,13 +427,14 @@ export class VideoTranscriptReader
 **Files:**
 - Create: `src/services/pageAgent/videoTranscriptReader.ts`
 - Create: `tests/videoTranscriptReader.test.mjs`
+- Modify: `src/services/pageAgent/videoPageScripts.ts` (`readPageVideo` also returns the page title)
 
-- [ ] `VideoPageAccess`, `VideoTranscriptRequest`, `VideoTranscriptReader.read` with the Prime and page-video flows and the messages per Technical Details
-- [ ] tests (fake `VideoPageAccess` recording tab, function and world): every call uses the given tab; the capture runs in MAIN and the file fetch in ISOLATED; capture just installed → the reopen message and no fetch
-- [ ] tests: a captured list with a non-`pv-cdn.net` URL → refused, no fetch; a captured list → TTML parsed and cut at the position mid-way; language prefix picks the track whose URL is fetched
-- [ ] tests: page-video picks a track and reads its cues on the second call with that index, WebVTT tags removed and entities decoded; no video and no tracks give their messages
-- [ ] tests: Prime with the episode position `null` and no `to` → no transcript text, the unknown-position note
-- [ ] `make test`, `npx tsc --noEmit`, `make lint` - must pass before task 8
+- [x] `VideoPageAccess`, `VideoTranscriptRequest`, `VideoTranscriptReader.read` with the Prime and page-video flows and the messages per Technical Details
+- [x] tests (fake `VideoPageAccess` recording tab, function and world): every call uses the given tab; the capture runs in MAIN and the file fetch in ISOLATED; capture just installed → the reopen message and no fetch
+- [x] tests: a captured list with a non-`pv-cdn.net` URL → refused, no fetch; a captured list → TTML parsed and cut at the position mid-way; language prefix picks the track whose URL is fetched
+- [x] tests: page-video picks a track and reads its cues on the second call with that index, WebVTT tags removed and entities decoded; no video and no tracks give their messages
+- [x] tests: Prime with the episode position `null` and no `to` → no transcript text, the unknown-position note
+- [x] `make test`, `npx tsc --noEmit`, `make lint` - must pass before task 8
 
 ### Task 8: Video transcripts plugin and runtime wiring
 
