@@ -195,10 +195,11 @@ Page agent chat of one tab (experimental): the user's requests, the agent's turn
 }
 ```
 - Owner: `PageAgentChats` (`src/services/pageAgent/pageAgentChats.ts`) through `PageAgentChatStore` (`pageAgentChatStore.ts`, writes queued in order), one per side panel, created in `src/App.tsx` by `createPanelPageAgentChats` and alive as long as the panel, not the drawer
-- Writer: the side panel of the window that holds the tab. It saves after every event of a run it started, also while the drawer shows another tab or is closed, and after Undo, Re-apply and a marker check. A panel loads only the chats of tabs its drawer shows, and `tabs.onUpdated` marker checks skip chats it hasn't loaded, so it doesn't write the chat of a tab in another window. A tab moved to another window mid-chat is a known limitation
+- Writer: the side panel of the window that holds the tab. It saves after every event of a run it started, also while the drawer shows another tab or is closed, and after Undo, Re-apply, the style strip's Apply and a marker check. A panel loads only the chats of tabs its drawer shows, and `tabs.onUpdated` marker checks skip chats it hasn't loaded, so it doesn't write the chat of a tab in another window. A tab moved to another window mid-chat is a known limitation
 - Deletes: any panel on `tabs.onRemoved` (`tabClosed` aborts the tab's run and keeps its later events from writing the key back); the sweep at panel start deletes the keys of tabs missing from `chrome.tabs.query({})`
 - `appliedInsertedText` stays until it has been removed: Undo, the next `apply_css` and Re-apply call `removeCSS` with it first. Undo then clears the applied fields and the notice
-- Notice (`checkMarker`, on `tabs.onUpdated` with `status: 'complete'` and whenever a chat with applied CSS is shown, since `onUpdated` is unreliable in the side panel): the page's `--sidebar-page-agent` equal to `appliedId` clears it; an empty marker sets `reloaded` when the tab URL equals `appliedUrl`, else `navigated`
+- Notice (`checkMarker`, on `tabs.onUpdated` with `status: 'complete'` and whenever a chat with applied CSS or a tab with a saved style is shown, and again when that saved style's `rev` changes, since `onUpdated` is unreliable in the side panel): the page's `--sidebar-page-agent` equal to `appliedId` clears it; an empty marker sets `reloaded` when the tab URL equals `appliedUrl`, else `navigated`. A chat with no applied CSS in a tab without a saved style is not checked, so it gets no notice and no page read
+- Saved styles (`bookmarkPageStyles`): when the marker is the `saved-<rev>` id of the style saved to the tab's bookmark or Favorite and differs from `appliedId`, `checkMarker` adopts that sheet as the applied fields (also into a chat with no turns), so Undo, Show CSS and the next `apply_css` work on it. The strip's Apply removes the chat's sheet, inserts the saved one unless the marker already shows it, and records it the same way; it is ignored during a run
 - Loading: a turn stored as `running` loads as `stopped` ("Side panel closed during the run"), since runs live only in the panel that started them. A value that isn't a chat of that tab loads as no chat
 - Screenshots stay in the open panel's memory and are never written
 - Why session storage: chats are keyed by tab ID, which is valid for one browser session. An extension reload or update clears them while their CSS stays on the pages until a reload
@@ -447,6 +448,26 @@ string  // raw integer, not JSON; absent until the first resize
 ```
 - Owner: `src/components/pageAgent/PageAgentDrawer.tsx` (via `useChromeLocalStorage` with a raw-string serializer), written once when a drag on the resize handle ends
 - Default: 45% of the panel height. Stored and default heights are clamped to [160 px, panel height - 160 px]; an unreadable value reads as absent
+- Instances: 1 per extension (shared across windows)
+
+### `bookmarkPageStyles`
+Page agent CSS saved to bookmarks and Favorites (experimental), put back on the pages of its site that load in the bookmark's tab
+```typescript
+Record<string, {       // by bookmark id; a Favorite's id is its bookmark node id
+  css: string,         // sanitized stylesheet without the marker
+  autoApply: boolean,  // apply on page loads in the bookmark's tab; true for a new record, kept on an update
+  origin: string,      // origin of the http(s) page the style was saved on
+  rev: string          // random id, new on every save; the inserted text carries the marker id `saved-<rev>`
+}>
+```
+- Owner: `src/managers/impl/pageStyleManager.ts` (`PageStyleManager`, background, the only writer; writes serialized); the model is `SavedPageStyles` in `src/stores/savedPageStyles.ts`
+- Consumers: `src/managers/proxies/pageStyleProxy.ts` → `src/hooks/usePageStyles.ts` (sidebar mirror: the drawer's style strip and Save button in `src/components/pageAgent/`, the brush and the Page style submenu in `BookmarkTree.tsx` and `PinnedIcon.tsx`); `src/App.tsx` reads the mirror at call time for `PageAgentChats`, which adopts a saved sheet it finds on the page (see `pageAgentChat:${tabId}`); `src/services/pageStyleApplier.ts` (background) reads the manager's styles
+- Updates: Save to bookmark / Update saved style (`save`: refuses CSS that fails `PageAgentCssSanitizer.check` and pages that aren't http(s), makes a new `rev`), the strip's Auto-apply switch and the submenu's Auto-apply on load (`setAutoApply`), the strip's Remove and the submenu's Remove saved style (`remove`); `bookmarks.onRemoved` drops the removed id and, for a folder, every descendant id
+- Applier: inserts `withMarker(css, 'saved-' + rev)` with `chrome.scripting.insertCSS` (origin `USER`) when the tab isn't incognito, its association (`tabAssociations_${windowId}`) is `bookmark-<id>` or `pinned-<id>`, that id's record has `autoApply`, the page's origin equals `origin` and the CSS passes the sanitizer. On `webNavigation.onCommitted` (top frame) it inserts without a marker check, except on a `forward_back` commit, whose restored document may still hold its sheets; on `tabs.onUpdated` with `status: 'complete'` it inserts only when the page's `--sidebar-page-agent` marker is empty. A sweep over the open tabs runs once per worker start, and only in a new browser session or after an extension reload (`tabRestoreSessionStarted` absent): on a worker restart it would put back a style the user just took off with Undo. Nothing is applied when the association restore failed (`stateReady` false)
+- Auto-apply off and Remove change only later page loads; the open page keeps its sheet until a reload or Undo
+- Unreadable value: logged, saved styles start empty and `bookmarks.onRemoved` doesn't write the key until the user's next save, toggle or remove. Malformed records and origins that aren't http(s) are dropped when parsed
+- Not in Backup / Restore: a restore creates new bookmark ids
+- Lifespan: persistent, until the user removes the style or deletes the bookmark
 - Instances: 1 per extension (shared across windows)
 
 ---

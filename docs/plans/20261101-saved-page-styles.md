@@ -354,18 +354,18 @@ Chat adoption (`PageAgentChats`), through an injected `savedStyleForTab(tabId)` 
 
 Code and test checks (in-browser checks are in Post-Completion):
 
-- [ ] the applier inserts only into the bookmark's / Favorite's associated tab on the saved origin with
+- [x] the applier inserts only into the bookmark's / Favorite's associated tab on the saved origin with
   auto-apply on, never into a hand-opened tab or another site (`tests/pageStyleApplier.test.mjs`)
-- [ ] the startup sweep runs only in a new browser session; a worker restart doesn't undo an Undo; nothing
+- [x] the startup sweep runs only in a new browser session; a worker restart doesn't undo an Undo; nothing
   is applied when the association restore failed; `forward_back` commits take the marker path
   (`tests/pageStyleApplier.test.mjs`)
-- [ ] the chat adopts an auto-applied sheet, also into an empty chat, and a following run replaces it
+- [x] the chat adopts an auto-applied sheet, also into an empty chat, and a following run replaces it
   instead of stacking; `applySaved` never inserts twice (`tests/pageAgentChats.test.mjs`)
-- [ ] deleting a bookmark or its folder drops its style; unsafe CSS is refused on save
+- [x] deleting a bookmark or its folder drops its style; unsafe CSS is refused on save
   (`tests/pageStyleManager.test.mjs`)
-- [ ] read the drawer, tree and menu code once against Tasks 7-8 (Save label states, Apply by CSS text,
+- [x] read the drawer, tree and menu code once against Tasks 7-8 (Save label states, Apply by CSS text,
   Undo / Show CSS with no turns, icon states, submenu only with a saved style)
-- [ ] run full test suite: `make test`; `make build`; `make lint`
+- [x] run full test suite: `make test`; `make build`; `make lint`
 
 ### Task 10: [Final] Update documentation
 
@@ -378,20 +378,20 @@ Code and test checks (in-browser checks are in Post-Completion):
 - Modify: `docs/chrome-web-store-info.md`
 - Modify: `PRIVACY.md`
 
-- [ ] README "Page agent (experimental)": saving to a bookmark, Auto-apply, scope (bookmark's tab, same
+- [x] README "Page agent (experimental)": saving to a bookmark, Auto-apply, scope (bookmark's tab, same
   site), the strip, the brush icon, the Page style submenu, known limitations below; Permissions table:
   `webNavigation`
-- [ ] `docs/state-reference.md`: `bookmarkPageStyles` (local, owner `PageStyleManager`, lifespan: until
+- [x] `docs/state-reference.md`: `bookmarkPageStyles` (local, owner `PageStyleManager`, lifespan: until
   removed or the bookmark is deleted)
-- [ ] `docs/development.md`: manager table row for `PageStyleManager`
-- [ ] `docs/changelog.md` entry and a `src/data/changelog.ts` What's New entry
-- [ ] `docs/chrome-web-store-info.md`: `webNavigation` justification (apply a saved style when a page
+- [x] `docs/development.md`: manager table row for `PageStyleManager`
+- [x] `docs/changelog.md` entry and a `src/data/changelog.ts` What's New entry
+- [x] `docs/chrome-web-store-info.md`: `webNavigation` justification (apply a saved style when a page
   commits in the bookmark's tab)
-- [ ] `PRIVACY.md`: a local-storage entry for `bookmarkPageStyles` (the CSS and the site origin it was
+- [x] `PRIVACY.md`: a local-storage entry for `bookmarkPageStyles` (the CSS and the site origin it was
   saved on, per bookmark); in the Page Agent section, say that with a saved style on auto-apply the
   extension reads a marker from and inserts CSS into the bookmark's tab on page loads, without a request,
   and that nothing of this goes to the AI endpoint
-- [ ] mark the plan's tasks done (the orchestrator moves the plan to `docs/plans/completed/`)
+- [x] mark the plan's tasks done (the orchestrator moves the plan to `docs/plans/completed/`)
 
 ## Known limitations
 
