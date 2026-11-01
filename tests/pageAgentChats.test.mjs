@@ -55,6 +55,7 @@ class FakeRun
     this.start = start;
     this.listener = start.listener;
     this.stopped = false;
+    this.finished = false;
     this.done = new Promise(resolve =>
     {
       this.resolve = resolve;
@@ -73,6 +74,7 @@ class FakeRun
 
   finish(result)
   {
+    this.finished = true;
     this.listener.onFinished(result);
     this.resolve(result);
   }
@@ -91,11 +93,12 @@ class FakeRunFactory
     };
   }
 
+  /** The tab's run that hasn't finished yet. */
   async runFor(tabId)
   {
     for (let attempt = 0; attempt < 50; attempt++)
     {
-      const run = this.runs.find(entry => entry.start.tabId === tabId);
+      const run = this.runs.find(entry => entry.start.tabId === tabId && !entry.finished);
       if (run)
       {
         return run;
@@ -115,6 +118,37 @@ class FakePage
     this.removed = [];
     this.inserted = [];
     this.markerReads = 0;
+    this.popups = new Map();
+    this.popupCalls = [];
+  }
+
+  async showPopup(tabId, title, answer)
+  {
+    this.popupCalls.push({ method: 'showPopup', tabId });
+    this.popups.set(tabId, { title, entries: [answer] });
+  }
+
+  async appendToPopup(tabId, answer)
+  {
+    this.popupCalls.push({ method: 'appendToPopup', tabId });
+    const popup = this.popups.get(tabId);
+    if (!popup)
+    {
+      return false;
+    }
+    popup.entries.push(answer);
+    return true;
+  }
+
+  /** The popup's close button. */
+  closePopup(tabId)
+  {
+    this.popups.delete(tabId);
+  }
+
+  popupOf(tabId)
+  {
+    return this.popups.get(tabId);
   }
 
   async insertCss(tabId, text)
@@ -205,6 +239,17 @@ const metResult = {
   replaced: [],
   summary: 'The player fills the content area.',
 };
+
+const answered = summary => ({ status: 'answered', conditions: [], replaced: [], summary });
+
+async function finishTurn(chats, factory, tabId, request, result)
+{
+  const sending = chats.send(tabId, request, SETTINGS);
+  const run = await factory.runFor(tabId);
+  run.finish(result);
+  await sending;
+  return run;
+}
 
 test('a run on tab A that finishes while the drawer shows tab B saves its final status and stylesheet', async () =>
 {
@@ -474,4 +519,77 @@ test('applySaved is ignored while the tab has a live run', async () =>
   assert.equal(chats.peek(TAB_A).appliedId, '');
   run.finish(metResult);
   await sending;
+});
+
+test('a follow-up run gets the earlier answers in its history, one over 4000 characters cut with a note', async () =>
+{
+  const { factory, chats } = setup();
+  const shortAnswer = '## Summary\n\nThe page is about **grid** layout.';
+  const longAnswer = `${'a'.repeat(3990)}TAIL OF THE ANSWER${'b'.repeat(500)}`;
+  await finishTurn(chats, factory, TAB_A, 'summary page', answered(shortAnswer));
+  await finishTurn(chats, factory, TAB_A, 'explain every section', answered(longAnswer));
+
+  const sending = chats.send(TAB_A, 'and the conclusion?', SETTINGS);
+  const run = await factory.runFor(TAB_A);
+  const [first, second] = run.start.history;
+  assert.equal(first.status, 'answered');
+  assert.equal(first.summary, shortAnswer);
+  assert.equal(second.summary, `${longAnswer.slice(0, 4000)}\n[answer cut at 4000 characters]`);
+  assert.equal(chats.peek(TAB_A).answerOf(1).markdown, longAnswer, 'the chat keeps the whole answer');
+  run.finish(answered('It ends with a summary.'));
+  await sending;
+});
+
+test('an answer of a run on tab A goes to the popup open on A while the drawer shows tab B', async () =>
+{
+  const { factory, page, chats } = setup();
+  await finishTurn(chats, factory, TAB_A, 'summary page', answered('The page is about layout.'));
+  await chats.showOnPage(TAB_A, 0);
+  page.popupCalls = [];
+
+  const sending = chats.send(TAB_A, 'explain grid', SETTINGS);
+  const run = await factory.runFor(TAB_A);
+  await chats.get(TAB_B);
+  run.finish(answered('Grid is a two-dimensional layout.'));
+  await sending;
+
+  assert.deepEqual(page.popupOf(TAB_A).entries, [
+    { question: 'summary page', markdown: 'The page is about layout.' },
+    { question: 'explain grid', markdown: 'Grid is a two-dimensional layout.' },
+  ]);
+  assert.equal(page.popupOf(TAB_B), undefined);
+  assert.deepEqual(page.popupCalls, [{ method: 'appendToPopup', tabId: TAB_A }]);
+});
+
+test('after the popup is closed the next answer appends nothing and opens no popup', async () =>
+{
+  const { factory, page, chats } = setup();
+  await finishTurn(chats, factory, TAB_A, 'summary page', answered('The page is about layout.'));
+  await chats.showOnPage(TAB_A, 0);
+  page.closePopup(TAB_A);
+  page.popupCalls = [];
+
+  await finishTurn(chats, factory, TAB_A, 'explain grid', answered('Grid is a two-dimensional layout.'));
+
+  assert.equal(page.popupOf(TAB_A), undefined);
+  assert.deepEqual(page.popupCalls, [{ method: 'appendToPopup', tabId: TAB_A }], 'an append only, never an open');
+  assert.equal(chats.peek(TAB_A).data.turns[1].status, 'answered');
+});
+
+test('a turn whose run opened the popup and a style turn append nothing to the open popup', async () =>
+{
+  const { factory, page, chats } = setup();
+  await finishTurn(chats, factory, TAB_A, 'summary page', answered('The page is about layout.'));
+  await chats.showOnPage(TAB_A, 0);
+  page.popupCalls = [];
+
+  // show_popup went through the run's own adapter; appending it again would show it twice.
+  await finishTurn(chats, factory, TAB_A, 'show the summary in a popup', {
+    ...answered('A summary in a popup.'),
+    openedPopup: true,
+  });
+  await finishTurn(chats, factory, TAB_A, 'make the player full width', metResult);
+
+  assert.deepEqual(page.popupCalls, []);
+  assert.equal(page.popupOf(TAB_A).entries.length, 1);
 });

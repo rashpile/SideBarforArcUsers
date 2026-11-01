@@ -14,6 +14,7 @@ import {
   sanitizeGeneratedTitle,
   selectPageContent,
 } from '../utils/aiConfig';
+import { readReadablePage } from '../utils/readablePage';
 
 const MAX_CONTENT_LENGTH = 12_000;
 const MAX_SITE_CONTEXT_LENGTH = 3_000;
@@ -135,31 +136,19 @@ export class PageContentReader
   {
     const results = await chrome.scripting.executeScript({
       target: { tabId },
-      func: () =>
-      {
-        const preferredRoot = document.querySelector('article, main, [role="main"]') || document.body;
-        const description = document.querySelector('meta[name="description"]')?.getAttribute('content') || '';
-        const markdownLink = document.querySelector<HTMLLinkElement>('link[rel~="alternate"][type="text/markdown"]');
-        // innerText reads only the rendered text, so hidden node content never reaches the model.
-        const cleanedPage = (
-          preferredRoot instanceof HTMLElement ? preferredRoot.innerText : preferredRoot?.textContent || ''
-        )
-          .replace(/\s+/g, ' ')
-          .trim();
-
-        return {
-          title: document.title,
-          description,
-          language: document.documentElement.lang || '',
-          cleanedPage,
-          markdownUrl: markdownLink?.href,
-        };
-      },
+      func: readReadablePage,
+      args: [MAX_CONTENT_LENGTH, 'article-first'],
     });
 
-    const snapshot = results[0]?.result as DocumentSnapshot | undefined;
-    if (!snapshot) throw new Error('Unable to read the current page');
-    return { ...snapshot, cleanedPage: snapshot.cleanedPage.slice(0, MAX_CONTENT_LENGTH) };
+    const page = results[0]?.result;
+    if (!page) throw new Error('Unable to read the current page');
+    return {
+      title: page.title,
+      description: page.description,
+      language: page.language,
+      cleanedPage: page.text.replace(/\s+/g, ' ').trim(),
+      markdownUrl: page.markdownUrl,
+    };
   }
 
   /**

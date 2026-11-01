@@ -16,6 +16,8 @@ export interface PageAgentChatView<Settings>
   reapply(): void;
   /** Puts the tab's saved page style on the page as the chat's stylesheet. */
   applySaved(): void;
+  /** Shows an answered turn's answer in a popup on the tab's page. */
+  showOnPage(turnIndex: number): void;
   /**
    * Runs another drawer action for this tab (saving its style, say); a failure shows in
    * actionError as "<label> failed: <reason>", like Undo's.
@@ -120,6 +122,14 @@ export function usePageAgentChat<Settings>(
     }
   }, [chats, tabId, runAction]);
 
+  const showOnPage = useCallback((turnIndex: number) =>
+  {
+    if (tabId !== undefined)
+    {
+      runAction('Show on page', () => chats.showOnPage(tabId, turnIndex));
+    }
+  }, [chats, tabId, runAction]);
+
   return {
     chat,
     running,
@@ -129,6 +139,7 @@ export function usePageAgentChat<Settings>(
     undo,
     reapply,
     applySaved,
+    showOnPage,
     runAction,
   };
 }

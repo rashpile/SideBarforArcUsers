@@ -13,6 +13,7 @@ import {
   parseInspectArgs,
   parseReportArgs,
   parseSetConditionsArgs,
+  parseShowPopupArgs,
 } from './pageAgentTools.ts';
 import type {
   PageAgentConditionSpec,
@@ -73,13 +74,24 @@ export class PageAgentModelError extends Error
 
 export type PageAgentCapture = { dataUrl: string } | { unavailable: string };
 
-/** Everything the run does to a page. Rejections end the run as `error`. */
+/** An answer the agent gave, under the user request it answers. */
+export interface PageAgentAnswer
+{
+  question: string;
+  markdown: string;
+}
+
+/** Everything the run does to a page. Rejections end the run as `error`, except `showPopup`'s. */
 export interface PageAgentPageAdapter
 {
   /** JSON text for the model, already capped. */
   outline(tabId: number): Promise<string>;
   /** JSON text for the model. */
   inspect(tabId: number, selectors: string[]): Promise<string>;
+  /** JSON text for the model: the page's readable text, already capped. */
+  readText(tabId: number): Promise<string>;
+  /** Replaces any popup on the page with one holding this answer. A rejection still ends the run `answered`. */
+  showPopup(tabId: number, title: string, answer: PageAgentAnswer): Promise<void>;
   insertCss(tabId: number, text: string): Promise<void>;
   /** Removes an inserted stylesheet by its exact text; a no-op when the page no longer has it. */
   removeCss(tabId: number, text: string): Promise<void>;
@@ -103,7 +115,8 @@ export interface PageAgentReplacedCondition
   reason: string;
 }
 
-export type PageAgentRunStatus = 'met' | 'not-met' | 'stopped' | 'error';
+/** `answered`: the turn answered a question (or asked one) and changed nothing; `summary` holds the answer. */
+export type PageAgentRunStatus = 'met' | 'not-met' | 'answered' | 'stopped' | 'error';
 
 export interface PageAgentRunResult
 {
@@ -113,6 +126,8 @@ export interface PageAgentRunResult
   summary: string;
   error?: string;
   screenshotsNote?: string;
+  /** The answer is already in a popup on the run's tab, from show_popup. */
+  openedPopup?: boolean;
 }
 
 export interface PageAgentStep
@@ -177,6 +192,7 @@ const SCREENSHOTS_REJECTED_NOTE = 'Screenshots were turned off for this request:
 const NO_REPORT = 'no report';
 const NOT_MEASURED = 'not measured after the last CSS change';
 const NOT_REPORTED = 'not reported';
+const NO_ANSWER = 'The model gave no answer.';
 const STEP_TEXT_LIMIT = 500;
 
 class RunStoppedError extends Error
@@ -399,13 +415,14 @@ interface ToolOutcome
 {
   content: string;
   step: PageAgentStep;
-  /** Set by a valid report: the run ends with it. */
+  /** Set by a valid report or show_popup: the run ends with it. */
   finished?: PageAgentRunResult;
 }
 
 export class PageAgentRun
 {
   readonly tabId: number;
+  readonly #userRequest: string;
   readonly #client: PageAgentModelClient;
   readonly #adapter: PageAgentPageAdapter;
   readonly #listener: PageAgentRunListener;
@@ -426,6 +443,7 @@ export class PageAgentRun
   constructor(options: PageAgentRunOptions)
   {
     this.tabId = options.tabId;
+    this.#userRequest = options.request;
     this.#client = options.client;
     this.#adapter = options.adapter;
     this.#listener = options.listener;
@@ -487,9 +505,7 @@ export class PageAgentRun
       this.#log(`round ${round + 1}`, toolCalls.map(call => call.function?.name));
       if (toolCalls.length === 0)
       {
-        // Often a clarifying question; its text is what the user sees.
-        const text = message.content?.trim() || 'The model answered without a report.';
-        return this.#result('not-met', this.#conditions.allUnmet(NO_REPORT), text);
+        return this.#textReply(message.content?.trim() ?? '');
       }
 
       for (const call of toolCalls)
@@ -513,15 +529,15 @@ export class PageAgentRun
   // report, so one more request that can only call report gets its numbers instead of "no report".
   async #finalReport(): Promise<PageAgentRunResult>
   {
+    if (!this.#conditions.isSet)
+    {
+      return this.#result('not-met', [], `No answer after ${PAGE_AGENT_MAX_ROUNDS} steps.`);
+    }
     const limitReached = this.#result(
       'not-met',
       this.#conditions.allUnmet(NO_REPORT),
       `No report after ${PAGE_AGENT_MAX_ROUNDS} steps.`,
     );
-    if (!this.#conditions.isSet)
-    {
-      return limitReached;
-    }
 
     this.#round = PAGE_AGENT_MAX_ROUNDS;
     const report = PAGE_AGENT_TOOL_NAMES.report;
@@ -565,6 +581,17 @@ export class PageAgentRun
     const outcome = await this.#runTool(call);
     this.#listener.onStep(outcome.step);
     return outcome.finished ?? limitReached;
+  }
+
+  // An answer or a clarifying question. Once conditions are set the request is a style change, which
+  // ends only with a report: a text reply then is not success.
+  #textReply(text: string): PageAgentRunResult
+  {
+    if (this.#conditions.isSet)
+    {
+      return this.#result('not-met', this.#conditions.allUnmet(NO_REPORT), text || 'The model answered without a report.');
+    }
+    return text ? this.#result('answered', [], text) : this.#result('not-met', [], NO_ANSWER);
   }
 
   // A 400 on a request with an image usually means the model doesn't take images: the request is
@@ -630,6 +657,8 @@ export class PageAgentRun
     {
       case PAGE_AGENT_TOOL_NAMES.outline:
         return this.#outline();
+      case PAGE_AGENT_TOOL_NAMES.readPageText:
+        return await this.#readPageText();
       case PAGE_AGENT_TOOL_NAMES.setConditions:
         return this.#setConditions(parsed.value);
       case PAGE_AGENT_TOOL_NAMES.applyCss:
@@ -642,6 +671,8 @@ export class PageAgentRun
           return await this.#screenshot();
         }
         break;
+      case PAGE_AGENT_TOOL_NAMES.showPopup:
+        return await this.#showPopup(parsed.value);
       case PAGE_AGENT_TOOL_NAMES.report:
         return this.#report(parsed.value);
     }
@@ -652,6 +683,54 @@ export class PageAgentRun
   {
     const outline = await this.#adapter.outline(this.tabId);
     return { content: outline, step: step(PAGE_AGENT_TOOL_NAMES.outline, '', shortText(outline)) };
+  }
+
+  // The step keeps a preview only: the persisted step log must not hold the whole page text.
+  async #readPageText(): Promise<ToolOutcome>
+  {
+    const text = await this.#adapter.readText(this.tabId);
+    return { content: text, step: step(PAGE_AGENT_TOOL_NAMES.readPageText, '', shortText(text)) };
+  }
+
+  // Terminal, like report: the popup's markdown is the turn's answer, so the model never writes it twice.
+  async #showPopup(args: unknown): Promise<ToolOutcome>
+  {
+    const name = PAGE_AGENT_TOOL_NAMES.showPopup;
+    if (this.#conditions.isSet)
+    {
+      return toolError(
+        name,
+        '',
+        `refused: ${name} is for answers to questions; this request changes the page, so end it with ${PAGE_AGENT_TOOL_NAMES.report}`,
+      );
+    }
+    const parsed = parseShowPopupArgs(args);
+    if (!parsed.ok)
+    {
+      return toolError(name, '', parsed.error);
+    }
+
+    const { title, markdown } = parsed.value;
+    try
+    {
+      await this.#adapter.showPopup(this.tabId, title, { question: this.#userRequest, markdown });
+    }
+    catch (error)
+    {
+      if (this.#controller.signal.aborted)
+      {
+        throw error;
+      }
+      // The answer is already written: a page that won't show it (the tab moved to a page that can't
+      // be scripted) must not cost it, so the turn still ends answered and the chat holds it.
+      const failed = `failed: ${errorMessage(error)}`;
+      return { content: failed, step: step(name, shortText(title), failed), finished: this.#result('answered', [], markdown) };
+    }
+    return {
+      content: 'shown',
+      step: step(name, shortText(title), 'shown'),
+      finished: { ...this.#result('answered', [], markdown), openedPopup: true },
+    };
   }
 
   #setConditions(args: unknown): ToolOutcome
@@ -764,11 +843,11 @@ export class PageAgentRun
 
     const { results, summary } = parsed.value;
     const reportStep = step(name, shortText(summary), 'done');
-    // Success needs conditions set in this run; a report without them has nothing to check against.
+    // Without conditions nothing can have changed (apply_css is refused), so the summary is an answer.
     if (!this.#conditions.isSet)
     {
-      const text = summary ? `No conditions were set. ${summary}` : 'No conditions were set.';
-      return { content: 'done', step: reportStep, finished: this.#result('not-met', [], text) };
+      const finished = summary ? this.#result('answered', [], summary) : this.#result('not-met', [], NO_ANSWER);
+      return { content: 'done', step: reportStep, finished };
     }
     if (!this.#measurement.seenBefore(this.#round))
     {
@@ -832,7 +911,7 @@ function describeTurn(turn: PageAgentHistoryTurn, number: number): string
   }
   if (turn.summary)
   {
-    lines.push(`   Summary: ${turn.summary}`);
+    lines.push(`   ${turn.status === 'answered' ? 'Answer' : 'Summary'}: ${turn.summary}`);
   }
   return lines.join('\n');
 }

@@ -64,6 +64,7 @@ class FakePage
     this.calls = [];
     this.inserted = [];
     this.removed = [];
+    this.popups = [];
   }
 
   async outline(tabId)
@@ -76,6 +77,18 @@ class FakePage
   {
     this.calls.push({ method: 'inspect', tabId });
     return JSON.stringify(selectors.map(selector => ({ selector, count: 1 })));
+  }
+
+  async readText(tabId)
+  {
+    this.calls.push({ method: 'readText', tabId });
+    return JSON.stringify({ url: 'https://site.test/article', title: 'Article', text: 'The article text.' });
+  }
+
+  async showPopup(tabId, title, answer)
+  {
+    this.calls.push({ method: 'showPopup', tabId });
+    this.popups.push({ tabId, title, answer });
   }
 
   async insertCss(tabId, text)
@@ -254,20 +267,20 @@ test('a report when every reported condition is met but one was left out is not-
   assert.deepEqual(result.conditions.find(condition => condition.id === 'c2').met, false);
 });
 
-test('a report with no conditions set in the run ends as not-met', async () =>
+test('a report with no conditions set in the run ends as answered with its summary', async () =>
 {
   const page = new FakePage(TAB_A);
   const client = new ScriptedClient([
     respond(call('get_page_outline')),
-    respond(call('report', { results: [], summary: 'Looks fine.' })),
+    respond(call('report', { results: [], summary: 'The page is a product list.' })),
   ]);
   const { run } = startRun(client, page);
 
   const result = await run.run();
 
-  assert.equal(result.status, 'not-met');
+  assert.equal(result.status, 'answered');
   assert.deepEqual(result.conditions, []);
-  assert.match(result.summary, /no conditions/i);
+  assert.equal(result.summary, 'The page is a product list.');
 });
 
 test('the run ends at the step limit as not-met with the conditions unmet', async () =>
@@ -347,19 +360,118 @@ test('a failed final report request ends the run as not-met, not as an error', a
   assert.equal(result.error, undefined);
 });
 
-test('an answer without tool calls ends as not-met with its text as the summary', async () =>
+test('a text reply with no set_conditions ends as answered with the text', async () =>
 {
   const page = new FakePage(TAB_A);
   const client = new ScriptedClient([
-    respond(call('get_page_outline')),
-    answer('Which player do you mean, the main video or the preview?'),
+    respond(call('read_page_text')),
+    answer('## Summary\n\nThe article is about **video players**.'),
+  ]);
+  const { run } = startRun(client, page, { request: 'summary page' });
+
+  const result = await run.run();
+
+  assert.equal(result.status, 'answered');
+  assert.equal(result.summary, '## Summary\n\nThe article is about **video players**.');
+  assert.equal(result.openedPopup, undefined);
+  assert.deepEqual(page.popups, []);
+});
+
+test('a text reply after set_conditions without a report ends as not-met', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const client = new ScriptedClient([
+    respond(setConditions('c1')),
+    answer('I made the player wider.'),
   ]);
   const { run } = startRun(client, page);
 
   const result = await run.run();
 
   assert.equal(result.status, 'not-met');
-  assert.equal(result.summary, 'Which player do you mean, the main video or the preview?');
+  assert.deepEqual(result.conditions, [{ id: 'c1', text: 'condition c1', met: false, measured: 'no report' }]);
+});
+
+test('a question run started on tab A reads the text and shows the popup on tab A after the user switches to tab B', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const markdown = '- point one\n- point two';
+  const client = new ScriptedClient([
+    respond(call('read_page_text')),
+    () =>
+    {
+      page.activeTabId = TAB_B;
+      return respond(call('show_popup', { title: 'Summary', markdown }));
+    },
+  ]);
+  const { run, listener } = startRun(client, page, { request: 'show a summary in a popup' });
+
+  const result = await run.run();
+
+  assert.deepEqual(page.calls, [{ method: 'readText', tabId: TAB_A }, { method: 'showPopup', tabId: TAB_A }]);
+  assert.deepEqual(page.popups, [{
+    tabId: TAB_A,
+    title: 'Summary',
+    answer: { question: 'show a summary in a popup', markdown },
+  }]);
+  assert.equal(result.status, 'answered');
+  assert.equal(result.summary, markdown);
+  assert.equal(result.openedPopup, true);
+  assert.deepEqual(listener.finished, [result]);
+});
+
+test('a show_popup the page rejects still ends as answered with the markdown, without openedPopup', async () =>
+{
+  const page = new FakePage(TAB_A);
+  page.showPopup = async () =>
+  {
+    throw new Error('Cannot access contents of the page');
+  };
+  const markdown = '## Summary\n\nThe article is about **video players**.';
+  const client = new ScriptedClient([respond(call('show_popup', { title: 'Summary', markdown }))]);
+  const { run, listener } = startRun(client, page, { request: 'show a summary in a popup' });
+
+  const result = await run.run();
+
+  assert.equal(result.status, 'answered');
+  assert.equal(result.summary, markdown);
+  assert.equal(result.error, undefined);
+  assert.equal(result.openedPopup, undefined);
+  assert.equal(client.requests.length, 1);
+  assert.equal(listener.steps.at(-1).result, 'failed: Cannot access contents of the page');
+});
+
+test('show_popup after set_conditions is refused and nothing is shown', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const client = new ScriptedClient([
+    respond(setConditions('c1'), call('show_popup', { title: 'Done', markdown: 'The player is wider.' })),
+    answer('I stop here.'),
+  ]);
+  const { run } = startRun(client, page);
+
+  const result = await run.run();
+
+  assert.match(client.toolResults(1).at(-1).content, /^refused/);
+  assert.deepEqual(page.popups, []);
+  assert.equal(result.status, 'not-met');
+  assert.equal(result.openedPopup, undefined);
+});
+
+test('a follow-up run gets the full text of an earlier answer in its first user message', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const earlierAnswer = `## Summary\n\n${'The article explains how players scale. '.repeat(40)}\n\n- one\n- two`;
+  const client = new ScriptedClient([answer('It means the player keeps its ratio.')]);
+  const { run } = startRun(client, page, {
+    request: 'explain aspect ratio',
+    history: [{ request: 'summary page', status: 'answered', conditions: [], replaced: [], summary: earlierAnswer }],
+  });
+
+  await run.run();
+
+  const firstUserMessage = client.requests[0].messages.find(message => message.role === 'user').content;
+  assert.ok(firstUserMessage.includes(`Answer: ${earlierAnswer}`));
 });
 
 test('apply_css before set_conditions is refused and nothing is inserted', async () =>

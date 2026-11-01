@@ -162,9 +162,19 @@ Set or change shortcuts in `chrome://extensions/shortcuts`.
 
 ### Page agent (experimental)
 
-Ask an AI model to change how the current page looks. The sparkles button in the toolbar opens a drawer at the bottom of the panel, above the Space bar. Drag its top edge to resize it. Each tab has its own chat, and the drawer shows the chat of the window's active tab. A chip at the top names that tab's site and path.
+Ask an AI model about the current page, or ask it to change how the page looks. The sparkles button in the toolbar opens a drawer at the bottom of the panel, above the Space bar. Drag its top edge to resize it. Each tab has its own chat, and the drawer shows the chat of the window's active tab. A chip at the top names that tab's site and path.
 
-Type what you want, for example "make the video player full page width". The agent then works in rounds, up to 8 per message:
+Ask a question, for example "summarize this page" or "explain the term in the second paragraph". The agent reads the page with `read_page_text`: the text of its main content (the `main` element, or the page's only `article`, else the whole page), up to 30,000 characters. When the layout matters to the answer it can read the page outline as well. The reply shows as an **Answer**, rendered as markdown: headings, bold, italic, code, lists, quotes and links, which open in a new tab. Only http and https links work; HTML in an answer shows as text, and images don't load. When the agent needs more detail, its question shows as an Answer too. A follow-up question sees the earlier answers of the chat, up to 4,000 characters each, so "explain X" after a summary knows what the summary said. The page text isn't carried over: the agent reads the page again when it needs it.
+
+**Show on page** under an answer opens it in a popup at the top right of the page, with a ✕ to close it and a – to collapse it to its title bar (▢ expands it again). Ask for it in the request, for example "show a summary of this page in a popup", and the agent opens the popup itself with `show_popup`; the chat shows the same answer, also when the page can't show the popup.
+
+- While the popup is open, each new answer of the chat is added to it under its question, and the popup scrolls to it, expanding first if you collapsed it
+- After ✕, answers go to the chat only. Show on page or `show_popup` opens a new popup with that one answer, in place of the open one
+- A reload or a move to another page removes the popup, also in a single-page site such as the next video on YouTube, and Back doesn't bring it back. A page that only rewrites its address while you search or scroll keeps it
+- Style changes don't touch the popup
+- The page's own styles don't reach inside the popup. It follows your system's light or dark mode
+
+For a change, type what you want, for example "make the video player full page width". The agent then works in rounds, up to 8 per message:
 
 1. It reads an outline of the page, plus a screenshot when **Model accepts images** is on.
 2. It turns the request into conditions it can measure, such as "player width = content width ±2px" or "aspect ratio 16:9 ±1%", and shows them.
@@ -178,8 +188,8 @@ A second message in the same chat edits the current CSS, so "a bit narrower" wor
 - While the agent works, Send becomes **Stop**
 - **Undo** removes everything the agent applied to the tab. **Show CSS** shows the current stylesheet with a Copy button, to put into your own site
 - A reload drops the CSS. The chat then says "Page reloaded, changes removed" and offers **Re-apply**. When the tab has moved on to another page of the same site (for example the next video) it says "Page changed, changes removed" and offers **Re-apply** too, which puts the same CSS on the new page. On another site there is no Re-apply, since the CSS was written for the first site
-- The agent writes CSS only, never JavaScript. The extension rejects CSS that would load anything from the network (`@import`, `url()` other than `data:`, `image-set()`, and `var()`, which could pick up a URL the page defines) before it reaches the page
-- A run stays on the tab it started on when you switch tabs
+- The agent changes the page only with CSS and shows answers only in the popup, which the extension builds from the answer's text. It never writes JavaScript. The extension rejects CSS that would load anything from the network (`@import`, `url()` other than `data:`, `image-set()`, and `var()`, which could pick up a URL the page defines) before it reaches the page
+- A run stays on the tab it started on when you switch tabs: its CSS, its popup and the answers added to an open popup go to that tab
 
 **Save to bookmark** keeps the CSS for a tab you opened from a bookmark or Favorite. The button sits next to Undo and Show CSS in the last reply. With **Auto-apply** on, which a new saved style starts with, the extension puts the style back whenever a page of the same site loads in that bookmark's tab: after a reload, on the next video, after Back and after a browser restart, also with the side panel closed. A tab of the same site you opened by hand stays unstyled, and so does another site in the bookmark's tab. After a follow-up change the button reads **Update saved style**; when the bookmark already has this CSS it reads **Saved**.
 
@@ -214,7 +224,11 @@ Known limitations:
 - When the extension puts the style on only at the end of loading (Back without Chrome's back/forward cache, a bookmark opened on a cached page), the open drawer can miss it, or say "Page reloaded", until you show the tab again. Re-apply right after a Save then leaves a second copy of the CSS until a reload
 - Going Back to a page Chrome kept in its back/forward cache, after you saved a newer version of the style on a later page of the tab, shows the older version. Undo then changes nothing on that page and a follow-up request adds its CSS on top, until a reload puts the current version on
 - Rarely, a tab that navigates again while the extension is still starting gets the saved style twice. Undo then leaves one copy until a reload
-- The page outline, measurements, screenshots, your requests and the CSS go to the AI endpoint you configured. See [PRIVACY.md](PRIVACY.md)
+- After the extension reloads or updates, a popup still on a page can't be closed with ✕ and gets no new answers, until the page reloads or a new popup replaces it
+- Every follow-up sends all earlier answers of the chat again, up to 4,000 characters each, so a long chat makes long requests
+- Markdown tables and bare URLs in an answer show as plain text
+- The agent's CSS and saved page styles can reach the popup when they style every element (`*`) with `!important` or the whole page (a `filter` on `html`). A screenshot the agent takes for a style change shows an open popup over the page
+- The page text, the page outline, measurements, screenshots, your requests, earlier answers and the CSS go to the AI endpoint you configured. See [PRIVACY.md](PRIVACY.md)
 
 ### Settings
 
@@ -243,11 +257,11 @@ Light and dark mode follow your system.
 | `sidePanel`, `bookmarks`, `tabs`, `tabGroups` | Show and manage bookmarks, tabs and groups |
 | `storage` | Settings and sidebar state, stored locally |
 | `favicon` | Website icons |
-| `scripting` | Read a page's text when you ask for AI naming; read the page's layout and insert or remove CSS when you use the page agent or a saved page style loads |
+| `scripting` | Read a page's text when you ask for AI naming; read the page's text and layout, insert or remove CSS and show the answer popup when you use the page agent; insert CSS when a saved page style loads |
 | `webNavigation` | Notice when a page starts loading in a bookmark's tab, to put the bookmark's saved page style on it |
 | `activeTab` | Draw the Tab and Space Switcher over the current page |
 | `alarms` | Check for unused tabs every few minutes while auto-archive is on |
-| Optional `http://*/*`, `https://*/*` | Asked for when you use AI naming or the page agent, to read and restyle the page and call your AI endpoint |
+| Optional `http://*/*`, `https://*/*` | Asked for when you use AI naming or the page agent, to read the page, restyle it, show answers on it and call your AI endpoint |
 | Optional `<all_urls>` | Asked for only when you turn on page agent screenshots, to capture the visible tab |
 
 ## More

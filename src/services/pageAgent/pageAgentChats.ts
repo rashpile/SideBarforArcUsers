@@ -9,6 +9,7 @@ import { PageAgentChat } from './pageAgentChat.ts';
 import type { PageAgentNotice } from './pageAgentChat.ts';
 import type { PageAgentChatStore } from './pageAgentChatStore.ts';
 import type {
+  PageAgentAnswer,
   PageAgentAppliedCss,
   PageAgentHistoryTurn,
   PageAgentPageAdapter,
@@ -36,11 +37,13 @@ export interface PageAgentRunStart<Settings>
 
 export type PageAgentRunFactory<Settings> = (start: PageAgentRunStart<Settings>) => PageAgentLiveRun;
 
-/** What Undo, Re-apply, applying a saved style and the marker check do to a page. */
-export interface PageAgentChatPage extends Pick<PageAgentPageAdapter, 'insertCss' | 'removeCss' | 'pageUrl'>
+/** What Undo, Re-apply, applying a saved style, the marker check and the answer popup do to a page. */
+export interface PageAgentChatPage extends Pick<PageAgentPageAdapter, 'insertCss' | 'removeCss' | 'pageUrl' | 'showPopup'>
 {
   /** The applied id of the agent's stylesheet on the page, or '' when the page has none. */
   readMarker(tabId: number): Promise<string>;
+  /** Adds the answer to the popup open on the page; false when there is none. */
+  appendToPopup(tabId: number, answer: PageAgentAnswer): Promise<boolean>;
 }
 
 /** The saved page style of the bookmark or Favorite a tab was opened from. */
@@ -66,6 +69,8 @@ export interface PageAgentChatsOptions<Settings>
   createId?: () => string;
   debug?: boolean;
 }
+
+const POPUP_TITLE = 'Page agent';
 
 export class PageAgentChats<Settings>
 {
@@ -168,7 +173,11 @@ export class PageAgentChats<Settings>
 
     try
     {
-      await run.run();
+      const result = await run.run();
+      if (result.status === 'answered' && !result.openedPopup && this.#owns(chat))
+      {
+        await this.#appendToPopup(tabId, { question: text, markdown: result.summary });
+      }
     }
     catch (error)
     {
@@ -192,6 +201,21 @@ export class PageAgentChats<Settings>
   stop(tabId: number): void
   {
     this.#runs.get(tabId)?.stop();
+  }
+
+  /**
+   * Opens a popup on the page with the answer of an answered turn, in place of any popup there.
+   * Does nothing for other turns; rejects when the page refused.
+   */
+  async showOnPage(tabId: number, turnIndex: number): Promise<void>
+  {
+    const chat = await this.get(tabId);
+    const answer = chat.answerOf(turnIndex);
+    if (!answer)
+    {
+      return;
+    }
+    await this.#page.showPopup(tabId, POPUP_TITLE, answer);
   }
 
   /** Removes the applied stylesheet from the page and forgets it. Rejects when the page refused. */
@@ -434,6 +458,21 @@ export class PageAgentChats<Settings>
       onCssApplied: applied => this.#apply(chat, () => chat.recordApplied(applied)),
       onFinished: result => this.#apply(chat, () => chat.finishTurn(turn, result)),
     };
+  }
+
+  // Before the run leaves #runs, so the next request's answer can't reach the popup ahead of this one.
+  // A popup that is gone stays gone: append never opens one.
+  async #appendToPopup(tabId: number, answer: PageAgentAnswer): Promise<void>
+  {
+    try
+    {
+      await this.#page.appendToPopup(tabId, answer);
+    }
+    catch (error)
+    {
+      // A page that is loading or can't be scripted; the answer is in the chat either way.
+      this.#log('popup append failed', error);
+    }
   }
 
   #apply(chat: PageAgentChat, change: () => void): void

@@ -1,9 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
-import { Check, Code, Copy, Loader2, Redo2, Save, Undo2, X } from 'lucide-react';
+import { AppWindow, Check, Code, Copy, Loader2, Redo2, Save, Undo2, X } from 'lucide-react';
 import type { PageAgentChatData, PageAgentTurn, PageAgentTurnStatus } from '../../services/pageAgent/pageAgentChat';
 import type { PageAgentStep } from '../../services/pageAgent/pageAgentRun';
 import type { SavedPageStyle } from '../../stores/savedPageStyles';
+import { parseMarkdown } from '../../utils/markdown';
+import { MarkdownView } from './MarkdownView';
 
 interface PageAgentMessagesProps
 {
@@ -18,6 +20,8 @@ interface PageAgentMessagesProps
   onReapply: () => void;
   /** Saves the chat's current stylesheet to the tab's bookmark. */
   onSave: () => void;
+  /** Shows an answered turn's answer in a popup on the page. */
+  onShowOnPage: (turnIndex: number) => void;
 }
 
 /**
@@ -62,6 +66,11 @@ const OUTCOME_STYLES: Record<PageAgentTurnStatus, OutcomeStyle> = {
     block: 'border-amber-200 bg-amber-50/60 dark:border-amber-800 dark:bg-amber-950/30',
     title: 'text-amber-700 dark:text-amber-300',
   },
+  'answered': {
+    label: 'Answer',
+    block: 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50',
+    title: 'text-gray-700 dark:text-gray-200',
+  },
   'stopped': {
     label: 'Stopped',
     block: 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50',
@@ -87,6 +96,7 @@ export const PageAgentMessages: React.FC<PageAgentMessagesProps> = ({
   onUndo,
   onReapply,
   onSave,
+  onShowOnPage,
 }) =>
 {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -112,9 +122,10 @@ export const PageAgentMessages: React.FC<PageAgentMessagesProps> = ({
     <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-2 py-2 space-y-2">
       {turns.length === 0 && (
         <p className="text-gray-500 dark:text-gray-400">
-          Ask for a change to this page, for example “make the video player full page width”. The agent
-          sets measurable conditions, applies CSS, checks the result with real numbers and reports each
-          condition. Undo removes everything it applied.
+          Ask a question about this page, for example “summarize this page”, or ask for a change, for
+          example “make the video player full page width”. For a change the agent sets measurable
+          conditions, applies CSS, checks the result with real numbers and reports each condition. Undo
+          removes everything it applied.
         </p>
       )}
       {/* A saved style the chat adopted on a fresh tab has no turn to hold Undo and Show CSS. */}
@@ -130,6 +141,7 @@ export const PageAgentMessages: React.FC<PageAgentMessagesProps> = ({
           saveState={saveState(hasBookmark, savedStyle, chat.appliedCss)}
           onUndo={onUndo}
           onSave={onSave}
+          onShowOnPage={() => onShowOnPage(index)}
         />
       ))}
       {chat.notice !== 'none' && (
@@ -159,13 +171,17 @@ interface TurnViewProps
   saveState: SaveState;
   onUndo: () => void;
   onSave: () => void;
+  onShowOnPage: () => void;
 }
 
-const TurnView: React.FC<TurnViewProps> = ({ turn, stylesheet, running, saveState, onUndo, onSave }) =>
+const TurnView: React.FC<TurnViewProps> = ({ turn, stylesheet, running, saveState, onUndo, onSave, onShowOnPage }) =>
 {
   const [showSteps, setShowSteps] = useState(false);
   const outcome = OUTCOME_STYLES[turn.status];
   const isRunning = turn.status === 'running';
+  const isAnswer = turn.status === 'answered';
+  // Every step of a run re-renders the whole chat; older answers keep their parsed tree.
+  const answerBlocks = useMemo(() => (isAnswer ? parseMarkdown(turn.summary) : null), [isAnswer, turn.summary]);
 
   return (
     <div className="space-y-1.5">
@@ -209,7 +225,9 @@ const TurnView: React.FC<TurnViewProps> = ({ turn, stylesheet, running, saveStat
           </ul>
         )}
 
-        {turn.summary && <p className="whitespace-pre-wrap break-words">{turn.summary}</p>}
+        {answerBlocks
+          ? <MarkdownView blocks={answerBlocks} />
+          : turn.summary && <p className="whitespace-pre-wrap break-words">{turn.summary}</p>}
         {turn.error && <p className="text-red-600 dark:text-red-400 break-words">{turn.error}</p>}
         {turn.screenshotsNote && <p className="text-gray-500 dark:text-gray-400">{turn.screenshotsNote}</p>}
 
@@ -227,6 +245,16 @@ const TurnView: React.FC<TurnViewProps> = ({ turn, stylesheet, running, saveStat
                 {turn.steps.map((step, index) => <StepView key={index} step={step} />)}
               </ol>
             )}
+          </div>
+        )}
+
+        {/* Not disabled by a run: showing an answer touches only the popup, never the stylesheet. */}
+        {isAnswer && (
+          <div className="flex flex-wrap gap-1.5">
+            <button type="button" className={buttonClass} title="Show this answer in a popup on the page" onClick={onShowOnPage}>
+              <AppWindow size={12} />
+              Show on page
+            </button>
           </div>
         )}
 

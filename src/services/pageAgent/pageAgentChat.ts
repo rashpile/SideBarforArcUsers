@@ -4,6 +4,7 @@
 // hook can tell a changed chat by identity.
 
 import type {
+  PageAgentAnswer,
   PageAgentAppliedCss,
   PageAgentConditionOutcome,
   PageAgentHistoryTurn,
@@ -51,6 +52,9 @@ export interface PageAgentChatData
 const NO_REPORT = 'no report';
 const PANEL_CLOSED_SUMMARY = 'Side panel closed during the run.';
 const NOTICES: readonly PageAgentNotice[] = ['none', 'reloaded', 'navigated-same-site', 'navigated-other-site'];
+// Every follow-up resends all earlier answers; a long summary of each would soon fill the request.
+const ANSWER_HISTORY_LIMIT = 4000;
+const ANSWER_CUT_NOTE = `\n[answer cut at ${ANSWER_HISTORY_LIMIT} characters]`;
 
 export class PageAgentChat
 {
@@ -138,6 +142,17 @@ export class PageAgentChat
     return this.#data.turns[turnIndex]?.status;
   }
 
+  /** The question and full answer of an answered turn, or null for any other turn. */
+  answerOf(turnIndex: number): PageAgentAnswer | null
+  {
+    const turn = this.#data.turns[turnIndex];
+    if (!turn || turn.status !== 'answered')
+    {
+      return null;
+    }
+    return { question: turn.request, markdown: turn.summary };
+  }
+
   /** Adds a running turn for a new user message and returns its index. */
   startTurn(request: string): number
   {
@@ -220,7 +235,7 @@ export class PageAgentChat
       status: turn.status,
       conditions: [...turn.conditions],
       replaced: [...turn.replaced],
-      summary: turn.summary || (turn.error ? `Error: ${turn.error}` : ''),
+      summary: historySummary(turn),
     }));
   }
 
@@ -249,6 +264,15 @@ export class PageAgentChat
     turns[turnIndex] = change(turn);
     this.#update({ turns });
   }
+}
+
+function historySummary(turn: PageAgentTurn): string
+{
+  if (turn.status === 'answered' && turn.summary.length > ANSWER_HISTORY_LIMIT)
+  {
+    return turn.summary.slice(0, ANSWER_HISTORY_LIMIT) + ANSWER_CUT_NOTE;
+  }
+  return turn.summary || (turn.error ? `Error: ${turn.error}` : '');
 }
 
 function stoppedIfRunning(turn: PageAgentTurn): PageAgentTurn
