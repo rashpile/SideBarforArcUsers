@@ -374,3 +374,64 @@ export function buildLlmsTxtCandidates(pageUrl: string, maxCandidates = 5): stri
   }
   return [...new Set(candidates)];
 }
+
+/**
+ * A page must not choose where the extension sends requests: with page access the extension's
+ * fetches bypass CORS, so a link to another origin could read a router or a local server.
+ * Protocols are checked explicitly because every `file:` URL has the origin "null".
+ */
+export function isSameOriginHttpUrl(url: string, pageUrl: string): boolean
+{
+  let link: URL;
+  let page: URL;
+  try
+  {
+    link = new URL(url);
+    page = new URL(pageUrl);
+  }
+  catch
+  {
+    return false;
+  }
+
+  const isHttp = (value: URL) => value.protocol === 'http:' || value.protocol === 'https:';
+  return isHttp(link) && isHttp(page) && link.origin === page.origin;
+}
+
+/**
+ * llms.txt can list many documents; only a Markdown path on the page's own origin that clearly
+ * matches the page is used.
+ */
+export function findMatchingLlmsLink(
+  llmsText: string,
+  pageUrl: string,
+  llmsUrl: string
+): string | undefined
+{
+  const page = new URL(pageUrl);
+  const normalizedPath = page.pathname.replace(/\/$/, '').replace(/\.(html?|md)$/i, '');
+  const pageName = normalizedPath.split('/').filter(Boolean).pop();
+  const links = [...llmsText.matchAll(/\[[^\]]+\]\(([^)\s]+)\)/g)].map(match => match[1]);
+
+  for (const link of links)
+  {
+    try
+    {
+      const candidate = new URL(link, llmsUrl);
+      // Skipped rather than ending the search, so a cross-origin match listed first doesn't hide
+      // a later same-origin one.
+      if (!isSameOriginHttpUrl(candidate.toString(), pageUrl)) continue;
+
+      const candidatePath = candidate.pathname.replace(/\/$/, '').replace(/\.(html?|md)$/i, '');
+      if (candidatePath === normalizedPath || (pageName && candidatePath.endsWith(`/${pageName}`)))
+      {
+        return candidate.toString();
+      }
+    }
+    catch
+    {
+      // Skip an invalid link in llms.txt and keep checking the other candidates.
+    }
+  }
+  return undefined;
+}

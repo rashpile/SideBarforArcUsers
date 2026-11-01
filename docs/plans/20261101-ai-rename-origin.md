@@ -80,11 +80,11 @@
 - Modify: `src/utils/aiConfig.ts`
 - Create: `tests/aiConfig.test.mjs`
 
-- [ ] add exported `isSameOriginHttpUrl(url, pageUrl)` to `src/utils/aiConfig.ts` per Technical Details, with a short doc comment saying why (a page must not choose where the extension sends requests; `file:` origins are all `"null"`)
-- [ ] add exported `findMatchingLlmsLink(llmsText, pageUrl, llmsUrl)` to `src/utils/aiConfig.ts`: the body of `PageContentReader#findMatchingPageLink`, plus skipping candidates that fail `isSameOriginHttpUrl(candidate, pageUrl)` and continuing the loop
-- [ ] test `isSameOriginHttpUrl`: same origin accepted for https and http with different paths/queries; rejected for another host, another port (`https://a.test` vs `https://a.test:8443`), another scheme (`http://a.test` vs `https://a.test`), `javascript:alert(1)`, `data:text/markdown,x`, `file:///etc/passwd` on an https page, a `file:` link on a `file:` page, a relative string (`/page.md`) and an invalid string; an invalid page URL → `false`
-- [ ] test `findMatchingLlmsLink`: a relative and an absolute same-origin matching link are returned resolved; a matching link on another host, on `localhost` or on another port is skipped (`undefined`); a cross-origin match listed before a same-origin match returns the same-origin one; a non-matching same-origin link → `undefined`
-- [ ] run `make lint && make test && make build` - must pass before task 2
+- [x] add exported `isSameOriginHttpUrl(url, pageUrl)` to `src/utils/aiConfig.ts` per Technical Details, with a short doc comment saying why (a page must not choose where the extension sends requests; `file:` origins are all `"null"`)
+- [x] add exported `findMatchingLlmsLink(llmsText, pageUrl, llmsUrl)` to `src/utils/aiConfig.ts`: the body of `PageContentReader#findMatchingPageLink`, plus skipping candidates that fail `isSameOriginHttpUrl(candidate, pageUrl)` and continuing the loop
+- [x] test `isSameOriginHttpUrl`: same origin accepted for https and http with different paths/queries; rejected for another host, another port (`https://a.test` vs `https://a.test:8443`), another scheme (`http://a.test` vs `https://a.test`), `javascript:alert(1)`, `data:text/markdown,x`, `file:///etc/passwd` on an https page, a `file:` link on a `file:` page, a relative string (`/page.md`) and an invalid string; an invalid page URL → `false`
+- [x] test `findMatchingLlmsLink`: a relative and an absolute same-origin matching link are returned resolved; a matching link on another host, on `localhost` or on another port is skipped (`undefined`); a cross-origin match listed before a same-origin match returns the same-origin one; a non-matching same-origin link → `undefined`
+- [x] run `make lint && make test && make build` - must pass before task 2
 
 ### Task 2: HTTPS required for non-loopback Base URLs
 
