@@ -113,9 +113,9 @@
 - [x] run `make lint && make test && make build` - must pass before task 4
 
 ### Task 4: Verify acceptance criteria
-- [ ] verify both parts of the Overview are implemented: Markdown link and `llms.txt` link gated by origin and fetched without redirects; page URL and `llms.txt` candidates unchanged; `http:` Base URL only for loopback with the exact error text, no rewrite of stored settings
-- [ ] verify `#readUrl` cannot throw on an invalid Markdown href and ignores an empty one
-- [ ] run full checks: `make lint && make test && make build`
+- [x] verify both parts of the Overview are implemented: Markdown link and `llms.txt` link gated by origin and fetched without redirects; page URL and `llms.txt` candidates unchanged; `http:` Base URL only for loopback with the exact error text, no rewrite of stored settings
+- [x] verify `#readUrl` cannot throw on an invalid Markdown href and ignores an empty one
+- [x] run full checks: `make lint && make test && make build`
 
 ### Task 5: [Final] Update documentation
 - [ ] `README.md`: in the Settings list's **AI naming** line, add that the endpoint must use HTTPS (HTTP only for localhost, e.g. Ollama or LM Studio) and that a page's Markdown version and `llms.txt` page links are read only from the page's own site
