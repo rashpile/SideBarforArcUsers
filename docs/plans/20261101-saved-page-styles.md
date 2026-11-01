@@ -165,19 +165,19 @@ Chat adoption (`PageAgentChats`), through an injected `savedStyleForTab(tabId)` 
 - Create: `src/stores/savedPageStyles.ts`
 - Create: `tests/savedPageStyles.test.mjs`
 
-- [ ] create `SavedPageStyle` (immutable class: `css`, `autoApply`, `origin`, `rev`, getters
+- [x] create `SavedPageStyle` (immutable class: `css`, `autoApply`, `origin`, `rev`, getters
   `appliedId`, `insertedText` via `withMarker`, method `appliesTo(url)`) and `SavedPageStyles` (immutable
   collection keyed by bookmark id: `fromStored(value)`, `toStored()`, `styleFor(id)`, `withSaved(id,
   css, origin, rev)` keeping `autoApply` of an existing record and `true` for a new one,
   `withAutoApply(id, on)`, `without(ids)`)
-- [ ] add `bookmarkIdFromItemKey(itemKey)` in the same file (keeps the tested module free of
+- [x] add `bookmarkIdFromItemKey(itemKey)` in the same file (keeps the tested module free of
   `tabAssociations.ts`'s import chain) for `bookmark-<id>` and `pinned-<id>`, null otherwise; its prefixes
   are covered by the applier tests in Task 4
-- [ ] `fromStored`: `undefined` → empty; non-object → throw (caller decides); malformed entries and
+- [x] `fromStored`: `undefined` → empty; non-object → throw (caller decides); malformed entries and
   non-http(s) origins dropped
-- [ ] write tests: an update keeps `autoApply` off after the user switched it off; `without` drops only
+- [x] write tests: an update keeps `autoApply` off after the user switched it off; `without` drops only
   the given ids; `appliesTo` refuses another origin and non-http(s) URLs
-- [ ] run `make test` - must pass before next task
+- [x] run `make test` - must pass before next task
 
 ### Task 2: PageStyleManager in the background
 
