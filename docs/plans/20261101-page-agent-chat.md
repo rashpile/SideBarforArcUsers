@@ -239,14 +239,19 @@ instructions.
   for the open panel only.
 - `PageAgentChatStore(storageArea)`: `load(tabId)`, `save(chat)`, `delete(tabId)`, `sweep(existingTabIds)`
   deletes `pageAgentChat:<id>` keys whose id is not in the set. Key prefix `pageAgentChat:`.
-- `PageAgentChats(store, runFactory)` - the panel's single owner:
+- `PageAgentChats({ store, runFactory, page, createId?, debug? })` - the panel's single owner. `page`
+  (`insertCss`, `removeCss`, `pageUrl`, `readMarker`; `ChromePageAdapter` fits) serves Undo, Re-apply
+  and the marker check; `runFactory` gets `{ tabId, request, history, currentCss, insertedText,
+  listener, settings }` and returns `{ run(), stop() }`. `peek(tabId)` and `isRunning(tabId)` are
+  synchronous reads for the hook; `chat.data` keeps its identity until the chat changes.
   - `get(tabId)` loads once and caches; a turn persisted as `running` with no live run in this panel
     becomes `stopped` ("side panel closed during the run").
   - `send(tabId, text, settings)` starts a `PageAgentRun` (one live run per tab; runs on different tabs
     may overlap) through `runFactory` (tests pass fakes), applies every listener event to that tab's
     chat and saves after each event (in particular `onCssApplied` and `onFinished`), whichever tab is
     shown.
-  - `stop(tabId)`, `undo(tabId)`, `reapply(tabId)`, `checkMarker(tabId, markerReader)`,
+  - `stop(tabId)`, `undo(tabId)`, `reapply(tabId)`, `checkMarker(tabId)` (only for chats this panel
+    has loaded, so a panel never writes another window's chat; the hook calls `get` first),
     `tabClosed(tabId)` (aborts the run, marks the tab closed so later events of the aborted run don't
     write the key back, deletes the key), `sweep(existingTabIds)`.
   - `subscribe(listener)` so the hook re-renders on changes.
@@ -344,12 +349,12 @@ instructions.
 - Create: `src/services/pageAgent/pageAgentChats.ts`
 - Create: `tests/pageAgentChats.test.mjs`
 
-- [ ] implement `PageAgentChat` (turns, steps, conditions, summary, applied stylesheet with `appliedInsertedText` kept until removed, notice; condensed history for follow-ups; `running` → `stopped` on load)
-- [ ] implement `PageAgentChatStore(storageArea)` with `load`, `save`, `delete`, `sweep(existingTabIds)`; screenshots never written
-- [ ] implement `PageAgentChats(store, runFactory)` per Technical Details → Chat state: one live run per tab, events applied and saved for any tab, `stop`, `undo`, `reapply`, `checkMarker`, `tabClosed`, `sweep`, `subscribe`
-- [ ] test (fake storage area, fake run factory): a run on tab A that finishes while only tab B's chat is read saves A's final status and `appliedCss`; `tabClosed(A)` during a run leaves no `pageAgentChat:A` key after the aborted run's last events; `sweep` deletes only chats whose tab id is not in the set and leaves other keys alone; a saved chat is stored without image data
-- [ ] test: `checkMarker` - marker equal to `appliedId` clears the notice; empty marker on the same URL sets `reloaded`, on another URL `navigated`; `undo` calls `removeCss` with `appliedInsertedText` even when a notice is set
-- [ ] run `make test`, `make lint`, `npx tsc --noEmit` - must pass before task 6
+- [x] implement `PageAgentChat` (turns, steps, conditions, summary, applied stylesheet with `appliedInsertedText` kept until removed, notice; condensed history for follow-ups; `running` → `stopped` on load)
+- [x] implement `PageAgentChatStore(storageArea)` with `load`, `save`, `delete`, `sweep(existingTabIds)`; screenshots never written
+- [x] implement `PageAgentChats(store, runFactory)` per Technical Details → Chat state: one live run per tab, events applied and saved for any tab, `stop`, `undo`, `reapply`, `checkMarker`, `tabClosed`, `sweep`, `subscribe`
+- [x] test (fake storage area, fake run factory): a run on tab A that finishes while only tab B's chat is read saves A's final status and `appliedCss`; `tabClosed(A)` during a run leaves no `pageAgentChat:A` key after the aborted run's last events; `sweep` deletes only chats whose tab id is not in the set and leaves other keys alone; a saved chat is stored without image data
+- [x] test: `checkMarker` - marker equal to `appliedId` clears the notice; empty marker on the same URL sets `reloaded`, on another URL `navigated`; `undo` calls `removeCss` with `appliedInsertedText` even when a notice is set
+- [x] run `make test`, `make lint`, `npx tsc --noEmit` - must pass before task 6
 
 ### Task 6: "Model accepts images" setting and screenshot permission
 
