@@ -1,18 +1,21 @@
 import { UndoableAction } from './types';
 import { truncateTitle } from '../utils/truncateTitle';
 import { runBatchOperation } from '../hooks/useBookmarks';
+import { PageStyleUndoSnapshot } from './pageStyleUndoSnapshot';
 
 type BookmarkSnapshot = chrome.bookmarks.BookmarkTreeNode;
 
 /**
  * Undoable action for deleting one or more bookmarks/folders.
  * Snapshots full subtrees before deletion so they can be restored on undo.
+ * Undo creates every node under a new id; saved page styles move to those ids.
  */
 export class DeleteBookmarkAction implements UndoableAction
 {
   description = '';
   private bookmarkIds: string[];
   private snapshots: BookmarkSnapshot[] = [];
+  private savedStyles = PageStyleUndoSnapshot.empty();
   private getTabIdForBookmark?: (bookmarkId: string) => number | undefined;
 
   constructor(
@@ -96,6 +99,9 @@ export class DeleteBookmarkAction implements UndoableAction
     {
       this.description = `Deleted ${this.snapshots.length} bookmarks`;
     }
+
+    // Background drops the styles of the removed bookmarks and of everything in removed folders
+    this.savedStyles = await PageStyleUndoSnapshot.take('[DeleteAction] do:');
 
     // Close any live tabs associated with bookmarks being deleted
     if (this.getTabIdForBookmark)
@@ -221,6 +227,8 @@ export class DeleteBookmarkAction implements UndoableAction
       console.log(`[DeleteAction] restoreNode: created "${node.title}" → id=${created.id} `
         + `(parentId=${parentId}, index=${index}, ${isFolder ? 'folder' : 'bookmark'})`);
     }
+
+    await this.savedStyles.restore(node.id, created.id, '[DeleteAction] undo:');
 
     // Restore children recursively (folders only)
     if (isFolder && node.children)

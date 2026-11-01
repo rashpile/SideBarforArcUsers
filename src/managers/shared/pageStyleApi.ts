@@ -4,7 +4,7 @@
 // proxies/pageStyleProxy.ts implements Remote<PageStyleApi>.
 
 import { ManagerId, makeManagerActionId } from '../proxies/messageRouting.ts';
-import type { StoredPageStyles } from '../../stores/savedPageStyles.ts';
+import type { StoredPageStyle, StoredPageStyles } from '../../stores/savedPageStyles.ts';
 
 export const BOOKMARK_PAGE_STYLES_KEY = 'bookmarkPageStyles';
 
@@ -29,6 +29,11 @@ export interface PageStyleApi
   save(bookmarkId: string, css: string, pageUrl: string): Promise<PageStylesState>;
   setAutoApply(bookmarkId: string, on: boolean): Promise<PageStylesState>;
   remove(bookmarkId: string): Promise<PageStylesState>;
+  /**
+   * Puts a deleted bookmark's record, unchanged, onto the bookmark Undo created in its place.
+   * Rejects a malformed record and CSS that fails the sanitizer.
+   */
+  restore(bookmarkId: string, style: StoredPageStyle): Promise<PageStylesState>;
   getState(): PageStylesState;
 }
 

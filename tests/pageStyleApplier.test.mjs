@@ -134,20 +134,62 @@ test('nothing is applied when the association restore failed', async () =>
   assert.deepEqual(markerReads, []);
 });
 
-test('loadComplete inserts only into a page without the agent\'s sheet', async () =>
+test('loadComplete after a back/forward commit inserts only into a page without the agent\'s sheet', async () =>
 {
   const { applier, inserted } = createApplier({
     tabs: [tab(1, 'https://videos.test/u/1'), tab(2, 'https://videos.test/u/2'), tab(3, 'https://videos.test/u/3')],
     associations: { 1: 'bookmark-10', 2: 'bookmark-10', 3: 'bookmark-10' },
-    // 2 already has the saved sheet; 3 has a sheet of the chat's own run
+    // 1 is a fresh document; 2 came back from the cache with the saved sheet; 3 with the chat's own run's
     markers: { 1: '', 2: 'saved-r1', 3: 'run-abc' },
   });
 
-  await applier.loadComplete(1);
-  await applier.loadComplete(2);
-  await applier.loadComplete(3);
+  for (const id of [1, 2, 3])
+  {
+    await applier.committed(id, 0, ['forward_back']);
+    await applier.loadComplete(id);
+  }
 
   assert.deepEqual(inserted.map(([tabId]) => tabId), [1]);
+});
+
+test('a later load complete of the same page, after a late iframe load, does not put back a style removed with Undo', async () =>
+{
+  const markers = {};
+  // Tab 2's association is stored only after its page committed (a bookmark opened on a cached page)
+  const associations = { 1: 'bookmark-10', 3: 'bookmark-10' };
+  const { applier, inserted, markerReads } = createApplier({
+    tabs: [tab(1, 'https://videos.test/u/1'), tab(2, 'https://videos.test/u/2'), tab(3, 'https://videos.test/u/3')],
+    associations,
+    markers,
+  });
+  const insertedInto = () => inserted.map(([tabId]) => tabId);
+
+  // Each page gets the style once: 1 from its commit, 2 and 3 from the load-complete check
+  await applier.committed(1, 0, []);
+  await applier.committed(2, 0, []);
+  associations[2] = 'bookmark-10';
+  await applier.committed(3, 0, ['forward_back']);
+  for (const id of [1, 2, 3]) await applier.loadComplete(id);
+
+  assert.deepEqual(insertedInto(), [1, 2, 3]);
+  // The commit's insert landed, so tab 1's load complete had nothing to check
+  assert.deepEqual(markerReads, [2, 3]);
+
+  // The user presses Undo on every tab, then a late iframe load reports 'complete' again
+  for (const id of [1, 2, 3])
+  {
+    markers[id] = '';
+    await applier.loadComplete(id);
+  }
+
+  assert.deepEqual(insertedInto(), [1, 2, 3]);
+  assert.deepEqual(markerReads, [2, 3]);
+
+  // Undo holds for the document only: a reload commits a new one, which gets the style again
+  await applier.committed(1, 0, []);
+  await applier.loadComplete(1);
+
+  assert.deepEqual(insertedInto(), [1, 2, 3, 1]);
 });
 
 test('a commit and the load-complete check of the same page insert the style once', async () =>

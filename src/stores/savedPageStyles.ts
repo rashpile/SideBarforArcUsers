@@ -6,11 +6,7 @@
 // exact text, and the marker id tells the panel the sheet on the page is the saved one.
 
 import { withMarker } from '../utils/pageAgentCss.ts';
-
-// The item key prefixes of tabAssociations.ts, repeated here so tested modules that resolve a tab
-// to its bookmark don't pull in tabAssociations.ts's chrome-bound import chain.
-const BOOKMARK_ITEM_KEY_PREFIX = 'bookmark-';
-const FAVORITE_ITEM_KEY_PREFIX = 'pinned-';
+import { BOOKMARK_ITEM_KEY_PREFIX, FAVORITE_ITEM_KEY_PREFIX } from '../utils/tabAssociations.ts';
 
 const SAVED_APPLIED_ID_PREFIX = 'saved-';
 
@@ -202,6 +198,17 @@ export class SavedPageStyles
     const style = this.#byBookmarkId.get(bookmarkId);
     if (!style || style.autoApply === on) return this;
     return this.#with(bookmarkId, style.withAutoApply(on));
+  }
+
+  /**
+   * Put a record back as it was, Auto-apply and rev included: Undo of a delete recreates the
+   * bookmark under a new id, and the page in a Favorite's tab still carries the sheet of that rev.
+   */
+  withRestored(bookmarkId: string, style: SavedPageStyle): SavedPageStyles
+  {
+    const current = this.#byBookmarkId.get(bookmarkId);
+    if (current && current.equals(style)) return this;
+    return this.#with(bookmarkId, style);
   }
 
   /** The styles without those of the given bookmarks; this same instance when none of them had one. */

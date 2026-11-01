@@ -111,6 +111,10 @@ Manager API (`PageStyleApi`), each returning the full state for resync:
 - `save(bookmarkId, css, pageUrl)`: sanitizer check (refuse with the reason), origin from `pageUrl`
   (refuse non-http(s)), new `rev`; `autoApply` true for a new record, kept for an update
 - `setAutoApply(bookmarkId, on)`, `remove(bookmarkId)`, `getState()`
+- `restore(bookmarkId, storedStyle)`: Undo of a deleted bookmark, folder or Favorite recreates the nodes
+  under new ids; `DeleteBookmarkAction` and `DeletePinnedSiteAction` read the styles before the delete
+  (`PageStyleUndoSnapshot`) and put each record back, unchanged (Auto-apply and rev included), on the id
+  Undo created; same sanitizer check as `save`
 - background-only: `handleBookmarksRemoved(ids)` with the ids `background.ts` already computes with
   `collectBookmarkIds` in its `chrome.bookmarks.onRemoved` handler (same as AttentionMarkManager and
   FavoriteIconsManager), chained on `stateReady`
@@ -129,7 +133,10 @@ Applier triggers:
   path, which reads the marker (inserting the same text twice leaves a copy Undo can't remove, and
   inserting over the chat's own sheet orphans it)
 - `chrome.tabs.onUpdated` with `status === 'complete'`: decide; read the marker; insert only when it is
-  `''` (another id means the chat owns the page; the same id means it's already there)
+  `''` (another id means the chat owns the page; the same id means it's already there). Only once after a
+  top-frame commit that put no sheet on the page (`forward_back`, no association or style yet): Chrome
+  reports `complete` again for the same document after a late iframe load, and a second check would put
+  back a sheet the user removed with Undo
 - startup sweep (the load-complete check for every open tab) runs only when `stateReady` resolved `true`
   **and** `sameBrowserSession` resolved `false` (a new browser session or an extension reload).
   `stateReady` resolves on every service-worker start; a sweep on a worker restart would put the style
@@ -197,7 +204,7 @@ Chat adoption (`PageAgentChats`), through an injected `savedStyleForTab(tabId)` 
 - [x] `handleBookmarksRemoved(ids)`: takes the ids `background.ts` computes with `collectBookmarkIds`
   (removed node plus subtree); drops their styles; no write when nothing matched
 - [x] "loaded" guard as in AttentionMarkManager: an unreadable stored value starts empty and background
-  events don't write until the user's next save/toggle/remove
+  events don't write until the user's next save or restore (toggle and remove have no style to change)
 - [x] write tests: removing a bookmark's id, and the ids of a folder holding it, drops its style and keeps
   others; save refuses CSS with `@import` / remote `url(` and keeps the stored value unchanged; an
   unreadable stored value isn't overwritten by a bookmark-removed event
@@ -417,6 +424,12 @@ Code and test checks (in-browser checks are in Post-Completion):
   Re-apply notice) until it shows the tab again. Re-apply there removes the saved sheet first when the
   chat had already adopted it; right after a Save (the chat's sheet still the run's) it leaves a second
   copy until a reload.
+- `[known-limitation]` Back through the back/forward cache after a newer revision was saved on a later
+  page of the same tab shows the restored page with the older `saved-<rev>` sheet: the applier leaves
+  `forward_back` commits alone and the drawer adopts only the current rev. The chat still tracks the
+  newer sheet, so Undo changes nothing on the page and a follow-up `apply_css` adds a sheet over the old
+  one, until a reload puts the current revision on. Taking the old sheet off would need its exact text
+  (`removeCSS`), and only the latest revision is stored.
 
 ## Post-Completion
 

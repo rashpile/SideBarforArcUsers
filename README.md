@@ -187,7 +187,7 @@ A second message in the same chat edits the current CSS, so "a bit narrower" wor
 - When the extension has put the saved style on the page, the chat takes it as its current CSS, also in a new chat after a browser restart: **Undo** removes it from the page, **Show CSS** shows it, and a follow-up request edits it instead of adding a second stylesheet
 - Bookmark rows with a saved style show a small brush at the right, blue while Auto-apply is on and gray when it's off
 - The right-click menu of a bookmark or Favorite with a saved style has a **Page style** submenu with **Auto-apply on load** and **Remove saved style**
-- Saved styles are stored locally, one per bookmark, and survive a browser restart. Deleting the bookmark, or a folder that holds it, deletes its style
+- Saved styles are stored locally, one per bookmark, and survive a browser restart. Deleting the bookmark, or a folder that holds it, deletes its style; Undo of the delete brings the style back
 - Saving, the strip and the menu work without AI settings. Putting the style on the page needs the page access the agent asked for
 
 The agent uses the AI settings of AI naming: Base URL, API key, model, API protocol and reasoning effort. It calls the model with tool calling through the protocol you chose: Responses API or Chat Completions. Auto works as for AI naming: a Base URL ending in `/responses` or `/chat/completions` decides, otherwise it tries the Responses API first and falls back to Chat Completions when the endpoint doesn't have it. The model must support function calling. It needs access to http and https pages; the drawer shows **Grant page access** until you allow it. Screenshots need **Model accepts images** in Settings and access to all pages, which **Grant screenshot access** in the drawer asks for. Without them the agent checks numbers only. If the API rejects images, the run goes on without screenshots and says so.
@@ -212,6 +212,7 @@ Known limitations:
 - Saved styles aren't part of Backup, since a restore creates new bookmarks
 - Two bookmarks on one site each keep their own style; a tab gets only the style of its own bookmark
 - When the extension puts the style on only at the end of loading (Back without Chrome's back/forward cache, a bookmark opened on a cached page), the open drawer can miss it, or say "Page reloaded", until you show the tab again. Re-apply right after a Save then leaves a second copy of the CSS until a reload
+- Going Back to a page Chrome kept in its back/forward cache, after you saved a newer version of the style on a later page of the tab, shows the older version. Undo then changes nothing on that page and a follow-up request adds its CSS on top, until a reload puts the current version on
 - Rarely, a tab that navigates again while the extension is still starting gets the saved style twice. Undo then leaves one copy until a reload
 - The page outline, measurements, screenshots, your requests and the CSS go to the AI endpoint you configured. See [PRIVACY.md](PRIVACY.md)
 

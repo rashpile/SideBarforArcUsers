@@ -89,6 +89,38 @@ test('save refuses CSS that loads remote content and pages that are not http(s),
   assert.deepEqual(manager.getState().styles, stored);
 });
 
+test('Undo of a delete puts each style back on the new bookmark id unchanged, Auto-apply and rev included', async () =>
+{
+  const bookmark = entry('video { width: 100% !important; }', false, 'https://videos.test', 'r1');
+  const favorite = entry('main { max-width: none !important; }', true, 'https://docs.test', 'r2');
+  const { manager, local } = createManager({ stored: { [BOOKMARK_PAGE_STYLES_KEY]: { 10: bookmark, 20: favorite } } });
+  await manager.load();
+
+  await manager.handleBookmarksRemoved(['10', '20']);
+  await manager.restore('110', bookmark);
+  await manager.restore('120', favorite);
+
+  // A save would have turned Auto-apply on for a new id and made a new rev
+  assert.deepEqual(local[BOOKMARK_PAGE_STYLES_KEY], { 110: bookmark, 120: favorite });
+  assert.equal(manager.styles.styleFor('120').appliedId, 'saved-r2');
+});
+
+test('restore refuses a malformed record and CSS that loads remote content, with no write', async () =>
+{
+  const { manager, local, counters } = createManager();
+  await manager.load();
+
+  await assert.rejects(manager.restore('110', entry('a {}', true, 'https://a.test', '')), /record is incomplete/);
+  await assert.rejects(manager.restore('110', entry('a {}', true, 'chrome://settings', 'r1')), /record is incomplete/);
+  await assert.rejects(
+    manager.restore('110', entry('@import "https://evil.test/x.css";', true, 'https://a.test', 'r1')),
+    /@import is not allowed/
+  );
+
+  assert.equal(counters.writes, 0);
+  assert.equal(local[BOOKMARK_PAGE_STYLES_KEY], undefined);
+});
+
 test('an unreadable stored value is not overwritten by a bookmark-removed event, and load still resolves', async (t) =>
 {
   t.mock.method(console, 'error', () => {});

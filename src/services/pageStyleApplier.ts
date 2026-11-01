@@ -48,6 +48,10 @@ export class PageStyleApplier
   // The work for one tab runs one at a time, so a load-complete check reads the marker only after
   // the insert of that page's commit has landed, and the two don't both insert.
   readonly #tabWork = new Map<number, Promise<void>>();
+  // Tabs whose last top-frame commit put no sheet on the page. Only they get a load-complete
+  // check, and only once: Chrome reports 'complete' again for the same document after a late
+  // iframe load, and that check would put back a sheet the user removed with Undo.
+  readonly #awaitingLoadCheck = new Set<number>();
 
   constructor(deps: PageStyleApplierDeps)
   {
@@ -70,25 +74,38 @@ export class PageStyleApplier
   committed(tabId: number, frameId: number, transitionQualifiers: readonly string[] = []): Promise<void>
   {
     if (frameId !== 0) return Promise.resolve();
-    // Inserting the same text twice leaves a copy Undo can't remove, and inserting over the chat's
-    // own sheet orphans it, so a restored document is left to the marker check of loadComplete.
-    if (transitionQualifiers.includes(FORWARD_BACK_QUALIFIER)) return Promise.resolve();
+    const forwardBack = transitionQualifiers.includes(FORWARD_BACK_QUALIFIER);
 
     return this.#forTab(tabId, async () =>
     {
+      this.#awaitingLoadCheck.add(tabId);
+      // Inserting the same text twice leaves a copy Undo can't remove, and inserting over the chat's
+      // own sheet orphans it, so a restored document is left to the marker check of loadComplete.
+      if (forwardBack) return;
+
       const tab = await this.#deps.getTab(tabId);
       const style = await this.#styleForTab(tab, this.#deps.associationsOf);
-      if (style) await this.#insert(tabId, style);
+      if (!style) return;
+      await this.#insert(tabId, style);
+      this.#awaitingLoadCheck.delete(tabId);
     });
   }
 
-  /** tabs.onUpdated with status 'complete': covers tabs associated after their page committed. */
+  /**
+   * tabs.onUpdated with status 'complete': covers back/forward commits and tabs associated after
+   * their page committed. Acts once after a commit that put no sheet on the page.
+   */
   loadComplete(tabId: number): Promise<void>
   {
-    return this.#checkTab(tabId, () => this.#deps.getTab(tabId), this.#deps.associationsOf);
+    return this.#forTab(tabId, async () =>
+    {
+      if (!this.#awaitingLoadCheck.has(tabId)) return;
+      await this.#insertIfUnstyled(tabId, await this.#deps.getTab(tabId), this.#deps.associationsOf);
+      this.#awaitingLoadCheck.delete(tabId);
+    });
   }
 
-  /** The load-complete check for every open tab. */
+  /** The marker check of loadComplete for every open tab, whatever its last commit did. */
   async sweep(): Promise<void>
   {
     if (!await this.#deps.ready) return;
@@ -107,26 +124,23 @@ export class PageStyleApplier
     const associationsOf = memoizedAssociations(this.#deps.associationsOf);
     const checks = tabs
       .filter((tab): tab is PageStyleTab & { id: number } => tab.id !== undefined)
-      .map(tab => this.#checkTab(tab.id, async () => tab, associationsOf));
+      .map(tab => this.#forTab(tab.id, () => this.#insertIfUnstyled(tab.id, tab, associationsOf)));
     await Promise.all(checks);
   }
 
   // Inserts only into a page without the agent's sheet: another id means the chat owns the page,
-  // the saved id means the style is already there.
-  #checkTab(tabId: number, readTab: () => Promise<PageStyleTab>, associationsOf: AssociationsOf): Promise<void>
+  // the saved id means the style is already there. Callers run it inside the tab's queue.
+  async #insertIfUnstyled(tabId: number, tab: PageStyleTab, associationsOf: AssociationsOf): Promise<void>
   {
-    return this.#forTab(tabId, async () =>
+    const style = await this.#styleForTab(tab, associationsOf);
+    if (!style) return;
+    const marker = await this.#deps.readMarker(tabId);
+    if (marker !== '')
     {
-      const style = await this.#styleForTab(await readTab(), associationsOf);
-      if (!style) return;
-      const marker = await this.#deps.readMarker(tabId);
-      if (marker !== '')
-      {
-        this.#log(`tab ${tabId} already has the sheet "${marker}"`);
-        return;
-      }
-      await this.#insert(tabId, style);
-    });
+      this.#log(`tab ${tabId} already has the sheet "${marker}"`);
+      return;
+    }
+    await this.#insert(tabId, style);
   }
 
   // The style to put on the tab's current page, or null when the tab doesn't get one

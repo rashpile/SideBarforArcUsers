@@ -4,13 +4,15 @@
 // context has writes in flight, and the last write's ack settles the mirror. Background changes
 // styles on its own (a bookmark deleted), so toggle and remove are per-operation optimistic
 // writes through the SavedPageStyles operations the manager runs. Save is not optimistic: the
-// manager makes the rev, so the mirror can only learn the new record from the response.
+// manager makes the rev, so the mirror can only learn the new record from the response. Restore
+// isn't either: the manager may refuse the record, and Undo needs no instant brush.
 
 import { ManagerId, callManager, CONTEXT_ID } from './messageRouting';
 import type { Remote } from './messageRouting';
 import { PAGE_STYLES_CHANGED } from '../shared/pageStyleApi';
 import type { PageStyleApi, PageStylesState } from '../shared/pageStyleApi';
 import { SavedPageStyles } from '../../stores/savedPageStyles';
+import type { StoredPageStyle } from '../../stores/savedPageStyles';
 import { ExternalStore, ReadableStore } from '../../stores/externalStore';
 
 class PageStyleProxy implements Remote<PageStyleApi>
@@ -156,6 +158,17 @@ class PageStyleProxy implements Remote<PageStyleApi>
   async remove(bookmarkId: string): Promise<PageStylesState>
   {
     return this.#mutate('remove', { bookmarkId }, styles => styles.without([bookmarkId]));
+  }
+
+  async restore(bookmarkId: string, style: StoredPageStyle): Promise<PageStylesState>
+  {
+    return this.#mutate('restore', { bookmarkId, style });
+  }
+
+  /** The styles background holds now, also before load() filled the mirror. Does not touch the mirror. */
+  async readStyles(): Promise<SavedPageStyles>
+  {
+    return SavedPageStyles.fromStored((await this.getState()).styles);
   }
 }
 

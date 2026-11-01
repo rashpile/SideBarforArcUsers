@@ -2,14 +2,15 @@
 //
 // Background-side implementation of shared/pageStyleApi.ts. The sidebar
 // reaches it through proxies/pageStyleProxy.ts. Single writer of the
-// bookmarkPageStyles key: the sidebar saves, toggles and removes styles, and
-// background drops the styles of deleted bookmarks.
+// bookmarkPageStyles key: the sidebar saves, toggles, removes and (on Undo of a
+// delete) restores styles, and background drops the styles of deleted bookmarks.
 
 import { ManagerId } from '../proxies/messageRouting.ts';
 import type { RoutedManager } from '../proxies/messageRouting.ts';
 import { BOOKMARK_PAGE_STYLES_KEY, PAGE_STYLES_CHANGED } from '../shared/pageStyleApi.ts';
 import type { PageStyleApi, PageStylesState } from '../shared/pageStyleApi.ts';
-import { SavedPageStyles, httpOriginOf } from '../../stores/savedPageStyles.ts';
+import { SavedPageStyle, SavedPageStyles, httpOriginOf } from '../../stores/savedPageStyles.ts';
+import type { StoredPageStyle } from '../../stores/savedPageStyles.ts';
 import { PageAgentCssSanitizer } from '../../utils/pageAgentCss.ts';
 
 /** The chrome APIs and the rev source the manager uses, injected so tests run under Node. */
@@ -32,8 +33,9 @@ export class PageStyleManager implements RoutedManager, PageStyleApi
   #styles = new SavedPageStyles();
 
   // A stored value that couldn't be read starts empty and is not written by background events,
-  // so the unread value isn't overwritten with nothing. The user's next save, toggle or remove
-  // writes it and lifts this.
+  // so the unread value isn't overwritten with nothing. The user's next save, or an Undo of a
+  // delete that brings a style back, writes it and lifts this. Toggle and remove can't: with
+  // nothing loaded there is no style for them to change.
   #loaded = false;
 
   #writeTail: Promise<void> = Promise.resolve();
@@ -62,6 +64,9 @@ export class PageStyleManager implements RoutedManager, PageStyleApi
 
       case 'remove':
         return this.remove(message.bookmarkId as string, originId);
+
+      case 'restore':
+        return this.restore(message.bookmarkId as string, message.style as StoredPageStyle, originId);
 
       default:
         throw new Error(`${this.managerId}: unknown method "${method}"`);
@@ -132,6 +137,25 @@ export class PageStyleManager implements RoutedManager, PageStyleApi
   {
     requireBookmarkId(bookmarkId);
     await this.#commitUserChange(this.#styles.without([bookmarkId]), originId);
+    return this.getState();
+  }
+
+  async restore(bookmarkId: string, stored: StoredPageStyle, originId?: string): Promise<PageStylesState>
+  {
+    requireBookmarkId(bookmarkId);
+    const style = SavedPageStyle.fromStoredEntry(stored);
+    if (!style)
+    {
+      throw new Error('Can\'t restore this style: the record is incomplete');
+    }
+    // The same gate as save: the sidebar sends the record back, and the background inserts it later
+    const check = PageAgentCssSanitizer.check(style.css);
+    if (!check.ok)
+    {
+      throw new Error(`Can't restore this style: ${check.reason}`);
+    }
+
+    await this.#commitUserChange(this.#styles.withRestored(bookmarkId, style), originId);
     return this.getState();
   }
 
