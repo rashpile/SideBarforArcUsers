@@ -277,6 +277,7 @@ export function runPagePopupCommand(command: PagePopupCommand): PagePopupResult;
   `appendToPopup` returns `shown`
 - [x] no tests: injected DOM function and Chrome wiring (repo rule)
 - [x] run `make test`, `npx tsc --noEmit` and `make lint` - must pass before next task
+- [x] ➕ collapse / expand button in the popup header (user request during review); an appended answer expands a collapsed popup
 
 ### Task 4: Tools, prompt and the answered status in the run
 

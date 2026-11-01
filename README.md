@@ -166,9 +166,9 @@ Ask an AI model about the current page, or ask it to change how the page looks. 
 
 Ask a question, for example "summarize this page" or "explain the term in the second paragraph". The agent reads the page with `read_page_text`: the text of its main content (the `main` element, or the page's only `article`, else the whole page), up to 30,000 characters. When the layout matters to the answer it can read the page outline as well. The reply shows as an **Answer**, rendered as markdown: headings, bold, italic, code, lists, quotes and links, which open in a new tab. Only http and https links work; HTML in an answer shows as text, and images don't load. When the agent needs more detail, its question shows as an Answer too. A follow-up question sees the earlier answers of the chat, up to 4,000 characters each, so "explain X" after a summary knows what the summary said. The page text isn't carried over: the agent reads the page again when it needs it.
 
-**Show on page** under an answer opens it in a popup at the top right of the page, with a ✕ to close it. Ask for it in the request, for example "show a summary of this page in a popup", and the agent opens the popup itself with `show_popup`; the chat shows the same answer, also when the page can't show the popup.
+**Show on page** under an answer opens it in a popup at the top right of the page, with a ✕ to close it and a – to collapse it to its title bar (▢ expands it again). Ask for it in the request, for example "show a summary of this page in a popup", and the agent opens the popup itself with `show_popup`; the chat shows the same answer, also when the page can't show the popup.
 
-- While the popup is open, each new answer of the chat is added to it under its question, and the popup scrolls to it
+- While the popup is open, each new answer of the chat is added to it under its question, and the popup scrolls to it, expanding first if you collapsed it
 - After ✕, answers go to the chat only. Show on page or `show_popup` opens a new popup with that one answer, in place of the open one
 - A reload or a move to another page removes the popup, also in a single-page site such as the next video on YouTube, and Back doesn't bring it back. A page that only rewrites its address while you search or scroll keeps it
 - Style changes don't touch the popup

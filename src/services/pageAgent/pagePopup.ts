@@ -30,8 +30,11 @@ interface PagePopupState
 {
   host: HTMLElement;
   body: HTMLElement;
+  /** True while only the header shows; change it through setCollapsed. */
+  collapsed: boolean;
   /** The document URL without its hash; replace navigations move it along. */
   url: string;
+  setCollapsed(collapsed: boolean): void;
   close(): void;
 }
 
@@ -42,9 +45,9 @@ interface PopupNavigationEvent extends Event
 }
 
 /**
- * Injected. `open` replaces any popup on the page with a new one holding the entry; `append` adds
- * the entry to the open popup, or returns `{ shown: false }` when the user closed it or the page
- * dropped it.
+ * Injected. `open` replaces any popup on the page with a new, expanded one holding the entry;
+ * `append` adds the entry to the open popup and expands it if collapsed, or returns
+ * `{ shown: false }` when the user closed it or the page dropped it.
  */
 export function runPagePopupCommand(command: PagePopupCommand): PagePopupResult
 {
@@ -67,12 +70,14 @@ export function runPagePopupCommand(command: PagePopupCommand): PagePopupResult
     }
     .header { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 14px; border-bottom: 1px solid var(--border); }
     .title { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .close {
+    .control {
       flex: none; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px;
       background: transparent; color: var(--muted); font: inherit; font-size: 14px; line-height: 24px; cursor: pointer;
     }
-    .close:hover { background: var(--soft); color: var(--fg); }
+    .control:hover { background: var(--soft); color: var(--fg); }
     .body { position: relative; flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 0 14px 12px; }
+    .collapsed .header { border-bottom: 0; }
+    .collapsed .body { display: none; }
     .entry { padding-top: 10px; }
     .entry + .entry { margin-top: 12px; border-top: 1px solid var(--border); }
     .question { margin-bottom: 4px; color: var(--muted); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -284,11 +289,13 @@ export function runPagePopupCommand(command: PagePopupCommand): PagePopupResult
     panel.setAttribute('aria-label', title);
     const header = element('div', 'header');
     header.appendChild(element('div', 'title', title));
-    const closeButton = element('button', 'close', '✕');
+    const collapseButton = element('button', 'control');
+    collapseButton.type = 'button';
+    const closeButton = element('button', 'control', '✕');
     closeButton.type = 'button';
     closeButton.setAttribute('aria-label', 'Close');
     closeButton.title = 'Close';
-    header.appendChild(closeButton);
+    header.append(collapseButton, closeButton);
     const body = element('div', 'body');
     body.appendChild(entryElement(entry));
     panel.append(header, body);
@@ -316,7 +323,20 @@ export function runPagePopupCommand(command: PagePopupCommand): PagePopupResult
     const state: PagePopupState = {
       host,
       body,
+      collapsed: false,
       url: withoutHash(location.href),
+      // Chrome keeps a scroller's offset while it is display: none, so expanding shows the answers
+      // where the user left them.
+      setCollapsed: (collapsed: boolean) =>
+      {
+        state.collapsed = collapsed;
+        panel.classList.toggle('collapsed', collapsed);
+        const label = collapsed ? 'Expand' : 'Collapse';
+        collapseButton.textContent = collapsed ? '▢' : '–';
+        collapseButton.setAttribute('aria-label', label);
+        collapseButton.title = label;
+        collapseButton.setAttribute('aria-expanded', String(!collapsed));
+      },
       close: () =>
       {
         navigation?.removeEventListener('currententrychange', onEntryChange);
@@ -328,6 +348,8 @@ export function runPagePopupCommand(command: PagePopupCommand): PagePopupResult
         }
       },
     };
+    state.setCollapsed(false);
+    collapseButton.addEventListener('click', () => state.setCollapsed(!state.collapsed));
     closeButton.addEventListener('click', () => state.close());
     navigation?.addEventListener('currententrychange', onEntryChange);
     window.addEventListener('pagehide', onPageHide);
@@ -344,6 +366,8 @@ export function runPagePopupCommand(command: PagePopupCommand): PagePopupResult
       state?.close();
       return false;
     }
+    // The popup follows the chat, so a new answer must show; a hidden body has no offset to scroll to.
+    state.setCollapsed(false);
     const section = entryElement(entry);
     state.body.appendChild(section);
     state.body.scrollTo({ top: section.offsetTop, behavior: 'smooth' });
