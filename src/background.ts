@@ -908,6 +908,7 @@ async function recordClosedTab(
       registrySpaceId,
       existingSpaceIds: new Set(spaceManager.getSpaces().map(space => space.id)),
       closedByArchive,
+      extensionOrigin: new URL(chrome.runtime.getURL('')).origin,
       now: Date.now(),
       id: crypto.randomUUID(),
     });

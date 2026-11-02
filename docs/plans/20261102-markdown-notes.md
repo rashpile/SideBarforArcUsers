@@ -318,9 +318,9 @@ All methods are async: reads also wait for a load retry (below).
 - Modify: `src/background.ts`
 - Modify: `tests/closedTabRecording.test.mjs`
 
-- [ ] add `extensionOrigin` to `ClosedTabInput`; an own note URL is not internal; pass the origin from the background caller
-- [ ] write tests: an unassociated note tab of this extension is recorded; another extension's page and this extension's other pages are still skipped
-- [ ] run `make test` - must pass before task 8
+- [x] add `extensionOrigin` to `ClosedTabInput`; an own note URL is not internal; pass the origin from the background caller
+- [x] write tests: an unassociated note tab of this extension is recorded; another extension's page and this extension's other pages are still skipped
+- [x] run `make test` - must pass before task 8
 
 ### Task 8: Note texts in the JSON backup
 

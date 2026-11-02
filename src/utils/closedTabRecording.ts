@@ -3,6 +3,7 @@
 
 import type { OpenTabPage } from '../stores/openTabPages.ts';
 import type { ClosedTabRecord } from '../stores/recentlyClosedTabs.ts';
+import { isOwnNoteUrl } from './noteUrl.ts';
 import { getEffectiveTabUrl } from './parkedTabAssociation.ts';
 
 export interface ClosedTabInput
@@ -14,6 +15,8 @@ export interface ClosedTabInput
   existingSpaceIds: ReadonlySet<string>;
   /** The tab was closed by auto-archive or the Archive action; it is already in the Archive. */
   closedByArchive: boolean;
+  /** This extension's origin, `chrome-extension://<id>`: its note pages are recorded. */
+  extensionOrigin: string;
   now: number;
   id: string;
 }
@@ -35,16 +38,19 @@ const INTERNAL_URL_PREFIXES: readonly string[] = [
   'view-source:',
 ];
 
-function isInternalUrl(url: string): boolean
+function isInternalUrl(url: string, extensionOrigin: string): boolean
 {
   if (url === '') return true;
+  // A note is the user's own document, worth reopening like a site; this extension's
+  // other pages and every other extension's pages stay out
+  if (isOwnNoteUrl(url, extensionOrigin)) return false;
   const lower = url.toLowerCase();
   return INTERNAL_URL_PREFIXES.some(prefix => lower.startsWith(prefix));
 }
 
 export function closedTabRecord(input: ClosedTabInput): ClosedTabDecision | null
 {
-  const { page, registrySpaceId, existingSpaceIds, closedByArchive, now, id } = input;
+  const { page, registrySpaceId, existingSpaceIds, closedByArchive, extensionOrigin, now, id } = input;
   if (!page || closedByArchive || page.incognito || page.associated) return null;
 
   // The registry is current within the session; the cached Space covers a worker wake,
@@ -54,7 +60,7 @@ export function closedTabRecord(input: ClosedTabInput): ClosedTabDecision | null
 
   // A parked tab is recorded by the page it stands for, so reopening it loads that page
   const url = getEffectiveTabUrl(page.url);
-  if (isInternalUrl(url)) return null;
+  if (isInternalUrl(url, extensionOrigin)) return null;
 
   return {
     spaceId,

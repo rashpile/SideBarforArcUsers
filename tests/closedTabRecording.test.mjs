@@ -4,6 +4,7 @@ import test from 'node:test';
 import { closedTabRecord } from '../src/utils/closedTabRecording.ts';
 
 const SPACES = new Set(['work', 'home']);
+const OWN_ORIGIN = 'chrome-extension://ownextensionid';
 
 function page(overrides = {})
 {
@@ -22,6 +23,7 @@ function decide(overrides = {})
     page: page(),
     existingSpaceIds: SPACES,
     closedByArchive: false,
+    extensionOrigin: OWN_ORIGIN,
     now: 1000,
     id: 'r1',
     ...overrides,
@@ -121,4 +123,28 @@ test('a parked tab is recorded by its original URL', () =>
   const parked = `chrome-extension://suspender/park.html?tabId=7&url=${encodeURIComponent('https://example.com/docs')}`;
   const result = decide({ page: page({ url: parked }), registrySpaceId: 'work' });
   assert.equal(result.record.url, 'https://example.com/docs');
+});
+
+test('an unassociated note tab of this extension is recorded by its note URL', () =>
+{
+  const noteUrl = `${OWN_ORIGIN}/note.html?id=note-1`;
+  const result = decide({ page: page({ url: noteUrl, title: 'How to pay taxes' }), registrySpaceId: 'work' });
+  assert.deepEqual(result, {
+    spaceId: 'work',
+    record: { id: 'r1', url: noteUrl, title: 'How to pay taxes', closedAt: 1000 },
+  });
+});
+
+test('another extension\'s pages and this extension\'s other pages are still not recorded', () =>
+{
+  for (const url of [
+    'chrome-extension://otherextensionid/note.html?id=note-1',
+    `${OWN_ORIGIN}/index.html`,
+    `${OWN_ORIGIN}/switcher.html`,
+    `${OWN_ORIGIN}/note.html`,
+    `${OWN_ORIGIN}/note.html?id=bad%20id`,
+  ])
+  {
+    assert.equal(decide({ page: page({ url }), registrySpaceId: 'work' }), null, url);
+  }
 });
