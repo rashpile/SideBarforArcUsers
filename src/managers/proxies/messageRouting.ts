@@ -24,6 +24,7 @@ export const ManagerId = {
   ATTENTION_MARKS: 'AttentionMarkManager',
   RECENTLY_CLOSED: 'RecentlyClosedManager',
   PAGE_STYLES: 'PageStyleManager',
+  NOTES: 'NoteManager',
 } as const;
 
 export type ManagerIdType = typeof ManagerId[keyof typeof ManagerId];

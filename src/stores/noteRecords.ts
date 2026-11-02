@@ -254,6 +254,22 @@ export class NoteRecords
     return changed ? new NoteRecords(remaining) : this;
   }
 
+  /** The notes added, changed or removed since `previous`, for the change broadcast. */
+  idsChangedFrom(previous: NoteRecords): string[]
+  {
+    const changed: string[] = [];
+    for (const [noteId, record] of this.#byId)
+    {
+      const before = previous.get(noteId);
+      if (!before || !before.equals(record)) changed.push(noteId);
+    }
+    for (const noteId of previous.ids())
+    {
+      if (!this.#byId.has(noteId)) changed.push(noteId);
+    }
+    return changed;
+  }
+
   #mapEach(noteIds: Iterable<string>, change: (record: NoteRecord) => NoteRecord): NoteRecords
   {
     let next: Map<string, NoteRecord> | null = null;

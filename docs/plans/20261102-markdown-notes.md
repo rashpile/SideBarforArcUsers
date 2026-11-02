@@ -259,15 +259,15 @@ All methods are async: reads also wait for a load retry (below).
 - Modify: `src/managers/proxies/messageRouting.ts`
 - Create: `tests/noteManager.test.mjs`
 
-- [ ] add `NOTES: 'NoteManager'` to `ManagerId`; create `noteApi.ts` (key, grace, types, `NoteApi`, `NOTES_CHANGED`)
-- [ ] create `NoteManager` (`RoutedManager`, `NoteApi`) with injected deps, `dispatch`, never-rejecting `load` (in-flight promise reused, never replaces loaded records), serialized writes, broadcasts with `senderId`, validation, the unloaded guards (every API call retries the load; writes and reads reject on failure; background changes skip)
-- [ ] implement `handleBookmarksRemoved(removedNode)`, `handleNoteUrlSeen(url)`, `sweepExpired()` as in Technical Details
-- [ ] write tests: removing the last bookmark of a note marks it; removing one of two bookmarks of a note (the tree still references it) doesn't; a removal without note ids doesn't scan the tree
-- [ ] write tests: `sweepExpired` deletes an expired mark the tree doesn't reference, keeps a mark younger than 30 days, and clears an expired mark whose note the tree references again; `handleNoteUrlSeen` clears a mark
-- [ ] write tests: a manager whose load failed doesn't write on background events, and a `save` while the store still can't be read rejects without writing; `save` after a successful retry writes all records
-- [ ] write tests: on an unloaded manager whose retry fails, `list` and `get` reject (never `[]` / `null`)
-- [ ] write tests: `restore` keeps a newer local text and stores a newer backup text (through the manager, with the write)
-- [ ] run `make test` - must pass before task 4
+- [x] add `NOTES: 'NoteManager'` to `ManagerId`; create `noteApi.ts` (key, grace, types, `NoteApi`, `NOTES_CHANGED`)
+- [x] create `NoteManager` (`RoutedManager`, `NoteApi`) with injected deps, `dispatch`, never-rejecting `load` (in-flight promise reused, never replaces loaded records), serialized writes, broadcasts with `senderId`, validation, the unloaded guards (every API call retries the load; writes and reads reject on failure; background changes skip)
+- [x] implement `handleBookmarksRemoved(removedNode)`, `handleNoteUrlSeen(url)`, `sweepExpired()` as in Technical Details
+- [x] write tests: removing the last bookmark of a note marks it; removing one of two bookmarks of a note (the tree still references it) doesn't; a removal without note ids doesn't scan the tree
+- [x] write tests: `sweepExpired` deletes an expired mark the tree doesn't reference, keeps a mark younger than 30 days, and clears an expired mark whose note the tree references again; `handleNoteUrlSeen` clears a mark
+- [x] write tests: a manager whose load failed doesn't write on background events, and a `save` while the store still can't be read rejects without writing; `save` after a successful retry writes all records
+- [x] write tests: on an unloaded manager whose retry fails, `list` and `get` reject (never `[]` / `null`)
+- [x] write tests: `restore` keeps a newer local text and stores a newer backup text (through the manager, with the write)
+- [x] run `make test` - must pass before task 4
 
 ### Task 4: Wire NoteManager into the background and add the proxy
 
