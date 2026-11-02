@@ -144,10 +144,10 @@
 - [x] run `make lint && make test && make build` - must pass before task 4
 
 ### Task 4: Verify acceptance criteria
-- [ ] verify: a drop on the Space root target with any position, for BOOKMARK, TAB, URL and TAB_GROUP, resolves the parent to the Space folder (read the three branches and `resolveBookmarkDropTarget` against the helper)
-- [ ] verify: the root target shows the insertion line for internal drags and external web-link drags
-- [ ] verify: drops on regular rows (before/after/into/intoFirst) behave as before
-- [ ] run full checks: `make lint && make test && make build`
+- [x] verify: a drop on the Space root target with any position, for BOOKMARK, TAB, URL and TAB_GROUP, resolves the parent to the Space folder (read the three branches and `resolveBookmarkDropTarget` against the helper)
+- [x] verify: the root target shows the insertion line for internal drags and external web-link drags
+- [x] verify: drops on regular rows (before/after/into/intoFirst) behave as before
+- [x] run full checks: `make lint && make test && make build`
 
 ### Task 5: [Final] Update documentation
 - [ ] `docs/changelog.md`: add a "Fixed:" line at the top of Latest Version - dragging a tab, tab group or link into a Space with no bookmarks shows a drop line and saves it in the Space; it no longer lands next to the Space folder and vanishes from the Tab list. Also say that a drop in the empty area under the last bookmark now adds it at the end of the Space, not at the top
