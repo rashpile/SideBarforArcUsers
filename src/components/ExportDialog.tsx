@@ -1,7 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { PinnedSite } from '../hooks/usePinnedSites';
 import { Space } from '../contexts/SpacesContext';
 import { Dialog } from './Dialog';
+import { collectNoteIds } from '../utils/noteUrl';
+import { noteProxy } from '../managers/proxies/noteProxy';
+import type { BackupNote } from '../managers/shared/noteApi';
 
 export interface ExportOptions {
   exportPinnedSites: boolean;
@@ -35,6 +38,7 @@ interface FullBackup {
   bookmarks?: chrome.bookmarks.BookmarkTreeNode[];
   tabGroups?: TabGroupBackup[];
   spaces?: readonly Space[];
+  notes?: BackupNote[];
 }
 
 export function ExportDialog({
@@ -48,6 +52,7 @@ export function ExportDialog({
   const [exportBookmarks, setExportBookmarks] = useState(true);
   const [exportTabGroups, setExportTabGroups] = useState(true);
   const [exportSpaces, setExportSpaces] = useState(true);
+  const [exportNotes, setExportNotes] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,12 +63,18 @@ export function ExportDialog({
       setExportBookmarks(true);
       setExportTabGroups(true);
       setExportSpaces(true);
+      setExportNotes(true);
       setError(null);
     }
   }, [isOpen]);
 
+  const noteIds = useMemo(() => collectNoteIds(bookmarks), [bookmarks]);
+  const hasNotes = noteIds.size > 0;
+  // The checkbox is hidden without notes, so its default `true` must not count as a selection
+  const notesSelected = exportNotes && hasNotes;
+
   const handleExport = async () => {
-    if (!exportPinnedSites && !exportBookmarks && !exportTabGroups && !exportSpaces) {
+    if (!exportPinnedSites && !exportBookmarks && !exportTabGroups && !exportSpaces && !notesSelected) {
       return; // Nothing to export
     }
 
@@ -116,6 +127,14 @@ export function ExportDialog({
         backup.spaces = [...spaces];
       }
 
+      // Rejects while the stored notes can't be read, so no backup is written without their texts
+      if (notesSelected) {
+        const notes = await noteProxy.list([...noteIds]);
+        if (notes.length > 0) {
+          backup.notes = notes;
+        }
+      }
+
       // Download the file
       const data = JSON.stringify(backup, null, 2);
       const blob = new Blob([data], { type: 'application/json' });
@@ -128,13 +147,15 @@ export function ExportDialog({
       onClose();
     } catch (err) {
       console.error('Export failed:', err);
-      setError('Export failed. Please try again.');
+      setError(err instanceof Error && err.message
+        ? `Export failed: ${err.message}`
+        : 'Export failed. Please try again.');
     } finally {
       setIsExporting(false);
     }
   };
 
-  const nothingSelected = !exportPinnedSites && !exportBookmarks && !exportTabGroups && !exportSpaces;
+  const nothingSelected = !exportPinnedSites && !exportBookmarks && !exportTabGroups && !exportSpaces && !notesSelected;
 
   return (
     <Dialog isOpen={isOpen} onClose={onClose} title="Export" maxWidth="max-w-xs" zIndex={60}>
@@ -182,6 +203,19 @@ export function ExportDialog({
           />
           Spaces ({spaces.length})
         </label>
+
+        {/* Note texts export */}
+        {hasNotes && (
+          <label className="flex items-center gap-2 text-gray-700 dark:text-gray-300 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={exportNotes}
+              onChange={(e) => setExportNotes(e.target.checked)}
+              className="rounded border-gray-300 dark:border-gray-600"
+            />
+            Notes
+          </label>
+        )}
 
         {/* Error message */}
         {error && (

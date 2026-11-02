@@ -12,10 +12,12 @@ import {
   ImportOptions,
   ImportResult,
   FavoritesImportTarget,
+  NotesImportTarget,
 } from '../utils/backupRestore';
 import { PinnedSite } from '../hooks/usePinnedSites';
 import { favoritesImportAction } from '../utils/favoritesImport';
 import { Space } from '../contexts/SpacesContext';
+import { noteProxy } from '../managers/proxies/noteProxy';
 
 interface ImportDialogProps {
   isOpen: boolean;
@@ -29,12 +31,15 @@ interface ImportDialogProps {
 
 type DialogState = 'selecting' | 'preview' | 'importing' | 'success';
 
+const NOTES_IMPORT_HINT = 'Notes edited here after the backup keep their text';
+
 interface ParsedData {
   backup: FullBackup;
   hasPinnedSites: boolean;
   hasBookmarks: boolean;
   hasTabGroups: boolean;
   hasSpaces: boolean;
+  hasNotes: boolean;
   dataTypeCount: number;
 }
 
@@ -58,6 +63,7 @@ export function ImportDialog({
   const [tabGroupsMode, setTabGroupsMode] = useState<TabGroupsImportMode>('append');
   const [importSpacesFlag, setImportSpacesFlag] = useState(true);
   const [spacesMode, setSpacesMode] = useState<SpacesImportMode>('append');
+  const [importNotesFlag, setImportNotesFlag] = useState(true);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
@@ -126,7 +132,8 @@ export function ImportDialog({
         const hasBookmarks = (backup.bookmarks?.length || 0) > 0;
         const hasTabGroups = (backup.tabGroups?.length || 0) > 0;
         const hasSpaces = (backup.spaces?.length || 0) > 0;
-        const dataTypeCount = [hasPinnedSites, hasBookmarks, hasTabGroups, hasSpaces].filter(Boolean).length;
+        const hasNotes = Array.isArray(backup.notes) && backup.notes.length > 0;
+        const dataTypeCount = [hasPinnedSites, hasBookmarks, hasTabGroups, hasSpaces, hasNotes].filter(Boolean).length;
 
         if (dataTypeCount === 0) {
           setError('Backup file contains no data');
@@ -140,6 +147,7 @@ export function ImportDialog({
           hasBookmarks,
           hasTabGroups,
           hasSpaces,
+          hasNotes,
           dataTypeCount,
         });
 
@@ -152,6 +160,7 @@ export function ImportDialog({
         setTabGroupsMode('append');
         setImportSpacesFlag(hasSpaces);
         setSpacesMode('append');
+        setImportNotesFlag(hasNotes);
         setDialogState('preview');
       } catch {
         setError('Failed to parse backup file');
@@ -175,6 +184,11 @@ export function ImportDialog({
         tabGroupsMode,
         importSpaces: importSpacesFlag,
         spacesMode,
+        importNotes: importNotesFlag,
+      };
+      const notes: NotesImportTarget = {
+        extensionOrigin: location.origin,
+        restore: entries => noteProxy.restore(entries),
       };
       const result = await importFullBackup(
         parsedData.backup,
@@ -182,7 +196,8 @@ export function ImportDialog({
         favorites,
         replaceSpaces,
         appendSpaces,
-        existingSpaces.map(s => s.name)
+        existingSpaces.map(s => s.name),
+        notes
       );
       setImportResult(result);
       setDialogState('success');
@@ -202,7 +217,8 @@ export function ImportDialog({
     backupBookmarks: parsedData.backup.bookmarks ?? [],
   }) === 'restore-icons';
 
-  const nothingSelected = !importPinnedSitesFlag && !importBookmarksFlag && !importTabGroups && !importSpacesFlag;
+  const nothingSelected = !importPinnedSitesFlag && !importBookmarksFlag && !importTabGroups && !importSpacesFlag
+    && !importNotesFlag;
 
   // Build footer buttons based on dialog state
   const footerContent = (() => {
@@ -321,6 +337,12 @@ export function ImportDialog({
                 )}
                 {importResult.spacesCount > 0 && (
                   <li>{importResult.spacesCount} spaces</li>
+                )}
+                {importResult.notesRestored > 0 && (
+                  <li>{importResult.notesRestored} notes</li>
+                )}
+                {importResult.notesKept > 0 && (
+                  <li>{importResult.notesKept} notes already up to date here</li>
                 )}
               </ul>
             </>
@@ -458,6 +480,18 @@ export function ImportDialog({
                       Append to existing
                     </label>
                   </div>
+                </div>
+              )}
+
+              {/* Single data type - Notes only */}
+              {parsedData.dataTypeCount === 1 && parsedData.hasNotes && (
+                <div className="space-y-1">
+                  <p className="text-gray-700 dark:text-gray-300">
+                    {parsedData.backup.notes?.length} notes
+                  </p>
+                  <p className="text-gray-500 dark:text-gray-500 text-xs">
+                    {NOTES_IMPORT_HINT}
+                  </p>
                 </div>
               )}
 
@@ -634,6 +668,27 @@ export function ImportDialog({
                             Append to existing
                           </label>
                         </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Notes import, independent of Bookmarks: synced note bookmarks only lack their texts */}
+                  {parsedData.hasNotes && (
+                    <div>
+                      <label className="flex items-center gap-2 text-gray-700 dark:text-gray-300 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={importNotesFlag}
+                          onChange={(e) => setImportNotesFlag(e.target.checked)}
+                          className="rounded border-gray-300 dark:border-gray-600"
+                          disabled={dialogState === 'importing'}
+                        />
+                        Notes ({parsedData.backup.notes?.length})
+                      </label>
+                      {importNotesFlag && (
+                        <p className="text-gray-500 dark:text-gray-500 ml-5 text-xs">
+                          {NOTES_IMPORT_HINT}
+                        </p>
                       )}
                     </div>
                   )}

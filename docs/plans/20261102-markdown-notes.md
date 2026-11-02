@@ -328,12 +328,14 @@ All methods are async: reads also wait for a load retry (below).
 - Modify: `src/utils/backupRestore.ts`
 - Modify: `src/components/ExportDialog.tsx`
 - Modify: `src/components/ImportDialog.tsx`
+- ➕ Modify: `src/utils/arcImport.ts` (`ArcImportResult` omits the note counts: Arc has no notes)
 
-- [ ] `FullBackup.notes?: BackupNote[]`; `ImportOptions.importNotes`; `ImportResult.notesRestored` / `notesKept`; `importBookmarkNode` takes a URL rewriter and the import passes `url => rewriteNoteUrl(url, origin, idsInBackupNotes)` (always, also when Notes is unchecked)
-- [ ] `importFullBackup` calls `noteProxy.restore(backup.notes)` when Notes is checked (passed in as a function so the module stays free of new chrome calls)
-- [ ] Export dialog: **Notes** checkbox shown when the bookmark tree references notes, on by default; adds `backup.notes = await noteProxy.list([...collectNoteIds(bookmarks)])`; the early return in `handleExport` and `nothingSelected` include it; the dialog's local backup type (lines ~31-38) gets `notes`
-- [ ] Import dialog: `hasNotes` counts in `dataTypeCount`; **Notes (N)** checkbox independent of Bookmarks, on by default, and `importNotesFlag` in `nothingSelected`; a backup with only notes (`dataTypeCount === 1`) gets its own single-type branch (like the other single-type branches) so a Notes-only import works; the result lists restored notes and notes kept because the local text is newer
-- [ ] run `make lint && make test` - must pass before task 9
+- [x] `FullBackup.notes?: BackupNote[]`; `ImportOptions.importNotes`; `ImportResult.notesRestored` / `notesKept`; `importBookmarkNode` takes a URL rewriter and the import passes `url => rewriteNoteUrl(url, origin, idsInBackupNotes)` (always, also when Notes is unchecked)
+- [x] ➕ the backup's `pinnedSites` URLs go through the same rewriter, so a note Favorite written from them, and the icon restore that pairs them by URL with restored `asd_Favorites` bookmarks, see this extension's URL
+- [x] `importFullBackup` calls `noteProxy.restore(backup.notes)` when Notes is checked (passed in as a function so the module stays free of new chrome calls)
+- [x] Export dialog: **Notes** checkbox shown when the bookmark tree references notes, on by default; adds `backup.notes = await noteProxy.list([...collectNoteIds(bookmarks)])`; the early return in `handleExport` and `nothingSelected` include it; the dialog's local backup type (lines ~31-38) gets `notes`
+- [x] Import dialog: `hasNotes` counts in `dataTypeCount`; **Notes (N)** checkbox independent of Bookmarks, on by default, and `importNotesFlag` in `nothingSelected`; a backup with only notes (`dataTypeCount === 1`) gets its own single-type branch (like the other single-type branches) so a Notes-only import works; the result lists restored notes and notes kept because the local text is newer
+- [x] run `make lint && make test` - must pass before task 9
 
 ### Task 9: Note tabs re-attach after a browser restart
 

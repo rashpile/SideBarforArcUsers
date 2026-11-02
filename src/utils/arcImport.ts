@@ -52,7 +52,8 @@ export interface ArcImportOptions
   importUnpinnedTabs: boolean;
 }
 
-export interface ArcImportResult extends ImportResult
+// Arc has no markdown notes
+export interface ArcImportResult extends Omit<ImportResult, 'notesRestored' | 'notesKept'>
 {
   spacesCreated: number;
   spacesMerged: number;
