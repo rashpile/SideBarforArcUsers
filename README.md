@@ -54,7 +54,7 @@ Coming from Arc? **Import from Arc Browser...** in the sidebar menu reads Arc's 
 - **Tabs** below the bookmarks are the Space's other open tabs.
 - **Archive** keeps tabs you archive by hand or stopped using, if you turn auto-archive on.
 
-Everything is stored in Chrome: bookmarks for Spaces, pinned pages, the archive and Favorites, and the extension's local storage for settings, Favorite icons, marks and saved page styles. Nothing goes to a server, except what AI naming and the page agent send to the AI endpoint you set up. See [PRIVACY.md](PRIVACY.md).
+Everything is stored in Chrome: bookmarks for Spaces, pinned pages, notes, the archive and Favorites, and the extension's local storage for settings, Favorite icons, marks, saved page styles and note texts. Nothing goes to a server, except what AI naming and the page agent send to the AI endpoint you set up. See [PRIVACY.md](PRIVACY.md).
 
 ## Features
 
@@ -81,7 +81,7 @@ Everything is stored in Chrome: bookmarks for Spaces, pinned pages, the archive 
 - Links you open from a bookmark or Favorite page (`Cmd+Click`) land at the top of the Tab list
 - A tab you open yourself on a bookmarked or Favorite URL stays in the Tab list. In Arc style, clicking that bookmark or Favorite opens a second tab for it; dragging the tab onto the tree, **Add to Bookmark**, pinning it or dropping it on the Favorites grid makes a new bookmark or Favorite with that tab as its page. Tabs reopened from the Archive also land in the Tab list
 - Drag and drop to organize. Drag a tab onto the tree to bookmark it. This works in an empty Space too: drop the tab just under the Space title, where a blue line shows
-- `...` menu: New Folder, New Bookmark, Sort by Name/Date, Copy as YAML, Paste from YAML..., Edit, Duplicate, Delete, Pin, Move to New Window, Expand All, Open as Tab Group
+- `...` menu: New Folder, New Bookmark, New Note, Sort by Name/Date, Copy as YAML, Paste from YAML..., Edit, Duplicate, Delete, Pin, Move to New Window, Expand All, Open as Tab Group
 - **Copy as YAML** puts the folder, its subfolders and bookmarks on the clipboard as YAML. **Paste from YAML...** opens a box for YAML text and adds the folders and bookmarks to the end of the folder; same-named folders are not merged. The box shows what it will create ("3 folders, 12 bookmarks") or the line and reason of each error, and nothing is created until the whole text is valid. A URL without `https://` gets it added. One Undo removes the whole paste. `asd_Archive` and `asd_Favorites` are left out of a copy and can't be pasted. The format:
 
   ```yaml
@@ -99,6 +99,25 @@ Everything is stored in Chrome: bookmarks for Spaces, pinned pages, the archive 
 - Right-click a bookmark: Copy Link, Share, AI Rename, Edit, Mute/Unmute, Duplicate, Move to..., Remove Pin, Mark for Attention, Pin to Sidebar. With several bookmarks selected, **Pin to Sidebar** pins them all. **Edit** opens a submenu: **Replace Pinned URL with Current** (when the page is open) saves the tab's current address as the bookmark's URL and keeps its title; **Edit Pinned Page** opens the dialog to change title and URL
 - Hover a bookmark for a flag button that marks it for attention. A speaker icon shows pages playing audio, an X on hover closes the tab
 
+### Notes
+
+A note is a markdown page in a Space folder, next to the bookmarks it is about. A folder "Taxes" can hold the tax office and bank sites and a note "How to pay taxes" with the steps. Notes are for reading. There are no checkboxes or tasks.
+
+- **New Note** in a folder's `...` menu adds a note at the end of the folder and opens it in a tab, in the editor
+- The editor has a title and the text. **Save** or `Cmd+S` / `Ctrl+S` stores both, and the title becomes the bookmark's title, "Untitled note" when it is blank. **Cancel** goes back to the saved text. Closing or reloading the tab with unsaved changes asks first
+- Opened again, the note shows rendered, with the time of the last edit and an **Edit** button. Headings, bold, italic, code, lists, quotes, horizontal rules and links render. Links open in a new tab, and only http and https links work. Tables, images, checkboxes and HTML stay plain text
+- A note is a Chrome bookmark whose URL is a page of the extension. Drag and drop, rename, delete with Undo, Move to..., Open All, Open as Tab Group and the Arc-style tab work as for any other bookmark. Note rows show a notebook icon
+- **Duplicate** copies the text, so editing the copy leaves the original alone
+- A note tab you opened by hand goes to Recently Closed when you close it, like a site
+
+The text lives in the extension's local storage on this computer, not in the bookmark.
+
+- With bookmark sync, the note bookmark appears on your other computers without its text, and the page there says "This note's text is stored on another computer." Export a backup with **Notes** on the first computer, then import only **Notes** from it on the other one. The texts appear
+- Deleting a note bookmark keeps its text for 30 days, so Undo, also in Chrome's bookmark manager, brings the note back whole. After 30 days with no bookmark for the note, the extension deletes the text
+- **Copy as YAML** copies a note's link, not its text. Pasted on the same computer, the copy shares the text with the original, and editing one changes both. On another computer the pasted note has no text
+- All texts share the extension's 10 MB of local storage with its other data. A note holds up to 200,000 characters. A save that doesn't fit shows the error in the editor and keeps your text there
+- Unpacked builds: Chrome derives the extension's id from the path of the `dist/` folder. Load `dist/` from another path and Chrome treats it as a new extension with empty storage. Note links in your bookmarks keep the old id and stop opening, and the texts stay with the old install. Before you move `dist/`, export a backup with Bookmarks and Notes. Import both into the new install and the imported note bookmarks open there with their texts
+
 ### Tabs
 
 - The current Space's tabs that aren't pinned pages
@@ -113,7 +132,7 @@ Everything is stored in Chrome: bookmarks for Spaces, pinned pages, the archive 
 - With several tabs selected, **Archive** in the right-click menu archives them all; marked tabs stay open. Every Archive can be undone
 - Sort by domain, then title (A-Z or Z-A)
 - **Recently Closed**: a clock button on the Space title, shown on hover when the Space has closed tabs. Hover or click it for the Space's recently closed tabs, newest first, with the time each was closed. Click one to reopen it in the current window, in that Space (without its Back/Forward history). **Clear** empties the Space's list. Up to 50 tabs per Space are kept, across browser restarts; closing a page again replaces its older entry
-  - Not recorded: tabs closed by auto-archive or the Archive button (they are in the Archive), tabs of bookmarks and Favorites, tabs a tab suspender replaces with its park page, incognito tabs and internal pages (`chrome://`, the New Tab page and the like)
+  - Not recorded: tabs closed by auto-archive or the Archive button (they are in the Archive), tabs of bookmarks and Favorites, tabs a tab suspender replaces with its park page, incognito tabs and internal pages (`chrome://`, the New Tab page, other extensions' pages and the like). Note tabs are recorded
 - Chrome tab groups show with their color and title. Group menu: New Tab, Sort by Domain, Save to Bookmarks, Rename, Change Color, Close All. Drag tabs in and out of groups, reorder groups, drop a group on the bookmark tree to save it as a folder
 
 ### Mark for Attention
@@ -280,6 +299,8 @@ Gear menu → Settings:
 
 Export the active Space's Favorites, bookmarks and tabs to a JSON file, and import them back: replace or append the active Space's Favorites, replace bookmarks or add them as a subfolder, replace the session or add tabs to the current window. When you replace all bookmarks from a backup that holds `asd_Favorites` folders, every Space gets its Favorites back from them and the backup's Favorites list only restores the active Space's custom icons; other Spaces' Favorites come back with site icons.
 
+When your bookmarks hold notes, Export has a **Notes** checkbox that adds the texts of all of them. **Notes** in Import is separate from Bookmarks, for a computer that already has the note bookmarks through sync. When both the backup and this computer have a text for a note, the newer one stays, so a note you edited here after the backup keeps your edit. The result lists the notes restored and those already up to date. A backup made by another unpacked install has that install's id in its note links. Note bookmarks the import creates from it link to this install instead, for every note whose text the backup holds.
+
 Light and dark mode follow your system.
 
 ## Permissions
@@ -287,7 +308,7 @@ Light and dark mode follow your system.
 | Permission | Why |
 | --- | --- |
 | `sidePanel`, `bookmarks`, `tabs`, `tabGroups` | Show and manage bookmarks, tabs and groups |
-| `storage` | Settings and sidebar state, stored locally |
+| `storage` | Settings, sidebar state and note texts, stored locally |
 | `favicon` | Website icons |
 | `scripting` | Read a page's text when you ask for AI naming; read the page's text, layout and video subtitles, insert or remove CSS and show the answer popup when you use the page agent; insert CSS when a saved page style loads |
 | `webNavigation` | Notice when a page starts loading in a bookmark's tab, to put the bookmark's saved page style on it |

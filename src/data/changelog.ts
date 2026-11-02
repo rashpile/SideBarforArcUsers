@@ -3,6 +3,7 @@
 // Entries are shown in the "What's New" dialog when the user upgrades past them.
 export const CHANGELOG: Record<string, string[]> = {
   '1.0.352': [
+    'New: markdown notes - New Note in a folder\'s menu puts a note next to the folder\'s bookmarks; write it in markdown in its tab, and it shows rendered when you open it again. The text stays on this computer, and Export / Import with Notes carries it to another one',
     'New (experimental): page agent - the sparkles button in the toolbar asks an AI model to restyle the page or answer questions about it, and Show on page puts an answer in a popup on the page; Save to bookmark keeps its CSS and puts it back whenever a page of that site loads in the bookmark\'s or Favorite\'s tab, also after a browser restart. Bookmarks with a saved style show a brush, and their right-click menu has a Page style submenu',
     'New (experimental): page agent plugins in Settings > AI - the first, Video transcripts (on by default), reads the subtitles of the video on the page, on Prime Video and on pages with subtitle tracks, so the agent can summarize it, say what happened so far without spoiling the rest, or explain what was just said',
     'New: Copy as YAML and Paste from YAML in the bookmark folder menu and the Space menu - share a set of links, keep them in notes or write them by hand, with Undo',

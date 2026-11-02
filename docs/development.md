@@ -42,10 +42,12 @@ Tests cover decisions that are easy to get wrong: which tabs auto-archive closes
 ## Project layout
 
 ```
+note.html        note page entry, a Vite input built to dist/note.html (src/note/ has the page)
 public/          manifest.json, icons, static pages
 src/
   background.ts  service worker: tab events, Space ownership, auto-archive, keyboard switchers
   main.tsx       side panel entry; App.tsx is the root component
+  note/          note page: one markdown note, opened from its bookmark (NotePage.tsx, own CSS entry)
   components/    React UI
   contexts/      React contexts (bookmark-tab associations, Spaces, selection, font size)
   hooks/         hooks over Chrome APIs and shared state
@@ -90,6 +92,7 @@ sidebar                                  background.ts
 | `AttentionMarkManager` | `attentionMarkedTabs`, `attentionMarkedBookmarks` (local) |
 | `RecentlyClosedManager` | `recentlyClosedTabs` (local) |
 | `PageStyleManager` | `bookmarkPageStyles` (local) |
+| `NoteManager` | `bookmarkNotes` (local) |
 
 Code lives in `src/managers/`: `impl/` has the managers (background only), `proxies/` the sidebar clients, `shared/` the API interfaces both sides import. A manager implements `XApi`, its proxy implements `Remote<XApi>`, the same methods returning promises. Adding a method to one side and forgetting the other fails the type check.
 
@@ -116,6 +119,8 @@ A mutation goes like this:
 A failed write re-reads the state from background instead of rolling back, since a rollback could undo a later write that did succeed.
 
 `getSnapshot` must return the same object until the value changes. Returning a fresh array per call makes React re-render forever.
+
+`noteProxy` is the exception and has no mirror. Nothing renders note text during a render, so its clients read through messages. The note page (`note.html`) is a proxy client outside the sidebar and calls `get` and `save`; the sidebar calls `create`, `copy`, `list` and `restore`. The `NoteManager_msg_changed` broadcast carries only the changed note ids, and a client that shows one of them reads it again.
 
 ### Per-operation writes
 

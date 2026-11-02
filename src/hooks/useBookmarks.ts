@@ -9,6 +9,8 @@ import {
   isInAccountStorage,
 } from '../utils/bookmarkFolderLookup';
 import { isSystemFolder } from '../utils/archiveFolder';
+import { urlForDuplicate } from '../utils/noteUrl';
+import { noteProxy } from '../managers/proxies/noteProxy';
 
 export type SortOption = 'none' | 'name' | 'dateAdded';
 
@@ -416,14 +418,20 @@ export const useBookmarks = () => {
     return { segments, inAccount: node ? isInAccountStorage(node) : undefined };
   }, [getBookmark, getBookmarkSegments]);
 
-  // Duplicate a bookmark (not folder) right after the original
+  // Duplicate a bookmark (not folder) right after the original.
+  // Rejects, creating nothing, when a note's text can't be copied; the caller shows the reason
   const duplicateBookmark = useCallback(async (bookmarkId: string, liveUrl?: string, liveTitle?: string): Promise<void> =>
   {
     const original = await getBookmark(bookmarkId);
     if (!original || !original.url || !original.parentId || original.index === undefined) return;
 
     // Use live tab URL/title if available (e.g. tab navigated away from bookmarked URL)
-    const url = liveUrl || original.url;
+    const url = await urlForDuplicate(
+      liveUrl || original.url,
+      location.origin,
+      (fromId, toId) => noteProxy.copy(fromId, toId),
+      () => crypto.randomUUID(),
+    );
     const title = liveTitle || original.title;
     await createBookmark(original.parentId, title, url, original.index + 1);
   }, [getBookmark, createBookmark]);

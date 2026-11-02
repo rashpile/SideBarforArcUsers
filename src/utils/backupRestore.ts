@@ -3,6 +3,8 @@ import { Space } from '../contexts/SpacesContext';
 import { isEmoji } from './emoji';
 import { fetchRootFolder, findRootFolder } from './bookmarkFolderLookup';
 import { favoritesImportAction } from './favoritesImport';
+import { rewriteNoteUrl } from './noteUrl';
+import type { BackupNote, NoteRestoreResult } from '../managers/shared/noteApi';
 
 // Convert PascalCase to kebab-case — used only for v1 backup migration
 function toKebabCase(name: string): string
@@ -58,6 +60,8 @@ export interface FullBackup {
   bookmarks?: chrome.bookmarks.BookmarkTreeNode[];
   tabGroups?: TabGroupBackup[];
   spaces?: Space[];
+  /** Texts of the notes the exported bookmarks reference. */
+  notes?: BackupNote[];
 }
 
 // Type guard to check if a file is a backup (has version field)
@@ -118,7 +122,8 @@ export type SpacesImportMode = 'replace' | 'append';
 // Import bookmarks recursively, returns count of bookmarks created
 export async function importBookmarkNode(
   node: chrome.bookmarks.BookmarkTreeNode,
-  parentId: string
+  parentId: string,
+  rewriteUrl: (url: string) => string = url => url
 ): Promise<number> {
   let count = 0;
   if (node.url) {
@@ -126,7 +131,7 @@ export async function importBookmarkNode(
     await chrome.bookmarks.create({
       parentId,
       title: node.title,
-      url: node.url,
+      url: rewriteUrl(node.url),
     });
     count = 1;
   } else if (node.children) {
@@ -136,7 +141,7 @@ export async function importBookmarkNode(
       title: node.title,
     });
     for (const child of node.children) {
-      count += await importBookmarkNode(child, folder.id);
+      count += await importBookmarkNode(child, folder.id, rewriteUrl);
     }
   }
   return count;
@@ -188,6 +193,9 @@ export interface ImportResult {
   bookmarksCount: number;
   tabGroupsCount: number;
   spacesCount: number;
+  notesRestored: number;
+  /** Backup notes whose text on this device is as new as the backup's or newer. */
+  notesKept: number;
 }
 
 export interface ImportOptions {
@@ -199,6 +207,7 @@ export interface ImportOptions {
   tabGroupsMode: TabGroupsImportMode;
   importSpaces: boolean;
   spacesMode: SpacesImportMode;
+  importNotes: boolean;
 }
 
 // Close all tabs in current window except one (Chrome requires at least one tab)
@@ -247,6 +256,30 @@ export interface FavoritesImportTarget
   restoreIcons: (sites: readonly PinnedSite[]) => Promise<void>;
 }
 
+/** Where a backup's `notes` go: background's NoteManager. */
+export interface NotesImportTarget
+{
+  /** This extension's origin, for the note URLs of imported bookmarks. */
+  extensionOrigin: string;
+  restore: (entries: unknown[]) => Promise<NoteRestoreResult>;
+}
+
+// The file is user input: `notes` may be anything, and only an entry's id is read here
+function backupNoteIds(notes: unknown): Set<string>
+{
+  const ids = new Set<string>();
+  if (!Array.isArray(notes)) return ids;
+  for (const entry of notes)
+  {
+    const noteId = (entry as { noteId?: unknown } | null)?.noteId;
+    if (typeof noteId === 'string')
+    {
+      ids.add(noteId);
+    }
+  }
+  return ids;
+}
+
 // Import full backup
 export async function importFullBackup(
   backup: FullBackup,
@@ -254,7 +287,8 @@ export async function importFullBackup(
   favorites: FavoritesImportTarget,
   replaceSpaces: (spaces: Space[]) => Promise<void>,
   appendSpaces: (spaces: Space[]) => Promise<void>,
-  existingSpaceNames: string[]
+  existingSpaceNames: string[],
+  notes: NotesImportTarget
 ): Promise<ImportResult> {
   // Migrate v1 backups to v2 (PascalCase → kebab-case icon names)
   if (backup.version === 1)
@@ -268,7 +302,24 @@ export async function importFullBackup(
     bookmarksCount: 0,
     tabGroupsCount: 0,
     spacesCount: 0,
+    notesRestored: 0,
+    notesKept: 0,
   };
+
+  // Before the bookmarks: a failed restore stops the import before anything changed, and a
+  // failed bookmark import still leaves the texts here
+  if (options.importNotes && Array.isArray(backup.notes) && backup.notes.length > 0)
+  {
+    const restore = await notes.restore(backup.notes);
+    result.notesRestored = restore.restored;
+    result.notesKept = restore.kept;
+  }
+
+  // A backup from another unpacked install carries that install's extension id in its note URLs.
+  // Imported bookmarks and Favorites of notes the backup holds texts for point at this extension
+  // instead, also when Notes isn't imported now: the texts may be here already or come later.
+  const noteIds = backupNoteIds(backup.notes);
+  const rewriteUrl = (url: string): string => rewriteNoteUrl(url, notes.extensionOrigin, noteIds);
 
   const importBookmarks = options.importBookmarks && !!backup.bookmarks && backup.bookmarks.length > 0;
 
@@ -302,7 +353,7 @@ export async function importFullBackup(
         if (!source?.children || !target) continue;
         await clearBookmarkFolder(target.id);
         for (const child of source.children) {
-          result.bookmarksCount += await importBookmarkNode(child, target.id);
+          result.bookmarksCount += await importBookmarkNode(child, target.id, rewriteUrl);
         }
       }
     } else {
@@ -322,7 +373,7 @@ export async function importFullBackup(
           title: bookmarkBar.title || 'Bookmarks Bar',
         });
         for (const child of bookmarkBar.children) {
-          result.bookmarksCount += await importBookmarkNode(child, barFolder.id);
+          result.bookmarksCount += await importBookmarkNode(child, barFolder.id, rewriteUrl);
         }
       }
       if (otherBookmarks?.children && otherBookmarks.children.length > 0) {
@@ -331,7 +382,7 @@ export async function importFullBackup(
           title: otherBookmarks.title || 'Other Bookmarks',
         });
         for (const child of otherBookmarks.children) {
-          result.bookmarksCount += await importBookmarkNode(child, otherFolder.id);
+          result.bookmarksCount += await importBookmarkNode(child, otherFolder.id, rewriteUrl);
         }
       }
       if (mobileBookmarks?.children && mobileBookmarks.children.length > 0) {
@@ -340,14 +391,14 @@ export async function importFullBackup(
           title: mobileBookmarks.title || 'Mobile Bookmarks',
         });
         for (const child of mobileBookmarks.children) {
-          result.bookmarksCount += await importBookmarkNode(child, mobileFolder.id);
+          result.bookmarksCount += await importBookmarkNode(child, mobileFolder.id, rewriteUrl);
         }
       }
     }
   }
 
   // After the bookmarks: restored in place they bring back the Favorites themselves
-  const backupFavorites = backup.pinnedSites ?? [];
+  const backupFavorites = (backup.pinnedSites ?? []).map(site => ({ ...site, url: rewriteUrl(site.url) }));
   const favoritesAction = favoritesImportAction({
     importFavorites: options.importPinnedSites,
     favoritesMode: options.pinnedSitesMode,

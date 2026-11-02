@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import { matchBackupWindows } from '../src/utils/tabAssociations.ts';
 import { mergeRestoredTabAssociations } from '../src/utils/restoreTabAssociations.ts';
+import { buildNoteUrl } from '../src/utils/noteUrl.ts';
 
 // A current window; each tab is [id, url] and gets its position as index
 const liveWindow = (id, tabs) => ({ id, tabs: tabs.map(([tabId, url], index) => ({ id: tabId, url, index })) });
@@ -227,4 +228,55 @@ test('browser restart: without a tab on its exact page an entry takes the tab of
   );
 
   assert.deepEqual(result.get(1), { currentId: 1, matchType: 'domain', tabMatches: { 'bookmark-docs': 3 } });
+});
+
+// Every note tab of this extension has the same host (the extension ID); only the noteId tells them apart
+const EXTENSION_ORIGIN = 'chrome-extension://abcdefghijklmnopabcdefghijklmnop';
+const TAX_NOTE = buildNoteUrl(EXTENSION_ORIGIN, 'note-taxes');
+const VISA_NOTE = buildNoteUrl(EXTENSION_ORIGIN, 'note-visa');
+
+test('browser restart: two note tabs restored in swapped positions each go to the bookmark of their own note', () =>
+{
+  const backups = {
+    1: {
+      'bookmark-taxes': entry(40, TAX_NOTE, 1),
+      'bookmark-visa': entry(41, VISA_NOTE, 2),
+    },
+  };
+
+  // New tab IDs: the window is found by index and host, then each entry takes the tab showing its exact note
+  const withNewIds = match(backups, [liveWindow(1, [[1, 'https://news.test/'], [2, VISA_NOTE], [3, TAX_NOTE]])]);
+  assert.deepEqual(withNewIds.get(1), {
+    currentId: 1,
+    matchType: 'index+domain',
+    tabMatches: { 'bookmark-taxes': 3, 'bookmark-visa': 2 },
+  });
+
+  // Chrome reused the stored IDs for the other note: an ID on the same host must not win over the exact URL
+  const withReusedIds = match(backups, [liveWindow(1, [[1, 'https://news.test/'], [40, VISA_NOTE], [41, TAX_NOTE]])]);
+  assert.deepEqual(withReusedIds.get(1), {
+    currentId: 1,
+    matchType: 'direct',
+    tabMatches: { 'bookmark-taxes': 41, 'bookmark-visa': 40 },
+  });
+});
+
+test('same browser session: two note tabs dragged to swapped positions keep their bookmarks by tab ID', () =>
+{
+  const result = match(
+    {
+      1: {
+        'bookmark-taxes': entry(10, TAX_NOTE, 0),
+        'bookmark-visa': entry(11, VISA_NOTE, 1),
+      },
+    },
+    [liveWindow(1, [[11, VISA_NOTE], [10, TAX_NOTE]])],
+    SAME_SESSION
+  );
+
+  assert.deepEqual(result.get(1), {
+    currentId: 1,
+    matchType: 'direct',
+    tabMatches: { 'bookmark-taxes': 10, 'bookmark-visa': 11 },
+  });
 });

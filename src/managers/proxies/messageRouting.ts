@@ -24,6 +24,7 @@ export const ManagerId = {
   ATTENTION_MARKS: 'AttentionMarkManager',
   RECENTLY_CLOSED: 'RecentlyClosedManager',
   PAGE_STYLES: 'PageStyleManager',
+  NOTES: 'NoteManager',
 } as const;
 
 export type ManagerIdType = typeof ManagerId[keyof typeof ManagerId];
@@ -115,6 +116,28 @@ export async function callManager<R>(
   }
 
   return response as R;
+}
+
+/**
+ * Runs a proxy call and rethrows its failure with only the manager's reason. callManager's
+ * message reads "<manager>.<method> failed: Error: <reason>" (the router sends String(error)),
+ * and the user should read just the reason ("Can't save the note: ...") after the caller's own label.
+ */
+export async function withManagerReason<T>(managerId: ManagerIdType, method: string, call: () => Promise<T>): Promise<T>
+{
+  try
+  {
+    return await call();
+  }
+  catch (error)
+  {
+    const prefix = `${managerId}.${method} failed: `;
+    if (error instanceof Error && error.message.startsWith(prefix))
+    {
+      throw new Error(error.message.slice(prefix.length).replace(/^Error: /, ''));
+    }
+    throw error;
+  }
 }
 
 /**

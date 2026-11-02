@@ -33,6 +33,7 @@ import { OpenTabPages } from './stores/openTabPages';
 import { RecentlyClosedManager } from './managers/impl/recentlyClosedManager';
 import { closedTabRecord } from './utils/closedTabRecording';
 import { PageStyleManager } from './managers/impl/pageStyleManager';
+import { NoteManager } from './managers/impl/noteManager';
 import { PageStyleApplier } from './services/pageStyleApplier';
 import { readPageMarker } from './services/pageAgent/pageScripts';
 import { PAGE_AGENT_CSS_ORIGIN, PAGE_AGENT_MARKER_PROPERTY } from './utils/pageAgentCss';
@@ -200,6 +201,16 @@ const pageStyleManager = new PageStyleManager({
   },
   broadcast: (message) => chrome.runtime.sendMessage(message),
   newRev: () => crypto.randomUUID(),
+});
+// Markdown texts of note bookmarks, by noteId; the note page and the sidebar write through its proxy
+const noteManager = new NoteManager({
+  storage: {
+    get: (key) => chrome.storage.local.get(key),
+    set: (values) => chrome.storage.local.set(values),
+  },
+  broadcast: (message) => chrome.runtime.sendMessage(message),
+  now: () => Date.now(),
+  getBookmarkTree: () => chrome.bookmarks.getTree(),
 });
 // Reads the history manager's activation order, so it has to come after it.
 const lastAudibleTracker = new LastAudibleTracker(historyManager);
@@ -403,6 +414,8 @@ const managerLoadPromise = Promise.all([
   // Never rejects. Loaded before stateReady, because a page commit often wakes the worker and
   // the applier reads the styles as soon as stateReady resolves
   pageStyleManager.load(),
+  // Never rejects: an unreadable key keeps the notes unwritten, it doesn't hold back the tabs
+  noteManager.load(),
   sameBrowserSession.then((same) => tabSpaceRegistry.load(same)).then(seedOpenTabPages),
   sameBrowserSession.then((same) => attentionMarkManager.load(same)),
   loadTabActivity()
@@ -428,6 +441,11 @@ const tabAssociationReadiness = new TabAssociationReadiness(
 // Events and messages all wait for this one initialization, so no tab is handled while Space
 // records are still being restored or legacy groups migrated.
 const stateReady = tabAssociationReadiness.wait();
+
+// Deletes the texts of notes whose last bookmark went more than 30 days ago; once per worker start
+void stateReady
+  .then(() => noteManager.sweepExpired())
+  .catch((error) => console.error('[NoteManager] failed to delete the texts of long-removed notes:', error));
 
 // =============================================================================
 // Bookmark recency - last-active time per Arc-style bookmark tab,
@@ -511,7 +529,28 @@ chrome.bookmarks.onRemoved.addListener((id, removeInfo) =>
   void stateReady
     .then(() => pageStyleManager.handleBookmarksRemoved(ids))
     .catch((error) => console.error('[PageStyleManager] failed to drop styles of removed bookmarks:', error));
+  // Marks the notes no bookmark references any more; the text stays for an Undo until the sweep
+  const removedNode = removeInfo.node;
+  if (removedNode)
+  {
+    void stateReady
+      .then(() => noteManager.handleBookmarksRemoved(removedNode))
+      .catch((error) => console.error('[NoteManager] failed to mark the notes of removed bookmarks:', error));
+  }
 });
+
+// A note bookmark is back (Undo, Chrome's bookmark manager, sync) or a bookmark now points at a
+// note: its removal mark goes, so the sweep keeps the text
+function clearNoteRemovalMark(url: string | undefined): void
+{
+  if (!url) return;
+  void stateReady
+    .then(() => noteManager.handleNoteUrlSeen(url))
+    .catch((error) => console.error('[NoteManager] failed to clear the removal mark of a note:', error));
+}
+
+chrome.bookmarks.onCreated.addListener((_id, bookmark) => clearNoteRemovalMark(bookmark.url));
+chrome.bookmarks.onChanged.addListener((_id, changeInfo) => clearNoteRemovalMark(changeInfo.url));
 
 // =============================================================================
 // Favorites migration - copies the legacy global Favorites into every Space's
@@ -869,6 +908,7 @@ async function recordClosedTab(
       registrySpaceId,
       existingSpaceIds: new Set(spaceManager.getSpaces().map(space => space.id)),
       closedByArchive,
+      extensionOrigin: new URL(chrome.runtime.getURL('')).origin,
       now: Date.now(),
       id: crypto.randomUUID(),
     });
@@ -1220,6 +1260,7 @@ registerManager(favoriteIconsManager);
 registerManager(attentionMarkManager);
 registerManager(recentlyClosedManager);
 registerManager(pageStyleManager);
+registerManager(noteManager);
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) =>
 {

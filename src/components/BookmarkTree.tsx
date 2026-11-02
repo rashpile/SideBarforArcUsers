@@ -50,7 +50,8 @@ import {
   Sparkles,
   Search,
   Copy,
-  ClipboardPaste
+  ClipboardPaste,
+  NotebookText
 } from 'lucide-react';
 import { getRandomGroupColor } from '../utils/groupColors';
 import { SpaceFolderIcon } from './SpaceFolderIcon';
@@ -89,6 +90,8 @@ import { usePageStyles, type PageStyleState } from '../hooks/usePageStyles';
 import { PageStyleBadge, PageStyleSubmenu } from './PageStyleMenu';
 import { PasteYamlDialog } from './PasteYamlDialog';
 import { copyBookmarksAsYaml } from '../utils/bookmarkYamlCopy';
+import { buildNoteUrl } from '../utils/noteUrl';
+import { noteProxy } from '../managers/proxies/noteProxy';
 
 // Storage key for persisting folder expand/collapse state across restarts (keyed by space only)
 const getExpandedStateKey = (spaceId: string) =>
@@ -139,6 +142,7 @@ interface BookmarkRowProps {
   onEdit: (node: chrome.bookmarks.BookmarkTreeNode) => void;
   onCreateFolder: (parentId: string) => void;
   onCreateBookmark: (parentId: string) => void;
+  onCreateNote: (parentId: string) => void;
   onSort: (folderId: string, sortBy: SortOption) => void;
   onDuplicate: (id: string) => void;
   onAiRename?: (node: chrome.bookmarks.BookmarkTreeNode) => void;
@@ -239,6 +243,7 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
   onEdit,
   onCreateFolder,
   onCreateBookmark,
+  onCreateNote,
   onSort,
   onDuplicate,
   onAiRename,
@@ -751,6 +756,9 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
               </ContextMenu.Item>
               <ContextMenu.Item onSelect={() => onCreateBookmark(node.id)}>
                 <FilePlus size={14} className="mr-2" /> New Bookmark
+              </ContextMenu.Item>
+              <ContextMenu.Item onSelect={() => onCreateNote(node.id)}>
+                <NotebookText size={14} className="mr-2" /> New Note
               </ContextMenu.Item>
               {onExpandAll && (
                 <ContextMenu.Item onSelect={() => onExpandAll(node.id)}>
@@ -1735,6 +1743,42 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
     setCreatingBookmarkParentId(parentId);
   };
 
+  // The empty record comes before the bookmark: a note bookmark without a record means
+  // "the text is on another computer", and an empty record opens the editor
+  const handleCreateNote = useCallback(async (parentId: string) =>
+  {
+    const noteId = crypto.randomUUID();
+    try
+    {
+      await noteProxy.create(noteId);
+    }
+    catch (err)
+    {
+      onShowToast?.(`New Note failed: ${err instanceof Error ? err.message : String(err)}`);
+      return;
+    }
+
+    const url = buildNoteUrl(location.origin, noteId);
+    const { node: newNode, error: createError } = await createBookmark(parentId, 'New note', url);
+    if (createError || !newNode)
+    {
+      onShowToast?.(`New Note failed: ${createError ?? 'Unknown error'}`);
+      return;
+    }
+
+    setExpandedState(prev => ({ ...prev, [parentId]: true }));
+    scrollToBookmark(newNode.id);
+
+    if (bookmarkOpenMode === 'arc')
+    {
+      openBookmarkTab(newNode.id, url, activeSpace?.id);
+    }
+    else
+    {
+      chrome.tabs.create({ url, active: true, windowId: windowId ?? undefined });
+    }
+  }, [createBookmark, onShowToast, setExpandedState, bookmarkOpenMode, openBookmarkTab, activeSpace?.id, windowId]);
+
   // Handle folder selection for updating space's bookmark folder
   const handleSpaceFolderSelected = useCallback(async (folderId: string) =>
   {
@@ -2066,16 +2110,23 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
   const handleDuplicateBookmark = useCallback(async (bookmarkId: string) =>
   {
     const tabId = getTabIdForBookmark(bookmarkId);
-    if (tabId !== undefined)
+    try
     {
-      const tab = await chrome.tabs.get(tabId);
-      duplicateBookmark(bookmarkId, tab.url, tab.title);
+      if (tabId !== undefined)
+      {
+        const tab = await chrome.tabs.get(tabId);
+        await duplicateBookmark(bookmarkId, tab.url, tab.title);
+      }
+      else
+      {
+        await duplicateBookmark(bookmarkId);
+      }
     }
-    else
+    catch (err)
     {
-      duplicateBookmark(bookmarkId);
+      onShowToast?.(`Duplicate failed: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }, [getTabIdForBookmark, duplicateBookmark]);
+  }, [getTabIdForBookmark, duplicateBookmark, onShowToast]);
 
   const getSelectedBookmarkItems = useCallback((): SelectionItem[] =>
   {
@@ -2745,6 +2796,7 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
               onEdit={setEditingNode}
               onCreateFolder={handleCreateFolder}
               onCreateBookmark={handleCreateBookmark}
+              onCreateNote={handleCreateNote}
               onSort={sortBookmarks}
               onDuplicate={handleDuplicateBookmark}
               onAiRename={onAiRename

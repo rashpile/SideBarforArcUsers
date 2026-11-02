@@ -10,6 +10,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         sidepanel: 'index.html',
+        note: 'note.html',
         background: resolve(__dirname, 'src/background.ts'),
         switcherOverlay: resolve(__dirname, 'src/switcherOverlay.ts'),
       },
