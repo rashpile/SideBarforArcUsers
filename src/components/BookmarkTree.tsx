@@ -983,7 +983,7 @@ DraggableBookmarkRow.displayName = 'DraggableBookmarkRow';
 /**
  * The Space root folder has no visible row, but keeps a root-level drop target.
  */
-const SpaceRootDropTarget = ({ node }: { node: chrome.bookmarks.BookmarkTreeNode }) =>
+const SpaceRootDropTarget = ({ node, isDropTarget }: { node: chrome.bookmarks.BookmarkTreeNode; isDropTarget: boolean }) =>
 {
   const { setNodeRef } = useDroppable({
     id: `bookmark-${node.id}`,
@@ -1001,12 +1001,15 @@ const SpaceRootDropTarget = ({ node }: { node: chrome.bookmarks.BookmarkTreeNode
   return (
     <div
       ref={setNodeRef}
-      className="arc-space-root-drop-target"
+      className="arc-space-root-drop-target relative"
       data-bookmark-id={node.id}
       data-is-folder="true"
       data-space-root="true"
       data-dnd-id={`bookmark-${node.id}`}
-    />
+    >
+      {/* Every drop here appends to the Space's top level, so the line always marks the end of the list */}
+      <DropIndicators showBefore={isDropTarget} showAfter={false} />
+    </div>
   );
 };
 
@@ -2825,7 +2828,12 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
           );
         })}
 
-        {spaceFolder && <SpaceRootDropTarget node={spaceFolder} />}
+        {spaceFolder && (
+          <SpaceRootDropTarget
+            node={spaceFolder}
+            isDropTarget={dropTargetId === spaceFolder.id || effectiveExternalDropTarget?.bookmarkId === spaceFolder.id}
+          />
+        )}
 
         {/* Empty filter results message */}
         {hasFilters && !hasVisibleBookmarks && (

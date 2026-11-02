@@ -137,11 +137,11 @@
 - Modify: `src/components/BookmarkTree.tsx`
 - Modify: `src/index.css` (only if the line needs CSS beyond Tailwind classes)
 
-- [ ] add an `isDropTarget` prop to `SpaceRootDropTarget`; while true, render a top-level 2px blue insertion line at its top edge (same look as `DropIndicators` before-line); make the div `relative`
-- [ ] pass `isDropTarget` from the render site: `dropTargetId === spaceFolder.id || effectiveExternalDropTarget?.bookmarkId === spaceFolder.id`
-- [ ] keep the idle layout unchanged (no height change)
-- [ ] no new tests: UI wiring (CLAUDE.md)
-- [ ] run `make lint && make test && make build` - must pass before task 4
+- [x] add an `isDropTarget` prop to `SpaceRootDropTarget`; while true, render a top-level 2px blue insertion line at its top edge (same look as `DropIndicators` before-line); make the div `relative`
+- [x] pass `isDropTarget` from the render site: `dropTargetId === spaceFolder.id || effectiveExternalDropTarget?.bookmarkId === spaceFolder.id`
+- [x] keep the idle layout unchanged (no height change)
+- [x] no new tests: UI wiring (CLAUDE.md)
+- [x] run `make lint && make test && make build` - must pass before task 4
 
 ### Task 4: Verify acceptance criteria
 - [ ] verify: a drop on the Space root target with any position, for BOOKMARK, TAB, URL and TAB_GROUP, resolves the parent to the Space folder (read the three branches and `resolveBookmarkDropTarget` against the helper)
