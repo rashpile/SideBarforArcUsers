@@ -350,9 +350,9 @@ All methods are async: reads also wait for a load retry (below).
 
 ### Task 10: Verify acceptance criteria
 
-- [ ] verify every point of Overview and Solution Overview is implemented (New Note, editor, view, missing text, Duplicate, cleanup, backup, Recently Closed, icon)
-- [ ] verify Space folder walkers need no change: note bookmarks are ordinary bookmarks, and `isSystemFolder` skipping is untouched; the one intended exception is `collectNoteIds` (cleanup and Export), which walks `asd_Archive` and `asd_Favorites`
-- [ ] run `make lint && make test && make build`
+- [x] verify every point of Overview and Solution Overview is implemented (New Note, editor, view, missing text, Duplicate, cleanup, backup, Recently Closed, icon)
+- [x] verify Space folder walkers need no change: note bookmarks are ordinary bookmarks, and `isSystemFolder` skipping is untouched; the one intended exception is `collectNoteIds` (cleanup and Export), which walks `asd_Archive` and `asd_Favorites` (no `isSystemFolder` line changed on this branch; no walker or association code filters `chrome-extension:` URLs)
+- [x] run `make lint && make test && make build` (559 tests pass; `dist/note.html` and `dist/note-icon.svg` emitted)
 
 ### Task 11: [Final] Update documentation
 
