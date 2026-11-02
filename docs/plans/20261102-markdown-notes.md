@@ -274,12 +274,13 @@ All methods are async: reads also wait for a load retry (below).
 **Files:**
 - Modify: `src/background.ts`
 - Create: `src/managers/proxies/noteProxy.ts`
+- Modify: `src/managers/proxies/messageRouting.ts`, `src/hooks/usePageStyles.ts` (`withManagerReason` moved to `messageRouting.ts`, shared by both proxies' callers; it also drops the router's `Error: `)
 
-- [ ] construct `NoteManager` with `chrome.storage.local`, the broadcast helper the other managers use, `Date.now`, `chrome.bookmarks.getTree`; add `noteManager.load()` to `managerLoadPromise`; after `stateReady`, call `sweepExpired()` (errors logged)
-- [ ] in `bookmarks.onRemoved`, after `stateReady`, call `noteManager.handleBookmarksRemoved(removeInfo.node)` when the node is present; in `bookmarks.onCreated` and `bookmarks.onChanged` (url in changeInfo) call `handleNoteUrlSeen(url)` after `stateReady`
-- [ ] `registerManager(noteManager)`
-- [ ] create `noteProxy.ts` implementing `Remote<NoteApi>` over `callManager` (senderId `CONTEXT_ID`) plus `onChanged(listener): () => void` for `NOTES_CHANGED`; no mirror store; rejections carry only the manager's reason (strip the router prefix like `withManagerReason`)
-- [ ] run `make lint && make test` - must pass before task 5
+- [x] construct `NoteManager` with `chrome.storage.local`, the broadcast helper the other managers use, `Date.now`, `chrome.bookmarks.getTree`; add `noteManager.load()` to `managerLoadPromise`; after `stateReady`, call `sweepExpired()` (errors logged)
+- [x] in `bookmarks.onRemoved`, after `stateReady`, call `noteManager.handleBookmarksRemoved(removeInfo.node)` when the node is present; in `bookmarks.onCreated` and `bookmarks.onChanged` (url in changeInfo) call `handleNoteUrlSeen(url)` after `stateReady`
+- [x] `registerManager(noteManager)`
+- [x] create `noteProxy.ts` implementing `Remote<NoteApi>` over `callManager` (senderId `CONTEXT_ID`) plus `onChanged(listener): () => void` for `NOTES_CHANGED`; no mirror store; rejections carry only the manager's reason (strip the router prefix like `withManagerReason`)
+- [x] run `make lint && make test` - must pass before task 5
 
 ### Task 5: Note page
 
