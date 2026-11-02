@@ -6,11 +6,11 @@
 
 ## build-release.sh
 
-Builds the extension and packages it as a zip for Chrome Web Store submission. Output goes to `releases/`.
+Builds the extension and packages the contents of `dist/` as `releases/sidebar-for-arc-users-{version}.zip`, with `manifest.json` at the zip root. The Release workflow (`.github/workflows/release.yml`) runs it through `make release` and attaches the zip to the GitHub release. The same zip works for Chrome Web Store submission.
 
 ## create-release-tag.sh
 
-Creates a local git tag with format `release-{version}` from `package.json`.
+Creates a local git tag with format `release-{version}` from `package.json`. With `--push` it also pushes the tag, which starts the Release workflow: it checks the tag against the version in `public/manifest.json`, runs lint and tests, builds the zip and publishes a GitHub release with it. Commit and push the version bump before tagging.
 
 ## start-test-chrome.sh
 

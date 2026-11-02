@@ -47,5 +47,5 @@ Show the user:
 - Any flagged hardcoded version references
 - Remind the user to:
   1. Review and check in the changes
-  2. Run `tools/build-release.sh` to build the release
+  2. Push `main`, then run `./tools/create-release-tag.sh --push`. The tag push starts the Release workflow (`.github/workflows/release.yml`): version check, lint, tests, zip, GitHub release with the zip attached
   3. Submit to the Chrome Web Store, once the fork has a listing

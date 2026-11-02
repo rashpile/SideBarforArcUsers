@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'release-*'
+
+# Two jobs because npm ci runs the install scripts of every locked dependency, and a job-scoped
+# token is readable by every step of its job. The write token exists only in `publish`, which
+# runs no project or npm code.
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # No `cache: npm`: a tag run can restore caches only from its own tag or main, and every
+      # release is a new tag with no workflow on main, so the cache would never be hit.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      # Fails before anything is built when the tag was made before the version bump was committed
+      # (`make version` only stages the bump, `make tag` reads the working-tree package.json).
+      - name: Check tag version against manifest.json
+        id: version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          tag_version="${TAG#release-}"
+          manifest_version=$(node -p "require('./public/manifest.json').version")
+          if [ "$tag_version" != "$manifest_version" ]; then
+            echo "::error::Tag $TAG is version $tag_version, but public/manifest.json has $manifest_version. Commit the version bump, push main, delete the tag (git push origin :refs/tags/$TAG && git tag -d $TAG) and tag again."
+            exit 1
+          fi
+          echo "version=$manifest_version" >> "$GITHUB_OUTPUT"
+
+      - run: npm ci
+      - run: make lint
+      - run: make test
+      - run: make release
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-zip
+          path: releases/sidebar-for-arc-users-${{ steps.version.outputs.version }}.zip
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-zip
+          path: releases
+
+      # No checkout, so gh has no git remote to infer the repository from.
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: gh release create "$TAG" "releases/sidebar-for-arc-users-$VERSION.zip" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes

@@ -10,7 +10,24 @@ Chrome still draws its own tab strip, address bar and Side Panel header. An exte
 
 The extension is not in the Chrome Web Store. The "Sidebar for Arc Users" listing there is the upstream project, not this fork.
 
-Build it from source (Node.js 18+):
+### Download a release
+
+1. Download `sidebar-for-arc-users-<version>.zip` from the [latest release](https://github.com/rashpile/SideBarforArcUsers/releases/latest). The *Source code* archives GitHub adds to every release are not the extension.
+2. Unzip it into a folder you keep, for example `~/Extensions/SideBarforArcUsers`. Most unzip tools (double-click on macOS, Extract All on Windows) make a folder named after the zip, with the version in its name: rename that folder to the one you keep, or unzip from a terminal:
+
+   ```bash
+   unzip sidebar-for-arc-users-<version>.zip -d ~/Extensions/SideBarforArcUsers
+   ```
+
+3. Open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and pick that folder.
+
+To update, delete the files in that folder and unzip the new zip into it. With a double-click unzip, delete the old folder and rename the new one to the old name, in the same place. Then press reload on the extension's card in `chrome://extensions`. Update only with reload: **Remove** on the card deletes the extension's storage, even if you load the same folder again.
+
+Keep the folder path. The manifest has no `key`, so Chrome derives an unpacked extension's ID from its folder path. Loading another folder installs a second copy with its own empty storage: settings (including the AI API key), the Spaces list (names, icons, colors and which bookmark folder each Space uses), custom icons, emoji and colors of Favorites, attention marks, Recently Closed lists and saved page styles. Bookmarks stay: Space folders with their pinned pages, Favorites and archive are Chrome bookmarks, so a Space set up again on its old folder gets them back. Switching between a source build (`dist/`) and a download is a folder change too. If a second copy got loaded, remove the new, empty one, not the one with your Spaces.
+
+### Build it from source
+
+Needs Node.js 22.18 or newer.
 
 ```bash
 git clone https://github.com/rashpile/SideBarforArcUsers.git
@@ -19,9 +36,13 @@ make install
 make build
 ```
 
-Then open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and pick the `dist/` folder. Open the sidebar with the extension icon or `Cmd+Shift+E` (`Ctrl+Shift+E` on Windows and Linux).
+Then open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and pick the `dist/` folder.
 
 To update, run `git pull && make build` and press reload on the extension's card in `chrome://extensions`.
+
+### After installing
+
+Open the sidebar with the extension icon or `Cmd+Shift+E` (`Ctrl+Shift+E` on Windows and Linux).
 
 Coming from Arc? **Import from Arc Browser...** in the sidebar menu reads Arc's `StorableSidebar.json` and brings over your Favorites, Spaces and pinned pages. Arc's Favorites go into every Space the import creates, or into the active Space when it creates none.
 
