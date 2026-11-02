@@ -343,10 +343,10 @@ All methods are async: reads also wait for a load retry (below).
 - Modify: `tests/tabAssociationBackupMatch.test.mjs`
 - Modify (only if the test fails): `src/utils/tabAssociations.ts`
 
-- [ ] write test: after a browser restart (new tab ids, `sameBrowserSession: false`) a window with two note tabs of this extension, restored in swapped positions, gives each bookmark the tab showing its own note URL
-- [ ] write test: a worker restart in the same session keeps both note tabs by id
-- [ ] if a test fails, fix the matcher so the exact URL wins among same-host tabs, and record the fix in this plan
-- [ ] run `make test` - must pass before task 10
+- [x] write test: after a browser restart (new tab ids, `sameBrowserSession: false`) a window with two note tabs of this extension, restored in swapped positions, gives each bookmark the tab showing its own note URL (also with the stored tab ids reused for the other note)
+- [x] write test: a worker restart in the same session keeps both note tabs by id
+- [x] if a test fails, fix the matcher so the exact URL wins among same-host tabs, and record the fix in this plan (both passed; `placeEntries` already prefers the exact URL, no fix needed)
+- [x] run `make test` - must pass before task 10
 
 ### Task 10: Verify acceptance criteria
 
