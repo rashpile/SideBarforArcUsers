@@ -33,10 +33,10 @@ lint: ## Run ESLint
 version: ## Update extension version in package.json and manifest.json
 	./tools/update-version.sh
 
-release: ## Build and package zip for Chrome Web Store into releases/
+release: ## Build and package the zip into releases/ (CI attaches it to the GitHub release)
 	./tools/build-release.sh
 
-tag: ## Create local release-{version} git tag
+tag: ## Create local release-{version} git tag (pushing it publishes a GitHub release)
 	./tools/create-release-tag.sh
 
 chrome: ## Launch Chrome with a fresh test profile

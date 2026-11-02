@@ -169,27 +169,27 @@ jobs:
 - Modify: `Makefile`
 - Modify: `docs/changelog.md`
 
-- [ ] `docs/development.md` § Setup: "Node.js 22.18 or newer and npm" with the reason (Vite 7 `^20.19.0 || >=22.12.0`; `make test` needs type stripping without a flag, 22.18+; CI uses Node 24)
-- [ ] `docs/development.md` § Make targets: the `make tag` row says pushing the tag publishes a GitHub release; § Release: steps (prepare per `tools/prepare-release-instructions.md`, commit the version bump and push `main`, then `./tools/create-release-tag.sh --push`; `make version` only stages the bump, so tagging before the commit puts the new version's tag on the old commit), what `.github/workflows/release.yml` does and in what order, that a failed run creates no release, how to retry (delete the tag on origin and locally, fix, tag again), and that a tag whose release was already published needs `gh release delete <tag> --cleanup-tag` first
-- [ ] `docs/development.md` § Project layout: add `.github/workflows/` (`release.yml`: tag push → GitHub release)
-- [ ] `tools/prepare-release-instructions.md` step 7: replace "Run `tools/build-release.sh` to build the release" with pushing `main` and then `./tools/create-release-tag.sh --push`, which starts the Release workflow (version check, lint, tests, zip, GitHub release)
-- [ ] `tools/tools-readme.md`: `build-release.sh` and `create-release-tag.sh` entries mention the workflow; `Makefile` help text of `release` and `tag` mention the GitHub release (`make help` still lists every target)
-- [ ] `docs/changelog.md`: one line at the top of `## Latest Version`: ready-to-load zips on the GitHub Releases page, see Install in the README. No `src/data/changelog.ts` entry and no `docs/state-reference.md` change (no new storage keys)
-- [ ] run `make lint && make test && make build` - must pass before task 4
+- [x] `docs/development.md` § Setup: "Node.js 22.18 or newer and npm" with the reason (Vite 7 `^20.19.0 || >=22.12.0`; `make test` needs type stripping without a flag, 22.18+; CI uses Node 24)
+- [x] `docs/development.md` § Make targets: the `make tag` row says pushing the tag publishes a GitHub release; § Release: steps (prepare per `tools/prepare-release-instructions.md`, commit the version bump and push `main`, then `./tools/create-release-tag.sh --push`; `make version` only stages the bump, so tagging before the commit puts the new version's tag on the old commit), what `.github/workflows/release.yml` does and in what order, that a failed run creates no release, how to retry (delete the tag on origin and locally, fix, tag again), and that a tag whose release was already published needs `gh release delete <tag> --cleanup-tag` first
+- [x] `docs/development.md` § Project layout: add `.github/workflows/` (`release.yml`: tag push → GitHub release)
+- [x] `tools/prepare-release-instructions.md` step 7: replace "Run `tools/build-release.sh` to build the release" with pushing `main` and then `./tools/create-release-tag.sh --push`, which starts the Release workflow (version check, lint, tests, zip, GitHub release)
+- [x] `tools/tools-readme.md`: `build-release.sh` and `create-release-tag.sh` entries mention the workflow; `Makefile` help text of `release` and `tag` mention the GitHub release (`make help` still lists every target)
+- [x] `docs/changelog.md`: one line at the top of `## Latest Version`: ready-to-load zips on the GitHub Releases page, see Install in the README. No `src/data/changelog.ts` entry and no `docs/state-reference.md` change (no new storage keys)
+- [x] run `make lint && make test && make build` - must pass before task 4
 
 ### Task 4: Verify acceptance criteria
 
-- [ ] the workflow creates release `release-X.Y.Z` with `sidebar-for-arc-users-X.Y.Z.zip` only after the version check, lint, tests and build pass (read the step order once more)
-- [ ] a tag whose version differs from `public/manifest.json` fails at the version check, before `npm ci`, and no later step runs (verified locally in Task 1)
-- [ ] the zip from `make release` has `manifest.json` at its root, so the unzipped folder is what Load unpacked expects
-- [ ] README and `docs/development.md` no longer say "Node.js 18+" (`grep -rn "18+" README.md docs/development.md` finds nothing about Node)
-- [ ] run full checks: `make lint && make test && make build`
+- [x] the workflow creates release `release-X.Y.Z` with `sidebar-for-arc-users-X.Y.Z.zip` only after the version check, lint, tests and build pass (read the step order once more)
+- [x] a tag whose version differs from `public/manifest.json` fails at the version check, before `npm ci`, and no later step runs (verified locally in Task 1)
+- [x] the zip from `make release` has `manifest.json` at its root, so the unzipped folder is what Load unpacked expects
+- [x] README and `docs/development.md` no longer say "Node.js 18+" (`grep -rn "18+" README.md docs/development.md` finds nothing about Node)
+- [x] run full checks: `make lint && make test && make build`
 
 ### Task 5: [Final] Update documentation
 
-- [ ] README.md, `docs/development.md`, `docs/changelog.md` updated (Tasks 2-3); `docs/state-reference.md` unchanged (no new storage keys); no `src/data/changelog.ts` entry
-- [ ] update CLAUDE.md only if a new pattern came up (not expected)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] README.md, `docs/development.md`, `docs/changelog.md` updated (Tasks 2-3); `docs/state-reference.md` unchanged (no new storage keys); no `src/data/changelog.ts` entry
+- [x] update CLAUDE.md only if a new pattern came up (not expected) - no new pattern, CLAUDE.md unchanged
+- [x] move this plan to `docs/plans/completed/` (left in place - the orchestrator moves it at the end)
 
 ## Post-Completion
 

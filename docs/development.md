@@ -4,7 +4,7 @@ How to build, test and change the extension. For what it does, see the [README](
 
 ## Setup
 
-Node.js 18+ and npm.
+Node.js 22.18 or newer and npm. Vite 7 needs `^20.19.0 || >=22.12.0`, and `make test` runs TypeScript through Node's type stripping without a flag, which Node has from 22.18. The release workflow uses Node 24.
 
 ```bash
 make install   # npm ci
@@ -28,7 +28,7 @@ Load `dist/` in Chrome: `chrome://extensions` → Developer mode → Load unpack
 | `make screenshot` | Retake `asset/sidebar.png` from a fresh profile with the fake data in `tools/screenshot/fake-data.mjs`. Needs the network; installs Playwright into `tmp/screenshot/`, not `package.json` |
 | `make version` | Bump the version in `package.json` and `manifest.json` |
 | `make release` | Build and zip into `releases/` |
-| `make tag` | Local `release-{version}` git tag |
+| `make tag` | Local `release-{version}` git tag. Pushing the tag (`./tools/create-release-tag.sh --push`) publishes a GitHub release with the zip, see [Release](#release) |
 | `make clean` | Remove `dist/` and `releases/` |
 
 ## Tests
@@ -58,6 +58,8 @@ src/
 tests/           Node unit tests
 tools/           release and version scripts
 docs/            changelog, store listing, state reference, plans
+.github/
+  workflows/     release.yml: a pushed release-* tag publishes a GitHub release with the zip
 ```
 
 [docs/state-reference.md](state-reference.md) lists every storage key, its owner and its lifespan.
@@ -173,7 +175,30 @@ UI rules:
 
 ## Release
 
-Not published to the Chrome Web Store yet. [tools/prepare-release-instructions.md](../tools/prepare-release-instructions.md) has the steps (version bump, changelog, What's New, store listing). [docs/chrome-web-store-info.md](chrome-web-store-info.md) holds the listing text and permission justifications. `make release` builds `releases/sidebar-for-arc-users-{version}.zip`.
+Not published to the Chrome Web Store yet. Each pushed `release-{version}` tag publishes a GitHub release with the zip that the README's Install section links to.
+
+1. Prepare the release as [tools/prepare-release-instructions.md](../tools/prepare-release-instructions.md) describes: version bump, changelog, What's New, store listing.
+2. Commit the version bump and push `main`. `make version` only stages the bump in `package.json` and `public/manifest.json`, and `make tag` tags `HEAD` with the version from the working-tree `package.json`. Tag before the commit and the new version's tag lands on the old commit.
+3. Run `./tools/create-release-tag.sh --push`.
+
+The tag push starts [.github/workflows/release.yml](../.github/workflows/release.yml), one job with these steps in order:
+
+1. Check that the tag's version equals the one in `public/manifest.json`. A tag on the commit before the bump fails here, before anything is installed.
+2. `npm ci`, `make lint`, `make test`.
+3. `make release`, which builds `releases/sidebar-for-arc-users-{version}.zip`.
+4. `gh release create` publishes release `release-{version}` with that zip and notes generated from the PRs and commits since the previous release.
+
+A failed step stops the job, so a failed run publishes no release. To retry, delete the tag on origin and locally, fix the cause, commit and push `main`, and tag again:
+
+```bash
+git push origin :refs/tags/release-{version}
+git tag -d release-{version}
+./tools/create-release-tag.sh --push
+```
+
+When the tag already has a published release, replace the `git push` line with `gh release delete release-{version} --cleanup-tag`, which deletes the release and the tag on origin. Deleting only the tag leaves the old release behind.
+
+[docs/chrome-web-store-info.md](chrome-web-store-info.md) holds the listing text and permission justifications. `make release` builds the same zip locally.
 
 ## Workflow
 
