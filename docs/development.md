@@ -181,14 +181,16 @@ Not published to the Chrome Web Store yet. Each pushed `release-{version}` tag p
 2. Commit the version bump and push `main`. `make version` only stages the bump in `package.json` and `public/manifest.json`, and `make tag` tags `HEAD` with the version from the working-tree `package.json`. Tag before the commit and the new version's tag lands on the old commit.
 3. Run `./tools/create-release-tag.sh --push`.
 
-The tag push starts [.github/workflows/release.yml](../.github/workflows/release.yml), one job with these steps in order:
+The tag push starts [.github/workflows/release.yml](../.github/workflows/release.yml), which has two jobs. `build` has a read-only token and runs these steps in order:
 
 1. Check that the tag's version equals the one in `public/manifest.json`. A tag on the commit before the bump fails here, before anything is installed.
 2. `npm ci`, `make lint`, `make test`.
 3. `make release`, which builds `releases/sidebar-for-arc-users-{version}.zip`.
-4. `gh release create` publishes release `release-{version}` with that zip and notes generated from the PRs and commits since the previous release.
+4. Upload of that zip as a workflow artifact.
 
-A failed step stops the job, so a failed run publishes no release. To retry, delete the tag on origin and locally, fix the cause, commit and push `main`, and tag again:
+`publish` runs after `build` passes. It downloads the zip, and `gh release create` publishes release `release-{version}` with that zip and notes generated from the PRs and commits since the previous release. Only `publish` gets a token with write access to the repository, and it runs no project or npm code, so the install scripts that `npm ci` runs never see that token.
+
+A failed step stops its job, and `publish` doesn't start after a failed `build`, so a failed run publishes no release. To retry, delete the tag on origin and locally, fix the cause, commit and push `main`, and tag again:
 
 ```bash
 git push origin :refs/tags/release-{version}

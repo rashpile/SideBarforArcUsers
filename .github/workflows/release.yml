@@ -5,14 +5,18 @@ on:
     tags:
       - 'release-*'
 
+# Two jobs because npm ci runs the install scripts of every locked dependency, and a job-scoped
+# token is readable by every step of its job. The write token exists only in `publish`, which
+# runs no project or npm code.
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
-      contents: write
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
-      # The write token is for `gh` only, which gets it through GH_TOKEN; npm ci runs install scripts.
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
@@ -43,9 +47,28 @@ jobs:
       - run: make test
       - run: make release
 
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-zip
+          path: releases/sidebar-for-arc-users-${{ steps.version.outputs.version }}.zip
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-zip
+          path: releases
+
+      # No checkout, so gh has no git remote to infer the repository from.
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
-          VERSION: ${{ steps.version.outputs.version }}
-        run: gh release create "$TAG" "releases/sidebar-for-arc-users-$VERSION.zip" --verify-tag --generate-notes
+          VERSION: ${{ needs.build.outputs.version }}
+        run: gh release create "$TAG" "releases/sidebar-for-arc-users-$VERSION.zip" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes
