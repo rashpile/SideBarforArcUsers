@@ -150,10 +150,10 @@
 - [x] run full checks: `make lint && make test && make build`
 
 ### Task 5: [Final] Update documentation
-- [ ] `docs/changelog.md`: add a "Fixed:" line at the top of Latest Version - dragging a tab, tab group or link into a Space with no bookmarks shows a drop line and saves it in the Space; it no longer lands next to the Space folder and vanishes from the Tab list. Also say that a drop in the empty area under the last bookmark now adds it at the end of the Space, not at the top
-- [ ] `README.md`: extend "Drag a tab onto the tree to bookmark it" to say it also works in an empty Space, onto the area under the Space title
-- [ ] no `docs/state-reference.md` change (no storage keys) and no `src/data/changelog.ts` entry (bug fix only)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] `docs/changelog.md`: add a "Fixed:" line at the top of Latest Version - dragging a tab, tab group or link into a Space with no bookmarks shows a drop line and saves it in the Space; it no longer lands next to the Space folder and vanishes from the Tab list. Also say that a drop in the empty area under the last bookmark now adds it at the end of the Space, not at the top
+- [x] `README.md`: extend "Drag a tab onto the tree to bookmark it" to say it also works in an empty Space, onto the area under the Space title
+- [x] no `docs/state-reference.md` change (no storage keys) and no `src/data/changelog.ts` entry (bug fix only)
+- [x] move this plan to `docs/plans/completed/` (left in place: the orchestrator moves the plan at the end)
 
 ## Post-Completion
 *Items requiring manual intervention or external systems - no checkboxes, informational only*

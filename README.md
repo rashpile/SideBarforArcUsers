@@ -59,7 +59,7 @@ Everything is stored in Chrome: bookmarks for Spaces, pinned pages, the archive 
 - Double-click a bookmark whose tab moved on to another page to load the bookmarked page back in that tab
 - Links you open from a bookmark or Favorite page (`Cmd+Click`) land at the top of the Tab list
 - A tab you open yourself on a bookmarked or Favorite URL stays in the Tab list. In Arc style, clicking that bookmark or Favorite opens a second tab for it; dragging the tab onto the tree, **Add to Bookmark**, pinning it or dropping it on the Favorites grid makes a new bookmark or Favorite with that tab as its page. Tabs reopened from the Archive also land in the Tab list
-- Drag and drop to organize. Drag a tab onto the tree to bookmark it
+- Drag and drop to organize. Drag a tab onto the tree to bookmark it. This works in an empty Space too: drop the tab just under the Space title, where a blue line shows
 - `...` menu: New Folder, New Bookmark, Sort by Name/Date, Copy as YAML, Paste from YAML..., Edit, Duplicate, Delete, Pin, Move to New Window, Expand All, Open as Tab Group
 - **Copy as YAML** puts the folder, its subfolders and bookmarks on the clipboard as YAML. **Paste from YAML...** opens a box for YAML text and adds the folders and bookmarks to the end of the folder; same-named folders are not merged. The box shows what it will create ("3 folders, 12 bookmarks") or the line and reason of each error, and nothing is created until the whole text is valid. A URL without `https://` gets it added. One Undo removes the whole paste. `asd_Archive` and `asd_Favorites` are left out of a copy and can't be pasted. The format:
 
