@@ -108,6 +108,28 @@ export function collectNoteIds(nodes: readonly BookmarkNodeLike[]): Set<string>
 }
 
 /**
+ * The URL a duplicate of a bookmark gets. A duplicate of this extension's note gets
+ * its own copy of the text under a new noteId, so editing the copy leaves the original
+ * alone. When this device holds no text for the note (synced from another computer),
+ * `copyNote` resolves null and the duplicate shares the original's URL, as a YAML paste
+ * does. A failed copy rejects, so the caller creates no bookmark.
+ */
+export async function urlForDuplicate(
+  url: string,
+  extensionOrigin: string,
+  copyNote: (fromId: string, toId: string) => Promise<unknown>,
+  makeNoteId: () => string,
+): Promise<string>
+{
+  const noteId = noteIdOfOwnUrl(url, extensionOrigin);
+  if (noteId === null) return url;
+
+  const copyId = makeNoteId();
+  const copied = await copyNote(noteId, copyId);
+  return copied === null ? url : buildNoteUrl(extensionOrigin, copyId);
+}
+
+/**
  * Points a note URL of another extension origin at this extension when its noteId
  * is one whose text we hold (e.g. restored from a backup made under another unpacked
  * id). Own URLs, unknown noteIds (another extension's own `note.html?id=` page) and

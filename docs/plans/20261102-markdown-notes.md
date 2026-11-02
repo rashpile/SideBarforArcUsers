@@ -306,10 +306,10 @@ All methods are async: reads also wait for a load retry (below).
 - Modify: `src/components/BookmarkFavicon.tsx`
 - Modify: `src/hooks/useBookmarks.ts`
 
-- [ ] folder context menu: **New Note** (`NotebookText` icon) right after New Bookmark; handler creates `crypto.randomUUID()`, `noteProxy.create`, then `createBookmark(parentId, 'New note', buildNoteUrl(origin, noteId))` at the end of the folder, expands the parent, scrolls to it and opens it the way a row click does (arc mode with `onOpenBookmark`: that; otherwise `chrome.tabs.create({ url, active: true, windowId })`); a failed create shows the error the way the tree shows other bookmark errors
-- [ ] `BookmarkFavicon`: own note URLs render `NotebookText` (same size and colour classes as the folder/globe fallbacks) instead of the favicon image
-- [ ] `duplicateBookmark`: when the URL to duplicate is an own note URL, make a new noteId and `noteProxy.copy(oldId, newId)`: a record → create the duplicate with the new note URL; `null` (no local text, e.g. a note from another computer) → duplicate with the original URL (shares the note, like YAML paste); a rejection → create nothing and show the error. Other bookmarks unchanged
-- [ ] run `make lint && make test` - must pass before task 7
+- [x] folder context menu: **New Note** (`NotebookText` icon) right after New Bookmark; handler creates `crypto.randomUUID()`, `noteProxy.create`, then `createBookmark(parentId, 'New note', buildNoteUrl(origin, noteId))` at the end of the folder, expands the parent, scrolls to it and opens it the way a row click does (arc mode with `onOpenBookmark`: that; otherwise `chrome.tabs.create({ url, active: true, windowId })`); a failed create shows the error the way the tree shows other bookmark errors
+- [x] `BookmarkFavicon`: own note URLs render `NotebookText` (same size and colour classes as the folder/globe fallbacks) instead of the favicon image
+- [x] `duplicateBookmark`: when the URL to duplicate is an own note URL, make a new noteId and `noteProxy.copy(oldId, newId)`: a record → create the duplicate with the new note URL; `null` (no local text, e.g. a note from another computer) → duplicate with the original URL (shares the note, like YAML paste); a rejection → create nothing and show the error. Other bookmarks unchanged
+- [x] run `make lint && make test` - must pass before task 7
 
 ### Task 7: Recently Closed records note tabs
 
@@ -378,6 +378,7 @@ All methods are async: reads also wait for a load retry (below).
 - [known-limitation] All texts share one `chrome.storage.local` key under the 10 MB quota (no `unlimitedStorage`) with every other key; a save that hits it fails inline and keeps the editor.
 - [known-limitation] If Chrome fires `bookmarks.onRemoved` for account bookmarks on sign-out, a sign-out longer than 30 days lets the sweep delete the texts of notes in them (not verified that Chrome fires these events).
 - [known-limitation] A note tab closed by the extension (auto-archive, Archive, the row's close button) may skip the `beforeunload` prompt, losing an unsaved draft.
+- [known-limitation] New Note or Duplicate whose bookmark create fails after the text record was written leaves that record without a bookmark or a removal mark, so the sweep never deletes it (an empty or copied text; bookmark create failures are rare).
 
 ## Post-Completion
 

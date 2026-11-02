@@ -8,6 +8,7 @@ import {
   noteIdOfOwnUrl,
   parseNoteUrl,
   rewriteNoteUrl,
+  urlForDuplicate,
 } from '../src/utils/noteUrl.ts';
 
 const OWN = 'chrome-extension://ownextensionid';
@@ -118,4 +119,59 @@ test('collectNoteIds of a tree without notes is empty', () =>
 {
   assert.equal(collectNoteIds([{ children: [{ url: 'https://example.com/' }, { children: [] }] }]).size, 0);
   assert.equal(collectNoteIds([]).size, 0);
+});
+
+// Records the copy calls urlForDuplicate makes; `result` is what the manager's copy answers
+function fakeCopy(result)
+{
+  const calls = [];
+  const copyNote = async (fromId, toId) =>
+  {
+    calls.push([fromId, toId]);
+    if (result instanceof Error) throw result;
+    return result;
+  };
+  return { calls, copyNote };
+}
+
+test('urlForDuplicate gives a duplicate of an own note its own copy of the text', async () =>
+{
+  const { calls, copyNote } = fakeCopy({ markdown: 'steps', updatedAt: 1 });
+
+  const url = await urlForDuplicate(`${OWN}/note.html?id=original`, OWN, copyNote, () => 'copy-1');
+
+  assert.equal(url, `${OWN}/note.html?id=copy-1`);
+  assert.deepEqual(calls, [['original', 'copy-1']]);
+});
+
+test('urlForDuplicate keeps the URL of a note whose text is not on this device', async () =>
+{
+  const { calls, copyNote } = fakeCopy(null);
+
+  const url = await urlForDuplicate(`${OWN}/note.html?id=synced`, OWN, copyNote, () => 'copy-1');
+
+  assert.equal(url, `${OWN}/note.html?id=synced`);
+  assert.equal(calls.length, 1);
+});
+
+test('urlForDuplicate rejects when the text cannot be copied', async () =>
+{
+  const { copyNote } = fakeCopy(new Error('Can\'t save the note: stored notes could not be read'));
+
+  await assert.rejects(
+    urlForDuplicate(`${OWN}/note.html?id=original`, OWN, copyNote, () => 'copy-1'),
+    /stored notes could not be read/,
+  );
+});
+
+test('urlForDuplicate leaves web pages and other extensions\' notes alone', async () =>
+{
+  const { calls, copyNote } = fakeCopy({ markdown: '', updatedAt: 1 });
+
+  assert.equal(await urlForDuplicate('https://example.com/', OWN, copyNote, () => 'copy-1'), 'https://example.com/');
+  assert.equal(
+    await urlForDuplicate(`${OTHER}/note.html?id=foreign`, OWN, copyNote, () => 'copy-1'),
+    `${OTHER}/note.html?id=foreign`,
+  );
+  assert.equal(calls.length, 0);
 });
