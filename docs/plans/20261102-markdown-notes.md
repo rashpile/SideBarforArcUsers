@@ -293,11 +293,11 @@ All methods are async: reads also wait for a load retry (below).
 - Modify: `vite.config.ts`
 - Modify: `tailwind.config.js`
 
-- [ ] add `note.html`, `public/note-icon.svg`, the Vite input `note` and the Tailwind content path; `note.css` with Tailwind directives and the font stack
-- [ ] create `NotePage.tsx` with the loading / error / broken-link / missing / edit / view states, `MarkdownView` rendering, "Edited <date>", Edit, empty-note view
-- [ ] implement Save (manager save, then bookmark title update of every bookmark with this URL, blank → "Untitled note"), Cmd+S / Ctrl+S, Cancel, inline save errors
-- [ ] implement the `beforeunload` prompt for unsaved changes, `document.title`, focus + select of the title for an empty note, re-read on `NOTES_CHANGED` and `bookmarks.onChanged` in view and missing modes only
-- [ ] `make build` emits `dist/note.html`; run `make lint && make test` - must pass before task 6
+- [x] add `note.html`, `public/note-icon.svg`, the Vite input `note` and the Tailwind content path; `note.css` with Tailwind directives and the font stack
+- [x] create `NotePage.tsx` with the loading / error / broken-link / missing / edit / view states, `MarkdownView` rendering, "Edited <date>", Edit, empty-note view
+- [x] implement Save (manager save, then bookmark title update of every bookmark with this URL, blank → "Untitled note"), Cmd+S / Ctrl+S, Cancel, inline save errors
+- [x] implement the `beforeunload` prompt for unsaved changes, `document.title`, focus + select of the title for an empty note, re-read on `NOTES_CHANGED` and `bookmarks.onChanged` in view and missing modes only
+- [x] `make build` emits `dist/note.html`; run `make lint && make test` - must pass before task 6
 
 ### Task 6: New Note, note icon and Duplicate in the sidebar
 
