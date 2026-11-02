@@ -29,6 +29,10 @@ I missed Arc's sidebar after switching to Chrome in how Arc puts favorites, book
 
 - Search & Filter - Filter by text, live tabs, or audio. Save frequent searches. Export/import as JSON.
 
+- Markdown Notes - New Note in a folder's menu adds a note next to the folder's bookmarks. Write it in markdown in its own tab; it shows rendered when you open it again. A note moves, renames and deletes with Undo like any bookmark, and Export / Import carries its text to another computer.
+
+- Page Agent (experimental) - Ask an AI model to restyle the page or answer questions about it, including the subtitles of the video on the page. Save a style to a bookmark and it comes back whenever a page of that site loads in the bookmark's tab. Uses your own AI endpoint.
+
 - Arc Browser Import - Migrate from Arc by importing your pinned sites, spaces, and bookmarks from Arc's `StorableSidebar.json`.
 
 Open source on GitHub: https://github.com/rashpile/SideBarforArcUsers
