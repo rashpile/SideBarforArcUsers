@@ -8,6 +8,8 @@ import { SpaceFavorites, favoritesMoveTargets, favoritesSpaceFolder, type Favori
 import { createFavoriteBookmarks, ensureFavoritesFolder, isBookmarkableUrl, type FavoritesBookmarksApi } from '../utils/favoritesFolder';
 import { bookmarkTreeStore, runBatchOperation } from './useBookmarks';
 import { iconRestoresByUrl } from '../utils/favoritesImport';
+import { urlForDuplicate } from '../utils/noteUrl';
+import { noteProxy } from '../managers/proxies/noteProxy';
 
 // Re-export so existing importers (e.g. PinnedIcon) don't break
 export { getFaviconUrl, fetchFaviconAsBase64 } from '../utils/favicon';
@@ -487,7 +489,8 @@ export const usePinnedSites = (space: FavoritesSpace) =>
   /**
    * Copies a Favorite in just after itself. The live tab may have navigated away
    * from the Favorite's page; its favicon only replaces a site favicon, since a
-   * custom icon or emoji is the user's explicit choice.
+   * custom icon or emoji is the user's explicit choice. A note Favorite's copy gets
+   * its own copy of the text; when that copy fails, no Favorite is created.
    */
   const duplicatePin = useCallback((id: string, liveUrl?: string, liveTitle?: string, liveFavicon?: string) =>
   {
@@ -498,10 +501,16 @@ export const usePinnedSites = (space: FavoritesSpace) =>
         const [original] = await chrome.bookmarks.get(id);
         if (!original?.url || !original.parentId || original.index === undefined) return;
 
+        const url = await urlForDuplicate(
+          liveUrl || original.url,
+          location.origin,
+          (fromId, toId) => noteProxy.copy(fromId, toId),
+          () => crypto.randomUUID(),
+        );
         const copy = await chrome.bookmarks.create({
           parentId: original.parentId,
           index: original.index + 1,
-          url: liveUrl || original.url,
+          url,
           title: liveTitle || original.title,
         });
 
