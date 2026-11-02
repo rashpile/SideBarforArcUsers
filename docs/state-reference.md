@@ -38,7 +38,7 @@ Need to persist across browser restart?
 | **Cross-window sync** | Yes (onChanged fires in all contexts) | Yes | Partial (event fires in OTHER windows only) |
 | **Sidebar-only data** | Yes | Yes | Yes |
 | **API complexity** | Async | Async | Sync |
-| **Size limit** | ~5MB | ~1MB | ~5MB |
+| **Size limit** | 10MB (all keys together) | ~1MB | ~5MB |
 
 ### When to Use Each
 
@@ -67,6 +67,7 @@ Need to persist across browser restart?
 | Storage | Limitation |
 |---------|------------|
 | chrome.storage.* | Async only, requires callbacks/promises |
+| chrome.storage.local | 10MB for all keys together (no `unlimitedStorage` permission). Note texts (`bookmarkNotes`, one key) share it with every other key; a write that would go over fails, so a note save that doesn't fit fails in the editor, and so does any other local write at that point |
 | chrome.storage.session | 1MB limit, cleared on browser close |
 | browser localStorage | No service worker access, change event doesn't fire in current window |
 | In-memory | Lost on page reload / SW restart |
@@ -473,6 +474,26 @@ Record<string, {       // by bookmark id; a Favorite's id is its bookmark node i
 - Lifespan: persistent, until the user removes the style or deletes the bookmark
 - Instances: 1 per extension (shared across windows)
 
+### `bookmarkNotes`
+Markdown texts of notes. A note is a bookmark whose URL is `chrome-extension://<id>/note.html?id=<noteId>`; the bookmark holds the title and the place in the tree, this key the text, so a move, a rename or a delete + Undo keeps it
+```typescript
+Record<string, {        // by noteId: 1-64 characters of A-Z, a-z, 0-9 and '-' (New Note uses crypto.randomUUID())
+  markdown: string,     // up to 200 000 characters; '' for a note not written yet
+  updatedAt: number,    // epoch millis, set on create, save and copy; a restored note keeps the backup's
+  removedAt?: number    // epoch millis, set when the last bookmark referencing the note was removed
+}>
+```
+- Owner: `src/managers/impl/noteManager.ts` (`NoteManager`, background, the only writer; writes serialized, and the records in memory change only after `storage.set` succeeded); the model is `NoteRecords` in `src/stores/noteRecords.ts`, note URL parsing in `src/utils/noteUrl.ts`
+- Consumers, all through `src/managers/proxies/noteProxy.ts`, which has no mirror store: every read is a message, and the `NoteManager_msg_changed` broadcast (`{ noteIds, senderId }`) only tells a context which notes to read again. The note page (`note.html`, `src/note/NotePage.tsx`: `get`, `save`; in view and missing-text mode it re-reads on the broadcast and on `bookmarks.onChanged` of its bookmarks, the editor is never overwritten), the sidebar's New Note (`create`, `src/components/BookmarkTree.tsx`) and Duplicate (`copy`, `urlForDuplicate` from `src/hooks/useBookmarks.ts`), Export (`list`, `src/components/ExportDialog.tsx`) and Import (`restore`, `importFullBackup` in `src/utils/backupRestore.ts`)
+- Updates: New Note writes an empty record before it creates the bookmark, so a note bookmark without a record means "the text is on another computer" and an empty record opens the editor; Save replaces the text and clears `removedAt`; Duplicate of this extension's note copies the text under a new noteId (no record of the source: the duplicate keeps the original URL and shares the note, as a YAML paste does); restore adds new ids and replaces an existing one only when the backup's `updatedAt` is strictly newer, otherwise the local record, mark included, stays (`kept`); invalid entries are skipped
+- Cleanup: deleting a note bookmark doesn't delete the text. `bookmarks.onRemoved` (after `stateReady`) collects the noteIds in the removed subtree, and when some have an unmarked record, sets `removedAt` on those a fresh `getTree` scan no longer finds in any bookmark. `bookmarks.onCreated` and `bookmarks.onChanged` with a note URL (Undo, Chrome's bookmark manager undo, sync) clear the mark, and so do a save and a restore that replaces the text. Once per worker start, after `stateReady`, `sweepExpired` takes the records marked at least 30 days ago (`NOTE_REMOVAL_GRACE_MS`), scans the tree again, deletes those no bookmark references and clears the marks of the others. The scan (`collectNoteIds`) counts note URLs of every extension origin and walks `asd_Archive` and `asd_Favorites` too, since a note can be a Favorite or archived. Marks come only from removal events, so a startup tree that lacks not-yet-synced account bookmarks deletes nothing. A note bookmark deleted while the extension isn't running is never marked, and its text stays. A New Note or Duplicate whose bookmark create failed leaves a record no bookmark references and no mark, which also stays
+- Unreadable value: a failed read is logged and leaves the manager unloaded; `bookmarks.onRemoved`, `onCreated` / `onChanged` and the sweep write nothing then. Every API call retries the read first. When it fails again, writes reject with "Can't save the note: stored notes could not be read", so a save never replaces unread texts with one note, and reads reject with "Stored notes could not be read", so the page doesn't claim the text is on another computer and Export writes no backup without texts. A value that isn't an object reads as empty, and malformed entries (invalid id, non-string or oversized markdown, non-finite times) are dropped
+- Backup: Export's Notes checkbox writes `notes: Array<{ noteId, markdown, updatedAt }>` with the texts of the notes the bookmark tree references; Import's Notes checkbox, independent of Bookmarks, restores them before the bookmarks. Bookmarks and Favorites the import creates get this extension's origin in note URLs of another origin whose noteId is in `backup.notes`, also when Notes isn't imported; existing (synced) bookmarks are never rewritten, and another extension's `note.html?id=` URLs with unknown ids are left alone. Copy/Paste as YAML carries only the URL
+- Not synced: account bookmark sync carries the note bookmark, not this key
+- Size: the whole value is one key in the shared `chrome.storage.local` quota (see Limitations). A save that would go over fails, and the note page shows the error in the editor
+- Lifespan: persistent; a text goes at the first worker start at least 30 days after its last bookmark was removed. An unpacked build loaded from another `dist/` path is another extension id with its own storage, so its note links and texts don't carry over
+- Instances: 1 per extension (shared across windows)
+
 ---
 
 ## Browser localStorage
@@ -557,7 +578,8 @@ Lost on page reload or service worker restart.
 │  ├─ sectionCollapsedState           (per Space)                 │
 │  ├─ recentlyClosedTabs              (closed tabs per Space)     │
 │  ├─ sidebar-ai-rename-settings      (AI naming, page agent)     │
-│  └─ pageAgentDrawerHeight           (page agent drawer)         │
+│  ├─ pageAgentDrawerHeight           (page agent drawer)         │
+│  └─ bookmarkNotes                   (note texts by noteId)      │
 ├─────────────────────────────────────────────────────────────────┤
 │  browser localStorage (survives browser restart)                │
 │  └─ sidebar-* settings (10 keys)                                │

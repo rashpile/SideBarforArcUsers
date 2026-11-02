@@ -362,12 +362,13 @@ All methods are async: reads also wait for a load retry (below).
 - Modify: `docs/state-reference.md`
 - Modify: `docs/development.md`
 - Modify: `src/data/changelog.ts`
+- ➕ Modify: `PRIVACY.md` (note texts are new stored data)
 
-- [ ] `README.md`: notes (New Note, editing, what renders, text stays on this device, backup carries it, YAML doesn't, unpacked builds: moving `dist/` breaks note links)
-- [ ] `docs/state-reference.md`: `bookmarkNotes` (shape, owner, consumers, updates, cleanup, unreadable value, backup, lifespan, instances), and a row in its Limitations table for the shared 10 MB `chrome.storage.local` quota
-- [ ] `docs/development.md`: `NoteManager` row in the manager table; `src/note/` and the root `note.html` in the project layout; in "Shared state", a line that the note page is a proxy client without a mirror (it reads through messages, unlike "Reads never leave the sidebar")
-- [ ] `docs/changelog.md` under `## Latest Version` and a What's New line in `src/data/changelog.ts` (`'1.0.352'`)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] `README.md`: notes (New Note, editing, what renders, text stays on this device, backup carries it, YAML doesn't, unpacked builds: moving `dist/` breaks note links)
+- [x] `docs/state-reference.md`: `bookmarkNotes` (shape, owner, consumers, updates, cleanup, unreadable value, backup, lifespan, instances), and a row in its Limitations table for the shared 10 MB `chrome.storage.local` quota
+- [x] `docs/development.md`: `NoteManager` row in the manager table; `src/note/` and the root `note.html` in the project layout; in "Shared state", a line that the note page is a proxy client without a mirror (it reads through messages, unlike "Reads never leave the sidebar")
+- [x] `docs/changelog.md` under `## Latest Version` and a What's New line in `src/data/changelog.ts` (`'1.0.352'`)
+- [x] move this plan to `docs/plans/completed/` (not moved here: the orchestrator moves the plan at the end)
 
 ## Known limitations
 
