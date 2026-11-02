@@ -245,11 +245,11 @@ All methods are async: reads also wait for a load retry (below).
 - Create: `src/stores/noteRecords.ts`
 - Create: `tests/noteRecords.test.mjs`
 
-- [ ] create the immutable `NoteRecords` class with `fromStored`, `toStored`, `get`, `has`, `ids`, `withCreated`, `withSaved`, `withCopy`, `withRestored`, `withRemovedMarks`, `withoutRemovedMark`, `expiredRemovals`, `without` (same instance when unchanged)
-- [ ] write tests: `withRestored` adds new ids, replaces only on a strictly newer `updatedAt`, keeps local on older or equal, skips invalid entries, counts restored / kept / skipped, and clears `removedAt` of a restored record
-- [ ] write tests: `withRemovedMarks` keeps an existing mark's time; `withSaved` clears a mark; `expiredRemovals` returns only marks at least the grace old
-- [ ] write tests: `fromStored` drops malformed entries (bad id, non-string or oversized markdown, non-finite times) and keeps the valid ones; a non-object value reads as empty
-- [ ] run `make test` - must pass before task 3
+- [x] create the immutable `NoteRecords` class with `fromStored`, `toStored`, `get`, `has`, `ids`, `withCreated`, `withSaved`, `withCopy`, `withRestored`, `withRemovedMarks`, `withoutRemovedMark`, `expiredRemovals`, `without` (same instance when unchanged)
+- [x] write tests: `withRestored` adds new ids, replaces only on a strictly newer `updatedAt`, keeps local on older or equal, skips invalid entries, counts restored / kept / skipped, and clears `removedAt` of a restored record
+- [x] write tests: `withRemovedMarks` keeps an existing mark's time; `withSaved` clears a mark; `expiredRemovals` returns only marks at least the grace old
+- [x] write tests: `fromStored` drops malformed entries (bad id, non-string or oversized markdown, non-finite times) and keeps the valid ones; a non-object value reads as empty
+- [x] run `make test` - must pass before task 3
 
 ### Task 3: NoteManager in the background
 
