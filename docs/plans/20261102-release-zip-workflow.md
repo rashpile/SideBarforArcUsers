@@ -153,12 +153,12 @@ jobs:
 **Files:**
 - Modify: `README.md`
 
-- [ ] restructure § Install as in Technical Details: keep the Web Store paragraph, add `### Download a release` before `### Build it from source`
-- [ ] Download a release: link to `https://github.com/rashpile/SideBarforArcUsers/releases/latest`, the zip name (not the *Source code* archives), unzip into a folder you keep (most unzip tools make a folder named after the zip, with the version in it; rename it or use `unzip … -d <folder>`), Load unpacked of that folder
-- [ ] updating a download: delete the folder's files and unzip the new zip into it (double-click form: delete the old folder, rename the new one to the old name in the same place), reload; update only with reload, since Remove deletes the extension's storage; why the path must stay (no `key`, ID from the folder path), what a second copy loses (settings including the AI API key, the Spaces list, Favorite icons, attention marks, Recently Closed lists, saved page styles) and what stays (Space folders, pinned pages, Favorites, archive are bookmarks; a Space set up again on its old folder gets them back); switching between `dist/` and a download is a folder change too; if a second copy got loaded, remove the new, empty one
-- [ ] Build it from source: "Node.js 22.18 or newer", existing commands, its own update line; the sidebar-opening line (icon, `Cmd+Shift+E` / `Ctrl+Shift+E`) applies to both paths
-- [ ] check every storage claim against `docs/state-reference.md` (each item named as lost must be a `chrome.storage.local` or `localStorage` key; each item named as kept must be a bookmark)
-- [ ] run `make lint && make test && make build` - must pass before task 3
+- [x] restructure § Install as in Technical Details: keep the Web Store paragraph, add `### Download a release` before `### Build it from source`
+- [x] Download a release: link to `https://github.com/rashpile/SideBarforArcUsers/releases/latest`, the zip name (not the *Source code* archives), unzip into a folder you keep (most unzip tools make a folder named after the zip, with the version in it; rename it or use `unzip … -d <folder>`), Load unpacked of that folder
+- [x] updating a download: delete the folder's files and unzip the new zip into it (double-click form: delete the old folder, rename the new one to the old name in the same place), reload; update only with reload, since Remove deletes the extension's storage; why the path must stay (no `key`, ID from the folder path), what a second copy loses (settings including the AI API key, the Spaces list, Favorite icons, attention marks, Recently Closed lists, saved page styles) and what stays (Space folders, pinned pages, Favorites, archive are bookmarks; a Space set up again on its old folder gets them back); switching between `dist/` and a download is a folder change too; if a second copy got loaded, remove the new, empty one
+- [x] Build it from source: "Node.js 22.18 or newer", existing commands, its own update line; the sidebar-opening line (icon, `Cmd+Shift+E` / `Ctrl+Shift+E`) applies to both paths
+- [x] check every storage claim against `docs/state-reference.md` (each item named as lost must be a `chrome.storage.local` or `localStorage` key; each item named as kept must be a bookmark)
+- [x] run `make lint && make test && make build` - must pass before task 3
 
 ### Task 3: Developer docs, Makefile help and changelog
 
