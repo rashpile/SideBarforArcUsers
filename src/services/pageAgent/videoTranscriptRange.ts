@@ -31,6 +31,8 @@ export interface TranscriptMeta
   pageTitle: string;
   /** The chosen track as `code name`. */
   language: string;
+  /** The chosen track's code, which the cut note passes on so the next call reads the same track. */
+  languageCode: string;
   /** Every track as `code name`. */
   languages: string[];
   /** Seconds; null when the page doesn't know it. */
@@ -215,7 +217,7 @@ export function buildTranscriptResult(
   };
   if (nextFrom !== null)
   {
-    result.note = `cut at ${maxChars} characters; call again with from: "${formatClock(nextFrom)}" for the rest`;
+    result.note = `cut at ${maxChars} characters; call again with ${continuationArgs(nextFrom, range, meta.languageCode)} for the rest`;
   }
   else if (text === '')
   {
@@ -227,6 +229,30 @@ export function buildTranscriptResult(
     content: JSON.stringify(result),
     summary: `${meta.source}, ${meta.language}, ${from}–${to}, ${text.length} characters`,
   };
+}
+
+// The next call keeps this call's track and end. With `from` alone it would fall back to the defaults:
+// the default track, which may be another one, and the position default, which stops a whole-video
+// read at the position or returns nothing when the position is unknown. A range that stopped at the
+// position came from that default, so its next call leaves `to` out again.
+function continuationArgs(nextFrom: number, range: { to: number; stop: TranscriptStop }, languageCode: string): string
+{
+  const code = languageCode.trim();
+  const args = code === '' ? [] : [`language: ${JSON.stringify(code)}`];
+  args.push(`from: "${formatClock(nextFrom)}"`);
+  switch (range.stop)
+  {
+    case 'end':
+      args.push('to: "end"');
+      break;
+    case 'given':
+      // Rounded up, so a `to` with a fraction doesn't lose the cues of its last second.
+      args.push(`to: "${formatClock(Math.ceil(range.to))}"`);
+      break;
+    case 'position':
+      break;
+  }
+  return args.join(', ');
 }
 
 function clockSeconds(text: string): number | null
@@ -270,7 +296,7 @@ function resolvePoint(point: TimeArg, position: number | null, field: 'from' | '
   }
 }
 
-function lastCueEnd(cues: readonly SubtitleCue[]): number
+export function lastCueEnd(cues: readonly SubtitleCue[]): number
 {
   return cues.reduce((last, cue) => Math.max(last, cue.end), 0);
 }

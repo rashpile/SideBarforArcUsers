@@ -680,3 +680,32 @@ test('a plugin that throws or answers ok: false gives the model a tool error and
   assert.equal(result.error, undefined);
   assert.equal(result.summary, 'I could not read the subtitles.');
 });
+
+test('Stop during a plugin call that never settles ends the run as stopped', async () =>
+{
+  const page = new FakePage(TAB_A);
+  let called;
+  const pluginCalled = new Promise(resolve =>
+  {
+    called = resolve;
+  });
+  // A subtitle download that stalls: the page script never answers.
+  const plugin = new FakePlugin([
+    () =>
+    {
+      called();
+      return new Promise(() => undefined);
+    },
+  ]);
+  const client = new ScriptedClient([respond(call(PLUGIN_TOOL))]);
+  const { run, listener } = startRun(client, page, { request: 'summarize this episode', plugins: [plugin] });
+
+  const finished = run.run();
+  await pluginCalled;
+  run.stop();
+  const result = await finished;
+
+  assert.equal(result.status, 'stopped');
+  assert.equal(client.requests.length, 1);
+  assert.deepEqual(listener.finished, [result]);
+});

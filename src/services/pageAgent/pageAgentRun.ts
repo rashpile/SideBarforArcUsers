@@ -658,8 +658,15 @@ export class PageAgentRun
     return { messages, tools: this.#tools.filter(tool => tool.function.name === toolChoice), toolChoice };
   }
 
-  // Raced against the run's signal, so Stop ends the run at once even if a client ignores the signal.
   async #send(request: PageAgentModelRequest): Promise<PageAgentAssistantMessage>
+  {
+    return await this.#untilStopped(this.#client.complete(request, this.#controller.signal));
+  }
+
+  // Raced against the run's signal, so Stop ends the run at once even when the work ignores it: a
+  // client that doesn't watch the signal, or a plugin waiting on a page download that stalls. Core
+  // page calls aren't raced: their results (inserted CSS) must still reach the listener after Stop.
+  async #untilStopped<T>(work: Promise<T>): Promise<T>
   {
     const signal = this.#controller.signal;
     const stopped = new Promise<never>((_resolve, reject) =>
@@ -671,7 +678,7 @@ export class PageAgentRun
       }
       signal.addEventListener('abort', () => reject(new RunStoppedError()), { once: true });
     });
-    return await Promise.race([this.#client.complete(request, signal), stopped]);
+    return await Promise.race([work, stopped]);
   }
 
   async #runTool(call: PageAgentToolCall): Promise<ToolOutcome>
@@ -722,7 +729,7 @@ export class PageAgentRun
     let result: PageAgentPluginResult;
     try
     {
-      result = await plugin.call(name, args, this.tabId);
+      result = await this.#untilStopped(plugin.call(name, args, this.tabId));
     }
     catch (error)
     {

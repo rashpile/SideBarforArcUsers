@@ -11,7 +11,8 @@ import { decodeEntities, parseTtml } from '../../utils/ttmlSubtitles.ts';
 import type { SubtitleCue } from '../../utils/ttmlSubtitles.ts';
 import type { PageAgentPluginResult } from './pageAgentPlugin.ts';
 import { fetchSubtitleFile, primeSubtitleCapture, readPageVideo } from './videoPageScripts.ts';
-import { buildTranscriptResult, resolveTranscriptRange } from './videoTranscriptRange.ts';
+import type { PrimeCaptureResult } from './videoPageScripts.ts';
+import { buildTranscriptResult, lastCueEnd, resolveTranscriptRange } from './videoTranscriptRange.ts';
 import type { TimeArg, TranscriptMeta } from './videoTranscriptRange.ts';
 import { chooseTrack, isPrimeSubtitleUrl, trackLabel, videoTranscriptSource } from './videoTranscriptSources.ts';
 
@@ -19,6 +20,8 @@ import { chooseTrack, isPrimeSubtitleUrl, trackLabel, videoTranscriptSource } fr
 const PRIME_CAPTURE_PROPERTY = '__sidebarPageAgentPrimeSubtitles';
 const SUBTITLE_FILE_MAX_CHARS = 5_000_000;
 const TRACK_CUES_TIMEOUT_MS = 5000;
+// An episode can end a little before its last cue does; a trailer is a small part of it.
+const MIN_VIDEO_SHARE_OF_SUBTITLES = 0.9;
 
 const CAPTURE_INSTALLED = 'Subtitle capture is now on for this page. Ask the user to close the player with ✕ ' +
   '(top left) and press Play again, then ask again. Reloading the page turns it off.';
@@ -46,7 +49,10 @@ export interface VideoPageAccess
 
 export interface VideoTranscriptRequest
 {
-  /** A language code or its start, e.g. `en`; absent for the track shown, else the original language. */
+  /**
+   * A language code or its start, e.g. `en`. Absent: on Prime the original language (SDH track), on
+   * other pages the track shown; else English, else the first track (see `chooseTrack`).
+   */
   language?: string;
   from?: TimeArg;
   to?: TimeArg;
@@ -114,13 +120,15 @@ export class VideoTranscriptReader
       return message(NO_READABLE_CUES);
     }
 
+    const video = videoOfSubtitles(capture.video, cues);
     return transcript({
       source: 'prime-video',
       pageTitle: capture.title,
       language: trackLabel(track),
+      languageCode: track.code,
       languages: capture.tracks.map(trackLabel),
-      duration: capture.video?.duration ?? null,
-      position: capture.video?.position ?? null,
+      duration: video?.duration ?? null,
+      position: video?.position ?? null,
     }, cues, request);
   }
 
@@ -165,11 +173,27 @@ export class VideoTranscriptReader
       source: 'page-video',
       pageTitle: read.title,
       language: trackLabel(track),
+      languageCode: track.code,
       languages: read.tracks.map(trackLabel),
       duration: read.video.duration,
       position: read.video.position,
     }, cues, request);
   }
+}
+
+// After ✕ the episode's element can lose its duration while the detail page's trailer plays, which
+// makes the trailer the longest <video>. Its time must not pass for the playback position (under a
+// minute it would read the whole episode), so a video much shorter than the subtitles counts as unknown.
+function videoOfSubtitles(
+  video: PrimeCaptureResult['video'],
+  cues: readonly SubtitleCue[],
+): PrimeCaptureResult['video']
+{
+  if (video === null || video.duration < lastCueEnd(cues) * MIN_VIDEO_SHARE_OF_SUBTITLES)
+  {
+    return null;
+  }
+  return video;
 }
 
 function message(text: string): PageAgentPluginResult

@@ -191,6 +191,83 @@ test('Prime with the episode position unknown and no `to` gives no transcript te
   assert.match(body.note, /position is unknown/);
 });
 
+test('on Prime a video much shorter than the subtitles (the trailer after ✕) gives no position, so no text without to', async () =>
+{
+  const trailer = { ...captured(null), video: { duration: 124, position: 30 } };
+  const body = await readJson(primePage(trailer));
+
+  assert.equal(body.position, 'unknown');
+  assert.equal(body.duration, 'unknown');
+  assert.equal('text' in body, false);
+  assert.match(body.note, /position is unknown/);
+
+  // The episode at the same position is under a minute in: the whole episode.
+  const episode = await readJson(primePage({ ...captured(null), video: { duration: 600, position: 30 } }));
+  assert.equal(episode.position, '0:30');
+  assert.equal(episode.to, 'end');
+  assert.equal(Math.max(...cueStartsIn(episode.text, 'en')), 590);
+});
+
+// Subtitles past one read's 60,000 characters: a long cue every 10 s for 4,000 s.
+function longCues(language)
+{
+  const cues = [];
+  for (let start = 0; start < 4000; start += 10)
+  {
+    cues.push({ start, end: start + 5, text: `${language}${start} ${'word '.repeat(40).trim()}` });
+  }
+  return cues;
+}
+
+function longTtml(language)
+{
+  const paragraphs = longCues(language).map(cue => `<p begin="${cue.start}s" end="${cue.end}s">${cue.text}</p>`);
+  return `<tt xmlns="http://www.w3.org/ns/ttml" xml:lang="${language}"><body><div>${paragraphs.join('')}</div></body></tt>`;
+}
+
+function nextCallOf(note)
+{
+  const args = {};
+  for (const [, name, value] of note.matchAll(/(language|from|to): "([^"]*)"/g))
+  {
+    args[name] = value;
+  }
+  return args;
+}
+
+test('the call a cut note asks for reads on in the same track, on Prime and on a page video', async () =>
+{
+  const files = new Map([[EN_URL, { text: longTtml('en') }], [RU_URL, { text: longTtml('ru') }]]);
+  const prime = new FakeVideoPage(PRIME_URL, new Map([
+    [primeSubtitleCapture, () => ({ ...captured(null), video: { duration: 4100, position: null } })],
+    [fetchSubtitleFile, url => files.get(url)],
+  ]));
+  // The German track is shown, so a call without language would read German.
+  const tracks = [
+    { index: 0, code: 'de', name: 'Deutsch', kind: 'subtitles', showing: true },
+    { index: 1, code: 'ru', name: 'Русский', kind: 'subtitles', showing: false },
+  ];
+  const pageVideo = new FakeVideoPage(PAGE_URL, new Map([
+    [readPageVideo, trackIndex => ({
+      video: { duration: 4100, position: 0 },
+      tracks,
+      title: 'Track demo',
+      ...(trackIndex !== null && { cues: longCues(tracks[trackIndex].code) }),
+    })],
+  ]));
+
+  for (const [page, code] of [[prime, 'ru-ru'], [pageVideo, 'ru']])
+  {
+    const first = await readJson(page, { language: 'ru', to: 'end' });
+    const next = nextCallOf(first.note);
+    assert.deepEqual([next.language, next.to], [code, 'end'], page.url);
+
+    const second = await readJson(page, next);
+    assert.equal(second.language, first.language, page.url);
+    assert.ok(second.text.startsWith(`[${next.from}] ru`), page.url);
+  }
+});
+
 test('page-video reads the chosen track\'s cues on a second call with its index, WebVTT markup cleaned', async () =>
 {
   const tracks = [

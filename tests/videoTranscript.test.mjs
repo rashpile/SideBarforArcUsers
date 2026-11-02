@@ -38,12 +38,13 @@ const META = {
   source: 'prime-video',
   pageTitle: 'Episode 4',
   language: 'en-gb English [CC]',
+  languageCode: 'en-gb',
   languages: ['en-gb English [CC]', 'ru-ru Русский'],
   duration: 600,
   position: null,
 };
 
-function read(cues, { position = null, from, to, maxChars } = {})
+function read(cues, { position = null, from, to, maxChars, languageCode = META.languageCode } = {})
 {
   const request = {};
   if (from !== undefined)
@@ -60,8 +61,19 @@ function read(cues, { position = null, from, to, maxChars } = {})
   {
     return { error: range.error };
   }
-  const { content } = buildTranscriptResult({ ...META, position }, cues, range, maxChars);
+  const { content } = buildTranscriptResult({ ...META, languageCode, position }, cues, range, maxChars);
   return JSON.parse(content);
+}
+
+// The arguments a cut note tells the next call to pass.
+function nextCallOf(note)
+{
+  const args = {};
+  for (const [, name, value] of note.matchAll(/(language|from|to): "([^"]*)"/g))
+  {
+    args[name] = value;
+  }
+  return args;
 }
 
 test('mid-way without to stops at the position: no cue starting at or after it', () =>
@@ -147,20 +159,48 @@ test('a cut result names the start of the first omitted line and never cuts insi
   assert.equal(cut.nextFrom, 60);
 
   const result = read(cues, { position: null, to: 'end', maxChars });
-  assert.equal(result.note, 'cut at ' + maxChars + ' characters; call again with from: "1:00" for the rest');
+  assert.equal(result.note, `cut at ${maxChars} characters; call again with language: "en-gb", from: "1:00", to: "end" for the rest`);
   assert.deepEqual(result.text.split('\n'), whole.slice(0, 2));
+
+  // A track without a language code can't be named, and the default picks it again.
+  const unnamed = read(cues, { position: null, to: 'end', maxChars, languageCode: '' });
+  assert.equal(unnamed.note, `cut at ${maxChars} characters; call again with from: "1:00", to: "end" for the rest`);
 });
 
-test('the next call from the named start continues without a gap', () =>
+test('calling again as each cut note says reads the first call\'s whole range without a gap', () =>
 {
   const cues = cuesEvery10s();
   const whole = formatTranscriptLines(cues, Infinity).text.split('\n');
   const maxChars = whole[0].length + 1 + whole[1].length;
+  const startsBefore = end => cues.filter(cue => cue.start < end).map(cue => cue.start);
 
-  const first = read(cues, { position: null, to: 'end', maxChars });
-  const second = read(cues, { position: null, from: '1:00', to: 'end', maxChars });
-
-  assert.deepEqual([...cueStartsIn(first.text), ...cueStartsIn(second.text)], cueStartsIn(whole.slice(0, 4).join('\n')));
+  const cases = [
+    { name: 'to "end", position unknown', position: null, to: 'end', expected: startsBefore(Infinity) },
+    { name: 'to "end", mid-way', position: 300, to: 'end', expected: startsBefore(Infinity) },
+    { name: 'a given to past the position', position: 300, to: '8:00', expected: startsBefore(480) },
+    { name: 'no to, mid-way', position: 300, to: undefined, expected: startsBefore(300) },
+    { name: 'no to, under a minute', position: 30, to: undefined, expected: startsBefore(Infinity) },
+  ];
+  for (const { name, position, to, expected } of cases)
+  {
+    const starts = [];
+    let args = { to };
+    for (let calls = 1; ; calls++)
+    {
+      const result = read(cues, { position, ...args, maxChars });
+      assert.equal(result.error, undefined, `${name}: ${result.error}`);
+      starts.push(...cueStartsIn(result.text ?? ''));
+      if (!result.note?.startsWith('cut at'))
+      {
+        break;
+      }
+      assert.ok(calls < 20, `${name}: the cut notes never reach the end`);
+      const next = nextCallOf(result.note);
+      assert.equal(next.language, 'en-gb', name);
+      args = { from: next.from, to: next.to };
+    }
+    assert.deepEqual(starts, expected, name);
+  }
 });
 
 test('an empty range gives empty text and says so', () =>

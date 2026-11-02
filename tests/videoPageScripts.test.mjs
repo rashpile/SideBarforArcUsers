@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { afterEach, test } from 'node:test';
 
-import { primeSubtitleCapture } from '../src/services/pageAgent/videoPageScripts.ts';
+import { primeSubtitleCapture, readPageVideo } from '../src/services/pageAgent/videoPageScripts.ts';
 
 // The Prime wrapper runs inside Prime's player: a bug here breaks playback, so these tests pin that the
 // page gets exactly what its own fetch returns.
@@ -207,4 +207,78 @@ test('the episode is the longest video, and a position of 0 reads as unknown', (
 
   episode.currentTime = 1500;
   assert.deepEqual(primeSubtitleCapture(PROPERTY).video, { duration: 2924, position: 1500 });
+});
+
+// readPageVideo on a <track> that loads in chunks: part of a file must not pass for the whole video.
+
+const LOADING = 1;
+const LOADED = 2;
+
+// A page whose one <video> holds a subtitle track that is off. Switching it on starts its loader: each
+// step sets the cues and the <track> element's readyState after `atMs`. Without `element`, the track
+// has no <track> element (addTextTrack or in-band) and the steps only add cues.
+function installTrackPage({ element = true, steps })
+{
+  const track = { kind: 'subtitles', language: 'en', label: 'English', cues: null };
+  const trackElement = { track, readyState: 0 };
+  let mode = 'disabled';
+  Object.defineProperty(track, 'mode', {
+    get: () => mode,
+    set: value =>
+    {
+      if (mode === 'disabled' && value !== 'disabled')
+      {
+        for (const { atMs, cues, readyState } of steps)
+        {
+          setTimeout(() =>
+          {
+            track.cues = Array.from({ length: cues }, (_, i) => ({ startTime: i * 10, endTime: i * 10 + 5, text: `cue ${i}` }));
+            trackElement.readyState = readyState;
+          }, atMs);
+        }
+      }
+      mode = value;
+    },
+  });
+  const video = {
+    duration: 120,
+    currentTime: 0,
+    textTracks: [track],
+    getBoundingClientRect: () => ({ left: 0, top: 0, right: 640, bottom: 360 }),
+    querySelectorAll: () => (element ? [trackElement] : []),
+  };
+  globalThis.window = { innerWidth: 1280, innerHeight: 800 };
+  globalThis.document = { title: 'Track demo', querySelectorAll: () => [video] };
+  return track;
+}
+
+test('a <track> still loading when its first cues arrive is read once its file has loaded', async () =>
+{
+  const track = installTrackPage({
+    steps: [{ atMs: 10, cues: 1, readyState: LOADING }, { atMs: 250, cues: 3, readyState: LOADED }],
+  });
+
+  const result = await readPageVideo(0, 2000);
+
+  assert.deepEqual(result.cues.map(cue => cue.text), ['cue 0', 'cue 1', 'cue 2']);
+  assert.equal(track.mode, 'disabled');
+});
+
+test('a <track> that hasn\'t finished loading in time gives no cues, not part of the file', async () =>
+{
+  const track = installTrackPage({ steps: [{ atMs: 10, cues: 1, readyState: LOADING }] });
+
+  const result = await readPageVideo(0, 300);
+
+  assert.deepEqual(result.cues, []);
+  assert.equal(track.mode, 'disabled');
+});
+
+test('a track without a <track> element is read as soon as it has cues', async () =>
+{
+  installTrackPage({ element: false, steps: [{ atMs: 10, cues: 2, readyState: LOADING }] });
+
+  const result = await readPageVideo(0, 300);
+
+  assert.deepEqual(result.cues.map(cue => cue.text), ['cue 0', 'cue 1']);
 });

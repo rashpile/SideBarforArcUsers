@@ -39,7 +39,10 @@ export type PageVideoResult =
     video: { duration: number | null; position: number };
     tracks: PageVideoTrack[];
     title: string;
-    /** Only when a track index was given; raw cue text, WebVTT tags included. Empty when none loaded in time. */
+    /**
+     * Only when a track index was given; raw cue text, WebVTT tags included. Empty when the track's file
+     * didn't finish loading in time, or a track without a file got no cues in time.
+     */
     cues?: SubtitleCue[];
   };
 
@@ -245,6 +248,15 @@ export async function readPageVideo(trackIndex: number | null, timeoutMs: number
     return { video, tracks, title: document.title, cues: [] };
   }
 
+  // A <track> element's cues arrive chunk by chunk while its file loads, so the read waits for the whole
+  // file and gives nothing when it isn't done in time: part of a file would read as the whole video. A
+  // track without an element (addTextTrack, in-band) has no file to wait for.
+  const element = Array.from(chosen.querySelectorAll('track')).find(candidate => candidate.track === track) ?? null;
+  const loading = 1;
+  const isComplete = (): boolean => (element === null
+    ? (track.cues?.length ?? 0) > 0
+    : element.readyState > loading);
+
   const switchedOn = track.mode === 'disabled';
   if (switchedOn)
   {
@@ -253,9 +265,13 @@ export async function readPageVideo(trackIndex: number | null, timeoutMs: number
   try
   {
     const deadline = Date.now() + timeoutMs;
-    while ((track.cues?.length ?? 0) === 0 && Date.now() < deadline)
+    while (!isComplete() && Date.now() < deadline)
     {
       await new Promise(resolve => setTimeout(resolve, pollMs));
+    }
+    if (!isComplete())
+    {
+      return { video, tracks, title: document.title, cues: [] };
     }
     const cues: SubtitleCue[] = [];
     const list = track.cues;
