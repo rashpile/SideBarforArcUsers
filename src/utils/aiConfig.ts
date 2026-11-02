@@ -12,6 +12,8 @@ export interface AiRenameSettings
   prompt: string;
   autoRename: boolean;
   acceptsImages: boolean;
+  /** Holds only the plugins the user switched; read it through `PageAgentPluginSwitches`, which adds the defaults. */
+  agentPlugins: Record<string, boolean>;
 }
 
 export interface AiEndpointCandidate
@@ -70,6 +72,7 @@ export const DEFAULT_AI_RENAME_SETTINGS: AiRenameSettings = {
   prompt: DEFAULT_AI_PROMPT,
   autoRename: false,
   acceptsImages: false,
+  agentPlugins: {},
 };
 
 const SECRET_QUERY_KEYS = new Set([
@@ -103,10 +106,21 @@ export function parseAiRenameSettings(value: string): AiRenameSettings
     reasoningEffort,
     autoRename: parsed.autoRename === true,
     acceptsImages: parsed.acceptsImages === true,
+    agentPlugins: parseAgentPluginSwitches(parsed.agentPlugins),
     prompt: parsed.prompt === undefined || parsed.prompt === LEGACY_DEFAULT_AI_PROMPT
       ? DEFAULT_AI_PROMPT
       : parsed.prompt,
   };
+}
+
+/** A non-boolean entry would read as on or off by accident, so it is dropped and the plugin's default applies. */
+function parseAgentPluginSwitches(value: unknown): Record<string, boolean>
+{
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+  {
+    return {};
+  }
+  return Object.fromEntries(Object.entries(value).filter(([, enabled]) => typeof enabled === 'boolean'));
 }
 
 /**

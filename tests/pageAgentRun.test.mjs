@@ -118,6 +118,40 @@ class FakePage
   }
 }
 
+const PLUGIN_TOOL = 'read_video_transcript';
+const PLUGIN_SECTION = 'Questions about a video: call read_video_transcript.';
+
+/** Records the tool, arguments and tab of every call; each call answers with the next scripted outcome. */
+class FakePlugin
+{
+  constructor(outcomes)
+  {
+    this.id = 'video-transcripts';
+    this.outcomes = outcomes;
+    this.calls = [];
+  }
+
+  tools()
+  {
+    return [{
+      type: 'function',
+      function: { name: PLUGIN_TOOL, description: 'Read the subtitles.', parameters: { type: 'object', properties: {} } },
+    }];
+  }
+
+  promptSection()
+  {
+    return PLUGIN_SECTION;
+  }
+
+  async call(tool, args, tabId)
+  {
+    this.calls.push({ tool, args, tabId });
+    const next = this.outcomes.shift();
+    return typeof next === 'function' ? next() : next;
+  }
+}
+
 class RecordingListener
 {
   constructor()
@@ -567,4 +601,111 @@ test('a report is refused until the model has seen inspect numbers taken after i
     listener.steps.filter(entry => entry.tool === 'report').map(entry => entry.result.startsWith('refused')),
     [true, true, true, false],
   );
+});
+
+test('a plugin tool is offered and its call gets the run tab after the user switches to tab B', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const plugin = new FakePlugin([
+    { ok: true, content: '{"source":"prime-video","text":"[0:07] Hello."}', summary: 'prime-video, en-gb, 0:00–1:41, 14 characters' },
+  ]);
+  const client = new ScriptedClient([
+    () =>
+    {
+      page.activeTabId = TAB_B;
+      return respond(call(PLUGIN_TOOL, { language: 'en' }));
+    },
+    answer('Someone says hello.'),
+  ]);
+  const { run, listener } = startRun(client, page, { request: 'summarize this episode', plugins: [plugin] });
+
+  const result = await run.run();
+
+  const offered = client.requests[0].tools.map(tool => tool.function.name);
+  assert.equal(offered.at(-1), PLUGIN_TOOL);
+  assert.ok(offered.includes('read_page_text'));
+  assert.ok(client.requests[0].messages[0].content.endsWith(`\n\n${PLUGIN_SECTION}`));
+  assert.deepEqual(plugin.calls, [{ tool: PLUGIN_TOOL, args: { language: 'en' }, tabId: TAB_A }]);
+  assert.equal(client.toolResults(1)[0].content, '{"source":"prime-video","text":"[0:07] Hello."}');
+  assert.deepEqual(listener.steps, [{
+    tool: PLUGIN_TOOL,
+    args: '{"language":"en"}',
+    result: 'prime-video, en-gb, 0:00–1:41, 14 characters',
+  }]);
+  assert.equal(result.status, 'answered');
+});
+
+test('without the plugin its tool is not offered and a call to it is an unknown tool', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const client = new ScriptedClient([respond(call(PLUGIN_TOOL)), answer('I cannot read videos.')]);
+  const { run } = startRun(client, page, { request: 'summarize this episode' });
+
+  const result = await run.run();
+
+  assert.ok(!client.requests[0].tools.some(tool => tool.function.name === PLUGIN_TOOL));
+  assert.ok(!client.requests[0].messages[0].content.includes(PLUGIN_SECTION));
+  assert.equal(client.toolResults(1)[0].content, `unknown tool "${PLUGIN_TOOL}"`);
+  assert.deepEqual(page.calls, []);
+  assert.equal(result.status, 'answered');
+});
+
+test('a plugin that throws or answers ok: false gives the model a tool error and the run goes on', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const plugin = new FakePlugin([
+    () =>
+    {
+      throw new Error('Cannot access contents of the page');
+    },
+    { ok: false, error: 'invalid arguments: to must be "end", seconds or h:mm:ss' },
+  ]);
+  const client = new ScriptedClient([
+    respond(call(PLUGIN_TOOL)),
+    respond(call(PLUGIN_TOOL, { to: 'later' })),
+    answer('I could not read the subtitles.'),
+  ]);
+  const { run, listener } = startRun(client, page, { request: 'summarize this episode', plugins: [plugin] });
+
+  const result = await run.run();
+
+  assert.equal(client.requests.length, 3);
+  assert.equal(client.toolResults(1)[0].content, 'Cannot access contents of the page');
+  assert.equal(client.toolResults(2)[1].content, 'invalid arguments: to must be "end", seconds or h:mm:ss');
+  assert.deepEqual(listener.steps.map(entry => entry.result), [
+    'Cannot access contents of the page',
+    'invalid arguments: to must be "end", seconds or h:mm:ss',
+  ]);
+  assert.equal(result.status, 'answered');
+  assert.equal(result.error, undefined);
+  assert.equal(result.summary, 'I could not read the subtitles.');
+});
+
+test('Stop during a plugin call that never settles ends the run as stopped', async () =>
+{
+  const page = new FakePage(TAB_A);
+  let called;
+  const pluginCalled = new Promise(resolve =>
+  {
+    called = resolve;
+  });
+  // A subtitle download that stalls: the page script never answers.
+  const plugin = new FakePlugin([
+    () =>
+    {
+      called();
+      return new Promise(() => undefined);
+    },
+  ]);
+  const client = new ScriptedClient([respond(call(PLUGIN_TOOL))]);
+  const { run, listener } = startRun(client, page, { request: 'summarize this episode', plugins: [plugin] });
+
+  const finished = run.run();
+  await pluginCalled;
+  run.stop();
+  const result = await finished;
+
+  assert.equal(result.status, 'stopped');
+  assert.equal(client.requests.length, 1);
+  assert.deepEqual(listener.finished, [result]);
 });

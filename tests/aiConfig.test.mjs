@@ -5,6 +5,7 @@ import {
   findMatchingLlmsLink,
   getHostPermissionPattern,
   isSameOriginHttpUrl,
+  parseAiRenameSettings,
   parseSafeHttpUrl,
 } from '../src/utils/aiConfig.ts';
 
@@ -159,4 +160,29 @@ test('getHostPermissionPattern applies the HTTPS rule that Validate and every re
 {
   assert.throws(() => getHostPermissionPattern('http://192.168.1.1:8080/v1'), HTTPS_REQUIRED);
   assert.equal(getHostPermissionPattern('http://localhost:11434/v1'), 'http://localhost:11434/*');
+});
+
+test('parseAiRenameSettings gives settings saved before plugins existed no plugin switches', () =>
+{
+  const settings = parseAiRenameSettings(JSON.stringify({ baseUrl: 'https://a.test/v1', model: 'm', acceptsImages: true }));
+
+  assert.deepEqual(settings.agentPlugins, {});
+  assert.equal(settings.acceptsImages, true);
+});
+
+test('parseAiRenameSettings keeps boolean plugin switches and drops other values', () =>
+{
+  const settings = parseAiRenameSettings(JSON.stringify({
+    agentPlugins: { 'video-transcripts': false, other: true, text: 'false', number: 0, none: null, nested: {} },
+  }));
+
+  assert.deepEqual(settings.agentPlugins, { 'video-transcripts': false, other: true });
+});
+
+test('parseAiRenameSettings replaces plugin switches that are not an object', () =>
+{
+  for (const agentPlugins of [null, 'video-transcripts', true, 1, [true, false]])
+  {
+    assert.deepEqual(parseAiRenameSettings(JSON.stringify({ agentPlugins })).agentPlugins, {}, JSON.stringify(agentPlugins));
+  }
 });

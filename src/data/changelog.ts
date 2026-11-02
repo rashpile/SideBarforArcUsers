@@ -4,6 +4,7 @@
 export const CHANGELOG: Record<string, string[]> = {
   '1.0.352': [
     'New (experimental): page agent - the sparkles button in the toolbar asks an AI model to restyle the page or answer questions about it, and Show on page puts an answer in a popup on the page; Save to bookmark keeps its CSS and puts it back whenever a page of that site loads in the bookmark\'s or Favorite\'s tab, also after a browser restart. Bookmarks with a saved style show a brush, and their right-click menu has a Page style submenu',
+    'New (experimental): page agent plugins in Settings > AI - the first, Video transcripts (on by default), reads the subtitles of the video on the page, on Prime Video and on pages with subtitle tracks, so the agent can summarize it, say what happened so far without spoiling the rest, or explain what was just said',
     'New: Copy as YAML and Paste from YAML in the bookmark folder menu and the Space menu - share a set of links, keep them in notes or write them by hand, with Undo',
     'New: Archive button on hover and Archive in the right-click menu of tabs - also for a multi-selection, or drag tabs onto the Archive section; marked tabs stay open, with Undo',
     'New: Recently Closed button on the Space title - hover or click it to reopen the Space\'s recently closed tabs',

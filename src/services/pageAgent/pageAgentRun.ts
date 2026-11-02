@@ -4,6 +4,7 @@
 // so a run keeps acting on its own tab whichever tab the user switches to.
 
 import { PageAgentCssSanitizer, withMarker } from '../../utils/pageAgentCss.ts';
+import type { PageAgentPluginResult, PageAgentToolPlugin } from './pageAgentPlugin.ts';
 import {
   PAGE_AGENT_MAX_ROUNDS,
   PAGE_AGENT_TOOL_NAMES,
@@ -177,6 +178,8 @@ export interface PageAgentRunOptions
   listener: PageAgentRunListener;
   /** "Model accepts images": the screenshot tool is offered. */
   screenshots: boolean;
+  /** The enabled plugins; their tools are offered after the core tools. */
+  plugins?: readonly PageAgentToolPlugin[];
   history?: readonly PageAgentHistoryTurn[];
   /** The stylesheet the chat applied last, without the marker; the model edits it. */
   currentCss?: string;
@@ -411,6 +414,32 @@ class RunConversation
   }
 }
 
+/** The plugins passed to a run. Core tools win: a plugin gets only the calls the core switch leaves. */
+class RunPlugins
+{
+  readonly #plugins: readonly PageAgentToolPlugin[];
+
+  constructor(plugins: readonly PageAgentToolPlugin[])
+  {
+    this.#plugins = plugins;
+  }
+
+  tools(): PageAgentToolDefinition[]
+  {
+    return this.#plugins.flatMap(plugin => plugin.tools());
+  }
+
+  promptSections(): string[]
+  {
+    return this.#plugins.map(plugin => plugin.promptSection());
+  }
+
+  declaring(toolName: string): PageAgentToolPlugin | undefined
+  {
+    return this.#plugins.find(plugin => plugin.tools().some(tool => tool.function.name === toolName));
+  }
+}
+
 interface ToolOutcome
 {
   content: string;
@@ -427,6 +456,7 @@ export class PageAgentRun
   readonly #adapter: PageAgentPageAdapter;
   readonly #listener: PageAgentRunListener;
   readonly #screenshots: boolean;
+  readonly #plugins: RunPlugins;
   readonly #history: ChatHistory;
   readonly #conversation: RunConversation;
   readonly #tools: PageAgentToolDefinition[];
@@ -448,12 +478,13 @@ export class PageAgentRun
     this.#adapter = options.adapter;
     this.#listener = options.listener;
     this.#screenshots = options.screenshots;
+    this.#plugins = new RunPlugins(options.plugins ?? []);
     this.#history = new ChatHistory(options.history ?? []);
     this.#conversation = new RunConversation(
-      pageAgentSystemPrompt(options.screenshots),
+      pageAgentSystemPrompt(options.screenshots, this.#plugins.promptSections()),
       this.#history.firstUserMessage(options.request, options.currentCss ?? ''),
     );
-    this.#tools = pageAgentToolDefinitions(options.screenshots);
+    this.#tools = [...pageAgentToolDefinitions(options.screenshots), ...this.#plugins.tools()];
     this.#insertedText = options.insertedText ?? '';
     this.#createId = options.createId ?? (() => crypto.randomUUID());
     this.#debug = options.debug ?? false;
@@ -627,8 +658,15 @@ export class PageAgentRun
     return { messages, tools: this.#tools.filter(tool => tool.function.name === toolChoice), toolChoice };
   }
 
-  // Raced against the run's signal, so Stop ends the run at once even if a client ignores the signal.
   async #send(request: PageAgentModelRequest): Promise<PageAgentAssistantMessage>
+  {
+    return await this.#untilStopped(this.#client.complete(request, this.#controller.signal));
+  }
+
+  // Raced against the run's signal, so Stop ends the run at once even when the work ignores it: a
+  // client that doesn't watch the signal, or a plugin waiting on a page download that stalls. Core
+  // page calls aren't raced: their results (inserted CSS) must still reach the listener after Stop.
+  async #untilStopped<T>(work: Promise<T>): Promise<T>
   {
     const signal = this.#controller.signal;
     const stopped = new Promise<never>((_resolve, reject) =>
@@ -640,7 +678,7 @@ export class PageAgentRun
       }
       signal.addEventListener('abort', () => reject(new RunStoppedError()), { once: true });
     });
-    return await Promise.race([this.#client.complete(request, signal), stopped]);
+    return await Promise.race([work, stopped]);
   }
 
   async #runTool(call: PageAgentToolCall): Promise<ToolOutcome>
@@ -676,7 +714,37 @@ export class PageAgentRun
       case PAGE_AGENT_TOOL_NAMES.report:
         return this.#report(parsed.value);
     }
+    const plugin = this.#plugins.declaring(name);
+    if (plugin)
+    {
+      return await this.#callPlugin(plugin, name, parsed.value, shortText(rawArguments));
+    }
     return toolError(name, shortText(rawArguments), `unknown tool "${name}"`);
+  }
+
+  // Unlike a core tool's page call, a plugin failure doesn't end the run: the model hears why and
+  // can still answer from what it has.
+  async #callPlugin(plugin: PageAgentToolPlugin, name: string, args: unknown, argsSummary: string): Promise<ToolOutcome>
+  {
+    let result: PageAgentPluginResult;
+    try
+    {
+      result = await this.#untilStopped(plugin.call(name, args, this.tabId));
+    }
+    catch (error)
+    {
+      if (this.#controller.signal.aborted)
+      {
+        throw error;
+      }
+      this.#log(`${name} failed`, error);
+      return toolError(name, argsSummary, errorMessage(error));
+    }
+    if (!result.ok)
+    {
+      return toolError(name, argsSummary, result.error);
+    }
+    return { content: result.content, step: step(name, argsSummary, shortText(result.summary)) };
   }
 
   async #outline(): Promise<ToolOutcome>
