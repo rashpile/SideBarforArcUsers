@@ -124,12 +124,12 @@
 **Files:**
 - Modify: `src/components/BookmarkTree.tsx`
 
-- [ ] BOOKMARK branch of `handleBookmarkDrop`: move with `spaceRootDropPosition(targetId, position, spaceFolder?.id)` and use that position for the auto-expand check; delete the old `before`-on-Space-folder guard
-- [ ] TAB/URL branch: replace the parent/index block with `BookmarkDropPlacement.resolve(...)`
-- [ ] TAB_GROUP branch: replace the same block with `BookmarkDropPlacement.resolve(...)`
-- [ ] `resolveBookmarkDropTarget`: normalize the final position with `spaceRootDropPosition(bookmarkId, position, spaceFolder?.id)` and add `spaceFolder?.id` to its dependency list
-- [ ] no new tests: wiring only, the decision is tested in Task 1 (CLAUDE.md)
-- [ ] run `make lint && make test` - must pass before task 3
+- [x] BOOKMARK branch of `handleBookmarkDrop`: move with `spaceRootDropPosition(targetId, position, spaceFolder?.id)` and use that position for the auto-expand check; delete the old `before`-on-Space-folder guard
+- [x] TAB/URL branch: replace the parent/index block with `BookmarkDropPlacement.resolve(...)`
+- [x] TAB_GROUP branch: replace the same block with `BookmarkDropPlacement.resolve(...)`
+- [x] `resolveBookmarkDropTarget`: normalize the final position with `spaceRootDropPosition(bookmarkId, position, spaceFolder?.id)` and add `spaceFolder?.id` to its dependency list
+- [x] no new tests: wiring only, the decision is tested in Task 1 (CLAUDE.md)
+- [x] run `make lint && make test` - must pass before task 3
 
 ### Task 3: Visible drop target on the Space root
 

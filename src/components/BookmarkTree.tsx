@@ -71,6 +71,7 @@ import { DeleteBookmarkAction } from '../actions/deleteBookmarkAction';
 import { CloseTabAction } from '../actions/closeTabAction';
 import { CreateBookmarkFolderAction } from '../actions/createBookmarkFolderAction';
 import { resolveNewFolderParentId } from '../utils/newFolderSelection';
+import { BookmarkDropPlacement, spaceRootDropPosition } from '../utils/bookmarkDropPlacement';
 import { resolveBookmarkRowVisualState } from '../utils/bookmarkRowVisualState';
 import {
   collectPeekBookmarks,
@@ -1648,6 +1649,11 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
       position = 'intoFirst';
     }
 
+    if (position)
+    {
+      position = spaceRootDropPosition(bookmarkId, position, spaceFolder?.id);
+    }
+
     // Handle auto-expand timer for folders in middle 50% zone
     if (isFolder && position === 'into')
     {
@@ -1662,7 +1668,7 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
     }
 
     return { bookmarkId, position: position!, isFolder };
-  }, [expandedState, setAutoExpandTimer, clearAutoExpandTimer]);
+  }, [expandedState, setAutoExpandTimer, clearAutoExpandTimer, spaceFolder?.id]);
 
   // Provide the resolver function to parent
   useEffect(() =>
@@ -2430,11 +2436,7 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
             return;
           }
 
-          // Space boundary validation
-          if (spaceFolder && targetId === spaceFolder.id && position === 'before')
-          {
-            return;
-          }
+          const movePosition = spaceRootDropPosition(targetId, position, spaceFolder?.id);
 
           // Get items to move (handle multi-selection)
           const selectedItems = getSelectedItems();
@@ -2483,7 +2485,7 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
           {
             if (!lastMoved)
             {
-              lastMoved = await moveBookmark(bookmark.id, targetId, position);
+              lastMoved = await moveBookmark(bookmark.id, targetId, movePosition);
             }
             else
             {
@@ -2492,7 +2494,7 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
           }
 
           // Auto-expand folder if dropping into it
-          if ((position === 'into' || position === 'intoFirst') && !expandedState[targetId])
+          if ((movePosition === 'into' || movePosition === 'intoFirst') && !expandedState[targetId])
           {
             setExpandedState(prev => ({ ...prev, [targetId]: true }));
           }
@@ -2514,36 +2516,10 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
           const urlItems = getItemsByFormat(dragData, acceptedFormat);
           if (urlItems.length === 0) return;
 
-          let parentId: string;
-          let index: number | undefined;
-
-          if (position === 'into' && dropData.isFolder)
-          {
-            parentId = targetId;
-            const children = await new Promise<chrome.bookmarks.BookmarkTreeNode[]>((resolve) =>
-            {
-              chrome.bookmarks.getChildren(targetId, (res) => resolve(res || []));
-            });
-            index = children.length;
-          }
-          else if (position === 'intoFirst')
-          {
-            parentId = targetId;
-            index = 0;
-          }
-          else
-          {
-            const targetBookmark = await getBookmark(targetId);
-            if (targetBookmark?.parentId !== undefined && targetBookmark.index !== undefined)
-            {
-              parentId = targetBookmark.parentId;
-              index = position === 'before' ? targetBookmark.index : targetBookmark.index + 1;
-            }
-            else
-            {
-              parentId = targetId;
-            }
-          }
+          const targetNode = await getBookmark(targetId);
+          const placement = BookmarkDropPlacement.resolve(targetId, targetNode, position, !!dropData.isFolder, spaceFolder?.id);
+          const parentId = placement.parentId;
+          let index = placement.index;
 
           // Resolve which Space owns the drop target folder once - every item in
           // this loop shares the same parentId
@@ -2583,40 +2559,11 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
           // Get tabs in the group
           const groupTabs = await chrome.tabs.query({ groupId });
 
-          // Determine where to create the folder
-          let parentId: string;
-          let index: number | undefined;
-
-          if (position === 'into' && dropData.isFolder)
-          {
-            parentId = targetId;
-            const children = await new Promise<chrome.bookmarks.BookmarkTreeNode[]>((resolve) =>
-            {
-              chrome.bookmarks.getChildren(targetId, (res) => resolve(res || []));
-            });
-            index = children.length;
-          }
-          else if (position === 'intoFirst')
-          {
-            parentId = targetId;
-            index = 0;
-          }
-          else
-          {
-            const targetBookmark = await getBookmark(targetId);
-            if (targetBookmark?.parentId !== undefined && targetBookmark.index !== undefined)
-            {
-              parentId = targetBookmark.parentId;
-              index = position === 'before' ? targetBookmark.index : targetBookmark.index + 1;
-            }
-            else
-            {
-              parentId = targetId;
-            }
-          }
+          const targetNode = await getBookmark(targetId);
+          const placement = BookmarkDropPlacement.resolve(targetId, targetNode, position, !!dropData.isFolder, spaceFolder?.id);
 
           // Use shared utility to save tab group as bookmark folder
-          const result = await saveTabGroupAsBookmarkFolder(parentId, folderName, groupTabs, index);
+          const result = await saveTabGroupAsBookmarkFolder(placement.parentId, folderName, groupTabs, placement.index);
           if (result.success)
           {
             setWasValidDrop(true);
