@@ -233,11 +233,11 @@ All methods are async: reads also wait for a load retry (below).
 - Create: `src/utils/noteUrl.ts`
 - Create: `tests/noteUrl.test.mjs`
 
-- [ ] create `src/utils/noteUrl.ts` with `NOTE_PAGE_PATH`, `isValidNoteId`, `buildNoteUrl`, `parseNoteUrl`, `isOwnNoteUrl`, `noteIdOfOwnUrl`, `collectNoteIds`, `rewriteNoteUrl` as in Technical Details (structural `BookmarkNodeLike` type with `url?` and `children?`)
-- [ ] write tests: `parseNoteUrl` accepts any extension origin and rejects other protocols, other paths (`/x/note.html`, `/note.htm`), missing or invalid ids
-- [ ] write tests: `rewriteNoteUrl` rewrites only known noteIds of another origin, leaves own-origin URLs, unknown ids (another extension's `note.html?id=`) and web URLs unchanged
-- [ ] write tests: `collectNoteIds` walks nested folders, collects ids of every origin, and collects ids inside `asd_Archive` and `asd_Favorites`
-- [ ] run `make test` - must pass before task 2
+- [x] create `src/utils/noteUrl.ts` with `NOTE_PAGE_PATH`, `isValidNoteId`, `buildNoteUrl`, `parseNoteUrl`, `isOwnNoteUrl`, `noteIdOfOwnUrl`, `collectNoteIds`, `rewriteNoteUrl` as in Technical Details (structural `BookmarkNodeLike` type with `url?` and `children?`)
+- [x] write tests: `parseNoteUrl` accepts any extension origin and rejects other protocols, other paths (`/x/note.html`, `/note.htm`), missing or invalid ids
+- [x] write tests: `rewriteNoteUrl` rewrites only known noteIds of another origin, leaves own-origin URLs, unknown ids (another extension's `note.html?id=`) and web URLs unchanged
+- [x] write tests: `collectNoteIds` walks nested folders, collects ids of every origin, and collects ids inside `asd_Archive` and `asd_Favorites`
+- [x] run `make test` - must pass before task 2
 
 ### Task 2: NoteRecords model
 
