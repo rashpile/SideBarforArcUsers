@@ -112,12 +112,12 @@
 - Create: `src/utils/bookmarkDropPlacement.ts`
 - Create: `tests/bookmarkDropPlacement.test.mjs`
 
-- [ ] create `src/utils/bookmarkDropPlacement.ts` with `spaceRootDropPosition` and `BookmarkDropPlacement.resolve` as in Technical Details (no `chrome.*`, no `import.meta.env`, Allman braces, a short why-comment on the Space root rule)
-- [ ] write tests: `spaceRootDropPosition` returns `'into'` for each of `before`, `after`, `into`, `intoFirst` when `targetId === spaceFolderId`, and the position unchanged for any other target
-- [ ] write tests: `before`, `after`, `intoFirst`, `into` on the Space root resolve the parent to the Space folder (never the Space folder's parent) and index `undefined`, with `isFolder` both true and false
-- [ ] write tests: `before`/`after` on a regular bookmark → its parent with index / index + 1; `into` on a regular folder → that folder, index `undefined`; `intoFirst` on a regular folder → index 0
-- [ ] write tests: `spaceFolderId` null or undefined → positions pass through unchanged (a `before` on a folder goes next to it); missing target node → falls back to the target id as parent
-- [ ] run `make test` - must pass before task 2
+- [x] create `src/utils/bookmarkDropPlacement.ts` with `spaceRootDropPosition` and `BookmarkDropPlacement.resolve` as in Technical Details (no `chrome.*`, no `import.meta.env`, Allman braces, a short why-comment on the Space root rule)
+- [x] write tests: `spaceRootDropPosition` returns `'into'` for each of `before`, `after`, `into`, `intoFirst` when `targetId === spaceFolderId`, and the position unchanged for any other target
+- [x] write tests: `before`, `after`, `intoFirst`, `into` on the Space root resolve the parent to the Space folder (never the Space folder's parent) and index `undefined`, with `isFolder` both true and false
+- [x] write tests: `before`/`after` on a regular bookmark → its parent with index / index + 1; `into` on a regular folder → that folder, index `undefined`; `intoFirst` on a regular folder → index 0
+- [x] write tests: `spaceFolderId` null or undefined → positions pass through unchanged (a `before` on a folder goes next to it); missing target node → falls back to the target id as parent
+- [x] run `make test` - must pass before task 2
 
 ### Task 2: Use the helper in the bookmark drop paths
 
