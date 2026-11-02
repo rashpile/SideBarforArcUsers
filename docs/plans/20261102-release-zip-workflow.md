@@ -139,13 +139,14 @@ jobs:
 **Files:**
 - Create: `.github/workflows/release.yml`
 
-- [ ] create `.github/workflows/release.yml` as in Technical Details (tag trigger `release-*`, job permissions `contents: write`, checkout v7 with `persist-credentials: false`, setup-node v7 with Node 24 and no npm cache, version check before `npm ci`, `npm ci`, `make lint`, `make test`, `make release`, `gh release create` with `--verify-tag --generate-notes` and the explicit zip name)
-- [ ] the tag reaches every `run:` script only through `env:` (`TAG: ${{ github.ref_name }}`); no `${{ }}` expression inside a `run:` body
-- [ ] run actionlint on the file (`uvx --from actionlint-py actionlint .github/workflows/release.yml`; if it can't be fetched, parse it offline with `ruby -ryaml -e 'YAML.load_file(ARGV[0])' .github/workflows/release.yml` and log a `[deviation]`); fix what it reports
-- [ ] run the version-check step's script locally from the repo root with `TAG=release-$(node -p "require('./public/manifest.json').version")` and `GITHUB_OUTPUT` pointing to a temp file: exit 0, the file holds `version=<v>`
-- [ ] run it with `TAG=release-0.0.0`: exit 1, prints the `::error::` line naming both versions and the fix (commit the bump, push `main`, delete the tag locally and on origin, tag again), writes nothing to the output file
-- [ ] run `make release`: `releases/sidebar-for-arc-users-<v>.zip` exists and `unzip -l` lists `manifest.json` at its root (`releases/` is gitignored; commit nothing from it)
-- [ ] run `make lint && make test && make build` - must pass before task 2
+- [x] create `.github/workflows/release.yml` as in Technical Details (tag trigger `release-*`, job permissions `contents: write`, checkout v7 with `persist-credentials: false`, setup-node v7 with Node 24 and no npm cache, version check before `npm ci`, `npm ci`, `make lint`, `make test`, `make release`, `gh release create` with `--verify-tag --generate-notes` and the explicit zip name)
+- [x] the tag reaches every `run:` script only through `env:` (`TAG: ${{ github.ref_name }}`); no `${{ }}` expression inside a `run:` body
+- [x] run actionlint on the file (`uvx --from actionlint-py actionlint .github/workflows/release.yml`; if it can't be fetched, parse it offline with `ruby -ryaml -e 'YAML.load_file(ARGV[0])' .github/workflows/release.yml` and log a `[deviation]`); fix what it reports
+  - ⚠️ the `uvx` fetch was denied by the agent's permission classifier, so actionlint did not run; the Ruby parse passed and a Ruby check found no `${{` in any `run:` body
+- [x] run the version-check step's script locally from the repo root with `TAG=release-$(node -p "require('./public/manifest.json').version")` and `GITHUB_OUTPUT` pointing to a temp file: exit 0, the file holds `version=<v>`
+- [x] run it with `TAG=release-0.0.0`: exit 1, prints the `::error::` line naming both versions and the fix (commit the bump, push `main`, delete the tag locally and on origin, tag again), writes nothing to the output file
+- [x] run `make release`: `releases/sidebar-for-arc-users-<v>.zip` exists and `unzip -l` lists `manifest.json` at its root (`releases/` is gitignored; commit nothing from it)
+- [x] run `make lint && make test && make build` - must pass before task 2
 
 ### Task 2: README download and update instructions
 
