@@ -390,6 +390,8 @@ function NoteEditor({ savedTitle, savedMarkdown, selectTitle, onSave, onCancel }
         value={draftTitle}
         placeholder={UNTITLED_NOTE_TITLE}
         aria-label="Title"
+        // A finished save leaves the editor, so anything typed while it runs would be lost
+        readOnly={saving}
         onChange={(event) => setDraftTitle(event.target.value)}
         onKeyDown={(event) =>
         {
@@ -407,6 +409,7 @@ function NoteEditor({ savedTitle, savedMarkdown, selectTitle, onSave, onCancel }
         placeholder="Write in markdown: # headings, **bold**, *italic*, `code`, - lists, > quotes, links"
         aria-label="Note text"
         spellCheck
+        readOnly={saving}
         onChange={(event) => setDraftMarkdown(event.target.value)}
       />
       {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}

@@ -32,7 +32,6 @@ test('withRestored adds new notes, replaces only on a strictly newer text and co
   assert.equal(outcome.restored, 2);
   assert.equal(outcome.kept, 2);
   assert.equal(outcome.skipped, 0);
-  assert.deepEqual([...outcome.restoredIds].sort(), ['fresh', 'older']);
 });
 
 test('withRestored skips invalid entries and returns the same records when nothing was restored', () =>

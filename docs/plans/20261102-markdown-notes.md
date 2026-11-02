@@ -382,6 +382,7 @@ All methods are async: reads also wait for a load retry (below).
 - [known-limitation] If Chrome fires `bookmarks.onRemoved` for account bookmarks on sign-out, a sign-out longer than 30 days lets the sweep delete the texts of notes in them (not verified that Chrome fires these events).
 - [known-limitation] A note tab closed by the extension (auto-archive, Archive, the row's close button) may skip the `beforeunload` prompt, losing an unsaved draft.
 - [known-limitation] New Note or Duplicate whose bookmark create fails after the text record was written leaves that record without a bookmark or a removal mark, so the sweep never deletes it (an empty or copied text; bookmark create failures are rare).
+- [known-limitation] After a browser restart, two restored windows whose associated tabs are all note tabs at the same positions, enumerated in the opposite order from their backups, can swap note associations: window matching compares the host, and every note tab has the extension's host. Clicking one note's bookmark then activates the other note's tab, and closing it closes that tab. Pre-existing matching logic; left as is because it takes several rare conditions at once.
 
 ## Post-Completion
 

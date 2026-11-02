@@ -22,8 +22,6 @@ export type StoredNoteRecords = Record<string, StoredNoteRecord>;
 export interface NoteRestoreOutcome
 {
   records: NoteRecords;
-  /** The noteIds whose text the backup added or replaced, for the change broadcast. */
-  restoredIds: readonly string[];
   restored: number;
   /** Entries for notes whose local text is as new as the backup's or newer. */
   kept: number;
@@ -184,7 +182,7 @@ export class NoteRecords
   withRestored(entries: readonly unknown[]): NoteRestoreOutcome
   {
     const byId = new Map(this.#byId);
-    const restoredIds: string[] = [];
+    let restored = 0;
     let kept = 0;
     let skipped = 0;
 
@@ -205,13 +203,12 @@ export class NoteRecords
       }
 
       byId.set(entry.noteId, new NoteRecord(entry.markdown, entry.updatedAt));
-      restoredIds.push(entry.noteId);
+      restored++;
     }
 
     return {
-      records: restoredIds.length > 0 ? new NoteRecords(byId) : this,
-      restoredIds,
-      restored: restoredIds.length,
+      records: restored > 0 ? new NoteRecords(byId) : this,
+      restored,
       kept,
       skipped,
     };
