@@ -265,13 +265,13 @@ Keep the comment explaining why the Space goes first.
 - Modify: `src/background.ts`
 - Modify: `src/stores/openTabPages.ts`
 
-- [ ] extract `handleTabActivation(windowId, tabId)` from the `onActivated` listener without changing its logic
-- [ ] add `OpenTabPages.spaceOf(tabId)` in `src/stores/openTabPages.ts`
-- [ ] write a test in `tests/openTabPages.test.mjs`: after a worker-start `seed` without the tab (the tab closed before the worker woke), `spaceOf` still returns its Space
-- [ ] construct `activeTabCloseFollower` with the deps listed in Technical Details (`openNewTab` sets the window's active Space before `chrome.tabs.create`; `finishActivation` calls `markActivated` before `handleTabActivation`)
-- [ ] `onActivated`: return when `absorbActivation` is true, before `markActivated`; then `markActivated`, `noteActivation`, `handleTabActivation`
-- [ ] `onRemoved`: keep `restored` from `stateReady`, read the closed tab's Space from the registry with the page cache as fallback, and call `tabRemoved` first, before anything forgets the tab; `windows.onRemoved` calls `removeWindow`
-- [ ] run `make lint && make test && make build` - must pass before next task
+- [x] extract `handleTabActivation(windowId, tabId)` from the `onActivated` listener without changing its logic
+- [x] add `OpenTabPages.spaceOf(tabId)` in `src/stores/openTabPages.ts`
+- [x] write a test in `tests/openTabPages.test.mjs`: after a worker-start `seed` without the tab (the tab closed before the worker woke), `spaceOf` still returns its Space
+- [x] construct `activeTabCloseFollower` with the deps listed in Technical Details (`openNewTab` sets the window's active Space before `chrome.tabs.create`; `finishActivation` calls `markActivated` before `handleTabActivation`)
+- [x] `onActivated`: return when `absorbActivation` is true, before `markActivated`; then `markActivated`, `noteActivation`, `handleTabActivation`
+- [x] `onRemoved`: keep `restored` from `stateReady`, read the closed tab's Space from the registry with the page cache as fallback, and call `tabRemoved` first, before anything forgets the tab; `windows.onRemoved` calls `removeWindow`
+- [x] run `make lint && make test && make build` - must pass before next task
 
 ### Task 3: Delete Space removes the Space before closing its tabs
 
