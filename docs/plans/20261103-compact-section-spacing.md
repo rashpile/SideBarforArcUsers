@@ -117,10 +117,10 @@ than leave an empty one (the other `.arc-space-title ...` selectors stay).
 
 ### Task 3: Verify acceptance criteria
 
-- [ ] verify every row of the Technical Details table is in place (grep the changed rules and classes)
-- [ ] verify nothing else changed: tree row `min-height`, toolbar, `+ New Tab` row height, Favorites tile size (`git diff` shows only the lines above)
-- [ ] run full test suite: `make test`
-- [ ] run `make build` and `make lint`
+- [x] verify every row of the Technical Details table is in place (grep the changed rules and classes)
+- [x] verify nothing else changed: tree row `min-height`, toolbar, `+ New Tab` row height, Favorites tile size (`git diff` shows only the lines above)
+- [x] run full test suite: `make test`
+- [x] run `make build` and `make lint`
 
 ### Task 4: [Final] Update documentation
 
