@@ -32,7 +32,7 @@ html, body, #root {
 }
 
 .arc-theme [data-testid="sidebar-scroll-container"] {
-  padding: 8px 10px 20px;
+  padding: 4px 10px 20px;
   scrollbar-color: rgba(52, 52, 62, 0.65) transparent;
   scrollbar-width: thin;
 }
@@ -55,7 +55,7 @@ html, body, #root {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(var(--arc-pinned-tile-min-width, 54px), 1fr));
   gap: 8px;
-  padding: 8px 10px 10px;
+  padding: 6px 10px;
   border-bottom-color: var(--arc-hairline);
 }
 
@@ -82,15 +82,10 @@ html, body, #root {
 }
 
 .arc-section-header {
-  min-height: 34px;
-  padding-top: 5px !important;
-  padding-bottom: 5px !important;
+  min-height: 28px;
+  padding-top: 1px !important;
+  padding-bottom: 1px !important;
   border-color: transparent !important;
-}
-
-.arc-space-title {
-  margin-top: 4px;
-  margin-bottom: 2px;
 }
 
 .arc-space-title .arc-section-label {
@@ -394,7 +389,7 @@ html, body, #root {
 
 .arc-new-tab-row {
   min-height: 40px;
-  margin-top: 8px;
+  margin-top: 4px;
   padding-top: 4px;
   border-radius: 0;
   color: var(--arc-muted) !important;

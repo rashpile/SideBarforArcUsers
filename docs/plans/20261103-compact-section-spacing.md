@@ -97,12 +97,12 @@ than leave an empty one (the other `.arc-space-title ...` selectors stay).
 **Files:**
 - Modify: `src/index.css`
 
-- [ ] `.arc-section-header`: `min-height` 34px → 28px; `padding-top` and `padding-bottom` 5px → 1px (keep `!important`)
-- [ ] `.arc-space-title`: remove `margin-top: 4px` and `margin-bottom: 2px` (remove the rule if it becomes empty)
-- [ ] `.arc-pinned-bar`: `padding: 8px 10px 10px` → `padding: 6px 10px`
-- [ ] `.arc-theme [data-testid="sidebar-scroll-container"]`: `padding: 8px 10px 20px` → `padding: 4px 10px 20px`
-- [ ] `.arc-new-tab-row`: `margin-top: 8px` → `margin-top: 4px` (keep `min-height: 40px` and `padding-top: 4px`)
-- [ ] run `make build` and `make lint` - must pass before task 2
+- [x] `.arc-section-header`: `min-height` 34px → 28px; `padding-top` and `padding-bottom` 5px → 1px (keep `!important`)
+- [x] `.arc-space-title`: remove `margin-top: 4px` and `margin-bottom: 2px` (remove the rule if it becomes empty)
+- [x] `.arc-pinned-bar`: `padding: 8px 10px 10px` → `padding: 6px 10px`
+- [x] `.arc-theme [data-testid="sidebar-scroll-container"]`: `padding: 8px 10px 20px` → `padding: 4px 10px 20px`
+- [x] `.arc-new-tab-row`: `margin-top: 8px` → `margin-top: 4px` (keep `min-height: 40px` and `padding-top: 4px`)
+- [x] run `make build` and `make lint` - must pass before task 2
 
 ### Task 2: Halve the separator margins around the Archive section
 
