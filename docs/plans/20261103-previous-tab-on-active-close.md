@@ -278,9 +278,9 @@ Keep the comment explaining why the Space goes first.
 **Files:**
 - Modify: `src/actions/deleteSpaceAction.ts`
 
-- [ ] in `DeleteSpaceAction.do()`, call `spaceManagerProxy.updateSpaces(remaining)` after the snapshots and before `chrome.tabs.remove`, with a comment saying why (the follower must see the Space gone and not open a New Tab in it)
-- [ ] check that `undo()` still recreates the Space before its tabs and needs no change
-- [ ] run `make lint && make test && make build` - must pass before next task
+- [x] in `DeleteSpaceAction.do()`, call `spaceManagerProxy.updateSpaces(remaining)` after the snapshots and before `chrome.tabs.remove`, with a comment saying why (the follower must see the Space gone and not open a New Tab in it)
+- [x] check that `undo()` still recreates the Space before its tabs and needs no change
+- [x] run `make lint && make test && make build` - must pass before next task
 
 ### Task 4: Verify acceptance criteria
 
