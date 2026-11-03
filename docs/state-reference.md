@@ -81,7 +81,7 @@ Stored via `chrome.storage.session`. Survives service worker restarts, cleared o
 ### `bg_windowTabHistory`
 Back/forward navigation stack (Map: windowId → {stack, index})
 - Owner: `src/background.ts` (BackgroundState class)
-- Consumers: `src/background.ts` (navigateHistory, get-tab-history handler)
+- Consumers: `src/background.ts` (navigateHistory, get-tab-history handler); `ActiveTabCloseFollower` (`src/services/activeTabCloseFollower.ts`) on `tabs.onRemoved`: the history top tells whether the closed tab was the window's active one, and the order picks the Space's tab to land on. It drops Chrome's own pick from the history when that activation came before the close (`historyManager.remove`)
 - Instances: 1 per window
 - Max size: 25 entries per window
 
@@ -127,7 +127,7 @@ Active tab of each window, as last seen by the background (auto-archive, tab age
 Record<windowId, tabId>
 ```
 - Owner: `src/stores/tabActivityTracker.ts` (`TabActivityTracker`, background, the only writer)
-- Consumers: `TabActivityTracker.markActivated` - on `chrome.tabs.onActivated` it stamps the tab stored for the window as last used and left (`lastUsedAt`, `leftAt`) in `tabLastUsedAt`, then stores the new one. Clearing the activated tab's `unvisited` doesn't depend on this entry
+- Consumers: `TabActivityTracker.markActivated` - on `chrome.tabs.onActivated` it stamps the tab stored for the window as last used and left (`lastUsedAt`, `leftAt`) in `tabLastUsedAt`, then stores the new one. Clearing the activated tab's `unvisited` doesn't depend on this entry. After the active tab closes, the activation Chrome makes on its own is skipped while `ActiveTabCloseFollower` follows the window, and the follower calls `markActivated` for the tab it lands on
 - Why session storage: the service worker often wakes up on the `onActivated` event itself, when neither memory nor a fresh query shows which tab was active before
 - Seeding: at worker start (`load`), when `autoArchiveAfter` switches between `'never'` and a period, and on every `tabAgeHighlight` or `markUnvisitedTabs` change, windows with no entry take their active tab from the live tabs; known windows keep their entry
 - Not written while `autoArchiveAfter` is `'never'`, `tabAgeHighlight` is `'off'` and `markUnvisitedTabs` is `'off'`; removed when the last of them is switched off. Entries of closed windows stay until the browser session ends
@@ -168,6 +168,7 @@ Array<{ tabId: number, url: string, title: string, incognito: boolean, spaceId?:
 ```
 - Owner: `src/background.ts` through `OpenTabPages` (`src/stores/openTabPages.ts`, the only writer; writes serialized, unchanged entries not written)
 - Updates: `tabs.onCreated` and `tabs.onUpdated` (URL, title) update the tab's page; `TabSpaceRegistry.register` sets `spaceId` (`onAssigned`); a new `tabAssociations_${windowId}` entry sets `associated`, which is never cleared, so the sidebar removing the association when the tab closes doesn't make it recordable; `tabs.onRemoved` takes the entry out and hands it to `closedTabRecord`
+- Consumers: `tabs.onRemoved` reads the closed tab's `spaceId` (`spaceOf`) before taking the entry out, for `ActiveTabCloseFollower`, when `TabSpaceRegistry` no longer knows the tab
 - Seeding at worker start, after `TabSpaceRegistry.load`: live tabs are merged over the stored entries, which keep their `spaceId` and `associated`; entries of tabs that are not live are kept, since one of them may be the tab whose close woke the worker
 - Why session storage: a close often wakes the worker, and then the closed tab is gone from both the live tabs and `TabSpaceRegistry`. Session storage survives worker restarts and is cleared with the tab IDs (browser restart, extension reload or update)
 - Unreadable value: starts empty

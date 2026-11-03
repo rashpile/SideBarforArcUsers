@@ -284,9 +284,9 @@ Keep the comment explaining why the Space goes first.
 
 ### Task 4: Verify acceptance criteria
 
-- [ ] verify every Overview requirement maps to code: active close (any path), background close and window close untouched, New Tab in an empty Space, batch closes land once, both event orders, `restored` false untouched, deleted Space untouched
-- [ ] verify CLAUDE.md invariants: tab ids used only after a successful restore, no hard-coded bookmark roots, no new storage writer
-- [ ] run full suite: `make lint && make test && make build`
+- [x] verify every Overview requirement maps to code: active close (any path), background close and window close untouched, New Tab in an empty Space, batch closes land once, both event orders, `restored` false untouched, deleted Space untouched
+- [x] verify CLAUDE.md invariants: tab ids used only after a successful restore, no hard-coded bookmark roots, no new storage writer
+- [x] run full suite: `make lint && make test && make build`
 
 ### Task 5: [Final] Update documentation
 
@@ -296,12 +296,12 @@ Keep the comment explaining why the Space goes first.
 - Modify: `src/data/changelog.ts`
 - Modify: `docs/development.md`
 
-- [ ] `README.md`, Spaces section: closing the active tab switches to the tab you used before it in the same Space; a Space with no other open tab gets a new tab; commands that close many tabs land on one tab
-- [ ] `docs/changelog.md`, under `## Latest Version`: a `Changed:` line for the new behaviour
-- [ ] `src/data/changelog.ts`: add a `'2.0.388'` entry above `'2.0.387'` with one What's New line (the key only has to be newer than `2.0.387`; the release step sets the real version, as the release PR did for `1.0.352`)
-- [ ] `docs/development.md`, Chrome API rules: when the active tab closes Chrome activates a neighbour itself; `ActiveTabCloseFollower` skips that activation in `onActivated` while it follows, so code added to `onActivated` must expect skipped activations
-- [ ] `docs/state-reference.md`: no new storage key, nothing to add (confirm)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] `README.md`, Spaces section: closing the active tab switches to the tab you used before it in the same Space; a Space with no other open tab gets a new tab; commands that close many tabs land on one tab
+- [x] `docs/changelog.md`, under `## Latest Version`: a `Changed:` line for the new behaviour
+- [x] `src/data/changelog.ts`: add a `'2.0.388'` entry above `'2.0.387'` with one What's New line (the key only has to be newer than `2.0.387`; the release step sets the real version, as the release PR did for `1.0.352`)
+- [x] `docs/development.md`, Chrome API rules: when the active tab closes Chrome activates a neighbour itself; `ActiveTabCloseFollower` skips that activation in `onActivated` while it follows, so code added to `onActivated` must expect skipped activations
+- [x] `docs/state-reference.md`: no new storage key, nothing to add (confirm) - confirmed no new key; added consumer notes to `bg_windowTabHistory`, `openTabPages` and `tabActivityActiveTabs`
+- [x] move this plan to `docs/plans/completed/` (left in place - the harness moves the plan after all phases finish)
 
 ## Post-Completion
 
