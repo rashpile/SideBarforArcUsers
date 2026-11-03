@@ -34,6 +34,7 @@ class FakeWindow
   newTabs = [];    // Spaces openNewTab opened a tab in
   activeTabId;
   #nextTabId = 100;
+  #now = 10_000;  // later than every lastAccessed a test sets up
 
   /** history: the window's tab history, most recent first; its first tab is the active one. */
   constructor(tabs, history)
@@ -42,7 +43,8 @@ class FakeWindow
     this.spaces = new Map(tabs.map(({ id, space }) => [id, space]));
     this.history = [...history];
     this.activeTabId = history[0];
-    this.queryWindowTabs = async () => this.tabs.map((openTab) => ({ ...openTab }));
+    this.queryWindowTabs = async () =>
+      this.tabs.map((openTab) => ({ ...openTab, active: openTab.id === this.activeTabId }));
     this.follower = new ActiveTabCloseFollower({
       activationOrder: () => [...this.history],
       forgetActivation: (_windowId, tabId) =>
@@ -83,7 +85,21 @@ class FakeWindow
   /** Chrome activates a tab and sends onActivated, handled as background.ts does. */
   chromeActivates(tabId)
   {
+    this.stripActivates(tabId);
+    this.onActivated(tabId);
+  }
+
+  /** The tab strip side of an activation, without the event: Chrome sets the tab's lastAccessed to now. */
+  stripActivates(tabId)
+  {
     this.activeTabId = tabId;
+    const openTab = this.tabs.find((candidate) => candidate.id === tabId);
+    if (openTab) openTab.lastAccessed = this.#now++;
+  }
+
+  /** onActivated as background.ts handles it. */
+  onActivated(tabId)
+  {
     if (this.follower.absorbActivation(WINDOW))
     {
       this.absorbed.push(tabId);
@@ -161,6 +177,46 @@ test('a Space whose tabs are not in the history lands on its tab with the newest
 
   assert.deepEqual(win.attempts, [2]);
   assert.deepEqual(win.finished, [2]);
+});
+
+// The history misses Space a's older tab 1, as after a browser restart. 4 was opened from the active
+// tab 3 in the background; Chrome activates it as the strip neighbour, which sets its lastAccessed to now.
+const pickCases = [
+  ['an older tab of the Space the history misses', [tab(1, 'a', 100), tab(2, 'b', 500), tab(3, 'a', 600), tab(4, 'a', 0)], [3, 2], 1],
+  ['Chrome\'s pick when the history has it as the Space\'s previous tab', [tab(1, 'a', 100), tab(2, 'b', 500), tab(3, 'a', 600), tab(4, 'a', 0)], [3, 4, 2], 4],
+  ['Chrome\'s pick when it is the Space\'s only other tab', [tab(2, 'b', 500), tab(3, 'a', 600), tab(4, 'a', 0)], [3, 2], 4],
+];
+
+for (const [name, tabs, history, landingTabId] of pickCases)
+{
+  test(`closing the active tab while Chrome activates a tab of its Space lands on ${name}`, async () =>
+  {
+    const win = new FakeWindow(tabs, history);
+
+    win.removeFromStrip(3);
+    win.stripActivates(4);  // part of the close, before either event
+    const landing = win.onRemoved(3);
+    win.onActivated(4);
+    await landing;
+
+    assert.deepEqual(win.attempts, [landingTabId]);
+    assert.deepEqual(win.newTabs, []);
+    assert.equal(win.activeTabId, landingTabId);
+  });
+}
+
+test('Chrome\'s pick before onRemoved does not win the lastAccessed fallback either', async () =>
+{
+  const win = new FakeWindow([tab(1, 'a', 100), tab(2, 'b', 500), tab(3, 'a', 600), tab(4, 'a', 0)], [3, 2]);
+
+  win.removeFromStrip(3);
+  win.chromeActivates(4);
+  await flush();
+  await win.onRemoved(3);
+
+  assert.deepEqual(win.forgotten, [4]);
+  assert.deepEqual(win.attempts, [1]);
+  assert.equal(win.activeTabId, 1);
 });
 
 test('a tab Chrome refuses to activate is skipped for the next one of the Space', async () =>

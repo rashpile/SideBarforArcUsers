@@ -97,11 +97,14 @@ Key decisions (recorded as assumptions in the make-task run):
     (`chrome.tabs.get` fails). When that tab's `onRemoved` arrives while the neighbour is the history top:
     check already settled "still existed" → a background tab, nothing happens; settled "gone" or not
     settled yet → a follow starts, and an unsettled one waits for the check. A refuted follow lands nowhere
-    and replays only an activation it skipped. A confirmed one drops the neighbour's history entry.
+    and replays only an activation it skipped. A confirmed one drops the neighbour's history entry. The
+    neighbour's `onActivated` already ran in full, so the unvisited-mark and last-use guarantee above holds
+    only for the usual order (see Known limitations).
 - **Landing tab**: the first tab of the activation order that is still open and registered to the closed
-  tab's Space; else that Space's open tab with the newest `lastAccessed`; else a New Tab in that Space
-  (the window's active Space is set to it first, as `openSpace` does, because `onCreated` registers a new
-  tab to the active Space).
+  tab's Space; else that Space's open tab with the newest `lastAccessed`, the window's active tab last
+  (it is Chrome's pick, whose `lastAccessed` Chrome's own activation just set to now); else a New Tab in
+  that Space (the window's active Space is set to it first, as `openSpace` does, because `onCreated`
+  registers a new tab to the active Space).
 - **Batch closes need no timer**: a removal in a window that is already following joins that follow; the
   follower's `chrome.tabs.query` is answered after Chrome finished the whole `chrome.tabs.remove` call, so
   closed tabs are never chosen.
@@ -122,6 +125,7 @@ or parameter properties (CLAUDE.md § Testing).
 export interface FollowerTab
 {
   id?: number;
+  active?: boolean;
   lastAccessed?: number;
 }
 
@@ -181,7 +185,9 @@ Follow (private, async; never throws: errors are logged with `console.error('[Ac
 2. `tabs = await windowTabs(windowId)`; open ids = `tabs` ids.
 3. Candidates, in order, without duplicates and never the closed tab: the ids of
    `activationOrder(windowId)` that are open and whose `spaceOf` is the closed tab's Space; then the other
-   open tabs of that Space by `lastAccessed`, newest first (missing `lastAccessed` counts as 0).
+   open tabs of that Space by `lastAccessed`, newest first (missing `lastAccessed` counts as 0), with the
+   window's active tab last: `windowTabs` answers after Chrome activated its pick, so the pick's
+   `lastAccessed` is always the newest and would otherwise win.
 4. Try `activateTab` on each candidate in turn; the first `true` is the landing tab. End the follow, then
    `await finishActivation(windowId, landingTabId)` (Chrome sends no `onActivated` when the landing tab is
    already active, and one sent during the follow was skipped).
@@ -336,3 +342,7 @@ Keep the comment explaining why the Space goes first.
   reached only through the `lastAccessed` fallback
 - pick first: when Chrome's pick handling (`handleTabActivation` for the neighbour) finishes after the
   follower's landing, the sidebar can end on the neighbour's Space (millisecond race)
+- pick first: the neighbour's `onActivated` runs in full before the close is known, so the neighbour
+  loses its unvisited mark, the landing stamps it as last used, and the sidebar briefly shows its Space.
+  Holding that work back would restructure `onActivated` for an order current Chrome may never send;
+  before the follower Chrome's pick always lost its mark, so this is no regression

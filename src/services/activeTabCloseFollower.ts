@@ -23,6 +23,7 @@
 export interface FollowerTab
 {
   id?: number;
+  active?: boolean;
   lastAccessed?: number;
 }
 
@@ -289,7 +290,10 @@ export class ActiveTabCloseFollower
     return await this.#deps.openNewTab(windowId, spaceId);
   }
 
-  /** The Space's open tabs: the window's history order first, then the rest by lastAccessed, newest first. */
+  /**
+   * The Space's open tabs: the window's history order first, then the rest by lastAccessed, newest
+   * first, with the window's active tab last.
+   */
   #candidates(follow: WindowFollow, spaceId: string, tabs: FollowerTab[]): number[]
   {
     const spaceTabs = new Map<number, FollowerTab>();
@@ -300,8 +304,11 @@ export class ActiveTabCloseFollower
     }
 
     const byHistory = this.#deps.activationOrder(follow.windowId).filter((tabId) => spaceTabs.has(tabId));
+    // The active tab is Chrome's pick: activating it after the close set its lastAccessed to now,
+    // which says nothing about when the user last used it
     const byLastAccess = [...spaceTabs.entries()]
-      .sort(([, a], [, b]) => (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0))
+      .sort(([, a], [, b]) => Number(a.active === true) - Number(b.active === true)
+        || (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0))
       .map(([tabId]) => tabId);
     return [...new Set([...byHistory, ...byLastAccess])];
   }
