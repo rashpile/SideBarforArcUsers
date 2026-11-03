@@ -176,14 +176,14 @@ Nine entries after `space-switcher-next`, no `suggested_key`:
 - Modify: `docs/changelog.md`
 - Modify: `src/data/changelog.ts`
 
-- [ ] `README.md` § Keyboard: add a row `| not set | Switch to Space 1 … 9: the Space at that position in the Space bar, opened as by a click on it |` after the Space Switcher row
-- [ ] `README.md` § Keyboard: under the table, after "Set or change shortcuts in `chrome://extensions/shortcuts`.", add a note in the README's text style (`Control+1`, no manifest key names, no glyphs): `Cmd+1` … `Cmd+9` on macOS and `Ctrl+1` … `Ctrl+9` on Windows and Linux are Chrome's own shortcuts for its tabs, so on macOS use `Control+1` … `Control+9`; macOS takes `Control+1` … `Control+9` for "Switch to Desktop N" when that is on in System Settings > Keyboard > Keyboard Shortcuts > Mission Control, so turn those off first
-- [ ] `README.md` § Spaces: extend "Switch with the icons at the bottom or a two-finger swipe." with "or a Switch to Space shortcut (see Keyboard)"
-- [ ] `docs/changelog.md` "Latest Version": add a `New:` line for the nine Switch to Space shortcuts (no keys by default, set in `chrome://extensions/shortcuts`, N past the last Space does nothing, the macOS Desktop N note)
-- [ ] `src/data/changelog.ts` `'2.0.388'`: add a `New:` What's New line for Switch to Space 1–9 shortcuts set in chrome://extensions/shortcuts
-- [ ] `docs/state-reference.md`: no change (no new storage key) - confirm nothing to add
-- [ ] run `make lint && make test && make build` - must pass (`src/data/changelog.ts` is code)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] `README.md` § Keyboard: add a row `| not set | Switch to Space 1 … 9: the Space at that position in the Space bar, opened as by a click on it |` after the Space Switcher row
+- [x] `README.md` § Keyboard: under the table, after "Set or change shortcuts in `chrome://extensions/shortcuts`.", add a note in the README's text style (`Control+1`, no manifest key names, no glyphs): `Cmd+1` … `Cmd+9` on macOS and `Ctrl+1` … `Ctrl+9` on Windows and Linux are Chrome's own shortcuts for its tabs, so on macOS use `Control+1` … `Control+9`; macOS takes `Control+1` … `Control+9` for "Switch to Desktop N" when that is on in System Settings > Keyboard > Keyboard Shortcuts > Mission Control, so turn those off first
+- [x] `README.md` § Spaces: extend "Switch with the icons at the bottom or a two-finger swipe." with "or a Switch to Space shortcut (see Keyboard)"
+- [x] `docs/changelog.md` "Latest Version": add a `New:` line for the nine Switch to Space shortcuts (no keys by default, set in `chrome://extensions/shortcuts`, N past the last Space does nothing, the macOS Desktop N note)
+- [x] `src/data/changelog.ts` `'2.0.388'`: add a `New:` What's New line for Switch to Space 1–9 shortcuts set in chrome://extensions/shortcuts
+- [x] `docs/state-reference.md`: no change (no new storage key) - confirm nothing to add (confirmed: no new key)
+- [x] run `make lint && make test && make build` - must pass (`src/data/changelog.ts` is code)
+- [x] move this plan to `docs/plans/completed/` (skipped - the harness moves the plan after all phases finish)
 
 ## Post-Completion
 

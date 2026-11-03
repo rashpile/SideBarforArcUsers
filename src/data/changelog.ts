@@ -3,6 +3,7 @@
 // Entries are shown in the "What's New" dialog when the user upgrades past them.
 export const CHANGELOG: Record<string, string[]> = {
   '2.0.388': [
+    'New: Switch to Space 1–9 shortcuts - jump to the Space at that position in the Space bar. Set them in chrome://extensions/shortcuts, for example Control+1 … Control+9 on macOS',
     'Changed: closing the active tab switches to the tab you used before it in the same Space, not to its neighbour in the tab strip; a Space with no other open tab gets a new tab',
   ],
   '2.0.387': [
