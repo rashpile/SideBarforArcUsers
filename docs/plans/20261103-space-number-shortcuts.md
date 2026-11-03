@@ -165,9 +165,9 @@ Nine entries after `space-switcher-next`, no `suggested_key`:
 
 ### Task 3: Verify acceptance criteria
 
-- [ ] verify all requirements from Overview are implemented: nine commands without suggested keys, N = Space bar position, focused normal window, N past the last Space and the active Space do nothing, `openSpace` used for the switch
-- [ ] verify `SpaceNumberCommand.parse` can't match `space-switcher-next` or any other existing command name in `public/manifest.json`
-- [ ] run full checks: `make lint && make test && make build`
+- [x] verify all requirements from Overview are implemented: nine commands without suggested keys, N = Space bar position, focused normal window, N past the last Space and the active Space do nothing, `openSpace` used for the switch
+- [x] verify `SpaceNumberCommand.parse` can't match `space-switcher-next` or any other existing command name in `public/manifest.json`
+- [x] run full checks: `make lint && make test && make build`
 
 ### Task 4: [Final] Update documentation
 
