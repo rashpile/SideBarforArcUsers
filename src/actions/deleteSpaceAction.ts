@@ -118,27 +118,39 @@ export class DeleteSpaceAction implements UndoableAction
 
           this.snapshot.tabs.push(tabSnapshot);
         }
-
-      // Close all tabs assigned to the Space.
-      const tabIds = this.snapshot.tabs.map(t => t.tabId);
-      if (tabIds.length > 0)
-      {
-        await chrome.tabs.remove(tabIds);
-      }
     }
     catch (err)
     {
       if (import.meta.env.DEV)
       {
-        console.error('[DeleteSpaceAction] do: failed to close group tabs:', err);
+        console.error('[DeleteSpaceAction] do: failed to snapshot group tabs:', err);
       }
     }
 
     // Remove space from storage, routed through SpaceManager so its
     // in-memory cache stays in sync (Case 3 - see the shared-storage
-    // decision doc)
+    // decision doc). The Space goes before its tabs close: when the active
+    // tab is among them, ActiveTabCloseFollower must find the Space gone,
+    // or it would open a New Tab in the deleted Space, hidden from the sidebar.
     const remaining = currentSpaces.filter(s => s.id !== this.spaceId);
     await spaceManagerProxy.updateSpaces(remaining);
+
+    // Close all tabs assigned to the Space.
+    const tabIds = this.snapshot.tabs.map(t => t.tabId);
+    if (tabIds.length > 0)
+    {
+      try
+      {
+        await chrome.tabs.remove(tabIds);
+      }
+      catch (err)
+      {
+        if (import.meta.env.DEV)
+        {
+          console.error('[DeleteSpaceAction] do: failed to close group tabs:', err);
+        }
+      }
+    }
 
     // Build description
     this.description = `Deleted space "${truncateTitle(space.name)}"`;

@@ -25,6 +25,7 @@ import { TAB_AGE_HIGHLIGHT_KEY } from './utils/tabAgeHighlight';
 import { isOpenedUnvisited, RecentWindows, UNVISITED_TAB_MARKER_KEY } from './utils/unvisitedTabMarker';
 import { TAB_REOPENED_BY_UNDO_ACTION } from './utils/tabReopenedByUndo';
 import { KeyboardSwitcher, parseSwitcherCommand } from './services/keyboardSwitcher';
+import { ActiveTabCloseFollower } from './services/activeTabCloseFollower';
 import { buildSpaceCards, buildTabCards, findLastUsedTab, WindowSpaces } from './services/switcherLists';
 import { SwitcherMessageAction } from './utils/switcherMessages';
 import { BookmarkSpaceResolver } from './utils/bookmarkSpaceResolver';
@@ -744,50 +745,75 @@ chrome.windows.onRemoved.addListener((windowId) => keyboardSwitcher.handleWindow
 chrome.tabs.onRemoved.addListener((tabId) => keyboardSwitcher.handleTabRemoved(tabId));
 
 // =============================================================================
+// Active tab close - land on the Space's previously used tab instead of the
+// neighbour Chrome activates. See services/activeTabCloseFollower.ts.
+// =============================================================================
+
+const activeTabCloseFollower = new ActiveTabCloseFollower({
+  activationOrder: (windowId) => historyManager.getActivationOrder(windowId),
+  forgetActivation: (windowId, tabId) => historyManager.remove(windowId, tabId),
+  spaceOf: (windowId, tabId) => tabSpaceRegistry.getSpace(windowId, tabId),
+  spaceExists: (spaceId) => spaceManager.getSpaces().some(space => space.id === spaceId),
+  tabExists: (tabId) => chrome.tabs.get(tabId).then(() => true, () => false),
+  windowTabs: (windowId) => chrome.tabs.query({ windowId }),
+  activeTabId: async (windowId) => (await chrome.tabs.query({ active: true, windowId }))[0]?.id,
+  activateTab: (tabId) => chrome.tabs.update(tabId, { active: true }).then(() => true, () => false),
+  openNewTab: async (windowId, spaceId) =>
+  {
+    spaceStateManager.setActiveSpace(windowId, spaceId);
+    // onCreated registers the new tab to the window's active Space, set above
+    const tab = await chrome.tabs.create({ windowId, active: true });
+    return tab.id;
+  },
+  finishActivation: (windowId, tabId) =>
+  {
+    tabActivityTracker.markActivated(windowId, tabId)
+      .catch((error) => console.error('[TabActivityTracker] failed to record activation:', error));
+    return handleTabActivation(windowId, tabId);
+  },
+});
+
+// =============================================================================
 // Event Listeners
 // =============================================================================
 
-// Update tracked group when active tab changes + track history + switch to tab's Space
-chrome.tabs.onActivated.addListener(async (activeInfo) =>
+/**
+ * The work of an activation after its last-use stamp: history, bookmark recency, the switch to the
+ * tab's Space and the sidebar's TAB_ACTIVATED. Also run by the active tab close follower for the
+ * tab it lands on.
+ */
+async function handleTabActivation(windowId: number, tabId: number): Promise<void>
 {
-  // Wait for state to load (handles service worker restart)
-  await stateReady;
-
-  // Stamp the tab the user just left before any other await, so an auto-archive
-  // run queued behind this can't judge it by an older last-use time
-  tabActivityTracker.markActivated(activeInfo.windowId, activeInfo.tabId)
-    .catch((error) => console.error('[TabActivityTracker] failed to record activation:', error));
-
-  const isNavigating = historyManager.isNavigating(activeInfo.windowId);
+  const isNavigating = historyManager.isNavigating(windowId);
 
   // if (import.meta.env.DEV)
   // {
-  //   console.log(`[onActivated] START tabId=${activeInfo.tabId}, isNavigating=${isNavigating}`);
+  //   console.log(`[onActivated] START tabId=${tabId}, isNavigating=${isNavigating}`);
   // }
 
   // Track tab history (skip if this activation was triggered by navigation)
   if (!isNavigating)
   {
-    historyManager.push(activeInfo.windowId, activeInfo.tabId);
+    historyManager.push(windowId, tabId);
   }
 
-  recordBookmarkActivation(activeInfo.windowId, activeInfo.tabId);
+  recordBookmarkActivation(windowId, tabId);
 
-  const persistedSpaceId = spaceStateManager.getActiveSpace(activeInfo.windowId);
+  const persistedSpaceId = spaceStateManager.getActiveSpace(windowId);
   const currentSpaceId = resolveActiveSpaceId(spaceManager.getSpaces(), persistedSpaceId);
   if (currentSpaceId && currentSpaceId !== persistedSpaceId)
   {
-    spaceStateManager.setActiveSpace(activeInfo.windowId, currentSpaceId);
+    spaceStateManager.setActiveSpace(windowId, currentSpaceId);
   }
 
   // Lookup destination space for sidebar switch
-  let destinationSpaceId = await getSpaceForActivatedTab(activeInfo.windowId, activeInfo.tabId);
+  let destinationSpaceId = await getSpaceForActivatedTab(windowId, tabId);
 
   if (!destinationSpaceId && currentSpaceId)
   {
     try
     {
-      await tabSpaceRegistry.register(activeInfo.windowId, activeInfo.tabId, currentSpaceId);
+      await tabSpaceRegistry.register(windowId, tabId, currentSpaceId);
       destinationSpaceId = currentSpaceId;
     }
     catch { /* Tab may no longer exist */ }
@@ -808,7 +834,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) =>
   {
     if (currentSpaceId !== destinationSpaceId)
     {
-      spaceStateManager.setActiveSpace(activeInfo.windowId, destinationSpaceId);
+      spaceStateManager.setActiveSpace(windowId, destinationSpaceId);
       spaceSwitched = true;
     }
   }
@@ -817,14 +843,33 @@ chrome.tabs.onActivated.addListener(async (activeInfo) =>
   // The sidebar decides whether to scroll based on the follow mode and spaceSwitched.
   chrome.runtime.sendMessage({
     action: SpaceMessageAction.TAB_ACTIVATED,
-    windowId: activeInfo.windowId,
-    tabId: activeInfo.tabId,
+    windowId,
+    tabId,
     spaceSwitched
   }).catch(() =>
   {
     // Sidepanel may not be open - ignore error
   });
+}
 
+// Update tracked group when active tab changes + track history + switch to tab's Space
+chrome.tabs.onActivated.addListener(async (activeInfo) =>
+{
+  // Wait for state to load (handles service worker restart)
+  await stateReady;
+
+  // Chrome's own pick after the active tab closed. The follower runs this work for the tab it
+  // lands on; the pick must not lose its unvisited mark, look recently used or switch the Space.
+  if (activeTabCloseFollower.absorbActivation(activeInfo.windowId)) return;
+
+  // Stamp the tab the user just left before any other await, so an auto-archive
+  // run queued behind this can't judge it by an older last-use time
+  tabActivityTracker.markActivated(activeInfo.windowId, activeInfo.tabId)
+    .catch((error) => console.error('[TabActivityTracker] failed to record activation:', error));
+
+  // Before the history push: the follower reads which tab this activation replaced
+  activeTabCloseFollower.noteActivation(activeInfo.windowId, activeInfo.tabId);
+  await handleTabActivation(activeInfo.windowId, activeInfo.tabId);
 });
 
 // Refresh tab indices in local backup for all managed tabs in a window.
@@ -932,7 +977,17 @@ async function recordClosedTab(
 // Clean up history, last audible tracker, tab registry, and local backup when tab is closed
 chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) =>
 {
-  await stateReady;
+  const restored = await stateReady;
+  // First, before anything forgets the tab: the follower reads whether it was the history top.
+  // The registry misses a tab whose close woke the worker; the page cache still knows its Space.
+  const closedTabSpaceId = tabSpaceRegistry.getSpace(removeInfo.windowId, tabId) ?? openTabPages.spaceOf(tabId);
+  void activeTabCloseFollower.tabRemoved(
+    removeInfo.windowId,
+    tabId,
+    closedTabSpaceId,
+    removeInfo.isWindowClosing,
+    restored,
+  );
   // Read before unregister below forgets the tab's Space
   void recordClosedTab(
     tabId,
@@ -983,6 +1038,7 @@ chrome.windows.onRemoved.addListener(async (windowId) =>
     console.log(`[onRemoved] cleaning up in-memory state for window=${windowId}`);
   }
 
+  activeTabCloseFollower.removeWindow(windowId);
   spaceStateManager.removeWindow(windowId);
   historyManager.removeWindow(windowId);
   tabSpaceRegistry.removeWindow(windowId);

@@ -165,6 +165,7 @@ These caused real bugs before:
 - Background state has to live in `chrome.storage.session`. Chrome stops an idle service worker after about 30 seconds and drops everything in memory.
 - Batch tab and group calls. Several concurrent `chrome.tabs.group()` calls can produce wrong groups. Pass all ids in one call or queue the operations.
 - Listen to `chrome.tabs.onDetached` as well as `onRemoved`. A tab moved to another window only fires `onDetached`.
+- When the active tab closes, Chrome activates a neighbour itself, and its `onActivated` can come before or after the close's `onRemoved`. `ActiveTabCloseFollower` (`src/services/activeTabCloseFollower.ts`) lands on the Space's previously used tab instead. While it follows a window, `onActivated` there returns at `absorbActivation`, before `markActivated`: Chrome's pick gets no last-use stamp, history entry, Space switch or `TAB_ACTIVATED`. The follower then runs `markActivated` and `handleTabActivation` for the tab it lands on. So code added to `onActivated` must expect skipped activations: put per-activation work in `handleTabActivation`.
 - Tab and window ids are only unique within one browser session. See "Tab identity across restarts" in [CLAUDE.md](../CLAUDE.md).
 - Bookmark root ids `'1'`, `'2'`, `'3'` are not guaranteed. Chrome profiles with account-only bookmarks have different roots.
 

@@ -3,6 +3,7 @@
 ## Latest Version
 
 - Changed: the Archive section, the Favorites grid and the Space title take less height - smaller section headers and tighter gaps around them
+- Changed: closing the active tab switches to the tab you used before it in the same Space. Before, Chrome picked the tab next to it in the tab strip, which could be an unrelated tab or a tab of another Space, and with Follow active tab on the sidebar then switched Space. A Space with no other open tab gets a new tab and stays active. This works for X in the sidebar, `Cmd+W`, the tab strip and pages that close themselves; commands that close many tabs at once (Close Other Tabs, Clear, Archive, Close All Tabs In Space) land on one tab instead of hopping through several. Closing a background tab or a whole window works as before, and so does closing the active tab after a browser restart before you switched tabs once
 
 ## 2.0.387
 

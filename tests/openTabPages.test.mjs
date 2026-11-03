@@ -84,6 +84,23 @@ test('seed keeps entries of tabs that are not live and the known Space of live t
   assert.equal(after.page(2).spaceId, 'space-b');
 });
 
+test('spaceOf still knows the Space of a tab that closed before the worker woke', async () =>
+{
+  const storage = new MemoryStorage();
+  const before = await loaded(storage);
+  await before.update(tab(7, 'https://closed.example'));
+  await before.assignSpace(7, 'space-work');
+  await before.update(tab(8, 'https://live.example'));
+  await before.assignSpace(8, 'space-home');
+
+  // The close of tab 7 woke the worker: the start seeds the cache from the live tabs, without 7
+  const after = await loaded(storage);
+  await after.seed([tab(8, 'https://live.example')], () => undefined);
+
+  assert.equal(after.spaceOf(7), 'space-work');
+  assert.equal(after.spaceOf(8), 'space-home');
+});
+
 test('seed takes the registry Space over the cached one', async () =>
 {
   const storage = new MemoryStorage();

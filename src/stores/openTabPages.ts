@@ -140,6 +140,15 @@ export class OpenTabPages
     return page ? { ...page } : undefined;
   }
 
+  /**
+   * The Space the cache last saw for the tab. Still answers for a tab that closed while the
+   * worker slept, which TabSpaceRegistry no longer knows, until take() removes its page.
+   */
+  spaceOf(tabId: number): string | undefined
+  {
+    return this.#byTabId.get(tabId)?.spaceId;
+  }
+
   /** The tab's page changed (created, navigated, retitled). Keeps its Space and flag. */
   async update(tab: PageTabLike): Promise<void>
   {

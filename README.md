@@ -154,6 +154,7 @@ Hover a tab or a bookmark and click the flag button, or right-click it and pick 
 - One Space is visible at a time. There is no "All" view
 - Switch with the icons at the bottom or a two-finger swipe. Switching brings the Space's most recently used tab forward. A Space with no tabs opens a new tab
 - New tabs (`Cmd+T`) belong to the active Space
+- Closing the active tab (X, `Cmd+W`, the tab strip, a page that closes itself) switches to the tab you used before it in the same Space, not to its neighbour in the tab strip, which may belong to another Space. A Space with no other open tab gets a new tab. Commands that close many tabs at once (Close Other Tabs, Clear, Archive, Close All Tabs In Space) land on one tab
 - Space membership doesn't depend on Chrome tab groups. Your own groups work normally inside a Space, and moving a tab between windows keeps its Space
 - Create with "+" in the bar: name, icon, color and bookmark folder (created if missing)
 - Right-click a Space icon to edit or delete it. The last Space can't be deleted
