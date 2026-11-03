@@ -124,9 +124,9 @@ than leave an empty one (the other `.arc-space-title ...` selectors stay).
 
 ### Task 4: [Final] Update documentation
 
-- [ ] `docs/changelog.md`: add a `## Latest Version` section above `## 2.0.387` with one line: `- Changed: the Archive section, the Favorites grid and the Space title take less height - smaller section headers and tighter gaps around them`
-- [ ] no `src/data/changelog.ts` entry (a spacing tweak is not worth a What's New line), no README or `docs/state-reference.md` change (no feature or storage key change)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] `docs/changelog.md`: add a `## Latest Version` section above `## 2.0.387` with one line: `- Changed: the Archive section, the Favorites grid and the Space title take less height - smaller section headers and tighter gaps around them`
+- [x] no `src/data/changelog.ts` entry (a spacing tweak is not worth a What's New line), no README or `docs/state-reference.md` change (no feature or storage key change)
+- [x] move this plan to `docs/plans/completed/` (skipped - the harness moves the plan after all phases finish)
 
 ## Post-Completion
 
