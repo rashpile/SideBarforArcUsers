@@ -2905,7 +2905,7 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
 
       {/* Separator - only show when there are visible bookmarks */}
       {hasVisibleBookmarks && (
-        <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
+        <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
       )}
 
       <BookmarkEditModal
