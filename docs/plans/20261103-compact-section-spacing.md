@@ -110,10 +110,10 @@ than leave an empty one (the other `.arc-space-title ...` selectors stay).
 - Modify: `src/components/BookmarkTree.tsx`
 - Modify: `src/components/ArchiveSection.tsx`
 
-- [ ] `BookmarkTree.tsx`: the separator under the tree (`border-t border-gray-200 dark:border-gray-700 my-2`, shown when `hasVisibleBookmarks`) → `my-1`
-- [ ] `ArchiveSection.tsx`: the separator at the end of the section → `my-1`
-- [ ] leave every other `my-2` separator in the repo (dialogs, toolbar menus) as it is
-- [ ] run `make build` and `make lint` - must pass before task 3
+- [x] `BookmarkTree.tsx`: the separator under the tree (`border-t border-gray-200 dark:border-gray-700 my-2`, shown when `hasVisibleBookmarks`) → `my-1`
+- [x] `ArchiveSection.tsx`: the separator at the end of the section → `my-1`
+- [x] leave every other `my-2` separator in the repo (dialogs, toolbar menus) as it is
+- [x] run `make build` and `make lint` - must pass before task 3
 
 ### Task 3: Verify acceptance criteria
 

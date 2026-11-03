@@ -466,7 +466,7 @@ export const ArchiveSection = ({
 
       <ClearAllDialog pageCount={clearAllCount} onConfirm={confirmClearAll} onClose={closeClearAllDialog} />
 
-      <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
+      <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
     </div>
   );
 };
