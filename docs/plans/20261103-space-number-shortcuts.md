@@ -157,11 +157,11 @@ Nine entries after `space-switcher-next`, no `suggested_key`:
 - Modify: `public/manifest.json`
 - Modify: `src/background.ts`
 
-- [ ] add the nine commands `space-1` … `space-9` ("Switch to Space N", no `suggested_key`) to `public/manifest.json` after `space-switcher-next`
-- [ ] add `openSpaceAtPosition(command)` to `src/background.ts` next to `openSpace`, as in Technical Details (import `SpaceNumberCommand`; `resolveActiveSpaceId` is already imported)
-- [ ] extend the caller list in `openSpace`'s doc comment with the Switch to Space shortcuts
-- [ ] in `chrome.commands.onCommand`, handle `SpaceNumberCommand.parse(command)` before the `(async () => …)()` block: call `openSpaceAtPosition` with a `.catch` that logs, then return
-- [ ] run `make lint && make test && make build` - must pass before task 3
+- [x] add the nine commands `space-1` … `space-9` ("Switch to Space N", no `suggested_key`) to `public/manifest.json` after `space-switcher-next`
+- [x] add `openSpaceAtPosition(command)` to `src/background.ts` next to `openSpace`, as in Technical Details (import `SpaceNumberCommand`; `resolveActiveSpaceId` is already imported)
+- [x] extend the caller list in `openSpace`'s doc comment with the Switch to Space shortcuts
+- [x] in `chrome.commands.onCommand`, handle `SpaceNumberCommand.parse(command)` before the `(async () => …)()` block: call `openSpaceAtPosition` with a `.catch` that logs, then return
+- [x] run `make lint && make test && make build` - must pass before task 3
 
 ### Task 3: Verify acceptance criteria
 

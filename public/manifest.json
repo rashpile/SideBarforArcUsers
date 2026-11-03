@@ -69,6 +69,33 @@
     },
     "space-switcher-next": {
       "description": "Space Switcher: next Space"
+    },
+    "space-1": {
+      "description": "Switch to Space 1"
+    },
+    "space-2": {
+      "description": "Switch to Space 2"
+    },
+    "space-3": {
+      "description": "Switch to Space 3"
+    },
+    "space-4": {
+      "description": "Switch to Space 4"
+    },
+    "space-5": {
+      "description": "Switch to Space 5"
+    },
+    "space-6": {
+      "description": "Switch to Space 6"
+    },
+    "space-7": {
+      "description": "Switch to Space 7"
+    },
+    "space-8": {
+      "description": "Switch to Space 8"
+    },
+    "space-9": {
+      "description": "Switch to Space 9"
     }
   }
 }
