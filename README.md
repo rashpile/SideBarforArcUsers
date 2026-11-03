@@ -152,7 +152,7 @@ Hover a tab or a bookmark and click the flag button, or right-click it and pick 
 
 - A Space is a bookmark folder plus a set of real Chrome tabs, with a name, icon and color
 - One Space is visible at a time. There is no "All" view
-- Switch with the icons at the bottom or a two-finger swipe. Switching brings the Space's most recently used tab forward. A Space with no tabs opens a new tab
+- Switch with the icons at the bottom, a two-finger swipe or a Switch to Space shortcut (see Keyboard). Switching brings the Space's most recently used tab forward. A Space with no tabs opens a new tab
 - New tabs (`Cmd+T`) belong to the active Space
 - Closing the active tab (X, `Cmd+W`, the tab strip, a page that closes itself) switches to the tab you used before it in the same Space, not to its neighbour in the tab strip, which may belong to another Space. A Space with no other open tab gets a new tab. Commands that close many tabs at once (Close Other Tabs, Clear, Archive, Close All Tabs In Space) land on one tab
 - Space membership doesn't depend on Chrome tab groups. Your own groups work normally inside a Space, and moving a tab between windows keeps its Space
@@ -198,8 +198,11 @@ The extension hides `asd_Archive` and `asd_Favorites` in the Bookmarks tree, sea
 | `Cmd+Shift+>` / `Ctrl+Shift+>` | Next tab in history |
 | not set | Tab Switcher: hold the modifier, press to list the Space's tabs (its Favorite tabs included) by last use, press again to move, release to switch |
 | not set | Space Switcher: the same for Spaces |
+| not set | Switch to Space 1 … 9: the Space at that position in the Space bar, opened as by a click on it |
 
 Set or change shortcuts in `chrome://extensions/shortcuts`.
+
+`Cmd+1` … `Cmd+9` on macOS and `Ctrl+1` … `Ctrl+9` on Windows and Linux are Chrome's own shortcuts for its tabs, so on macOS use `Control+1` … `Control+9` for Switch to Space. macOS takes `Control+1` … `Control+9` for "Switch to Desktop N" when those shortcuts are on in System Settings > Keyboard > Keyboard Shortcuts > Mission Control, so turn them off first.
 
 ### Page agent (experimental)
 

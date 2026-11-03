@@ -25,6 +25,7 @@ import { TAB_AGE_HIGHLIGHT_KEY } from './utils/tabAgeHighlight';
 import { isOpenedUnvisited, RecentWindows, UNVISITED_TAB_MARKER_KEY } from './utils/unvisitedTabMarker';
 import { TAB_REOPENED_BY_UNDO_ACTION } from './utils/tabReopenedByUndo';
 import { KeyboardSwitcher, parseSwitcherCommand } from './services/keyboardSwitcher';
+import { SpaceNumberCommand } from './utils/spaceNumberCommand';
 import { ActiveTabCloseFollower } from './services/activeTabCloseFollower';
 import { buildSpaceCards, buildTabCards, findLastUsedTab, WindowSpaces } from './services/switcherLists';
 import { SwitcherMessageAction } from './utils/switcherMessages';
@@ -725,7 +726,8 @@ const keyboardSwitcher = new KeyboardSwitcher({
 /**
  * Brings a Space forward the way Arc does: its most recently used tab is
  * activated, and a Space with no tabs of its own gets a new one. Used by the
- * Space bar, swipes (OPEN_SPACE) and the Space Switcher.
+ * Space bar, swipes (OPEN_SPACE), the Space Switcher and the Switch to Space
+ * shortcuts.
  */
 async function openSpace(windowId: number, spaceId: string): Promise<void>
 {
@@ -739,6 +741,19 @@ async function openSpace(windowId: number, spaceId: string): Promise<void>
   if (lastTabId !== undefined) await setActiveTabAndSpace(lastTabId);
   // onCreated registers the new tab to the window's active Space, set above
   else await chrome.tabs.create({ windowId, active: true });
+}
+
+async function openSpaceAtPosition(command: SpaceNumberCommand): Promise<void>
+{
+  await stateReady;
+  // Rejects when no normal window exists; the caller logs it
+  const win = await chrome.windows.getLastFocused({ windowTypes: ['normal'] });
+  if (win.id === undefined) return;
+  const spaces = spaceManager.getSpaces();
+  const activeSpaceId = resolveActiveSpaceId(spaces, spaceStateManager.getActiveSpace(win.id));
+  const space = command.spaceToOpen(spaces, activeSpaceId);
+  if (!space) return;
+  await openSpace(win.id, space.id);
 }
 
 chrome.windows.onRemoved.addListener((windowId) => keyboardSwitcher.handleWindowRemoved(windowId));
@@ -1448,6 +1463,14 @@ chrome.commands.onCommand.addListener((command) =>
   {
     void stateReady.then(() =>
       keyboardSwitcher.handleShortcut(switcherCommand.kind, switcherCommand.direction));
+    return;
+  }
+
+  const spaceNumberCommand = SpaceNumberCommand.parse(command);
+  if (spaceNumberCommand)
+  {
+    void openSpaceAtPosition(spaceNumberCommand)
+      .catch((error) => console.error('[SpaceNumberCommand] failed to switch Space:', error));
     return;
   }
 
