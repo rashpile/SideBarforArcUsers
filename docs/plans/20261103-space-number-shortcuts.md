@@ -146,10 +146,10 @@ Nine entries after `space-switcher-next`, no `suggested_key`:
 - Create: `src/utils/spaceNumberCommand.ts`
 - Create: `tests/spaceNumberCommand.test.mjs`
 
-- [ ] create `src/utils/spaceNumberCommand.ts` with the `SpaceNumberCommand` class: `static parse(command)` (`/^space-([1-9])$/`) and `spaceToOpen(spaces, activeSpaceId)` as in Technical Details
-- [ ] write tests: `space-1` picks the first Space, `space-3` the third; `space-4` with three Spaces → undefined; the active Space's own command → undefined, another position with an active Space → that Space; `activeSpaceId` null → the Space at the position
-- [ ] write tests: `parse` returns undefined for `space-0`, `space-10`, `space-switcher-next`, `prev-used-tab`, `Space-1`
-- [ ] run `make test` - must pass before task 2
+- [x] create `src/utils/spaceNumberCommand.ts` with the `SpaceNumberCommand` class: `static parse(command)` (`/^space-([1-9])$/`) and `spaceToOpen(spaces, activeSpaceId)` as in Technical Details
+- [x] write tests: `space-1` picks the first Space, `space-3` the third; `space-4` with three Spaces → undefined; the active Space's own command → undefined, another position with an active Space → that Space; `activeSpaceId` null → the Space at the position
+- [x] write tests: `parse` returns undefined for `space-0`, `space-10`, `space-switcher-next`, `prev-used-tab`, `Space-1`
+- [x] run `make test` - must pass before task 2
 
 ### Task 2: Register space-1 … space-9 and switch Space on the command
 
