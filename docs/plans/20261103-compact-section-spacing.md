@@ -72,13 +72,17 @@
 | separator under Archive (`ArchiveSection.tsx`) | `my-2` | `my-1` |
 | `.arc-new-tab-row` | `margin-top: 8px` | `margin-top: 4px` (row height 40px unchanged) |
 
-Expected result:
+Expected result (every Space's tree ends with `SpaceRootDropTarget` in `BookmarkTree.tsx`, an empty row of
+`.arc-space-root-drop-target { min-height: 10px }` that this change leaves alone; it sits after the last bookmark
+row and above the separator, so the gaps below count its 10px):
 
-- collapsed Archive block, last bookmark → `+ New Tab`: 4 + 1 + 4 + 28 + 4 + 1 + 4 ≈ 46px (was 8 + 1 + 8 + 36 + 8 + 1 + 8 ≈ 70px;
+- collapsed Archive block, last bookmark → `+ New Tab`: 10 + 4 + 1 + 4 + 28 + 4 + 1 + 4 ≈ 56px (was
+  10 + 8 + 1 + 8 + 36 + 8 + 1 + 8 ≈ 80px); without the drop target, separator to `+ New Tab` is ≈ 46px (was ≈ 70px;
   today the header's 4px / 2px margins collapse into the separators' 8px);
 - the gap under each separator is 4px only with the `.arc-new-tab-row` change: its `margin-top` collapses with the
   separator's bottom margin, so with `my-1` alone it would stay 8px;
-- a Space with no bookmarks and no Archive: Space header → `+ New Tab` is 4px scroll padding + 4px margin (was 8 + 8);
+- a Space with no bookmarks and no Archive: Space header → `+ New Tab` is 4px scroll padding + 10px root drop
+  target + 4px margin ≈ 18px (was 8 + 10 + 8 ≈ 26px); there is no separator, it shows only with visible bookmarks;
 - Favorites bottom → Space header → first bookmark: 6px + 1px + 28px + 4px ≈ 39px (was ≈ 61px);
 - the expanded Archive search field (input with `py-0.5`, about 24px) still fits: that header is about 30px.
 
