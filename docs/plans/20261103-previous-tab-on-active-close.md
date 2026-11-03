@@ -196,6 +196,17 @@ the follow's promise, whether it is confirmed, the pick to forget and whether it
 and `ActivationRecord` holding the activated tab, the previous tab and `previousGone`) instead of maps of
 plain objects (CLAUDE.md "Classes over raw structures").
 
+Settled during Task 1:
+
+- An unconfirmed follow confirmed by a joined close of the history top, whose check then says the first
+  tab still existed, lands in the joined tab's Space (that tab was the active one); when the check says
+  "gone" it keeps the first tab's Space. Without this the pending-check variant of the {X, previous Y}
+  batch would land in Y's Space.
+- Tabs whose removal joined the follow are never candidates, even if `windowTabs` still lists them.
+- After `removeWindow` the follow stops at its next step and replays nothing, so `openNewTab` never sets
+  the active Space of a closed window.
+- A `tabExists` that rejects counts as "still existed": Chrome's pick stays, as before the follower.
+
 ### `background.ts` wiring
 
 - Move the body of the `onActivated` listener after `markActivated` into
@@ -241,12 +252,12 @@ Keep the comment explaining why the Space goes first.
 - Create: `src/services/activeTabCloseFollower.ts`
 - Create: `tests/activeTabCloseFollower.test.mjs`
 
-- [ ] create `src/services/activeTabCloseFollower.ts` with `FollowerTab`, `ActiveTabCloseFollowerDeps` and the `ActiveTabCloseFollower` class (`noteActivation`, `absorbActivation`, `isFollowing`, `tabRemoved`, `removeWindow`) as in Technical Details
-- [ ] implement the follow: pick-first confirmation (settled or awaited `previousGone`, confirmation by a joined close of the history top), candidate order (history of the Space, then `lastAccessed`), activation with fallback to the next candidate, New Tab when the Space has none, replay of the active tab only when an activation was skipped
-- [ ] write tests for the landing: active tab closes → most recent open tab of its Space activated while a more recent tab of another Space is ignored; `finishActivation` called for it; `absorbActivation` true during the follow and false after; history misses the Space's tabs → newest `lastAccessed` of the Space; first candidate fails to activate → next one; no other tab in the Space → `openNewTab` with that Space and `finishActivation` for the new tab; `windowTabs` rejects after a skipped activation → `finishActivation` for the active tab
-- [ ] write tests for the cases that must change nothing: background tab close, `isWindowClosing`, `restored` false, no `closedTabSpaceId`, Space that no longer exists (no follow, `isFollowing` stays false, no activation, no `finishActivation`)
-- [ ] write tests for both event orders and batches: several removals in one window during a follow → one activation, closed tabs never chosen; pick first with the previous tab already gone → follow lands and the pick is forgotten from history; pick first with the previous tab's check settled "still existed" → no follow, no `finishActivation`; record {X, previous Y}, then Y removed and X removed in one batch → lands in X's Space
-- [ ] run tests - must pass before next task
+- [x] create `src/services/activeTabCloseFollower.ts` with `FollowerTab`, `ActiveTabCloseFollowerDeps` and the `ActiveTabCloseFollower` class (`noteActivation`, `absorbActivation`, `isFollowing`, `tabRemoved`, `removeWindow`) as in Technical Details
+- [x] implement the follow: pick-first confirmation (settled or awaited `previousGone`, confirmation by a joined close of the history top), candidate order (history of the Space, then `lastAccessed`), activation with fallback to the next candidate, New Tab when the Space has none, replay of the active tab only when an activation was skipped
+- [x] write tests for the landing: active tab closes → most recent open tab of its Space activated while a more recent tab of another Space is ignored; `finishActivation` called for it; `absorbActivation` true during the follow and false after; history misses the Space's tabs → newest `lastAccessed` of the Space; first candidate fails to activate → next one; no other tab in the Space → `openNewTab` with that Space and `finishActivation` for the new tab; `windowTabs` rejects after a skipped activation → `finishActivation` for the active tab
+- [x] write tests for the cases that must change nothing: background tab close, `isWindowClosing`, `restored` false, no `closedTabSpaceId`, Space that no longer exists (no follow, `isFollowing` stays false, no activation, no `finishActivation`)
+- [x] write tests for both event orders and batches: several removals in one window during a follow → one activation, closed tabs never chosen; pick first with the previous tab already gone → follow lands and the pick is forgotten from history; pick first with the previous tab's check settled "still existed" → no follow, no `finishActivation`; record {X, previous Y}, then Y removed and X removed in one batch → lands in X's Space
+- [x] run tests - must pass before next task
 
 ### Task 2: Wire the follower into background events
 
