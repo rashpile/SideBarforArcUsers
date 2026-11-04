@@ -251,10 +251,10 @@ Hook: `usePageAgentChat` exposes `applyCode(css, script, origin): Promise<void>`
 - Modify: `src/services/pageStyleApplier.ts`
 - Modify: `tests/pageStyleApplier.test.mjs`
 
-- [ ] `#styleForTab` checks the CSS with `checkPageAgentCss(style.css, style.cssByUser)`
-- [ ] write tests: a flagged saved style with a remote `url()` is inserted in the bookmark's tab; the same
+- [x] `#styleForTab` checks the CSS with `checkPageAgentCss(style.css, style.cssByUser)`
+- [x] write tests: a flagged saved style with a remote `url()` is inserted in the bookmark's tab; the same
   CSS unflagged is not inserted
-- [ ] run `make test`, `make lint` and `make build` - must pass before next task
+- [x] run `make test`, `make lint` and `make build` - must pass before next task
 
 ### Task 3: Applied set carries `cssByUser`
 
