@@ -4,11 +4,14 @@ import test from 'node:test';
 import { PageAgentChatStore } from '../src/services/pageAgent/pageAgentChatStore.ts';
 import { PageAgentChats } from '../src/services/pageAgent/pageAgentChats.ts';
 import { SavedPageStyle } from '../src/stores/savedPageStyles.ts';
+import { withMarker } from '../src/utils/pageAgentCss.ts';
+import { NoUserScriptWorldError } from '../src/utils/pageAgentScript.ts';
 
 const TAB_A = 11;
 const TAB_B = 22;
 const URL_A = 'https://site.test/videos/1';
 const CSS = 'iframe { width: 100% !important; }';
+const SCRIPT = "agent.on(document, 'keydown', event => { if (event.key === ']') { seekNext(); } });";
 const SETTINGS = { model: 'test-model' };
 
 const nextTask = () => new Promise(resolve => setTimeout(resolve, 0));
@@ -120,6 +123,12 @@ class FakePage
     this.markerReads = 0;
     this.popups = new Map();
     this.popupCalls = [];
+    // Every sheet and script call in order, as `<method> <tabId> [<kind>]`.
+    this.calls = [];
+    this.scriptCommands = [];
+    /** What runUserScript returns, or the error it rejects with. */
+    this.scriptResult = { ok: true, compiled: true, value: 'null', errors: [] };
+    this.scriptError = null;
   }
 
   async showPopup(tabId, title, answer)
@@ -153,12 +162,25 @@ class FakePage
 
   async insertCss(tabId, text)
   {
+    this.calls.push(`insertCss ${tabId}`);
     this.inserted.push({ tabId, text });
   }
 
   async removeCss(tabId, text)
   {
+    this.calls.push(`removeCss ${tabId}`);
     this.removed.push({ tabId, text });
+  }
+
+  async runUserScript(tabId, command)
+  {
+    this.calls.push(`runUserScript ${tabId} ${command.kind}`);
+    this.scriptCommands.push({ tabId, command });
+    if (this.scriptError)
+    {
+      throw this.scriptError;
+    }
+    return this.scriptResult;
   }
 
   async readMarker()
@@ -210,7 +232,7 @@ function setup(initialItems = {})
   return { area, store, factory, page, savedStyles, chats };
 }
 
-const savedStyle = (rev, css = CSS) => new SavedPageStyle(css, true, 'https://site.test', rev);
+const savedStyle = (rev, css = CSS, script = '') => new SavedPageStyle(css, true, 'https://site.test', rev, script);
 
 function storedChatWithCss(tabId, overrides = {})
 {
@@ -231,6 +253,11 @@ function storedChatWithCss(tabId, overrides = {})
     notice: 'none',
     ...overrides,
   };
+}
+
+function storedChatWithScript(tabId, overrides = {})
+{
+  return storedChatWithCss(tabId, { appliedScript: SCRIPT, ...overrides });
 }
 
 const metResult = {
@@ -592,4 +619,190 @@ test('a turn whose run opened the popup and a style turn append nothing to the o
 
   assert.deepEqual(page.popupCalls, []);
   assert.equal(page.popupOf(TAB_A).entries.length, 1);
+});
+
+test('undo removes the sheet and undoes the script on the chat\'s own tab, then clears the chat', async () =>
+{
+  const stored = storedChatWithScript(TAB_A);
+  const { store, page, chats } = setup({
+    [`pageAgentChat:${TAB_A}`]: stored,
+    [`pageAgentChat:${TAB_B}`]: storedChatWithScript(TAB_B),
+  });
+  await chats.get(TAB_A);
+  await chats.get(TAB_B);
+
+  await chats.undo(TAB_A);
+
+  assert.deepEqual(page.calls, [`removeCss ${TAB_A}`, `runUserScript ${TAB_A} undo`]);
+  assert.deepEqual(page.removed, [{ tabId: TAB_A, text: stored.appliedInsertedText }]);
+  assert.equal(chats.peek(TAB_A).appliedScript, '');
+  assert.equal(chats.peek(TAB_A).appliedCss, '');
+  assert.equal((await store.load(TAB_A)).appliedScript, '');
+  assert.equal(chats.peek(TAB_B).appliedScript, SCRIPT, 'the other tab keeps its script');
+});
+
+test('undo clears the chat when the script could not be stopped and rejects with the reload hint', async () =>
+{
+  const failures = [
+    ['rejected', page => { page.scriptError = new Error("Chrome doesn't allow user scripts"); }],
+    ['not ok', page => { page.scriptResult = { ok: false, compiled: false, error: 'the script did not run', errors: [] }; }],
+  ];
+  for (const [failure, fail] of failures)
+  {
+    const { store, page, chats } = setup({ [`pageAgentChat:${TAB_A}`]: storedChatWithScript(TAB_A) });
+    await chats.get(TAB_A);
+    fail(page);
+
+    await assert.rejects(chats.undo(TAB_A), /couldn't be stopped .*reload the page/, failure);
+
+    assert.equal(chats.peek(TAB_A).appliedScript, '', failure);
+    assert.equal(chats.peek(TAB_A).appliedInsertedText, '', failure);
+    assert.equal((await store.load(TAB_A)).appliedScript, '', failure);
+  }
+});
+
+test('undo on a tab that moved to a page with no user script world clears the chat without rejecting', async () =>
+{
+  const { page, chats } = setup({ [`pageAgentChat:${TAB_A}`]: storedChatWithScript(TAB_A) });
+  await chats.get(TAB_A);
+  page.url = 'chrome://newtab/';
+  page.scriptError = new NoUserScriptWorldError();
+
+  await chats.undo(TAB_A);
+
+  assert.equal(chats.peek(TAB_A).appliedScript, '');
+  assert.equal(chats.peek(TAB_A).appliedId, '');
+});
+
+test('reapply inserts the marker sheet and applies the script under a new id', async () =>
+{
+  const stored = storedChatWithScript(TAB_A, { notice: 'reloaded' });
+  const { store, page, chats } = setup({ [`pageAgentChat:${TAB_A}`]: stored });
+  await chats.get(TAB_A);
+
+  await chats.reapply(TAB_A);
+
+  assert.deepEqual(page.calls, [`removeCss ${TAB_A}`, `insertCss ${TAB_A}`, `runUserScript ${TAB_A} apply`]);
+  assert.deepEqual(page.inserted, [{ tabId: TAB_A, text: withMarker(CSS, 'reapplied-1') }]);
+  assert.deepEqual(page.scriptCommands, [{ tabId: TAB_A, command: { kind: 'apply', code: SCRIPT } }]);
+  const chat = chats.peek(TAB_A);
+  assert.equal(chat.appliedId, 'reapplied-1');
+  assert.equal(chat.appliedScript, SCRIPT);
+  assert.equal(chat.notice, 'none');
+  assert.equal((await store.load(TAB_A)).appliedScript, SCRIPT);
+});
+
+test('reapply of a script-only set inserts the marker-only sheet, and a failed script is recorded before the rejection', async () =>
+{
+  const stored = storedChatWithScript(TAB_A, { appliedCss: '', notice: 'reloaded' });
+  const { page, chats } = setup({ [`pageAgentChat:${TAB_A}`]: stored });
+  await chats.get(TAB_A);
+  page.scriptResult = { ok: false, compiled: true, error: 'TypeError: seekNext is not a function', errors: [] };
+
+  await assert.rejects(chats.reapply(TAB_A), /seekNext is not a function/);
+
+  assert.deepEqual(page.inserted, [{ tabId: TAB_A, text: withMarker('', 'reapplied-1') }]);
+  const chat = chats.peek(TAB_A);
+  assert.equal(chat.appliedId, 'reapplied-1', 'what the script registered before it threw stays until Undo');
+  assert.equal(chat.appliedScript, SCRIPT);
+});
+
+test('applySaved undoes the chat\'s script before it puts the saved sheet and script on the page', async () =>
+{
+  const stored = storedChatWithScript(TAB_A);
+  const { store, page, savedStyles, chats } = setup({ [`pageAgentChat:${TAB_A}`]: stored });
+  const savedScript = 'agent.add(document.createElement("div"));';
+  const style = savedStyle('r1', 'video { width: 100% !important; }', savedScript);
+  savedStyles.set(TAB_A, '42', style);
+  await chats.get(TAB_A);
+  page.marker = 'id-1';
+
+  await chats.applySaved(TAB_A);
+
+  assert.deepEqual(page.calls, [
+    `removeCss ${TAB_A}`,
+    `runUserScript ${TAB_A} undo`,
+    `insertCss ${TAB_A}`,
+    `runUserScript ${TAB_A} apply`,
+  ]);
+  assert.deepEqual(page.scriptCommands[1], { tabId: TAB_A, command: { kind: 'apply', code: savedScript } });
+  assert.deepEqual(page.inserted, [{ tabId: TAB_A, text: style.insertedText }]);
+  const chat = chats.peek(TAB_A);
+  assert.equal(chat.appliedId, 'saved-r1');
+  assert.equal(chat.appliedScript, savedScript);
+  assert.equal((await store.load(TAB_A)).appliedScript, savedScript);
+});
+
+test('applySaved does nothing to the page when the marker shows the saved id, and records the saved script', async () =>
+{
+  const { page, savedStyles, chats } = setup({ [`pageAgentChat:${TAB_A}`]: storedChatWithScript(TAB_A) });
+  const style = savedStyle('r1', CSS, 'agent.onUndo(() => {});');
+  savedStyles.set(TAB_A, '42', style);
+  await chats.get(TAB_A);
+  page.marker = 'saved-r1';
+
+  await chats.applySaved(TAB_A);
+
+  assert.deepEqual(page.calls, [], 'the background already inserted the sheet and ran the script');
+  assert.equal(chats.peek(TAB_A).appliedId, 'saved-r1');
+  assert.equal(chats.peek(TAB_A).appliedScript, style.script);
+});
+
+test('a run starts with the chat\'s applied script, and approveScripts on tab A does not answer the run on tab B', async () =>
+{
+  const { store, factory, chats } = setup({ [`pageAgentChat:${TAB_A}`]: storedChatWithScript(TAB_A) });
+  const request = { kind: 'apply', code: SCRIPT };
+
+  const sendingA = chats.send(TAB_A, 'add keys for the next subtitle line', SETTINGS);
+  const runA = await factory.runFor(TAB_A);
+  const sendingB = chats.send(TAB_B, 'add keys for the next subtitle line', SETTINGS);
+  const runB = await factory.runFor(TAB_B);
+  assert.equal(runA.start.currentScript, SCRIPT);
+  assert.equal(runB.start.currentScript, '');
+
+  const answers = [];
+  runA.listener.onScriptApproval(request).then(allow => answers.push(['A', allow]));
+  runB.listener.onScriptApproval(request).then(allow => answers.push(['B', allow]));
+  assert.deepEqual(chats.peek(TAB_A).data.turns[1].pendingScript, request);
+  assert.deepEqual(chats.peek(TAB_B).data.turns[0].pendingScript, request);
+
+  chats.approveScripts(TAB_A, true);
+  await nextTask();
+
+  assert.deepEqual(answers, [['A', true]]);
+  assert.equal(chats.peek(TAB_A).data.turns[1].pendingScript, undefined);
+  assert.deepEqual(chats.peek(TAB_B).data.turns[0].pendingScript, request, 'B still waits');
+
+  // B's run ends (Stop) while it still asks: the question is declined and gone from the turn.
+  runB.finish({ status: 'stopped', conditions: [], replaced: [], summary: 'Stopped.' });
+  await sendingB;
+  await nextTask();
+  assert.deepEqual(answers, [['A', true], ['B', false]]);
+  assert.equal(chats.peek(TAB_B).data.turns[0].pendingScript, undefined);
+  assert.equal((await store.load(TAB_B)).data.turns[0].pendingScript, undefined);
+
+  runA.finish(metResult);
+  await sendingA;
+});
+
+test('a stored chat with a pending script loads without it', async () =>
+{
+  const stored = storedChatWithScript(TAB_A, {
+    turns: [{
+      request: 'add keys for the next subtitle line',
+      status: 'running',
+      conditions: [],
+      replaced: [],
+      steps: [],
+      summary: '',
+      pendingScript: { kind: 'apply', code: SCRIPT },
+    }],
+  });
+  const { chats } = setup({ [`pageAgentChat:${TAB_A}`]: stored });
+
+  const chat = await chats.get(TAB_A);
+
+  assert.equal(chat.data.turns[0].status, 'stopped');
+  assert.equal('pendingScript' in chat.data.turns[0], false);
+  assert.equal(chat.appliedScript, SCRIPT);
 });

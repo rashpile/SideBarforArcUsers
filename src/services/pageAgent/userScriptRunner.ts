@@ -6,6 +6,7 @@
 // Named UserScript* so it isn't confused with PageScriptWorld and pageScripts.ts, which are the
 // chrome.scripting injections.
 
+import { NoUserScriptWorldError } from '../../utils/pageAgentScript.ts';
 import { runUserScriptCommand } from './userScriptRuntime.ts';
 import type { UserScriptCommand, UserScriptLimits, UserScriptResult } from './userScriptRuntime.ts';
 
@@ -75,13 +76,13 @@ export class UserScriptRunner
     return this.#availableApi() !== null;
   }
 
-  /** Rejects with a plain Error when user scripts are unavailable or the URL has no world. */
+  /** Rejects with NoUserScriptWorldError when the URL has no world, with a plain Error when user scripts are unavailable. */
   async run(tabId: number, url: string, command: UserScriptCommand): Promise<UserScriptResult>
   {
     const world = UserScriptWorld.forUrl(url);
     if (!world)
     {
-      throw new Error('scripts run only on http and https pages');
+      throw new NoUserScriptWorldError();
     }
     const api = this.#availableApi();
     if (!api)

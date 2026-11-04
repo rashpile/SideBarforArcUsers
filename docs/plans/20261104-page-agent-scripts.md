@@ -284,6 +284,11 @@ export class UserScriptRunner
   recorded (the sheet is on the page, the script's registrations are in the world) and the action rejects
   with the script's error.
 - `savedAsApplied` carries `style.script`. `checkMarker` is unchanged.
+- ➕ "No world" is a `NoUserScriptWorldError` (`src/utils/pageAgentScript.ts`) that the runner throws, so
+  Undo tells it from other failures without the chats importing the runner and the in-page runtime into
+  the panel's first chunk. `applySaved` undoes the chat's script even when the saved style has one (the
+  runtime's `apply` undoes the running script only after the new code compiles); when both fail it
+  rejects with the saved script's error.
 
 ### Saved styles
 
@@ -441,18 +446,18 @@ export class UserScriptRunner
 - Modify: `src/services/pageAgent/panelPageAgent.ts`
 - Modify: `tests/pageAgentChats.test.mjs`
 
-- [ ] `appliedScript`, `pendingScript`, `currentScript` passed to the run, `approveScripts`, the real
+- [x] `appliedScript`, `pendingScript`, `currentScript` passed to the run, `approveScripts`, the real
   `onScriptApproval`, pending approval resolved `false` when the run ends
-- [ ] `PageAgentChatPage.runUserScript` and `LazyChatPage.runUserScript`
-- [ ] Undo, Re-apply and `applySaved` with the script as in Technical Details; `savedAsApplied` carries
+- [x] `PageAgentChatPage.runUserScript` and `LazyChatPage.runUserScript`
+- [x] Undo, Re-apply and `applySaved` with the script as in Technical Details; `savedAsApplied` carries
   the script
-- [ ] write tests: Undo removes the sheet and undoes the script on the chat's tab, clears the chat even
+- [x] write tests: Undo removes the sheet and undoes the script on the chat's tab, clears the chat even
   when the script undo fails (rejecting with the reload hint), and doesn't reject when the tab has no
   world; Re-apply inserts the marker sheet and applies the script with a new id; Apply saved undoes the
   chat's script before applying the saved one, and does nothing to the page when the marker already shows
   the saved id; `approveScripts` on tab A doesn't resolve tab B's approval; a stored chat with
   `pendingScript` loads without it
-- [ ] run `make test`, `make lint` and `make build` - must pass before next task
+- [x] run `make test`, `make lint` and `make build` - must pass before next task
 
 ### Task 7: Page scripts plugin switch
 

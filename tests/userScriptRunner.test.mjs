@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { afterEach, test } from 'node:test';
 
 import { UserScriptRunner, UserScriptWorld } from '../src/services/pageAgent/userScriptRunner.ts';
+import { NoUserScriptWorldError } from '../src/utils/pageAgentScript.ts';
 
 // The world's CSP is what keeps an agent script, written after reading a possibly prompt-injected page,
 // from sending the page's data to another site; the runner must never run a script outside that world.
@@ -78,7 +79,7 @@ test('pages other than http(s), and origins the CSP cannot name, get no world an
   for (const url of ['chrome://extensions/', 'file:///Users/me/page.html', 'about:blank', 'not a url', '', 'http://a;b.com/'])
   {
     assert.equal(UserScriptWorld.forUrl(url), null, url);
-    await assert.rejects(runner.run(1, url, { kind: 'undo' }), Error, url);
+    await assert.rejects(runner.run(1, url, { kind: 'undo' }), NoUserScriptWorldError, url);
   }
   assert.deepEqual(api.calls, []);
 });

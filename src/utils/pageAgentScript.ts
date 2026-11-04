@@ -16,3 +16,17 @@ export class PageAgentScriptCheck
     return { ok: true };
   }
 }
+
+/**
+ * The page has no user script world (it isn't an http(s) page), so no agent script can be running
+ * on it. Kept here rather than in the runner, so the side panel's chats can recognize it without
+ * loading the runner and the in-page runtime.
+ */
+export class NoUserScriptWorldError extends Error
+{
+  constructor()
+  {
+    super('scripts run only on http and https pages');
+    this.name = 'NoUserScriptWorldError';
+  }
+}

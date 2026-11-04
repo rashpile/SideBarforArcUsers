@@ -10,6 +10,7 @@ import { PageAgentChatStore } from './pageAgentChatStore.ts';
 import type { PageAgentChatStorageArea } from './pageAgentChatStore.ts';
 import type { PageAgentAnswer, PageAgentRunResult } from './pageAgentRun.ts';
 import type { PageAgentRuntime } from './pageAgentRuntime.ts';
+import type { UserScriptCommand, UserScriptResult } from './userScriptRuntime.ts';
 
 class LazyPageAgentRuntime
 {
@@ -68,7 +69,10 @@ class DeferredRun implements PageAgentLiveRun
   }
 }
 
-/** Undo, Re-apply, applying a saved style, the marker check and the popup, through the runtime's ChromePageAdapter. */
+/**
+ * Undo, Re-apply, applying a saved style (their scripts included), the marker check and the popup,
+ * through the runtime's ChromePageAdapter.
+ */
 class LazyChatPage implements PageAgentChatPage
 {
   readonly #runtime: LazyPageAgentRuntime;
@@ -96,6 +100,11 @@ class LazyChatPage implements PageAgentChatPage
   async readMarker(tabId: number): Promise<string>
   {
     return await (await this.#runtime.get()).page.readMarker(tabId);
+  }
+
+  async runUserScript(tabId: number, command: UserScriptCommand): Promise<UserScriptResult>
+  {
+    return await (await this.#runtime.get()).page.runUserScript(tabId, command);
   }
 
   async showPopup(tabId: number, title: string, answer: PageAgentAnswer): Promise<void>
