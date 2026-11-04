@@ -213,6 +213,9 @@ export class UserScriptRunner
   ${JSON.stringify(limits)})`. Top frame only. A missing or non-object result becomes `{ ok: false,
   compiled: false, error: 'the script did not run; the page may still be loading or not allow scripts' }`.
 - Limits: value 12,000 characters, 5 errors, 10 s.
+- ➕ `forUrl` also returns `null` for an http(s) origin that isn't a plain CSP host source: `URL`
+  accepts hosts such as `a;b.com`, whose `;` would end the CSP directive. A missing result keeps
+  `execute()`'s `error` text, when Chrome gives one, in brackets after the "did not run" error.
 - `src/types/chromeUserScripts.d.ts`: the `UserScriptsApi` shape the runner uses (`configureWorld`,
   `execute`, `getScripts`) and an optional `chrome.userScripts` declaration.
 - `src/utils/pageAgentScript.ts`: `PAGE_AGENT_SCRIPT_MAX_BYTES = 64 * 1024` and
@@ -349,16 +352,16 @@ export class UserScriptRunner
 - Modify: `public/manifest.json`
 - Create: `tests/userScriptRunner.test.mjs`
 
-- [ ] add `UserScriptWorld.forUrl` and `UserScriptRunner` (`available`, `run`) with the API passed in,
+- [x] add `UserScriptWorld.forUrl` and `UserScriptRunner` (`available`, `run`) with the API passed in,
   as in Technical Details
-- [ ] add the local `chrome.userScripts` typings and `PageAgentScriptCheck` with
+- [x] add the local `chrome.userScripts` typings and `PageAgentScriptCheck` with
   `PAGE_AGENT_SCRIPT_MAX_BYTES`
-- [ ] add `"optional_permissions": ["userScripts"]` to the manifest
-- [ ] write tests: the CSP names exactly the page origin in every fetch directive and nothing else
+- [x] add `"optional_permissions": ["userScripts"]` to the manifest
+- [x] write tests: the CSP names exactly the page origin in every fetch directive and nothing else
   remote; `chrome://`, `file:` and malformed URLs get no world and `run` rejects; `configureWorld` runs
   before `execute` with the same `worldId`; a `null` result becomes the "did not run" error;
   `available()` is false when the API is missing, has no `execute`, or `getScripts` throws
-- [ ] run `make test`, `make lint` and `make build` - must pass before next task
+- [x] run `make test`, `make lint` and `make build` - must pass before next task
 
 ### Task 3: Saved page styles keep a script
 

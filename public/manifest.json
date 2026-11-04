@@ -15,6 +15,9 @@
     "activeTab",
     "webNavigation"
   ],
+  "optional_permissions": [
+    "userScripts"
+  ],
   "optional_host_permissions": [
     "http://*/*",
     "https://*/*",
