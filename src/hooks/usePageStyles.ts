@@ -9,14 +9,15 @@ export type PageStyleState = 'none' | 'on' | 'off';
 /** The changes to saved page styles; each rejects with the manager's reason. */
 export interface PageStyleActions
 {
-  save(bookmarkId: string, css: string, script: string, pageUrl: string): Promise<void>;
+  /** `cssByUser`: the CSS came from the user's code editor (see PageStyleApi.save). */
+  save(bookmarkId: string, css: string, script: string, pageUrl: string, cssByUser: boolean): Promise<void>;
   setAutoApply(bookmarkId: string, on: boolean): Promise<void>;
   remove(bookmarkId: string): Promise<void>;
 }
 
 /**
  * The page styles saved to bookmarks and Favorites. The actions reject with the manager's reason
- * (the sanitizer refusing the CSS, a script that is too large, a page that isn't http(s), a failed
+ * (the CSS check refusing the CSS, a script that is too large, a page that isn't http(s), a failed
  * write), so the drawer can show it; callers without an error display catch and log.
  */
 export const usePageStyles = () =>
@@ -37,9 +38,19 @@ export const usePageStyles = () =>
     return style.autoApply ? 'on' : 'off';
   }, [styles]);
 
-  const save = useCallback(async (bookmarkId: string, css: string, script: string, pageUrl: string): Promise<void> =>
+  const save = useCallback(async (
+    bookmarkId: string,
+    css: string,
+    script: string,
+    pageUrl: string,
+    cssByUser: boolean
+  ): Promise<void> =>
   {
-    await withManagerReason(ManagerId.PAGE_STYLES, 'save', () => pageStyleProxy.save(bookmarkId, css, script, pageUrl));
+    await withManagerReason(
+      ManagerId.PAGE_STYLES,
+      'save',
+      () => pageStyleProxy.save(bookmarkId, css, script, pageUrl, cssByUser)
+    );
   }, []);
 
   const setAutoApply = useCallback(async (bookmarkId: string, on: boolean): Promise<void> =>

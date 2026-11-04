@@ -234,16 +234,16 @@ Hook: `usePageAgentChat` exposes `applyCode(css, script, origin): Promise<void>`
 - Modify: `tests/savedPageStyles.test.mjs`
 - Modify: `tests/pageStyleManager.test.mjs`
 
-- [ ] `PageAgentCssSanitizer.checkSize` and `checkPageAgentCss(css, cssByUser)` as in Technical Details
-- [ ] `SavedPageStyle.cssByUser` (last constructor parameter, default `false`), `withAutoApply`, `equals`,
+- [x] `PageAgentCssSanitizer.checkSize` and `checkPageAgentCss(css, cssByUser)` as in Technical Details
+- [x] `SavedPageStyle.cssByUser` (last constructor parameter, default `false`), `withAutoApply`, `equals`,
   `toStored`, `fromStoredEntry`; `StoredPageStyle.cssByUser?`; `withSaved(..., cssByUser)`
-- [ ] `PageStyleManager.save(..., cssByUser, originId)`, `dispatch`, `checkSavable` by the flag, `restore`
+- [x] `PageStyleManager.save(..., cssByUser, originId)`, `dispatch`, `checkSavable` by the flag, `restore`
   by the record's flag; API, proxy and hook carry `cssByUser`
-- [ ] write tests: a stored entry without `cssByUser` loads with `false`; the flag survives `toStored` /
+- [x] write tests: a stored entry without `cssByUser` loads with `false`; the flag survives `toStored` /
   `fromStoredEntry` and `withAutoApply`; `save` accepts CSS with a remote `url()` / `var()` / `@import`
   only with `cssByUser` true and refuses it without; both are refused over 20 KB; `restore` of a flagged
   record with `url()` is accepted and of an unflagged one refused
-- [ ] run `make test`, `make lint` and `make build` - must pass before next task
+- [x] run `make test`, `make lint` and `make build` - must pass before next task
 
 ### Task 2: Background applier honours `cssByUser`
 

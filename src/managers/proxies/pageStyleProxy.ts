@@ -145,9 +145,9 @@ class PageStyleProxy implements Remote<PageStyleApi>
     return await callManager<PageStylesState>(ManagerId.PAGE_STYLES, 'getState');
   }
 
-  async save(bookmarkId: string, css: string, script: string, pageUrl: string): Promise<PageStylesState>
+  async save(bookmarkId: string, css: string, script: string, pageUrl: string, cssByUser: boolean): Promise<PageStylesState>
   {
-    return this.#mutate('save', { bookmarkId, css, script, pageUrl });
+    return this.#mutate('save', { bookmarkId, css, script, pageUrl, cssByUser });
   }
 
   async setAutoApply(bookmarkId: string, on: boolean): Promise<PageStylesState>

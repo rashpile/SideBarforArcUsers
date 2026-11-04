@@ -19,6 +19,8 @@ export interface StoredPageStyle
   rev: string;
   /** Missing in entries saved before page scripts; read as no script. */
   script?: string;
+  /** Written only when true: the CSS came from the user's code editor and skips the sanitizer. */
+  cssByUser?: boolean;
 }
 
 /** The value of the `bookmarkPageStyles` key: saved styles by bookmark id. */
@@ -74,7 +76,10 @@ export function bookmarkIdFromItemKey(itemKey: string | null | undefined): strin
 /** The CSS and script saved to one bookmark, for pages on the origin it was saved on. */
 export class SavedPageStyle
 {
-  /** The sanitized stylesheet, without the marker rule; empty for a script-only style. */
+  /**
+   * The stylesheet, without the marker rule; empty for a script-only style. Sanitized unless
+   * `cssByUser`.
+   */
   readonly css: string;
   readonly autoApply: boolean;
   /** The http(s) origin of the page the style was saved on. */
@@ -83,14 +88,17 @@ export class SavedPageStyle
   readonly rev: string;
   /** The page agent's script, run after the sheet is inserted; empty for a CSS-only style. */
   readonly script: string;
+  /** The CSS came from the user's code editor: every check of it is the size cap alone. */
+  readonly cssByUser: boolean;
 
-  constructor(css: string, autoApply: boolean, origin: string, rev: string, script: string = '')
+  constructor(css: string, autoApply: boolean, origin: string, rev: string, script: string = '', cssByUser: boolean = false)
   {
     this.css = css;
     this.autoApply = autoApply;
     this.origin = origin;
     this.rev = rev;
     this.script = script;
+    this.cssByUser = cssByUser;
     Object.freeze(this);
   }
 
@@ -112,7 +120,10 @@ export class SavedPageStyle
     return httpOriginOf(url) === this.origin;
   }
 
-  /** Whether this style is exactly this CSS and script, as a chat applied them. */
+  /**
+   * Whether this style is exactly this CSS and script, as a chat applied them. Text only: equal
+   * text is the same look whoever wrote it.
+   */
   holds(css: string, script: string): boolean
   {
     return this.css === css && this.script === script;
@@ -120,7 +131,9 @@ export class SavedPageStyle
 
   withAutoApply(on: boolean): SavedPageStyle
   {
-    return on === this.autoApply ? this : new SavedPageStyle(this.css, on, this.origin, this.rev, this.script);
+    return on === this.autoApply
+      ? this
+      : new SavedPageStyle(this.css, on, this.origin, this.rev, this.script, this.cssByUser);
   }
 
   equals(other: SavedPageStyle): boolean
@@ -129,12 +142,16 @@ export class SavedPageStyle
       && this.autoApply === other.autoApply
       && this.origin === other.origin
       && this.rev === other.rev
-      && this.script === other.script;
+      && this.script === other.script
+      && this.cssByUser === other.cssByUser;
   }
 
+  // cssByUser is left out when false, so records of the agent's CSS keep the shape they had before it
   toStored(): StoredPageStyle
   {
-    return { css: this.css, autoApply: this.autoApply, origin: this.origin, rev: this.rev, script: this.script };
+    const stored: StoredPageStyle = { css: this.css, autoApply: this.autoApply, origin: this.origin, rev: this.rev, script: this.script };
+    if (this.cssByUser) stored.cssByUser = true;
+    return stored;
   }
 
   /** The record of a stored entry; null when the entry is malformed or not for an http(s) origin. */
@@ -149,7 +166,8 @@ export class SavedPageStyle
     if (typeof entry.origin !== 'string' || httpOriginOf(entry.origin) !== entry.origin) return null;
     const script = entry.script === undefined ? '' : entry.script;
     if (typeof script !== 'string') return null;
-    return new SavedPageStyle(entry.css, entry.autoApply, entry.origin, entry.rev, script);
+    // Anything but true (entries saved before the code editor) is the agent's CSS, which gets the full check
+    return new SavedPageStyle(entry.css, entry.autoApply, entry.origin, entry.rev, script, entry.cssByUser === true);
   }
 }
 
@@ -214,10 +232,17 @@ export class SavedPageStyles
    * Save new CSS and script to the bookmark, replacing both. An update keeps the bookmark's
    * Auto-apply choice; a new record starts with Auto-apply on.
    */
-  withSaved(bookmarkId: string, css: string, script: string, origin: string, rev: string): SavedPageStyles
+  withSaved(
+    bookmarkId: string,
+    css: string,
+    script: string,
+    origin: string,
+    rev: string,
+    cssByUser: boolean = false
+  ): SavedPageStyles
   {
     const autoApply = this.#byBookmarkId.get(bookmarkId)?.autoApply ?? true;
-    return this.#with(bookmarkId, new SavedPageStyle(css, autoApply, origin, rev, script));
+    return this.#with(bookmarkId, new SavedPageStyle(css, autoApply, origin, rev, script, cssByUser));
   }
 
   withAutoApply(bookmarkId: string, on: boolean): SavedPageStyles

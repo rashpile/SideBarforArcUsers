@@ -95,7 +95,7 @@ export const PageAgentDrawer: React.FC<PageAgentDrawerProps> = ({
     if (bookmarkId !== null && chat)
     {
       const { appliedCss, appliedScript, appliedUrl } = chat;
-      runAction('Save', () => pageStyles.save(bookmarkId, appliedCss, appliedScript, appliedUrl));
+      runAction('Save', () => pageStyles.save(bookmarkId, appliedCss, appliedScript, appliedUrl, false));
     }
   };
 

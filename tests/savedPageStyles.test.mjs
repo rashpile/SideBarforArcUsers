@@ -94,3 +94,38 @@ test('a new save replaces the script as a whole, also with none', () =>
 
   assert.equal(styles.styleFor('10').script, '');
 });
+
+test('an entry saved before the code editor loads as the agent\'s CSS and is stored back in the same shape', () =>
+{
+  const stored = {
+    10: entry('a {}', true, 'https://a.test', 'r1'),
+    11: { ...entry('b {}', true, 'https://b.test', 'r2'), cssByUser: 'yes' },
+  };
+
+  const styles = SavedPageStyles.fromStored(stored);
+
+  assert.equal(styles.styleFor('10').cssByUser, false);
+  assert.equal(styles.styleFor('11').cssByUser, false);
+  assert.deepEqual(styles.toStored(), {
+    10: entry('a {}', true, 'https://a.test', 'r1'),
+    11: entry('b {}', true, 'https://b.test', 'r2'),
+  });
+});
+
+test('the user\'s CSS keeps its flag through storage, Auto-apply and a new save', () =>
+{
+  const css = '@import url("https://fonts.test/inter.css"); body { font-family: var(--font, Inter); }';
+  const saved = new SavedPageStyles().withSaved('10', css, '', 'https://a.test', 'r1', true);
+
+  const reloaded = SavedPageStyles.fromStored(saved.toStored());
+
+  assert.deepEqual(reloaded.toStored(), { 10: { ...entry(css, true, 'https://a.test', 'r1'), cssByUser: true } });
+  assert.equal(reloaded.equals(saved), true);
+  assert.equal(reloaded.withAutoApply('10', false).styleFor('10').cssByUser, true);
+  // The agent's CSS saved over it is checked as the agent's again
+  assert.equal(reloaded.withSaved('10', 'a {}', '', 'https://a.test', 'r2').styleFor('10').cssByUser, false);
+  assert.equal(
+    reloaded.equals(SavedPageStyles.fromStored({ 10: entry(css, true, 'https://a.test', 'r1') })),
+    false
+  );
+});
