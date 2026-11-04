@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import { PageAgentRun } from '../src/services/pageAgent/pageAgentRun.ts';
 import { PAGE_AGENT_MAX_ROUNDS } from '../src/services/pageAgent/pageAgentTools.ts';
+import { withMarker } from '../src/utils/pageAgentCss.ts';
 
 const TAB_A = 11;
 const TAB_B = 22;
@@ -65,6 +66,7 @@ class FakePage
     this.inserted = [];
     this.removed = [];
     this.popups = [];
+    this.userScripts = [];
   }
 
   async outline(tabId)
@@ -115,6 +117,13 @@ class FakePage
   {
     this.calls.push({ method: 'pageUrl', tabId });
     return 'https://site.test/videos/1';
+  }
+
+  async runUserScript(tabId, command)
+  {
+    this.calls.push({ method: 'runUserScript', tabId });
+    this.userScripts.push(command);
+    return { ok: true, compiled: true, value: 'undefined', errors: [] };
   }
 }
 
@@ -172,7 +181,7 @@ class RecordingListener
     this.conditions.push({ conditions, replaced });
   }
 
-  onCssApplied(applied)
+  onApplied(applied)
   {
     this.applied.push(applied);
   }
@@ -524,6 +533,57 @@ test('apply_css before set_conditions is refused and nothing is inserted', async
   assert.deepEqual(page.inserted, []);
   assert.deepEqual(page.removed, []);
   assert.deepEqual(listener.applied, []);
+});
+
+test('apply_css in a CSS-only run inserts withMarker(css, id) in place of the earlier sheet', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const css = 'iframe { width: 100% !important; }';
+  const client = new ScriptedClient([
+    respond(setConditions('c1'), call('apply_css', { css })),
+    answer('I stop here.'),
+  ]);
+  const { run, listener } = startRun(client, page, { currentCss: 'main { color: red; }', insertedText: 'earlier stylesheet' });
+
+  await run.run();
+
+  assert.deepEqual(page.removed, ['earlier stylesheet']);
+  assert.deepEqual(page.inserted, [withMarker(css, 'applied-1')]);
+  assert.deepEqual(listener.applied, [{
+    css,
+    script: '',
+    insertedText: withMarker(css, 'applied-1'),
+    appliedId: 'applied-1',
+    url: 'https://site.test/videos/1',
+  }]);
+});
+
+test('apply_css after a run started with a script keeps the script in the applied set and leaves it running', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const script = 'agent.on(document, "keydown", event => console.log(event.key));';
+  const client = new ScriptedClient([
+    respond(
+      setConditions('c1'),
+      call('apply_css', { css: 'iframe { width: 100% !important; }' }),
+      call('apply_css', { css: 'iframe { width: 90% !important; }' }),
+    ),
+    answer('I stop here.'),
+  ]);
+  const { run, listener } = startRun(client, page, {
+    currentCss: '',
+    currentScript: script,
+    insertedText: withMarker('', 'saved-id'),
+  });
+
+  await run.run();
+
+  assert.deepEqual(listener.applied.map(applied => [applied.appliedId, applied.script]), [
+    ['applied-1', script],
+    ['applied-2', script],
+  ]);
+  assert.deepEqual(page.removed, [withMarker('', 'saved-id'), withMarker('iframe { width: 100% !important; }', 'applied-1')]);
+  assert.deepEqual(page.userScripts, [], 'a CSS change neither undoes nor re-runs the script');
 });
 
 test('a stylesheet the sanitizer rejects goes back to the model and nothing is inserted', async () =>

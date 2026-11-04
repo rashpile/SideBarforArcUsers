@@ -5,7 +5,7 @@
 
 import type {
   PageAgentAnswer,
-  PageAgentAppliedCss,
+  PageAgentApplied,
   PageAgentConditionOutcome,
   PageAgentHistoryTurn,
   PageAgentReplacedCondition,
@@ -199,7 +199,7 @@ export class PageAgentChat
   }
 
   /** The stylesheet now on the page; the page has it, so any notice is out of date. */
-  recordApplied(applied: PageAgentAppliedCss): void
+  recordApplied(applied: PageAgentApplied): void
   {
     this.#update({
       appliedCss: applied.css,

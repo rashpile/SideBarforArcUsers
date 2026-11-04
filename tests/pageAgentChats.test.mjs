@@ -259,7 +259,7 @@ test('a run on tab A that finishes while the drawer shows tab B saves its final 
   const runA = await factory.runFor(TAB_A);
   await chats.get(TAB_B);
   runA.listener.onConditions([{ id: 'c1', text: 'iframe fills the content area' }], []);
-  runA.listener.onCssApplied({ css: CSS, insertedText: `${CSS} /* marker */`, appliedId: 'id-1', url: URL_A });
+  runA.listener.onApplied({ css: CSS, script: '', insertedText: `${CSS} /* marker */`, appliedId: 'id-1', url: URL_A });
   runA.finish(metResult);
   await sending;
 
@@ -286,7 +286,7 @@ test('tabClosed during a run leaves no stored chat after the stopped run reports
   const closing = chats.tabClosed(TAB_A);
   assert.equal(runA.stopped, true, 'closing the tab stops its run');
   // What a run stopped mid-insertCSS still reports.
-  runA.listener.onCssApplied({ css: CSS, insertedText: CSS, appliedId: 'id-1', url: URL_A });
+  runA.listener.onApplied({ css: CSS, script: '', insertedText: CSS, appliedId: 'id-1', url: URL_A });
   runA.listener.onStep({ tool: 'apply_css', args: '35 characters', result: 'ok', css: CSS });
   runA.finish({ ...metResult, status: 'stopped', summary: 'Stopped.' });
   await Promise.all([closing, sending]);

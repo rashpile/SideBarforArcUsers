@@ -21,6 +21,7 @@ import type {
   PageAgentReportEntry,
   PageAgentToolDefinition,
 } from './pageAgentTools.ts';
+import type { UserScriptCommand, UserScriptResult } from './userScriptRuntime.ts';
 
 export interface PageAgentToolCall
 {
@@ -98,6 +99,11 @@ export interface PageAgentPageAdapter
   removeCss(tabId: number, text: string): Promise<void>;
   capture(tabId: number): Promise<PageAgentCapture>;
   pageUrl(tabId: number): Promise<string>;
+  /**
+   * Runs the command in the user script world of the tab's page origin. Rejects when the page has
+   * none (not http or https) or Chrome blocks user scripts.
+   */
+  runUserScript(tabId: number, command: UserScriptCommand): Promise<UserScriptResult>;
 }
 
 export interface PageAgentConditionOutcome
@@ -141,10 +147,13 @@ export interface PageAgentStep
   screenshotDataUrl?: string;
 }
 
-export interface PageAgentAppliedCss
+/** The CSS and script on the page: one set under one marker id. */
+export interface PageAgentApplied
 {
-  /** The sanitized stylesheet without the marker. */
+  /** The sanitized stylesheet without the marker; empty when only a script is applied. */
   css: string;
+  /** The script running in the page's user script world; empty when there is none. */
+  script: string;
   /** The exact text inserted into the page; removeCSS needs it. */
   insertedText: string;
   appliedId: string;
@@ -155,7 +164,7 @@ export interface PageAgentRunListener
 {
   onStep(step: PageAgentStep): void;
   onConditions(conditions: PageAgentConditionSpec[], replaced: PageAgentReplacedCondition[]): void;
-  onCssApplied(applied: PageAgentAppliedCss): void;
+  onApplied(applied: PageAgentApplied): void;
   onFinished(result: PageAgentRunResult): void;
 }
 
@@ -183,6 +192,8 @@ export interface PageAgentRunOptions
   history?: readonly PageAgentHistoryTurn[];
   /** The stylesheet the chat applied last, without the marker; the model edits it. */
   currentCss?: string;
+  /** The script the chat applied last; it stays on the page while the run changes only the CSS. */
+  currentScript?: string;
   /** The exact text inserted last, removed before the next insert; empty when there is none. */
   insertedText?: string;
   createId?: () => string;
@@ -465,6 +476,8 @@ export class PageAgentRun
   readonly #controller = new AbortController();
   readonly #conditions = new RunConditions();
   readonly #measurement = new StylesheetMeasurement();
+  #currentCss: string;
+  #currentScript: string;
   #insertedText: string;
   #imagesRejected = false;
   #started = false;
@@ -485,6 +498,8 @@ export class PageAgentRun
       this.#history.firstUserMessage(options.request, options.currentCss ?? ''),
     );
     this.#tools = [...pageAgentToolDefinitions(options.screenshots), ...this.#plugins.tools()];
+    this.#currentCss = options.currentCss ?? '';
+    this.#currentScript = options.currentScript ?? '';
     this.#insertedText = options.insertedText ?? '';
     this.#createId = options.createId ?? (() => crypto.randomUUID());
     this.#debug = options.debug ?? false;
@@ -855,6 +870,18 @@ export class PageAgentRun
     }
 
     const url = await this.#adapter.pageUrl(this.tabId);
+    await this.#replaceApplied(url, { css });
+
+    return { content: 'ok', step: { ...step(name, argsSummary, 'ok'), css } };
+  }
+
+  // CSS and script are one applied set under one marker id: a change to either part mints a new id
+  // and replaces the marker sheet (marker-only without CSS), so the marker tells whether the page
+  // still has the set. The part the change leaves out is kept.
+  async #replaceApplied(url: string, change: { css?: string; script?: string }): Promise<void>
+  {
+    const css = change.css ?? this.#currentCss;
+    const script = change.script ?? this.#currentScript;
     if (this.#insertedText)
     {
       await this.#adapter.removeCss(this.tabId, this.#insertedText);
@@ -863,10 +890,10 @@ export class PageAgentRun
     const insertedText = withMarker(css, appliedId);
     await this.#adapter.insertCss(this.tabId, insertedText);
     this.#insertedText = insertedText;
+    this.#currentCss = css;
+    this.#currentScript = script;
     // Recorded before any stop check: the stylesheet is on the page now, and Undo needs its text.
-    this.#listener.onCssApplied({ css, insertedText, appliedId, url });
-
-    return { content: 'ok', step: { ...step(name, argsSummary, 'ok'), css } };
+    this.#listener.onApplied({ css, script, insertedText, appliedId, url });
   }
 
   async #inspect(args: unknown): Promise<ToolOutcome>

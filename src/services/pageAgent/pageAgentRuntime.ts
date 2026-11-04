@@ -43,6 +43,7 @@ export class PageAgentRuntime
       plugins: this.#enabledPlugins(start.settings),
       history: start.history,
       currentCss: start.currentCss,
+      currentScript: start.currentScript,
       insertedText: start.insertedText,
       debug: this.#debug,
     });

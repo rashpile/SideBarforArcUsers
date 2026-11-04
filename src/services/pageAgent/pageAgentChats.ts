@@ -10,7 +10,7 @@ import type { PageAgentNotice } from './pageAgentChat.ts';
 import type { PageAgentChatStore } from './pageAgentChatStore.ts';
 import type {
   PageAgentAnswer,
-  PageAgentAppliedCss,
+  PageAgentApplied,
   PageAgentHistoryTurn,
   PageAgentPageAdapter,
   PageAgentRunListener,
@@ -30,6 +30,7 @@ export interface PageAgentRunStart<Settings>
   request: string;
   history: PageAgentHistoryTurn[];
   currentCss: string;
+  currentScript: string;
   insertedText: string;
   listener: PageAgentRunListener;
   settings: Settings;
@@ -157,6 +158,7 @@ export class PageAgentChats<Settings>
         request: text,
         history,
         currentCss: chat.appliedCss,
+        currentScript: '',
         insertedText: chat.appliedInsertedText,
         listener: this.#runListener(chat, turn),
         settings,
@@ -266,7 +268,7 @@ export class PageAgentChats<Settings>
     await this.#page.insertCss(tabId, insertedText);
     if (this.#owns(chat))
     {
-      chat.recordApplied({ css, insertedText, appliedId, url });
+      chat.recordApplied({ css, script: '', insertedText, appliedId, url });
       this.#changed(chat);
     }
   }
@@ -328,7 +330,7 @@ export class PageAgentChats<Settings>
     }
     const appliedId = chat.appliedId;
     const savedRev = saved?.style.rev ?? null;
-    let adopted: PageAgentAppliedCss | null = null;
+    let adopted: PageAgentApplied | null = null;
     let notice: PageAgentNotice = 'none';
     try
     {
@@ -455,7 +457,7 @@ export class PageAgentChats<Settings>
     return {
       onStep: step => this.#apply(chat, () => chat.addStep(turn, step)),
       onConditions: (conditions, replaced) => this.#apply(chat, () => chat.setConditions(turn, conditions, replaced)),
-      onCssApplied: applied => this.#apply(chat, () => chat.recordApplied(applied)),
+      onApplied: applied => this.#apply(chat, () => chat.recordApplied(applied)),
       onFinished: result => this.#apply(chat, () => chat.finishTurn(turn, result)),
     };
   }
@@ -519,9 +521,9 @@ export class PageAgentChats<Settings>
   }
 }
 
-function savedAsApplied(style: SavedPageStyle, url: string): PageAgentAppliedCss
+function savedAsApplied(style: SavedPageStyle, url: string): PageAgentApplied
 {
-  return { css: style.css, insertedText: style.insertedText, appliedId: style.appliedId, url };
+  return { css: style.css, script: style.script, insertedText: style.insertedText, appliedId: style.appliedId, url };
 }
 
 function errorMessage(error: unknown): string

@@ -396,16 +396,16 @@ export class UserScriptRunner
 - Modify: `tests/pageAgentRun.test.mjs`
 - Modify: `tests/pageAgentChats.test.mjs`
 
-- [ ] rename `PageAgentAppliedCss` → `PageAgentApplied` (with `script`) and `onCssApplied` → `onApplied`
+- [x] rename `PageAgentAppliedCss` → `PageAgentApplied` (with `script`) and `onCssApplied` → `onApplied`
   across the page agent and its tests
-- [ ] the run tracks current CSS and script (`currentScript` option; `PageAgentRunStart.currentScript`,
+- [x] the run tracks current CSS and script (`currentScript` option; `PageAgentRunStart.currentScript`,
   which `PageAgentChats.send` passes as `''` until Task 6); `apply_css` reports the kept script
-- [ ] `PageAgentPageAdapter.runUserScript`; `ChromePageAdapter` implements it with a
+- [x] `PageAgentPageAdapter.runUserScript`; `ChromePageAdapter` implements it with a
   `UserScriptRunner(() => chrome.userScripts)` and the tab's URL; `PageAgentRuntime.createRun` passes
   `currentScript`
-- [ ] write tests: `apply_css` after a run started with a current script reports that script in
+- [x] write tests: `apply_css` after a run started with a current script reports that script in
   `onApplied`; the marker sheet text is `withMarker(css, id)` as before for CSS-only runs
-- [ ] run `make test`, `make lint` and `make build` - must pass before next task
+- [x] run `make test`, `make lint` and `make build` - must pass before next task
 
 ### Task 5: Script tools, refusal when off, approval and the measurement rule
 
