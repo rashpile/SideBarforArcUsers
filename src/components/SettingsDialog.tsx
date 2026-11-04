@@ -14,6 +14,7 @@ import {
 } from '../utils/aiConfig';
 import { OpenAiCompatibleClient } from '../services/aiRenameService';
 import { PAGE_AGENT_PLUGINS, PAGE_SCRIPTS_PLUGIN_ID, PageAgentPluginSwitches } from '../services/pageAgent/pageAgentPlugins';
+import { PageScriptsWarning } from './pageAgent/PageScriptsWarning';
 import { UserScriptsNotice, requestUserScriptsPermission } from './pageAgent/UserScriptsNotice';
 
 export type BookmarkOpenMode = 'arc' | 'newTab' | 'activeTab';
@@ -202,6 +203,7 @@ export function SettingsDialog({
   };
 
   const pluginSwitches = new PageAgentPluginSwitches(tempAiSettings.agentPlugins);
+  const [pageScriptsWarningShown, setPageScriptsWarningShown] = useState(false);
 
   const setPluginEnabled = (id: string, enabled: boolean) =>
   {
@@ -211,22 +213,29 @@ export function SettingsDialog({
     }));
   };
 
-  // Page scripts need the userScripts permission, asked in the click itself (Chrome asks only during
-  // a user gesture); the switch stays off when it is refused.
+  // Ticking Page scripts shows the warning first; the switch goes on only from its Turn on.
   const handlePluginChange = (id: string, enabled: boolean) =>
   {
     if (id === PAGE_SCRIPTS_PLUGIN_ID && enabled)
     {
-      requestUserScriptsPermission().then(granted =>
-      {
-        if (granted)
-        {
-          setPluginEnabled(id, true);
-        }
-      });
+      setPageScriptsWarningShown(true);
       return;
     }
     setPluginEnabled(id, enabled);
+  };
+
+  // Page scripts need the userScripts permission, asked in the click itself (Chrome asks only during
+  // a user gesture); the switch stays off when it is refused.
+  const turnOnPageScripts = () =>
+  {
+    setPageScriptsWarningShown(false);
+    requestUserScriptsPermission().then(granted =>
+    {
+      if (granted)
+      {
+        setPluginEnabled(PAGE_SCRIPTS_PLUGIN_ID, true);
+      }
+    });
   };
 
   const tabClass = (tab: SettingsTab) =>
@@ -689,6 +698,9 @@ export function SettingsDialog({
                   <p className="mt-1 text-gray-500 dark:text-gray-400">
                     {plugin.description}
                   </p>
+                  {plugin.id === PAGE_SCRIPTS_PLUGIN_ID && pageScriptsWarningShown && !pluginSwitches.isEnabled(plugin) && (
+                    <PageScriptsWarning onTurnOn={turnOnPageScripts} onCancel={() => setPageScriptsWarningShown(false)} />
+                  )}
                   {plugin.id === PAGE_SCRIPTS_PLUGIN_ID && pluginSwitches.isEnabled(plugin) && (
                     <div className="mt-1">
                       <UserScriptsNotice availableText="Chrome allows page scripts." />

@@ -2,6 +2,7 @@
 // the drawer: a run on tab A keeps applying its events to A's chat and saving them while the drawer
 // shows tab B or is closed. The hook and the tab lifecycle handlers change chats only through it.
 
+import { siteName } from '../../stores/savedPageStyles.ts';
 import type { SavedPageStyle } from '../../stores/savedPageStyles.ts';
 import { isSameOriginHttpUrl } from '../../utils/aiConfig.ts';
 import { withMarker } from '../../utils/pageAgentCss.ts';
@@ -309,13 +310,19 @@ export class PageAgentChats<Settings>
     {
       return;
     }
+    const url = await this.#page.pageUrl(tabId);
+    // The button shows only on the same site, but the notice it goes by may be older than the page;
+    // on another site the script would run on a page the user never allowed it on.
+    if (!isSameOriginHttpUrl(url, chat.appliedUrl))
+    {
+      throw new Error(`the changes were made on ${siteName(chat.appliedUrl)}; this tab is on another site now`);
+    }
     if (chat.appliedInsertedText)
     {
       await this.#page.removeCss(tabId, chat.appliedInsertedText);
     }
     const appliedId = this.#createId();
     const insertedText = withMarker(css, appliedId);
-    const url = await this.#page.pageUrl(tabId);
     await this.#page.insertCss(tabId, insertedText);
     const scriptError = script ? await this.#applyScript(tabId, script) : null;
     if (this.#owns(chat))
@@ -347,9 +354,14 @@ export class PageAgentChats<Settings>
       return;
     }
     const { style } = saved;
+    const url = await this.#page.pageUrl(tabId);
+    // A bookmark's tab can wander to other sites, and the saved script was written for its own.
+    if (!style.appliesTo(url))
+    {
+      throw new Error(`the saved style is for ${siteName(style.origin)}; this tab is on another site now`);
+    }
     // The background may have inserted it already; a second copy of the same text stays after Undo.
     const marker = await this.#page.readMarker(tabId);
-    const url = await this.#page.pageUrl(tabId);
     let undoError: string | null = null;
     if (marker !== style.appliedId)
     {

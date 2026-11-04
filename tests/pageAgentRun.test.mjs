@@ -67,6 +67,7 @@ class FakePage
     this.removed = [];
     this.popups = [];
     this.userScripts = [];
+    this.url = 'https://site.test/videos/1';
     /** Results runUserScript answers with in order; then a script that ran and returned nothing. */
     this.scriptResults = [];
   }
@@ -118,7 +119,7 @@ class FakePage
   async pageUrl(tabId)
   {
     this.calls.push({ method: 'pageUrl', tabId });
-    return 'https://site.test/videos/1';
+    return this.url;
   }
 
   async runUserScript(tabId, command)
@@ -850,7 +851,7 @@ test('the user approves the first script of a run once, and every script runs on
   const result = await run.run();
 
   assert.equal(result.status, 'met');
-  assert.deepEqual(listener.approvals, [{ kind: 'apply', code: first }]);
+  assert.deepEqual(listener.approvals, [{ kind: 'apply', code: first, origin: 'https://site.test' }]);
   assert.deepEqual(page.userScripts, [
     { kind: 'apply', code: first },
     { kind: 'check', code: 'return 1;' },
@@ -864,6 +865,62 @@ test('the user approves the first script of a run once, and every script runs on
   ]);
   assert.deepEqual(page.inserted, [withMarker(css, 'applied-1'), withMarker(css, 'applied-2')]);
   assert.deepEqual(page.removed, [withMarker(css, 'saved-id'), withMarker(css, 'applied-1')]);
+});
+
+test('scripts allowed on one site are refused without asking once the tab is on another site, also when it moved while the card waited', async () =>
+{
+  const cases = [
+    ['a script navigated the tab', page => ({ before: undefined, after: () => { page.url = 'https://mail.test/inbox'; } })],
+    ['the tab moved while the card waited', page => ({ before: () => { page.url = 'https://mail.test/inbox'; }, after: undefined })],
+  ];
+  for (const [label, moves] of cases)
+  {
+    const page = new FakePage(TAB_A);
+    const { before, after } = moves(page);
+    const first = 'agent.on(document, "keydown", () => undefined);';
+    const client = new ScriptedClient([
+      respond(setConditions('c1'), call('apply_script', { code: first })),
+      () =>
+      {
+        after?.();
+        return respond(call('run_check', { code: 'return document.title;' }), call('apply_script', { code: 'agent.onUndo(() => undefined);' }));
+      },
+      answer('I stop here.'),
+    ]);
+    const { run, listener } = startRun(client, page, {
+      scripts: true,
+      approve: () =>
+      {
+        before?.();
+        return true;
+      },
+    });
+
+    await run.run();
+
+    assert.deepEqual(listener.approvals, [{ kind: 'apply', code: first, origin: 'https://site.test' }], label);
+    const ran = before ? [] : [{ kind: 'apply', code: first }];
+    assert.deepEqual(page.userScripts, ran, label);
+    const refused = client.toolResults(2).filter(message => /only on https:\/\/site\.test/.test(message.content));
+    assert.equal(refused.length, before ? 3 : 2, label);
+  }
+});
+
+test('on a page that is not http or https a script is refused without asking', async () =>
+{
+  const page = new FakePage(TAB_A);
+  page.url = 'chrome://newtab/';
+  const client = new ScriptedClient([
+    respond(setConditions('c1'), call('apply_script', { code: 'agent.onUndo(() => undefined);' })),
+    answer('I stop here.'),
+  ]);
+  const { run, listener } = startRun(client, page, { scripts: true });
+
+  await run.run();
+
+  assert.deepEqual(listener.approvals, []);
+  assert.deepEqual(page.userScripts, []);
+  assert.match(client.toolResults(1).at(-1).content, /^refused: scripts run only on http and https pages/);
 });
 
 test('Deny refuses every later script of the run without asking again, and none reaches the page', async () =>
@@ -881,7 +938,7 @@ test('Deny refuses every later script of the run without asking again, and none 
   assert.equal(listener.approvals.length, 1);
   assert.match(client.toolResults(1).at(-1).content, DECLINED);
   assert.ok(client.toolResults(2).slice(-2).every(message => DECLINED.test(message.content)));
-  assert.deepEqual(page.calls, []);
+  assert.deepEqual(page.calls.filter(entry => entry.method !== 'pageUrl'), []);
   assert.deepEqual(listener.applied, []);
 });
 
@@ -908,7 +965,7 @@ test('a blank apply_script removes the script and a blank run_check is refused, 
 
   await run.run();
 
-  assert.deepEqual(listener.approvals, [{ kind: 'apply', code: 'agent.onUndo(() => undefined);' }]);
+  assert.deepEqual(listener.approvals, [{ kind: 'apply', code: 'agent.onUndo(() => undefined);', origin: 'https://site.test' }]);
   assert.deepEqual(page.userScripts, [{ kind: 'undo' }], 'the old script is stopped; nothing else runs');
   assert.deepEqual(listener.applied.map(applied => [applied.appliedId, applied.css, applied.script]), [['applied-1', css, '']]);
   const results = client.toolResults(1).slice(1).map(message => message.content);
@@ -943,7 +1000,7 @@ test('Stop while the approval waits ends the run as stopped and runs no script',
   const result = await finished;
 
   assert.equal(result.status, 'stopped');
-  assert.deepEqual(page.calls, []);
+  assert.deepEqual(page.calls.filter(entry => entry.method !== 'pageUrl'), []);
   assert.deepEqual(listener.finished, [result]);
 });
 

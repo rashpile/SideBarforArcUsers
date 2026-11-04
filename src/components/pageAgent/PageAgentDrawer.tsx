@@ -8,6 +8,7 @@ import type { PageStyleActions } from '../../hooks/usePageStyles';
 import type { PageAgentChatData } from '../../services/pageAgent/pageAgentChat';
 import type { PageAgentChats } from '../../services/pageAgent/pageAgentChats';
 import { PAGE_SCRIPTS_PLUGIN_ID, PageAgentPluginSwitches } from '../../services/pageAgent/pageAgentPlugins';
+import { siteName } from '../../stores/savedPageStyles';
 import type { SavedPageStyle } from '../../stores/savedPageStyles';
 import type { AiRenameSettings } from '../../utils/aiConfig';
 import { PageAgentMessages } from './PageAgentMessages';
@@ -146,6 +147,7 @@ export const PageAgentDrawer: React.FC<PageAgentDrawerProps> = ({
         <StyleStrip
           title={bookmarkTitle}
           savedStyle={savedStyle}
+          tabUrl={tabUrl}
           chat={chat}
           running={running}
           onSetAutoApply={setAutoApply}
@@ -229,6 +231,7 @@ interface StyleStripProps
 {
   title: string;
   savedStyle: SavedPageStyle | null;
+  tabUrl: string | undefined;
   /** The tab's chat, which holds the applied CSS and script; undefined while it loads. */
   chat: PageAgentChatData | undefined;
   running: boolean;
@@ -244,6 +247,7 @@ interface StyleStripProps
 const StyleStrip: React.FC<StyleStripProps> = ({
   title,
   savedStyle,
+  tabUrl,
   chat,
   running,
   onSetAutoApply,
@@ -254,6 +258,17 @@ const StyleStrip: React.FC<StyleStripProps> = ({
   const waitTitle = 'Wait until the agent has finished';
   // By code, not applied id: right after a save the sheet on the page still has the run's id.
   const showApply = savedStyle !== null && chat !== undefined && !savedStyle.holds(chat.appliedCss, chat.appliedScript);
+  // The bookmark's tab may show another site, where the saved script was never meant to run.
+  const otherSite = savedStyle !== null && tabUrl !== undefined && !savedStyle.appliesTo(tabUrl);
+  let applyTitle = 'Put the saved style on this page in place of the current one';
+  if (running)
+  {
+    applyTitle = waitTitle;
+  }
+  else if (otherSite)
+  {
+    applyTitle = `Saved for ${siteName(savedStyle.origin)}; this tab is on another site`;
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 px-2 pb-1 text-[0.85em] text-gray-600 dark:text-gray-300">
@@ -279,8 +294,8 @@ const StyleStrip: React.FC<StyleStripProps> = ({
             <button
               type="button"
               className={actionButtonClass}
-              disabled={running}
-              title={running ? waitTitle : 'Put the saved style on this page in place of the current one'}
+              disabled={running || otherSite}
+              title={applyTitle}
               onClick={onApply}
             >
               <Play size={12} />

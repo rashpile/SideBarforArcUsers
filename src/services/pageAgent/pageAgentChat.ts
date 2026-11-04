@@ -196,7 +196,7 @@ export class PageAgentChat
   /** The run waits for the user to allow or deny this script. */
   setPendingScript(turnIndex: number, request: PageAgentScriptRequest): void
   {
-    this.#updateTurn(turnIndex, turn => ({ ...turn, pendingScript: { kind: request.kind, code: request.code } }));
+    this.#updateTurn(turnIndex, turn => ({ ...turn, pendingScript: { kind: request.kind, code: request.code, origin: request.origin } }));
   }
 
   /** Returns whether the turn had a pending script. */

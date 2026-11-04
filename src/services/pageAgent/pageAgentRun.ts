@@ -3,6 +3,7 @@
 // touches chrome.*. The tab id is fixed when the run is created and every adapter call gets it,
 // so a run keeps acting on its own tab whichever tab the user switches to.
 
+import { httpOriginOf } from '../../stores/savedPageStyles.ts';
 import { PageAgentCssSanitizer, withMarker } from '../../utils/pageAgentCss.ts';
 import { PageAgentScriptCheck } from '../../utils/pageAgentScript.ts';
 import type { PageAgentPluginResult, PageAgentToolPlugin } from './pageAgentPlugin.ts';
@@ -169,6 +170,8 @@ export interface PageAgentScriptRequest
 {
   kind: 'apply' | 'check';
   code: string;
+  /** The page's origin when the run asked; the answer holds only on pages of this origin. */
+  origin: string;
 }
 
 export interface PageAgentRunListener
@@ -176,7 +179,7 @@ export interface PageAgentRunListener
   onStep(step: PageAgentStep): void;
   onConditions(conditions: PageAgentConditionSpec[], replaced: PageAgentReplacedCondition[]): void;
   onApplied(applied: PageAgentApplied): void;
-  /** Asked before the run's first script only: the answer holds for every script of the run. */
+  /** Asked before the run's first script only: the answer holds for every script of the run on the same site. */
   onScriptApproval(request: PageAgentScriptRequest): Promise<boolean>;
   onFinished(result: PageAgentRunResult): void;
 }
@@ -223,8 +226,38 @@ const NOT_REPORTED = 'not reported';
 const NO_ANSWER = 'The model gave no answer.';
 const SCRIPTS_OFF = 'refused: scripts are off; change the page with CSS';
 const SCRIPTS_DECLINED = 'refused: the user declined to run scripts for this request; continue without scripts';
+const SCRIPTS_NO_SITE = 'refused: scripts run only on http and https pages';
 const STEP_TEXT_LIMIT = 500;
 const STEP_SCRIPT_LIMIT = 8000;
+
+/**
+ * The user's answer to the run's first script and the site it was asked on. A script can navigate
+ * the tab, and the page agent may script every http(s) site, so an answer given on one site must not
+ * let later scripts of the request run unseen on another one, with the user's login there.
+ */
+class RunScriptApproval
+{
+  readonly origin: string;
+  readonly answer: Promise<boolean>;
+
+  constructor(origin: string, answer: Promise<boolean>)
+  {
+    this.origin = origin;
+    this.answer = answer;
+  }
+
+  covers(origin: string | null): boolean
+  {
+    return origin === this.origin;
+  }
+
+  otherSiteRefusal(origin: string | null): string
+  {
+    const now = origin ?? 'a page that is not http or https';
+    return `refused: the tab is on ${now} now, and the user allowed scripts only on ${this.origin}; `
+      + `scripts run only on ${this.origin} for the rest of this request`;
+  }
+}
 
 class RunStoppedError extends Error
 {
@@ -527,8 +560,8 @@ export class PageAgentRun
   #currentCss: string;
   #currentScript: string;
   #insertedText: string;
-  /** The user's answer to the run's first script; kept for every later one. */
-  #scriptApproval: Promise<boolean> | undefined;
+  /** The user's answer to the run's first script; kept for every later one on the same site. */
+  #scriptApproval: RunScriptApproval | undefined;
   #imagesRejected = false;
   #started = false;
   #round = 0;
@@ -979,9 +1012,10 @@ export class PageAgentRun
     }
     // Removing runs none of the agent's code, so it isn't asked: an empty approval card would use up the
     // run's only answer, and a Deny there would keep the old script on the page.
-    if (code && !(await this.#scriptsApproved({ kind: 'apply', code })))
+    const refusal = code ? await this.#scriptRefusal('apply', code) : null;
+    if (refusal !== null)
     {
-      return scriptOutcome(name, argsSummary, SCRIPTS_DECLINED, code);
+      return scriptOutcome(name, argsSummary, refusal, code);
     }
 
     const url = await this.#adapter.pageUrl(this.tabId);
@@ -1011,9 +1045,10 @@ export class PageAgentRun
     {
       return toolError(name, argsSummary, 'refused: the code is empty; send a script that returns what it measured');
     }
-    if (!(await this.#scriptsApproved({ kind: 'check', code })))
+    const refusal = await this.#scriptRefusal('check', code);
+    if (refusal !== null)
     {
-      return scriptOutcome(name, argsSummary, SCRIPTS_DECLINED, code);
+      return scriptOutcome(name, argsSummary, refusal, code);
     }
     const result = await this.#adapter.runUserScript(this.tabId, { kind: 'check', code });
     if (result.compiled)
@@ -1023,12 +1058,24 @@ export class PageAgentRun
     return scriptOutcome(name, argsSummary, JSON.stringify(result), code);
   }
 
-  // Asked once per run: the first script's answer covers the rest of the request, so a Deny is never
-  // asked again. Raced against Stop, as the user may never answer.
-  async #scriptsApproved(request: PageAgentScriptRequest): Promise<boolean>
+  // Null when the script may run, else the refusal the model gets. Asked once per run: the first
+  // script's answer covers the rest of the request on that site, so a Deny is never asked again.
+  // Raced against Stop, as the user may never answer.
+  async #scriptRefusal(kind: PageAgentScriptRequest['kind'], code: string): Promise<string | null>
   {
-    this.#scriptApproval ??= this.#listener.onScriptApproval(request);
-    return await this.#untilStopped(this.#scriptApproval);
+    const origin = httpOriginOf(await this.#adapter.pageUrl(this.tabId));
+    if (origin === null)
+    {
+      return SCRIPTS_NO_SITE;
+    }
+    this.#scriptApproval ??= new RunScriptApproval(origin, this.#listener.onScriptApproval({ kind, code, origin }));
+    if (!(await this.#untilStopped(this.#scriptApproval.answer)))
+    {
+      return SCRIPTS_DECLINED;
+    }
+    // Read again after the answer: the tab may have moved while the card waited for it.
+    const current = httpOriginOf(await this.#adapter.pageUrl(this.tabId));
+    return this.#scriptApproval.covers(current) ? null : this.#scriptApproval.otherSiteRefusal(current);
   }
 
   async #inspect(args: unknown): Promise<ToolOutcome>

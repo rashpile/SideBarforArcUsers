@@ -708,6 +708,33 @@ test('reapply of a script-only set inserts the marker-only sheet, and a failed s
   assert.equal(chat.appliedScript, SCRIPT);
 });
 
+test('reapply on a tab that moved to another site rejects and puts neither the CSS nor the script there', async () =>
+{
+  const stored = storedChatWithScript(TAB_A, { notice: 'navigated-same-site' });
+  const { page, chats } = setup({ [`pageAgentChat:${TAB_A}`]: stored });
+  await chats.get(TAB_A);
+  page.url = 'https://bank.test/account';
+
+  await assert.rejects(chats.reapply(TAB_A), /made on site\.test; this tab is on another site now/);
+
+  assert.deepEqual(page.calls, []);
+  assert.equal(chats.peek(TAB_A).appliedId, 'id-1');
+});
+
+test('applySaved in a bookmark tab that moved to another site rejects and runs nothing there', async () =>
+{
+  const { page, savedStyles, chats } = setup({ [`pageAgentChat:${TAB_A}`]: storedChatWithScript(TAB_A) });
+  savedStyles.set(TAB_A, '42', savedStyle('r1', CSS, 'agent.onUndo(() => {});'));
+  await chats.get(TAB_A);
+  page.url = 'https://bank.test/account';
+
+  await assert.rejects(chats.applySaved(TAB_A), /saved style is for site\.test; this tab is on another site now/);
+
+  assert.deepEqual(page.calls, []);
+  assert.equal(page.markerReads, 0);
+  assert.equal(chats.peek(TAB_A).appliedId, 'id-1');
+});
+
 test('applySaved undoes the chat\'s script before it puts the saved sheet and script on the page', async () =>
 {
   const stored = storedChatWithScript(TAB_A);
@@ -769,7 +796,7 @@ test('applySaved under the saved marker records the saved style and rejects when
 test('a run starts with the chat\'s applied script, and approveScripts on tab A does not answer the run on tab B', async () =>
 {
   const { store, factory, chats } = setup({ [`pageAgentChat:${TAB_A}`]: storedChatWithScript(TAB_A) });
-  const request = { kind: 'apply', code: SCRIPT };
+  const request = { kind: 'apply', code: SCRIPT, origin: 'https://site.test' };
 
   const sendingA = chats.send(TAB_A, 'add keys for the next subtitle line', SETTINGS);
   const runA = await factory.runFor(TAB_A);
