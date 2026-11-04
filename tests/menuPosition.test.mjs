@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { MENU_VIEWPORT_MARGIN, placeMenuAtAnchor, placeMenuAtPoint, placeSubmenu } from '../src/utils/menuPosition.ts';
+import {
+  MENU_VIEWPORT_MARGIN,
+  placeMenuAtAnchor,
+  placeMenuAtPoint,
+  placeScrollingMenuBesideAnchor,
+  placeSubmenu
+} from '../src/utils/menuPosition.ts';
 
 const SUBMENU = { width: 220, height: 64 };
 
@@ -123,4 +129,81 @@ test('right-aligned button menu with room below is clamped horizontally and does
   assert.equal(result.y, anchor.bottom);
   assert.equal(result.x, viewport.width - BUTTON_MENU.width - MENU_VIEWPORT_MARGIN);
   assert.equal(overlaps(anchor, result, BUTTON_MENU), false);
+});
+
+// Prev/Next history list beside a button of the vertical toolbar strip
+const HISTORY_LIST = { width: 288, height: 600 };
+const NARROW_PANEL_WIDTH = 300;
+
+function stripButtonAt(top)
+{
+  return { left: 4, right: 32, top, bottom: top + 28 };
+}
+
+function shownSize(placement)
+{
+  return { width: HISTORY_LIST.width, height: placement.maxHeight };
+}
+
+test('strip list opens beside the button and may run down to the bottom edge', () =>
+{
+  const viewport = { width: 800, height: 900 };
+  const anchor = stripButtonAt(100);
+  const result = placeScrollingMenuBesideAnchor(anchor, HISTORY_LIST, viewport);
+
+  assert.deepEqual(result, { x: anchor.right, y: anchor.top, maxHeight: viewport.height - MENU_VIEWPORT_MARGIN - anchor.top });
+});
+
+test('strip list taller than the window beside the button fills the window height', () =>
+{
+  const viewport = { width: 800, height: 400 };
+  const anchor = stripButtonAt(300);
+  const result = placeScrollingMenuBesideAnchor(anchor, HISTORY_LIST, viewport);
+
+  assert.deepEqual(result, { x: anchor.right, y: MENU_VIEWPORT_MARGIN, maxHeight: viewport.height - 2 * MENU_VIEWPORT_MARGIN });
+});
+
+test('in a narrow panel a strip list that fits below the button opens below it whole', () =>
+{
+  const viewport = { width: NARROW_PANEL_WIDTH, height: 1400 };
+  // More room above than below, but the whole list still fits below
+  const anchor = stripButtonAt(700);
+  const result = placeScrollingMenuBesideAnchor(anchor, HISTORY_LIST, viewport);
+
+  assert.equal(result.y, anchor.bottom);
+  assert.equal(result.maxHeight, HISTORY_LIST.height);
+  assert.equal(overlaps(anchor, result, shownSize(result)), false);
+});
+
+test('in a narrow panel a long strip list near the top is cut to the room below the button', () =>
+{
+  const viewport = { width: NARROW_PANEL_WIDTH, height: 500 };
+  const anchor = stripButtonAt(40);
+  const result = placeScrollingMenuBesideAnchor(anchor, HISTORY_LIST, viewport);
+
+  assert.equal(result.y, anchor.bottom);
+  assert.equal(result.maxHeight, viewport.height - MENU_VIEWPORT_MARGIN - anchor.bottom);
+  assert.equal(overlaps(anchor, result, shownSize(result)), false);
+});
+
+test('in a narrow panel a long strip list near the bottom goes above the button and does not cover it', () =>
+{
+  const viewport = { width: NARROW_PANEL_WIDTH, height: 500 };
+  const anchor = stripButtonAt(440);
+  const result = placeScrollingMenuBesideAnchor(anchor, HISTORY_LIST, viewport);
+
+  assert.equal(result.y, MENU_VIEWPORT_MARGIN);
+  assert.equal(result.maxHeight, anchor.top - MENU_VIEWPORT_MARGIN);
+  assert.equal(overlaps(anchor, result, shownSize(result)), false);
+});
+
+test('in a narrow panel a short strip list near the bottom sits right above the button', () =>
+{
+  const viewport = { width: NARROW_PANEL_WIDTH, height: 500 };
+  const anchor = stripButtonAt(440);
+  const shortList = { width: HISTORY_LIST.width, height: 120 };
+  const result = placeScrollingMenuBesideAnchor(anchor, shortList, viewport);
+
+  assert.deepEqual(result, { x: MENU_VIEWPORT_MARGIN, y: anchor.top - shortList.height, maxHeight: shortList.height });
+  assert.equal(overlaps(anchor, result, shortList), false);
 });

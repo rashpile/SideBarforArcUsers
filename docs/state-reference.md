@@ -356,6 +356,16 @@ number  // epoch millis
 - Parsing: `parseAttentionMarkStyle` (`src/utils/attentionMarkStyle.ts`); absent or unknown values read as `'accent-dim'`
 - Instances: 1 per extension (shared across windows)
 
+### `toolbarLayout`
+"Toolbar" setting: the toolbar buttons in a row across the top of the panel or in a column at its left edge
+```typescript
+'horizontal' | 'vertical'  // raw string, not JSON; default 'horizontal'
+```
+- Owner: `src/App.tsx` (via `useChromeLocalStorage` with `serialize: v => v`), set from `src/components/SettingsDialog.tsx` (Appearance tab)
+- Consumers: `src/App.tsx` (lays the panel out as a column or as two columns, passes `orientation` to `Toolbar` and `FilterBar`, and opens the gear menu and the audio list to the right in `'vertical'`; other windows' panels follow through `chrome.storage.onChanged`), `src/components/Toolbar.tsx` (button row or strip; Previous / Next lists open to the right in `'vertical'`), `src/components/FilterBar.tsx` (top padding in `'vertical'`), `src/components/SettingsDialog.tsx`; not read by background
+- Parsing: `parseToolbarLayout` (`src/utils/toolbarLayout.ts`); absent or unknown values read as `'horizontal'`
+- Instances: 1 per extension (shared across windows)
+
 ### `tabLastUsedAt`
 Last-use times of each open tab (auto-archive and tab age highlight), and which tabs were opened in the background and never activated (unvisited tab marker). Last use is the moment the tab stopped being active
 ```typescript
@@ -580,6 +590,7 @@ Lost on page reload or service worker restart.
 │  ├─ tabAgeHighlight                 (tab age highlight look)    │
 │  ├─ markUnvisitedTabs               (unvisited tab marker)      │
 │  ├─ attentionMarkStyle              (attention ring look)       │
+│  ├─ toolbarLayout                   (toolbar layout)            │
 │  ├─ tabLastUsedAt                   (tab last-use times)        │
 │  ├─ attentionMarkedTabs             (marked tabs)               │
 │  ├─ attentionMarkedBookmarks        (marked bookmarks)          │
