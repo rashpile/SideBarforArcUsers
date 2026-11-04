@@ -1,5 +1,5 @@
 import React from 'react';
-import { Code, KeyRound, Loader2, Play, X } from 'lucide-react';
+import { CircleAlert, Code, KeyRound, Loader2, Play, X } from 'lucide-react';
 import { httpOriginOf, siteName } from '../../stores/savedPageStyles';
 import { PAGE_AGENT_MARKER_PROPERTY, withMarker } from '../../utils/pageAgentCss';
 import type { CodeDraft } from './codeDrafts';
@@ -26,7 +26,7 @@ interface PageAgentCodeEditorProps
 }
 
 // No min-h-0: in a short drawer a field keeps the textarea's minimum height and the editor scrolls,
-// where a field shrunk below it lets the textarea spill over the hint under it.
+// where a field shrunk below it lets the textarea spill over what follows it.
 const fieldClass = 'flex-1 flex flex-col gap-0.5';
 
 const textareaClass = 'flex-1 min-h-[5em] w-full resize-none rounded border border-gray-300 dark:border-gray-600 ' +
@@ -38,6 +38,8 @@ const buttonClass = 'shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded
   'disabled:opacity-50 disabled:cursor-not-allowed';
 
 const UNCLOSED_CSS = 'the CSS has an unclosed { or comment';
+
+const CSS_HINT = 'Your CSS isn’t checked: fonts, images and @import it names load from the network.';
 
 /**
  * CSS and JavaScript the user pastes or edits for the tab's page. Apply puts exactly this code on the
@@ -61,6 +63,11 @@ export const PageAgentCodeEditor: React.FC<PageAgentCodeEditorProps> = ({
   const tabOrigin = httpOriginOf(tabUrl ?? '');
   const otherSite = tabOrigin !== draft.origin;
   const hasScript = draft.script.trim() !== '';
+  const scriptHint = `A script runs with your login on ${site}, so run only code you trust. It runs in the extension’s own ` +
+    'world: it sees the page’s DOM but not the page’s JavaScript variables, loads from the network only from ' +
+    'the page’s own site, and can’t use import. Undo removes what it registers through agent.on, ' +
+    'agent.setInterval, agent.setTimeout, agent.observe, agent.add and agent.onUndo; anything else stays ' +
+    'until a reload.';
 
   let applyTitle = 'Put this CSS and script on the page in place of what is applied now';
   if (running)
@@ -105,7 +112,7 @@ export const PageAgentCodeEditor: React.FC<PageAgentCodeEditorProps> = ({
       )}
 
       <label className={fieldClass}>
-        <span className="text-[0.85em] font-medium text-gray-500 dark:text-gray-400">CSS</span>
+        <FieldLabel label="CSS" hint={CSS_HINT} />
         <textarea
           value={draft.css}
           onChange={event => onChange(event.target.value, draft.script)}
@@ -115,12 +122,9 @@ export const PageAgentCodeEditor: React.FC<PageAgentCodeEditorProps> = ({
           className={textareaClass}
         />
       </label>
-      <p className="shrink-0 text-[0.85em] text-gray-500 dark:text-gray-400">
-        Your CSS isn’t checked: fonts, images and @import it names load from the network.
-      </p>
 
       <label className={fieldClass}>
-        <span className="text-[0.85em] font-medium text-gray-500 dark:text-gray-400">Script</span>
+        <FieldLabel label="Script" hint={scriptHint} />
         <textarea
           value={draft.script}
           onChange={event => onChange(draft.css, event.target.value)}
@@ -130,13 +134,6 @@ export const PageAgentCodeEditor: React.FC<PageAgentCodeEditorProps> = ({
           className={textareaClass}
         />
       </label>
-      <p className="shrink-0 text-[0.85em] text-gray-500 dark:text-gray-400">
-        A script runs with your login on {site}, so run only code you trust. It runs in the extension’s own
-        world: it sees the page’s DOM but not the page’s JavaScript variables, loads from the network only from
-        the page’s own site, and can’t use import. Undo removes what it registers through agent.on,
-        agent.setInterval, agent.setTimeout, agent.observe, agent.add and agent.onUndo; anything else stays
-        until a reload.
-      </p>
 
       {hasScript && (
         <div className="shrink-0">
@@ -180,6 +177,16 @@ export const PageAgentCodeEditor: React.FC<PageAgentCodeEditorProps> = ({
     </div>
   );
 };
+
+/** A field's name with a warning icon; the hint shows on hover, so it takes no room under the field. */
+const FieldLabel: React.FC<{ label: string; hint: string }> = ({ label, hint }) => (
+  <span className="flex items-center gap-1 text-[0.85em] font-medium text-gray-500 dark:text-gray-400">
+    {label}
+    <span title={hint} aria-label={hint} role="img" className="inline-flex cursor-help text-amber-500 dark:text-amber-400">
+      <CircleAlert size={12} />
+    </span>
+  </span>
+);
 
 /**
  * Whether the marker rule appended after the CSS stays a top-level rule of its own. An unclosed block
