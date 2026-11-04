@@ -375,14 +375,14 @@ export class UserScriptRunner
 - Modify: `tests/savedPageStyles.test.mjs`
 - Modify: `tests/pageStyleManager.test.mjs`
 
-- [ ] `SavedPageStyle.script` (last constructor parameter, default `''`), `withSaved(bookmarkId, css,
+- [x] `SavedPageStyle.script` (last constructor parameter, default `''`), `withSaved(bookmarkId, css,
   script, origin, rev)`, stored entries without `script` load as `''`, `equals` / `toStored` include it
-- [ ] `PageStyleManager.save(bookmarkId, css, script, pageUrl)` refuses when both are empty, checks the
+- [x] `PageStyleManager.save(bookmarkId, css, script, pageUrl)` refuses when both are empty, checks the
   script with `PageAgentScriptCheck`; `dispatch` reads a non-string script as `''`; `restore` checks it
   too; API, proxy and hook carry `script`
-- [ ] write tests: an old entry without `script` loads with its CSS; a script-only save is accepted; empty
+- [x] write tests: an old entry without `script` loads with its CSS; a script-only save is accepted; empty
   CSS and script are refused; an oversized script is refused; restore keeps the script and its rev
-- [ ] run `make test`, `make lint` and `make build` - must pass before next task
+- [x] run `make test`, `make lint` and `make build` - must pass before next task
 
 ### Task 4: Applied set carries the script; adapter runs user scripts
 

@@ -1,5 +1,5 @@
-// Saved page styles - the page agent's CSS saved to a bookmark or Favorite, in the form
-// PageStyleManager keeps in chrome.storage.local, so the background can put it back on the page
+// Saved page styles - the page agent's CSS and script saved to a bookmark or Favorite, in the form
+// PageStyleManager keeps in chrome.storage.local, so the background can put them back on the page
 // whenever a page of the same site loads in the bookmark's tab, also after a browser restart.
 //
 // Background and side panel derive the inserted text from the same record: removeCSS matches by
@@ -17,6 +17,8 @@ export interface StoredPageStyle
   autoApply: boolean;
   origin: string;
   rev: string;
+  /** Missing in entries saved before page scripts; read as no script. */
+  script?: string;
 }
 
 /** The value of the `bookmarkPageStyles` key: saved styles by bookmark id. */
@@ -56,23 +58,26 @@ export function bookmarkIdFromItemKey(itemKey: string | null | undefined): strin
   return null;
 }
 
-/** The CSS saved to one bookmark, for pages on the origin it was saved on. */
+/** The CSS and script saved to one bookmark, for pages on the origin it was saved on. */
 export class SavedPageStyle
 {
-  /** The sanitized stylesheet, without the marker rule. */
+  /** The sanitized stylesheet, without the marker rule; empty for a script-only style. */
   readonly css: string;
   readonly autoApply: boolean;
   /** The http(s) origin of the page the style was saved on. */
   readonly origin: string;
   /** New on every save, so a page keeps the sheet of an older save apart from the current one. */
   readonly rev: string;
+  /** The page agent's script, run after the sheet is inserted; empty for a CSS-only style. */
+  readonly script: string;
 
-  constructor(css: string, autoApply: boolean, origin: string, rev: string)
+  constructor(css: string, autoApply: boolean, origin: string, rev: string, script: string = '')
   {
     this.css = css;
     this.autoApply = autoApply;
     this.origin = origin;
     this.rev = rev;
+    this.script = script;
     Object.freeze(this);
   }
 
@@ -96,7 +101,7 @@ export class SavedPageStyle
 
   withAutoApply(on: boolean): SavedPageStyle
   {
-    return on === this.autoApply ? this : new SavedPageStyle(this.css, on, this.origin, this.rev);
+    return on === this.autoApply ? this : new SavedPageStyle(this.css, on, this.origin, this.rev, this.script);
   }
 
   equals(other: SavedPageStyle): boolean
@@ -104,12 +109,13 @@ export class SavedPageStyle
     return this.css === other.css
       && this.autoApply === other.autoApply
       && this.origin === other.origin
-      && this.rev === other.rev;
+      && this.rev === other.rev
+      && this.script === other.script;
   }
 
   toStored(): StoredPageStyle
   {
-    return { css: this.css, autoApply: this.autoApply, origin: this.origin, rev: this.rev };
+    return { css: this.css, autoApply: this.autoApply, origin: this.origin, rev: this.rev, script: this.script };
   }
 
   /** The record of a stored entry; null when the entry is malformed or not for an http(s) origin. */
@@ -122,7 +128,9 @@ export class SavedPageStyle
     // A stored origin must be one httpOriginOf would produce: an applier comparing against a
     // non-normalized or non-web origin would never match, or match the wrong pages.
     if (typeof entry.origin !== 'string' || httpOriginOf(entry.origin) !== entry.origin) return null;
-    return new SavedPageStyle(entry.css, entry.autoApply, entry.origin, entry.rev);
+    const script = entry.script === undefined ? '' : entry.script;
+    if (typeof script !== 'string') return null;
+    return new SavedPageStyle(entry.css, entry.autoApply, entry.origin, entry.rev, script);
   }
 }
 
@@ -184,13 +192,13 @@ export class SavedPageStyles
   }
 
   /**
-   * Save new CSS to the bookmark. An update keeps the bookmark's Auto-apply choice; a new record
-   * starts with Auto-apply on.
+   * Save new CSS and script to the bookmark, replacing both. An update keeps the bookmark's
+   * Auto-apply choice; a new record starts with Auto-apply on.
    */
-  withSaved(bookmarkId: string, css: string, origin: string, rev: string): SavedPageStyles
+  withSaved(bookmarkId: string, css: string, script: string, origin: string, rev: string): SavedPageStyles
   {
     const autoApply = this.#byBookmarkId.get(bookmarkId)?.autoApply ?? true;
-    return this.#with(bookmarkId, new SavedPageStyle(css, autoApply, origin, rev));
+    return this.#with(bookmarkId, new SavedPageStyle(css, autoApply, origin, rev, script));
   }
 
   withAutoApply(bookmarkId: string, on: boolean): SavedPageStyles
