@@ -44,5 +44,9 @@ by `CSP_SAFE_ORIGIN`; the card shows code as React text; markdown answers load n
   that commits in between runs the script on the new page.
 - [known-limitation] The card shows the code as text; invisible or bidi control characters could make
   it read differently from what runs.
+- [known-limitation] Accepted after revmux round 1 (PR #71): `apply_css` keeps the current script in the
+  applied set and records the page's URL, so after the tab moved to another site a script allowed on the
+  first one is recorded under the new site; Re-apply and Save then run it there. The user accepts it:
+  manual paste of CSS and JavaScript is planned, and the code is visible in Show code.
 - [known-limitation] Whether the world CSP covers loads started through styles set on page elements
   (`el.style.backgroundImage = 'url(…)'`) is not verified; the docs don't claim it.
