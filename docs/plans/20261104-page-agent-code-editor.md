@@ -193,7 +193,7 @@ Hook: `usePageAgentChat` exposes `applyCode(css, script, origin): Promise<void>`
 - Drafts: `CodeDrafts` class in `src/components/pageAgent/codeDrafts.ts` (no React, no chrome), created
   once in `src/App.tsx` (`useState(() => new CodeDrafts())`, next to `pageAgentChats`) and passed to the
   drawer, so a draft outlives a closed drawer. Per tab an immutable draft `{ css, script, origin,
-  applying, error }`: `draftFor(tabId)`, `open(tabId, css, script, origin)`, `update(tabId, css,
+  applying, error }`: `draftFor(tabId)`, `open(tabId, applied, tabUrl)`, `update(tabId, css,
   script)`, `rebind(tabId, origin)`, `setApplying(tabId, on)`, `setError(tabId, message)`,
   `close(tabId)`, `subscribe`; the drawer reads it with `useSyncExternalStore`. App's tab-close handler
   (where it calls `pageAgentChats.tabClosed`) also closes the tab's draft. The editor shows for the
@@ -204,7 +204,8 @@ Hook: `usePageAgentChat` exposes `applyCode(css, script, origin): Promise<void>`
   (`unscriptablePageReason` is null) and the tab doesn't run, whatever the AI settings and page access
   (the editor holds the Grant page access prompt, which the drawer's notice hides when AI settings are
   missing too); it opens the tab's draft, or a new one from the chat's
-  applied CSS and script bound to the tab's origin. While the editor shows, it replaces
+  applied CSS and script bound to the origin they were applied on (`appliedUrl`; the tab's origin when
+  nothing is applied), so code from another site needs Use on <site>. While the editor shows, it replaces
   `PageAgentMessages` and the input area; the style strip stays.
 - `PageAgentMessages` / `AppliedActions`: **Edit code** after Show code (both rows: the last turn and the
   adopted-saved-style row), disabled while running, calls the same open. The no-turns row also gets the

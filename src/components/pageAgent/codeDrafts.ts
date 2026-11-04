@@ -1,6 +1,16 @@
 // The code editor's text per tab, kept by the panel rather than the drawer: the user can close the
 // drawer or switch to another tab to copy code and come back to the same draft.
 
+import { httpOriginOf } from '../../stores/savedPageStyles.ts';
+
+/** The chat's applied set a new draft starts from; `appliedUrl` is the page it was applied on. */
+export interface AppliedCode
+{
+  readonly appliedCss: string;
+  readonly appliedScript: string;
+  readonly appliedUrl: string;
+}
+
 /**
  * The code editor's state for one tab. Immutable, so a React hook can tell a changed draft by
  * identity. `origin` is the http(s) site the draft was opened for: Apply puts it only there.
@@ -59,14 +69,21 @@ export class CodeDrafts
     return this.#drafts.get(tabId);
   }
 
-  /** Starts a draft for the tab; a draft the tab already has is kept, so its edits aren't lost. */
-  open(tabId: number, css: string, script: string, origin: string): void
+  /**
+   * Starts a draft for the tab with the chat's applied code; a draft the tab already has is kept, so
+   * its edits aren't lost. Nothing opens when there is no http(s) site to bind the draft to.
+   */
+  open(tabId: number, applied: AppliedCode, tabUrl: string | undefined): void
   {
     if (this.#drafts.has(tabId))
     {
       return;
     }
-    this.#set(tabId, new CodeDraft(css, script, origin));
+    const origin = draftOrigin(applied, tabUrl);
+    if (origin !== null)
+    {
+      this.#set(tabId, new CodeDraft(applied.appliedCss, applied.appliedScript, origin));
+    }
   }
 
   update(tabId: number, css: string, script: string): void
@@ -127,4 +144,16 @@ export class CodeDrafts
       listener();
     }
   }
+}
+
+/**
+ * Applied code belongs to the site it was applied on, not to the one the tab shows now: bound there,
+ * a tab that has moved to another site gets Use on <site> before the code can run on it, as Re-apply
+ * refuses there. Without applied code the draft is for the tab's site.
+ */
+function draftOrigin(applied: AppliedCode, tabUrl: string | undefined): string | null
+{
+  const hasCode = applied.appliedCss.trim() !== '' || applied.appliedScript.trim() !== '';
+  const appliedOrigin = hasCode ? httpOriginOf(applied.appliedUrl) : null;
+  return appliedOrigin ?? httpOriginOf(tabUrl ?? '');
 }

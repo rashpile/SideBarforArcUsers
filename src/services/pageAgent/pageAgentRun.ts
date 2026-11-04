@@ -413,7 +413,7 @@ class ChatHistory
       // stylesheet instead of resending it into a rejection.
       const label = cssByUser
         ? 'Current stylesheet (written by the user; it may use url(), @import, image-set() or var(), which apply_css refuses, so a new apply_css replaces it as a whole without them)'
-        : 'Current stylesheet (on the page now; a new apply_css replaces it as a whole)';
+        : 'Current stylesheet (applied last in this chat; a new apply_css replaces it as a whole)';
       sections.push(`${label}:\n${currentCss}`);
     }
     else if (this.#turns.length > 0)
@@ -424,7 +424,7 @@ class ChatHistory
     {
       if (currentScript.trim())
       {
-        sections.push(`Current script (on the page now; a new apply_script replaces it as a whole):\n${currentScript}`);
+        sections.push(`Current script (applied last in this chat; a new apply_script replaces it as a whole):\n${currentScript}`);
       }
       else if (this.#turns.length > 0)
       {
@@ -434,7 +434,7 @@ class ChatHistory
     else if (currentScript.trim())
     {
       // Without the code: the model can't change the script, and apply_css keeps it running.
-      sections.push('A script is applied on the page; scripts are off for this request, so leave it as it is.');
+      sections.push('A script is applied in this chat; scripts are off for this request, so leave it as it is.');
     }
     return sections.join('\n\n');
   }

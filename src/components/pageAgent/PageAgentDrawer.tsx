@@ -8,7 +8,7 @@ import type { PageStyleActions } from '../../hooks/usePageStyles';
 import type { PageAgentChatData } from '../../services/pageAgent/pageAgentChat';
 import type { PageAgentChats } from '../../services/pageAgent/pageAgentChats';
 import { PAGE_SCRIPTS_PLUGIN_ID, PageAgentPluginSwitches } from '../../services/pageAgent/pageAgentPlugins';
-import { httpOriginOf, siteName } from '../../stores/savedPageStyles';
+import { siteName } from '../../stores/savedPageStyles';
 import type { SavedPageStyle } from '../../stores/savedPageStyles';
 import type { AiRenameSettings } from '../../utils/aiConfig';
 import type { CodeDrafts } from './codeDrafts';
@@ -138,13 +138,12 @@ export const PageAgentDrawer: React.FC<PageAgentDrawerProps> = ({
     }
   };
 
-  // The tab's draft if it has one, else the chat's applied code, bound to the site the tab is on now.
+  // The tab's draft if it has one, else the chat's applied code, bound to the site it was applied on.
   const openCode = () =>
   {
-    const origin = httpOriginOf(tabUrl ?? '');
-    if (tabId !== undefined && chat && origin !== null && editorBlock === null && !running)
+    if (tabId !== undefined && chat && editorBlock === null && !running)
     {
-      codeDrafts.open(tabId, chat.appliedCss, chat.appliedScript, origin);
+      codeDrafts.open(tabId, chat, tabUrl);
     }
   };
 

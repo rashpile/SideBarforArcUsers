@@ -109,8 +109,8 @@ export function checkPageAgentCss(css: string, cssByUser: boolean): PageAgentCss
 }
 
 /**
- * The text that is inserted into the page: the sanitized stylesheet plus a :root rule that sets the
- * marker property to `appliedId`. removeCSS needs this exact text.
+ * The text that is inserted into the page: the stylesheet (sanitized unless it is the user's own) plus
+ * a :root rule that sets the marker property to `appliedId`. removeCSS needs this exact text.
  */
 export function withMarker(css: string, appliedId: string): string
 {
