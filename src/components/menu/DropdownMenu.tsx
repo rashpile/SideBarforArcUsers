@@ -22,7 +22,7 @@ import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { useFontSize } from '../../contexts/FontSizeContext';
 import { Item as BaseItem, Separator, Overlay, useEscapeKey, menuContainerClass } from './MenuBase';
-import { placeSubmenu, MENU_VIEWPORT_MARGIN } from '../../utils/menuPosition';
+import { placeScrollingMenuBesideAnchor } from '../../utils/menuPosition';
 
 // Re-export Separator (Item is wrapped below to add close behavior)
 export { Separator };
@@ -205,13 +205,11 @@ export const Content = forwardRef<HTMLDivElement, ContentProps>(
         // rect.height, so measure the whole list; the borders count too, since max-height
         // includes them (border-box).
         const borders = menu.offsetHeight - menu.clientHeight;
-        const height = Math.min(menu.scrollHeight + borders, viewportHeight - 2 * MENU_VIEWPORT_MARGIN);
-        const { x, y } = placeSubmenu(
+        setPosition(placeScrollingMenuBesideAnchor(
           triggerRect,
-          { width: rect.width, height },
+          { width: rect.width, height: menu.scrollHeight + borders },
           { width: viewportWidth, height: viewportHeight }
-        );
-        setPosition({ x, y, maxHeight: viewportHeight - MENU_VIEWPORT_MARGIN - y });
+        ));
         return;
       }
 

@@ -108,6 +108,9 @@
   `{ x, y } = placeSubmenu(triggerRect, { width: rect.width, height }, { width: viewportWidth, height:
   viewportHeight })` and `maxHeight = viewportHeight - MENU_VIEWPORT_MARGIN - y`, so the list never runs past
   the bottom and scrolls inside. `align` is ignored for `'right'`. `'bottom'` keeps today's code path unchanged.
+  Review fix: when the list fits neither beside the button (narrow panel), it is cut to the larger of the room
+  below and above the button before placing, and `maxHeight` is that height, so it never covers its own button
+  (`placeScrollingMenuBesideAnchor` in `src/utils/menuPosition.ts`, tested in `tests/menuPosition.test.mjs`).
 - Borders and background in horizontal layout must look as today: today one `.arc-toolbar` box with
   `border-b` wraps the button row and the filter rows. After the split:
   - the button row has `border-b` only while the search bar is hidden;
