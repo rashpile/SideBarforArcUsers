@@ -25,19 +25,29 @@ export function requestUserScriptsPermission(): Promise<boolean>
     });
 }
 
+/**
+ * Where the notice shows: under the Page scripts switch and the agent's input, or in the code editor,
+ * whose scripts run without that switch.
+ */
+type UserScriptsNoticeContext = 'page-scripts' | 'editor';
+
 interface UserScriptsNoticeProps
 {
   /** Shown while Chrome allows user scripts; without it the notice shows nothing then. */
   availableText?: string;
+  context?: UserScriptsNoticeContext;
 }
 
 /**
  * Why the page agent's scripts can't run yet, with the button that fixes it: the permission, or
  * Allow User Scripts on the extension's Details page, which only the user can turn on.
  */
-export const UserScriptsNotice: React.FC<UserScriptsNoticeProps> = ({ availableText }) =>
+export const UserScriptsNotice: React.FC<UserScriptsNoticeProps> = ({ availableText, context = 'page-scripts' }) =>
 {
   const status = useUserScriptsStatus();
+  const notAllowedYet = context === 'editor'
+    ? 'Chrome doesn’t allow this extension’s scripts yet'
+    : 'Page scripts are on, but Chrome doesn’t allow them yet';
 
   switch (status)
   {
@@ -48,7 +58,7 @@ export const UserScriptsNotice: React.FC<UserScriptsNoticeProps> = ({ availableT
     case 'no-permission':
       return (
         <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-          <span className="flex-1">Page scripts are on, but Chrome doesn’t allow them yet: the extension needs your permission.</span>
+          <span className="flex-1">{notAllowedYet}: the extension needs your permission.</span>
           <button type="button" onClick={() => void requestUserScriptsPermission()} className={buttonClass}>
             <KeyRound size={12} />
             Allow scripts
@@ -61,8 +71,8 @@ export const UserScriptsNotice: React.FC<UserScriptsNoticeProps> = ({ availableT
       return (
         <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
           <span className="flex-1">
-            Page scripts are on, but Chrome doesn’t allow them yet: turn on Allow User Scripts on the extension’s
-            Details page. If this message stays after that, close and reopen the side panel.
+            {notAllowedYet}: turn on Allow User Scripts on the extension’s Details page. If this message stays
+            after that, close and reopen the side panel.
           </span>
           <button type="button" onClick={openExtensionDetails} className={buttonClass}>
             <ExternalLink size={12} />
@@ -73,7 +83,9 @@ export const UserScriptsNotice: React.FC<UserScriptsNoticeProps> = ({ availableT
     case 'outdated':
       return (
         <p className="text-gray-500 dark:text-gray-400">
-          Page scripts are on, but this version of Chrome can’t run them; they need Chrome 135 or later.
+          {context === 'editor'
+            ? 'This version of Chrome can’t run the extension’s scripts; they need Chrome 135 or later.'
+            : 'Page scripts are on, but this version of Chrome can’t run them; they need Chrome 135 or later.'}
         </p>
       );
   }

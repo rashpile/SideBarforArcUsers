@@ -129,6 +129,29 @@ test('no style goes to a hand-opened tab, another item, another site, Auto-apply
   assert.deepEqual(inserted, []);
 });
 
+test('CSS the user wrote with a remote url() is inserted in the bookmark\'s tab; the same CSS from the agent is not', async () =>
+{
+  const remoteCss = 'body { background: url("https://images.test/bg.png") !important; }';
+  const { applier, inserted, savedStyles } = createApplier({
+    tabs: [tab(1, 'https://videos.test/u/1'), tab(2, 'https://videos.test/u/2')],
+    associations: { 1: 'bookmark-80', 2: 'bookmark-90' },
+    styles: {
+      80: { ...entry(remoteCss, true, 'https://videos.test', 'r8'), cssByUser: true },
+      90: entry(remoteCss, true, 'https://videos.test', 'r9'),
+    },
+  });
+
+  for (const id of [1, 2])
+  {
+    await applier.committed(id, 0, []);
+    await applier.loadComplete(id);
+  }
+  await applier.sweep();
+
+  assert.deepEqual(inserted, [[1, savedStyles.styleFor('80').insertedText]]);
+  assert.match(inserted[0][1], /images\.test\/bg\.png/);
+});
+
 test('nothing is applied when the association restore failed', async () =>
 {
   const { applier, inserted, markerReads } = createApplier({

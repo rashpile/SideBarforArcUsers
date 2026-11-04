@@ -155,7 +155,7 @@ export interface PageAgentStep
 /** The CSS and script on the page: one set under one marker id. */
 export interface PageAgentApplied
 {
-  /** The sanitized stylesheet without the marker; empty when only a script is applied. */
+  /** The stylesheet without the marker, sanitized unless `cssByUser`; empty when only a script is applied. */
   css: string;
   /** The script running in the page's user script world; empty when there is none. */
   script: string;
@@ -163,6 +163,11 @@ export interface PageAgentApplied
   insertedText: string;
   appliedId: string;
   url: string;
+  /**
+   * The CSS came from the user's code editor, so it is held to the size cap alone. Set only by the
+   * editor's Apply; the agent's apply_css clears it.
+   */
+  cssByUser: boolean;
 }
 
 /** A script the run asks the user to approve before it runs. */
@@ -210,6 +215,8 @@ export interface PageAgentRunOptions
   history?: readonly PageAgentHistoryTurn[];
   /** The stylesheet the chat applied last, without the marker; the model edits it. */
   currentCss?: string;
+  /** `currentCss` was written by the user, not by apply_css. */
+  currentCssByUser?: boolean;
   /** The script the chat applied last; it stays on the page while the run changes only the CSS. */
   currentScript?: string;
   /** The exact text inserted last, removed before the next insert; empty when there is none. */
@@ -386,7 +393,13 @@ class ChatHistory
    * The first user message of a run. Earlier tool calls are not resent; the condensed turns and
    * the current stylesheet and script are enough for "a bit narrower" to edit the current result.
    */
-  firstUserMessage(request: string, currentCss: string, currentScript: string, scripts: boolean): string
+  firstUserMessage(
+    request: string,
+    currentCss: string,
+    currentScript: string,
+    scripts: boolean,
+    cssByUser: boolean,
+  ): string
   {
     const sections = [`Request: ${request}`];
     if (this.#turns.length > 0)
@@ -396,7 +409,12 @@ class ChatHistory
     }
     if (currentCss.trim())
     {
-      sections.push(`Current stylesheet (applied by the last apply_css; a new apply_css replaces it as a whole):\n${currentCss}`);
+      // The user's CSS may hold what apply_css refuses; told so, the model leaves it out of its next
+      // stylesheet instead of resending it into a rejection.
+      const label = cssByUser
+        ? 'Current stylesheet (written by the user; it may use url(), @import, image-set() or var(), which apply_css refuses, so a new apply_css replaces it as a whole without them)'
+        : 'Current stylesheet (applied last in this chat; a new apply_css replaces it as a whole)';
+      sections.push(`${label}:\n${currentCss}`);
     }
     else if (this.#turns.length > 0)
     {
@@ -406,7 +424,7 @@ class ChatHistory
     {
       if (currentScript.trim())
       {
-        sections.push(`Current script (applied by the last apply_script; a new apply_script replaces it as a whole):\n${currentScript}`);
+        sections.push(`Current script (applied last in this chat; a new apply_script replaces it as a whole):\n${currentScript}`);
       }
       else if (this.#turns.length > 0)
       {
@@ -416,7 +434,7 @@ class ChatHistory
     else if (currentScript.trim())
     {
       // Without the code: the model can't change the script, and apply_css keeps it running.
-      sections.push('A script is applied on the page; scripts are off for this request, so leave it as it is.');
+      sections.push('A script is applied in this chat; scripts are off for this request, so leave it as it is.');
     }
     return sections.join('\n\n');
   }
@@ -558,6 +576,7 @@ export class PageAgentRun
   readonly #conditions = new RunConditions();
   readonly #measurement: ChangeMeasurement;
   #currentCss: string;
+  #currentCssByUser: boolean;
   #currentScript: string;
   #insertedText: string;
   /** The user's answer to the run's first script; kept for every later one on the same site. */
@@ -579,10 +598,17 @@ export class PageAgentRun
     this.#plugins = new RunPlugins(options.plugins ?? []);
     this.#history = new ChatHistory(options.history ?? []);
     this.#currentCss = options.currentCss ?? '';
+    this.#currentCssByUser = options.currentCssByUser ?? false;
     this.#currentScript = options.currentScript ?? '';
     this.#conversation = new RunConversation(
       pageAgentSystemPrompt(options.screenshots, options.scripts, this.#plugins.promptSections()),
-      this.#history.firstUserMessage(options.request, this.#currentCss, this.#currentScript, options.scripts),
+      this.#history.firstUserMessage(
+        options.request,
+        this.#currentCss,
+        this.#currentScript,
+        options.scripts,
+        this.#currentCssByUser,
+      ),
     );
     this.#tools = [...pageAgentToolDefinitions(options.screenshots, options.scripts), ...this.#plugins.tools()];
     this.#insertedText = options.insertedText ?? '';
@@ -968,10 +994,12 @@ export class PageAgentRun
 
   // CSS and script are one applied set under one marker id: a change to either part mints a new id
   // and replaces the marker sheet (marker-only without CSS), so the marker tells whether the page
-  // still has the set. The part the change leaves out is kept.
+  // still has the set. The part the change leaves out is kept, the user's CSS with its flag: an
+  // apply_script must not make the user's CSS look like the agent's, which save would sanitize.
   async #replaceApplied(url: string, change: { css?: string; script?: string }): Promise<void>
   {
     const css = change.css ?? this.#currentCss;
+    const cssByUser = change.css !== undefined ? false : this.#currentCssByUser;
     const script = change.script ?? this.#currentScript;
     if (this.#insertedText)
     {
@@ -982,9 +1010,10 @@ export class PageAgentRun
     await this.#adapter.insertCss(this.tabId, insertedText);
     this.#insertedText = insertedText;
     this.#currentCss = css;
+    this.#currentCssByUser = cssByUser;
     this.#currentScript = script;
     // Recorded before any stop check: the stylesheet is on the page now, and Undo needs its text.
-    this.#listener.onApplied({ css, script, insertedText, appliedId, url });
+    this.#listener.onApplied({ css, script, insertedText, appliedId, url, cssByUser });
   }
 
   async #applyScript(args: unknown): Promise<ToolOutcome>

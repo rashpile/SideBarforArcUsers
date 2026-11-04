@@ -23,16 +23,18 @@ export interface PageStyleApi
 {
   /**
    * Saves the CSS and script to the bookmark for pages on `pageUrl`'s origin; either may be empty,
-   * not both. Rejects with the reason when the CSS fails the page agent's sanitizer, the script is
-   * too large or the page isn't http(s). A new record starts with Auto-apply on; an update keeps
-   * the bookmark's choice.
+   * not both. `cssByUser` marks CSS from the user's code editor, which is only held to the size
+   * cap. Rejects with the reason when the CSS fails its check (the page agent's sanitizer unless
+   * `cssByUser`), the script is too large or the page isn't http(s). A new record starts with
+   * Auto-apply on; an update keeps the bookmark's choice.
    */
-  save(bookmarkId: string, css: string, script: string, pageUrl: string): Promise<PageStylesState>;
+  save(bookmarkId: string, css: string, script: string, pageUrl: string, cssByUser: boolean): Promise<PageStylesState>;
   setAutoApply(bookmarkId: string, on: boolean): Promise<PageStylesState>;
   remove(bookmarkId: string): Promise<PageStylesState>;
   /**
    * Puts a deleted bookmark's record, unchanged, onto the bookmark Undo created in its place.
-   * Rejects a malformed record, CSS that fails the sanitizer and a script that is too large.
+   * Rejects a malformed record, CSS that fails its check (by the record's `cssByUser`) and a script
+   * that is too large.
    */
   restore(bookmarkId: string, style: StoredPageStyle): Promise<PageStylesState>;
   getState(): PageStylesState;

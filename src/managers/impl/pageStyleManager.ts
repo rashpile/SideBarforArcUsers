@@ -11,7 +11,7 @@ import { BOOKMARK_PAGE_STYLES_KEY, PAGE_STYLES_CHANGED } from '../shared/pageSty
 import type { PageStyleApi, PageStylesState } from '../shared/pageStyleApi.ts';
 import { SavedPageStyle, SavedPageStyles, httpOriginOf } from '../../stores/savedPageStyles.ts';
 import type { StoredPageStyle } from '../../stores/savedPageStyles.ts';
-import { PageAgentCssSanitizer } from '../../utils/pageAgentCss.ts';
+import { checkPageAgentCss } from '../../utils/pageAgentCss.ts';
 import { PageAgentScriptCheck } from '../../utils/pageAgentScript.ts';
 
 /** The chrome APIs and the rev source the manager uses, injected so tests run under Node. */
@@ -63,6 +63,7 @@ export class PageStyleManager implements RoutedManager, PageStyleApi
           message.css as string,
           typeof message.script === 'string' ? message.script : '',
           message.pageUrl as string,
+          message.cssByUser === true,
           originId
         );
 
@@ -109,7 +110,14 @@ export class PageStyleManager implements RoutedManager, PageStyleApi
     return { styles: this.#styles.toStored() };
   }
 
-  async save(bookmarkId: string, css: string, script: string, pageUrl: string, originId?: string): Promise<PageStylesState>
+  async save(
+    bookmarkId: string,
+    css: string,
+    script: string,
+    pageUrl: string,
+    cssByUser: boolean,
+    originId?: string
+  ): Promise<PageStylesState>
   {
     requireBookmarkId(bookmarkId);
     if (typeof css !== 'string' || (css.trim() === '' && script.trim() === ''))
@@ -117,15 +125,15 @@ export class PageStyleManager implements RoutedManager, PageStyleApi
       throw new Error('Can\'t save this style: there is no CSS or script to save');
     }
     // The background inserts the saved CSS and runs the script without a request, so they get the
-    // same checks as what the agent applies: whatever reaches storage is put on pages later.
-    checkSavable(css, script, 'save');
+    // same checks as when they were applied: whatever reaches storage is put on pages later.
+    checkSavable(css, script, cssByUser, 'save');
     const origin = typeof pageUrl === 'string' ? httpOriginOf(pageUrl) : null;
     if (origin === null)
     {
       throw new Error('Can\'t save this style: only http and https pages can have a saved style');
     }
 
-    await this.#commitUserChange(this.#styles.withSaved(bookmarkId, css, script, origin, this.#deps.newRev()), originId);
+    await this.#commitUserChange(this.#styles.withSaved(bookmarkId, css, script, origin, this.#deps.newRev(), cssByUser), originId);
     return this.getState();
   }
 
@@ -152,7 +160,7 @@ export class PageStyleManager implements RoutedManager, PageStyleApi
       throw new Error('Can\'t restore this style: the record is incomplete');
     }
     // The same gate as save: the sidebar sends the record back, and the background applies it later
-    checkSavable(style.css, style.script, 'restore');
+    checkSavable(style.css, style.script, style.cssByUser, 'restore');
 
     await this.#commitUserChange(this.#styles.withRestored(bookmarkId, style), originId);
     return this.getState();
@@ -201,9 +209,9 @@ export class PageStyleManager implements RoutedManager, PageStyleApi
   }
 }
 
-function checkSavable(css: string, script: string, verb: 'save' | 'restore'): void
+function checkSavable(css: string, script: string, cssByUser: boolean, verb: 'save' | 'restore'): void
 {
-  const check = PageAgentCssSanitizer.check(css);
+  const check = checkPageAgentCss(css, cssByUser);
   if (!check.ok)
   {
     throw new Error(`Can't ${verb} this style: ${check.reason}`);

@@ -52,11 +52,22 @@ const URL_SNIPPET_LENGTH = 80;
 
 export class PageAgentCssSanitizer
 {
-  static check(css: string): PageAgentCssCheck
+  /** The size cap alone, which also holds for CSS the user wrote. */
+  static checkSize(css: string): PageAgentCssCheck
   {
     if (new TextEncoder().encode(css).length > PAGE_AGENT_CSS_MAX_BYTES)
     {
       return { ok: false, reason: `the stylesheet is larger than ${PAGE_AGENT_CSS_MAX_BYTES / 1024} KB` };
+    }
+    return { ok: true };
+  }
+
+  static check(css: string): PageAgentCssCheck
+  {
+    const size = PageAgentCssSanitizer.checkSize(css);
+    if (!size.ok)
+    {
+      return size;
     }
 
     // Comments are not stripped: a comment ends a token, so it can't hide url( or @import, while
@@ -88,8 +99,18 @@ export class PageAgentCssSanitizer
 }
 
 /**
- * The text that is inserted into the page: the sanitized stylesheet plus a :root rule that sets the
- * marker property to `appliedId`. removeCSS needs this exact text.
+ * The check for CSS by who wrote it. CSS the user applied from the code editor is trusted as the
+ * user's own choice and only kept under the size cap; the agent's CSS, which page text can steer,
+ * goes through the full sanitizer.
+ */
+export function checkPageAgentCss(css: string, cssByUser: boolean): PageAgentCssCheck
+{
+  return cssByUser ? PageAgentCssSanitizer.checkSize(css) : PageAgentCssSanitizer.check(css);
+}
+
+/**
+ * The text that is inserted into the page: the stylesheet (sanitized unless it is the user's own) plus
+ * a :root rule that sets the marker property to `appliedId`. removeCSS needs this exact text.
  */
 export function withMarker(css: string, appliedId: string): string
 {

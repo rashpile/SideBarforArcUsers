@@ -11,7 +11,7 @@
 
 import { bookmarkIdFromItemKey, httpOriginOf } from '../stores/savedPageStyles.ts';
 import type { SavedPageStyle, SavedPageStyles } from '../stores/savedPageStyles.ts';
-import { PageAgentCssSanitizer } from '../utils/pageAgentCss.ts';
+import { checkPageAgentCss } from '../utils/pageAgentCss.ts';
 import { PageAgentScriptCheck } from '../utils/pageAgentScript.ts';
 
 /** The fields of chrome.tabs.Tab the applier decides on. */
@@ -164,7 +164,8 @@ export class PageStyleApplier
     const style = this.#deps.styles().styleFor(bookmarkId);
     if (!style || !style.autoApply || !style.appliesTo(tab.url)) return null;
     // The stored value is checked again: whatever is in storage is inserted without a request.
-    if (!PageAgentCssSanitizer.check(style.css).ok)
+    // CSS the user wrote in the code editor is trusted beyond the size cap, as on save.
+    if (!checkPageAgentCss(style.css, style.cssByUser).ok)
     {
       this.#log(`saved style of bookmark ${bookmarkId} fails the CSS check, not applied`);
       return null;

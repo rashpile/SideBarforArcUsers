@@ -129,6 +129,8 @@ class FakePage
     /** What runUserScript returns, or the error it rejects with. */
     this.scriptResult = { ok: true, compiled: true, value: 'null', errors: [] };
     this.scriptError = null;
+    /** The error insertCss rejects with, as for a page that can't be scripted. */
+    this.insertError = null;
   }
 
   async showPopup(tabId, title, answer)
@@ -163,6 +165,10 @@ class FakePage
   async insertCss(tabId, text)
   {
     this.calls.push(`insertCss ${tabId}`);
+    if (this.insertError)
+    {
+      throw this.insertError;
+    }
     this.inserted.push({ tabId, text });
   }
 
@@ -549,6 +555,22 @@ test('applySaved is ignored while the tab has a live run', async () =>
   await sending;
 });
 
+test('applySaved of a saved style the user wrote records and stores its CSS as the user\'s', async () =>
+{
+  const { store, page, savedStyles, chats } = setup();
+  const userCss = 'body { font-family: var(--font, Inter); background: url("https://images.test/bg.png"); }';
+  const style = new SavedPageStyle(userCss, true, 'https://site.test', 'r1', '', true);
+  savedStyles.set(TAB_A, '42', style);
+  await chats.get(TAB_A);
+
+  await chats.applySaved(TAB_A);
+
+  assert.deepEqual(page.inserted, [{ tabId: TAB_A, text: style.insertedText }]);
+  assert.equal(chats.peek(TAB_A).appliedCss, userCss);
+  assert.equal(chats.peek(TAB_A).appliedCssByUser, true, 'saving it again must not put it through the sanitizer');
+  assert.equal((await store.load(TAB_A)).appliedCssByUser, true);
+});
+
 test('a follow-up run gets the earlier answers in its history, one over 4000 characters cut with a note', async () =>
 {
   const { factory, chats } = setup();
@@ -850,4 +872,189 @@ test('a stored chat with a pending script loads without it', async () =>
   assert.equal(chat.data.turns[0].status, 'stopped');
   assert.equal('pendingScript' in chat.data.turns[0], false);
   assert.equal(chat.appliedScript, SCRIPT);
+});
+
+test('a stored chat without appliedCssByUser holds the agent\'s CSS; one with it keeps the flag through reapply and into the next run', async () =>
+{
+  const { factory, chats } = setup({
+    [`pageAgentChat:${TAB_A}`]: storedChatWithCss(TAB_A),
+    [`pageAgentChat:${TAB_B}`]: storedChatWithCss(TAB_B, { appliedCssByUser: true, notice: 'reloaded' }),
+  });
+
+  assert.equal((await chats.get(TAB_A)).appliedCssByUser, false);
+  await chats.get(TAB_B);
+  await chats.reapply(TAB_B);
+  assert.equal(chats.peek(TAB_B).appliedId, 'reapplied-1');
+  assert.equal(chats.peek(TAB_B).appliedCssByUser, true);
+
+  const sending = chats.send(TAB_B, 'make the player a bit narrower', SETTINGS);
+  const run = await factory.runFor(TAB_B);
+  assert.equal(run.start.currentCssByUser, true);
+  run.finish(metResult);
+  await sending;
+});
+
+const ORIGIN_A = 'https://site.test';
+// What the sanitizer refuses in the agent's CSS: the user's own CSS from the editor goes on as written.
+const USER_CSS = '@import url("https://fonts.test/inter.css");\nbody { font-family: var(--font, Inter); background: url("https://images.test/bg.png"); }';
+const USER_SCRIPT = "agent.on(document, 'keydown', event => { if (event.key === '[') { history.back(); } });";
+
+/** The chat's applied set, to tell that a refused Apply changed nothing. */
+function appliedSetOf(chat)
+{
+  const { appliedCss, appliedCssByUser, appliedScript, appliedInsertedText, appliedId, appliedUrl } = chat.data;
+  return { appliedCss, appliedCssByUser, appliedScript, appliedInsertedText, appliedId, appliedUrl };
+}
+
+test('applyCode runs the script on the chat\'s own tab, replaces the chat\'s sheet by its exact text and records the code as the user\'s', async () =>
+{
+  const stored = storedChatWithScript(TAB_A);
+  const { store, page, chats } = setup({
+    [`pageAgentChat:${TAB_A}`]: stored,
+    [`pageAgentChat:${TAB_B}`]: storedChatWithScript(TAB_B),
+  });
+  await chats.get(TAB_A);
+  const otherTab = appliedSetOf(await chats.get(TAB_B));
+
+  await chats.applyCode(TAB_A, USER_CSS, USER_SCRIPT, ORIGIN_A);
+
+  assert.deepEqual(page.calls, [`runUserScript ${TAB_A} apply`, `removeCss ${TAB_A}`, `insertCss ${TAB_A}`]);
+  assert.deepEqual(page.scriptCommands, [{ tabId: TAB_A, command: { kind: 'apply', code: USER_SCRIPT } }]);
+  assert.deepEqual(page.removed, [{ tabId: TAB_A, text: stored.appliedInsertedText }]);
+  assert.deepEqual(page.inserted, [{ tabId: TAB_A, text: withMarker(USER_CSS, 'reapplied-1') }], 'url(), var() and @import go on unchanged');
+  assert.deepEqual(appliedSetOf(chats.peek(TAB_A)), {
+    appliedCss: USER_CSS,
+    appliedCssByUser: true,
+    appliedScript: USER_SCRIPT,
+    appliedInsertedText: withMarker(USER_CSS, 'reapplied-1'),
+    appliedId: 'reapplied-1',
+    appliedUrl: URL_A,
+  });
+  assert.equal((await store.load(TAB_A)).appliedCssByUser, true, 'so saving it keeps it out of the sanitizer');
+  assert.deepEqual(appliedSetOf(chats.peek(TAB_B)), otherTab, 'the other tab keeps its set');
+});
+
+test('applyCode whose script does not compile or cannot run rejects and leaves the page and the chat as they were', async () =>
+{
+  const failures = [
+    ['compile error', page => { page.scriptResult = { ok: false, compiled: false, error: 'SyntaxError: Unexpected end of input', errors: [] }; }, /script error: SyntaxError/],
+    ['user scripts off', page => { page.scriptError = new Error("Chrome doesn't allow user scripts; turn on Allow User Scripts on the extension's Details page"); }, /Allow User Scripts/],
+  ];
+  for (const [failure, fail, reason] of failures)
+  {
+    const { store, page, chats } = setup({ [`pageAgentChat:${TAB_A}`]: storedChatWithScript(TAB_A) });
+    const before = appliedSetOf(await chats.get(TAB_A));
+    fail(page);
+
+    await assert.rejects(chats.applyCode(TAB_A, USER_CSS, 'agent.on(', ORIGIN_A), reason, failure);
+
+    assert.deepEqual(page.calls, [`runUserScript ${TAB_A} apply`], `${failure}: no sheet call`);
+    assert.deepEqual(appliedSetOf(chats.peek(TAB_A)), before, failure);
+    assert.deepEqual(appliedSetOf(await store.load(TAB_A)), before, failure);
+  }
+});
+
+test('applyCode records a compiled script that threw, so Undo can stop what it registered, and then rejects', async () =>
+{
+  const { page, chats } = setup();
+  await chats.get(TAB_A);
+  page.scriptResult = { ok: false, compiled: true, error: 'TypeError: seekNext is not a function', errors: [] };
+
+  await assert.rejects(chats.applyCode(TAB_A, '', USER_SCRIPT, ORIGIN_A), /script error: TypeError: seekNext is not a function/);
+
+  assert.deepEqual(page.inserted, [{ tabId: TAB_A, text: withMarker('', 'reapplied-1') }]);
+  const chat = chats.peek(TAB_A);
+  assert.equal(chat.appliedScript, USER_SCRIPT);
+  assert.equal(chat.appliedId, 'reapplied-1');
+});
+
+test('applyCode with a blank script undoes the chat\'s applied script', async () =>
+{
+  const { page, chats } = setup({ [`pageAgentChat:${TAB_A}`]: storedChatWithScript(TAB_A) });
+  await chats.get(TAB_A);
+
+  await chats.applyCode(TAB_A, USER_CSS, '  \n', ORIGIN_A);
+
+  assert.deepEqual(page.calls, [`runUserScript ${TAB_A} undo`, `removeCss ${TAB_A}`, `insertCss ${TAB_A}`]);
+  assert.equal(chats.peek(TAB_A).appliedScript, '');
+  assert.equal(chats.peek(TAB_A).appliedCss, USER_CSS);
+});
+
+test('applyCode with blank CSS and script is Undo', async () =>
+{
+  const stored = storedChatWithScript(TAB_A);
+  const { page, chats } = setup({ [`pageAgentChat:${TAB_A}`]: stored });
+  await chats.get(TAB_A);
+
+  await chats.applyCode(TAB_A, ' \n', '\t', ORIGIN_A);
+
+  assert.deepEqual(page.calls, [`removeCss ${TAB_A}`, `runUserScript ${TAB_A} undo`]);
+  assert.deepEqual(page.removed, [{ tabId: TAB_A, text: stored.appliedInsertedText }]);
+  assert.equal(chats.peek(TAB_A).appliedCss, '');
+  assert.equal(chats.peek(TAB_A).appliedScript, '');
+  assert.equal(chats.peek(TAB_A).appliedInsertedText, '');
+});
+
+test('applyCode is refused on a page that is not http(s), on another site than the code was opened for and while the tab runs', async () =>
+{
+  const pages = [
+    ['chrome://newtab/', /only on http and https pages/],
+    ['https://bank.test/account', /opened for site\.test; this tab is on another site now/],
+  ];
+  for (const [url, reason] of pages)
+  {
+    const { page, chats } = setup({ [`pageAgentChat:${TAB_A}`]: storedChatWithScript(TAB_A) });
+    const before = appliedSetOf(await chats.get(TAB_A));
+    page.url = url;
+
+    await assert.rejects(chats.applyCode(TAB_A, USER_CSS, USER_SCRIPT, ORIGIN_A), reason, url);
+
+    assert.deepEqual(page.calls, [], `${url}: nothing ran`);
+    assert.deepEqual(appliedSetOf(chats.peek(TAB_A)), before, url);
+  }
+
+  const { factory, page, chats } = setup({ [`pageAgentChat:${TAB_A}`]: storedChatWithScript(TAB_A) });
+  const before = appliedSetOf(await chats.get(TAB_A));
+  const sending = chats.send(TAB_A, 'make the player full width', SETTINGS);
+  const run = await factory.runFor(TAB_A);
+
+  await assert.rejects(chats.applyCode(TAB_A, USER_CSS, USER_SCRIPT, ORIGIN_A), /wait until the agent has finished/);
+
+  assert.deepEqual(page.calls, [], 'running: nothing ran');
+  assert.deepEqual(appliedSetOf(chats.peek(TAB_A)), before);
+  run.finish(metResult);
+  await sending;
+});
+
+test('applyCode refuses CSS over 20 KB and a script over 64 KB before it touches the page', async () =>
+{
+  const { page, chats } = setup({ [`pageAgentChat:${TAB_A}`]: storedChatWithScript(TAB_A) });
+  const before = appliedSetOf(await chats.get(TAB_A));
+
+  await assert.rejects(
+    chats.applyCode(TAB_A, `body::after { content: "${'x'.repeat(20 * 1024)}"; }`, USER_SCRIPT, ORIGIN_A),
+    /stylesheet is larger than 20 KB/,
+  );
+  await assert.rejects(chats.applyCode(TAB_A, USER_CSS, `// ${'x'.repeat(64 * 1024)}`, ORIGIN_A), /script is larger than 64 KB/);
+
+  assert.deepEqual(page.calls, []);
+  assert.deepEqual(appliedSetOf(chats.peek(TAB_A)), before);
+});
+
+test('a CSS-only applyCode whose insert fails keeps the chat\'s earlier set; once a script ran, the new set is recorded', async () =>
+{
+  const stored = storedChatWithCss(TAB_A);
+  const { page, chats } = setup({ [`pageAgentChat:${TAB_A}`]: stored });
+  const before = appliedSetOf(await chats.get(TAB_A));
+  page.insertError = new Error('Cannot access contents of the page');
+
+  await assert.rejects(chats.applyCode(TAB_A, USER_CSS, '', ORIGIN_A), /Cannot access contents/);
+
+  assert.deepEqual(page.calls, [`removeCss ${TAB_A}`, `insertCss ${TAB_A}`], 'no script call for CSS alone');
+  assert.deepEqual(appliedSetOf(chats.peek(TAB_A)), before);
+
+  await assert.rejects(chats.applyCode(TAB_A, USER_CSS, USER_SCRIPT, ORIGIN_A), /Cannot access contents/);
+
+  assert.equal(chats.peek(TAB_A).appliedScript, USER_SCRIPT, 'Undo must still stop the script now running');
+  assert.equal(chats.peek(TAB_A).appliedCssByUser, true);
 });

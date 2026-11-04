@@ -2,11 +2,11 @@
 // the drawer: a run on tab A keeps applying its events to A's chat and saving them while the drawer
 // shows tab B or is closed. The hook and the tab lifecycle handlers change chats only through it.
 
-import { siteName } from '../../stores/savedPageStyles.ts';
+import { httpOriginOf, siteName } from '../../stores/savedPageStyles.ts';
 import type { SavedPageStyle } from '../../stores/savedPageStyles.ts';
 import { isSameOriginHttpUrl } from '../../utils/aiConfig.ts';
-import { withMarker } from '../../utils/pageAgentCss.ts';
-import { NoUserScriptWorldError } from '../../utils/pageAgentScript.ts';
+import { checkPageAgentCss, withMarker } from '../../utils/pageAgentCss.ts';
+import { NoUserScriptWorldError, PageAgentScriptCheck } from '../../utils/pageAgentScript.ts';
 import { PageAgentChat } from './pageAgentChat.ts';
 import type { PageAgentNotice } from './pageAgentChat.ts';
 import type { PageAgentChatStore } from './pageAgentChatStore.ts';
@@ -33,6 +33,7 @@ export interface PageAgentRunStart<Settings>
   request: string;
   history: PageAgentHistoryTurn[];
   currentCss: string;
+  currentCssByUser: boolean;
   currentScript: string;
   insertedText: string;
   listener: PageAgentRunListener;
@@ -76,6 +77,7 @@ export interface PageAgentChatsOptions<Settings>
 }
 
 const POPUP_TITLE = 'Page agent';
+const AGENT_RUNNING = 'wait until the agent has finished';
 
 /** The runs waiting for the user to allow or deny their scripts: one per tab, as runs are. */
 class PendingScriptApprovals
@@ -187,6 +189,7 @@ export class PageAgentChats<Settings>
         request: text,
         history,
         currentCss: chat.appliedCss,
+        currentCssByUser: chat.appliedCssByUser,
         currentScript: chat.appliedScript,
         insertedText: chat.appliedInsertedText,
         listener: this.#runListener(chat, turn),
@@ -305,6 +308,7 @@ export class PageAgentChats<Settings>
     }
     const chat = await this.get(tabId);
     const css = chat.appliedCss;
+    const cssByUser = chat.appliedCssByUser;
     const script = chat.appliedScript;
     if (!css && !script)
     {
@@ -327,7 +331,7 @@ export class PageAgentChats<Settings>
     const scriptError = script ? await this.#applyScript(tabId, script) : null;
     if (this.#owns(chat))
     {
-      chat.recordApplied({ css, script, insertedText, appliedId, url });
+      chat.recordApplied({ css, script, insertedText, appliedId, url, cssByUser });
       this.#changed(chat);
     }
     if (scriptError !== null)
@@ -385,6 +389,109 @@ export class PageAgentChats<Settings>
     if (applyError !== null)
     {
       throw new Error(applyError);
+    }
+    if (undoError !== null)
+    {
+      throw new Error(`the earlier script couldn't be stopped (${undoError}); reload the page to remove it`);
+    }
+  }
+
+  /**
+   * Puts the code of the user's editor on the page as the chat's stylesheet and script, in place of the
+   * chat's own; `origin` is the http(s) origin the editor opened the code for. The CSS is the user's
+   * own, so only its size is checked. Blank CSS and script is Undo. Rejects with the reason the editor
+   * shows: before the script has run or been undone, with the page and the chat unchanged; after it,
+   * with the new set recorded, so Undo can still stop what the script registered.
+   */
+  async applyCode(tabId: number, css: string, script: string, origin: string): Promise<void>
+  {
+    if (this.#runs.has(tabId))
+    {
+      throw new Error(AGENT_RUNNING);
+    }
+    const userCss = css.trim() ? css : '';
+    const userScript = script.trim() ? script : '';
+    if (!userCss && !userScript)
+    {
+      await this.undo(tabId);
+      return;
+    }
+    const cssCheck = checkPageAgentCss(userCss, true);
+    if (!cssCheck.ok)
+    {
+      throw new Error(cssCheck.reason);
+    }
+    const scriptCheck = PageAgentScriptCheck.check(userScript);
+    if (!scriptCheck.ok)
+    {
+      throw new Error(scriptCheck.reason);
+    }
+    const chat = await this.get(tabId);
+    if (this.#runs.has(tabId))
+    {
+      throw new Error(AGENT_RUNNING);
+    }
+    const url = await this.#page.pageUrl(tabId);
+    const pageOrigin = httpOriginOf(url);
+    if (pageOrigin === null)
+    {
+      throw new Error('code can be applied only on http and https pages');
+    }
+    // The editor names the site it opened the code for; the script runs with the user's login, so it
+    // must not reach a site the tab moved to since.
+    if (pageOrigin !== origin)
+    {
+      throw new Error(`the code was opened for ${siteName(origin)}; this tab is on another site now`);
+    }
+
+    // The script goes first: apply undoes the running script only once the new code compiles, so a
+    // compile error (or user scripts being off) leaves the whole earlier set in place.
+    const touchesScript = userScript !== '' || chat.appliedScript !== '';
+    let scriptError: string | null = null;
+    let undoError: string | null = null;
+    if (userScript)
+    {
+      const result = await this.#page.runUserScript(tabId, { kind: 'apply', code: userScript });
+      if (!result.ok)
+      {
+        if (!result.compiled)
+        {
+          throw new Error(`script error: ${result.error}`);
+        }
+        scriptError = result.error;
+      }
+    }
+    else if (chat.appliedScript)
+    {
+      undoError = await this.#undoScript(tabId);
+    }
+
+    const appliedId = this.#createId();
+    const insertedText = withMarker(userCss, appliedId);
+    let sheetReplaced = false;
+    try
+    {
+      if (chat.appliedInsertedText)
+      {
+        await this.#page.removeCss(tabId, chat.appliedInsertedText);
+      }
+      await this.#page.insertCss(tabId, insertedText);
+      sheetReplaced = true;
+    }
+    finally
+    {
+      // A failed sheet call of a CSS-only Apply keeps the chat's set, as reapply does, with the text of
+      // a sheet that may still be on the page. Once the page's script has changed, the new set is
+      // recorded all the same: the chat's old script is no longer the one running.
+      if ((sheetReplaced || touchesScript) && this.#owns(chat))
+      {
+        chat.recordApplied({ css: userCss, script: userScript, insertedText, appliedId, url, cssByUser: true });
+        this.#changed(chat);
+      }
+    }
+    if (scriptError !== null)
+    {
+      throw new Error(`script error: ${scriptError}`);
     }
     if (undoError !== null)
     {
@@ -658,7 +765,14 @@ export class PageAgentChats<Settings>
 
 function savedAsApplied(style: SavedPageStyle, url: string): PageAgentApplied
 {
-  return { css: style.css, script: style.script, insertedText: style.insertedText, appliedId: style.appliedId, url };
+  return {
+    css: style.css,
+    script: style.script,
+    insertedText: style.insertedText,
+    appliedId: style.appliedId,
+    url,
+    cssByUser: style.cssByUser,
+  };
 }
 
 function errorMessage(error: unknown): string

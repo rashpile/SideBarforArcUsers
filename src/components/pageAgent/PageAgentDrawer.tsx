@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import clsx from 'clsx';
-import { Camera, KeyRound, Paintbrush, Play, Send, Settings, Sparkles, Square, Trash2, X } from 'lucide-react';
+import { Camera, Code, KeyRound, Paintbrush, Play, Send, Settings, Sparkles, Square, Trash2, X } from 'lucide-react';
 import { bookmarkTreeStore } from '../../hooks/useBookmarks';
 import { useChromeLocalStorage } from '../../hooks/useChromeLocalStorage';
 import { usePageAgentChat } from '../../hooks/usePageAgentChat';
@@ -11,6 +11,8 @@ import { PAGE_SCRIPTS_PLUGIN_ID, PageAgentPluginSwitches } from '../../services/
 import { siteName } from '../../stores/savedPageStyles';
 import type { SavedPageStyle } from '../../stores/savedPageStyles';
 import type { AiRenameSettings } from '../../utils/aiConfig';
+import type { CodeDrafts } from './codeDrafts';
+import { PageAgentCodeEditor } from './PageAgentCodeEditor';
 import { PageAgentMessages } from './PageAgentMessages';
 import { UserScriptsNotice } from './UserScriptsNotice';
 
@@ -26,6 +28,8 @@ const SCREENSHOT_ORIGINS: readonly string[] = ['<all_urls>'];
 interface PageAgentDrawerProps
 {
   chats: PageAgentChats<AiRenameSettings>;
+  /** The code editor's drafts by tab; the panel keeps them while the drawer is closed. */
+  codeDrafts: CodeDrafts;
   /** This window's active tab; the drawer shows its chat and follows tab switches. */
   tabId: number | undefined;
   tabUrl: string | undefined;
@@ -48,6 +52,7 @@ type InputBlock =
 
 export const PageAgentDrawer: React.FC<PageAgentDrawerProps> = ({
   chats,
+  codeDrafts,
   tabId,
   tabUrl,
   bookmarkId,
@@ -58,8 +63,24 @@ export const PageAgentDrawer: React.FC<PageAgentDrawerProps> = ({
   onClose,
 }) =>
 {
-  const { chat, running, actionError, send, stop, approveScripts, undo, reapply, applySaved, showOnPage, runAction } =
-    usePageAgentChat(chats, tabId, savedStyle?.rev ?? null);
+  const {
+    chat,
+    running,
+    actionError,
+    send,
+    stop,
+    approveScripts,
+    undo,
+    reapply,
+    applySaved,
+    showOnPage,
+    applyCode,
+    runAction,
+  } = usePageAgentChat(chats, tabId, savedStyle?.rev ?? null);
+  const codeDraft = useSyncExternalStore(
+    codeDrafts.subscribe,
+    () => (tabId === undefined ? undefined : codeDrafts.draftFor(tabId)),
+  );
   const bookmarkTitle = useBookmarkTitle(bookmarkId);
   const [hasPageAccess, requestPageAccess] = useOriginsGranted(PAGE_ORIGINS);
   const [hasScreenshotAccess, requestScreenshotAccess] = useOriginsGranted(SCREENSHOT_ORIGINS);
@@ -69,6 +90,8 @@ export const PageAgentDrawer: React.FC<PageAgentDrawerProps> = ({
   const block = inputBlock(tabId, tabUrl, aiSettings, hasPageAccess);
   const canSend = block === null && !running && draft.trim() !== '';
   const pageScriptsOn = new PageAgentPluginSwitches(aiSettings.agentPlugins).isEnabledId(PAGE_SCRIPTS_PLUGIN_ID);
+  // The editor needs no AI settings: it puts the user's own code on the page.
+  const editorBlock = codeEditorBlock(tabId, tabUrl, chat !== undefined);
 
   const submit = () =>
   {
@@ -94,8 +117,8 @@ export const PageAgentDrawer: React.FC<PageAgentDrawerProps> = ({
   {
     if (bookmarkId !== null && chat)
     {
-      const { appliedCss, appliedScript, appliedUrl } = chat;
-      runAction('Save', () => pageStyles.save(bookmarkId, appliedCss, appliedScript, appliedUrl));
+      const { appliedCss, appliedCssByUser, appliedScript, appliedUrl } = chat;
+      runAction('Save', () => pageStyles.save(bookmarkId, appliedCss, appliedScript, appliedUrl, appliedCssByUser));
     }
   };
 
@@ -113,6 +136,30 @@ export const PageAgentDrawer: React.FC<PageAgentDrawerProps> = ({
     {
       runAction('Remove', () => pageStyles.remove(bookmarkId));
     }
+  };
+
+  // The tab's draft if it has one, else the chat's applied code or the bookmark's saved style, bound to
+  // the site it was applied or saved on.
+  const openCode = () =>
+  {
+    if (tabId !== undefined && chat && editorBlock === null && !running)
+    {
+      codeDrafts.open(tabId, chat, savedStyle, tabUrl);
+    }
+  };
+
+  const applyDraft = () =>
+  {
+    if (tabId === undefined || !codeDraft)
+    {
+      return;
+    }
+    // The drawer may show another tab by the time the Apply settles; the result belongs to this one.
+    const draftTabId = tabId;
+    codeDrafts.setApplying(draftTabId, true);
+    applyCode(codeDraft.css, codeDraft.script, codeDraft.origin)
+      .then(() => codeDrafts.close(draftTabId))
+      .catch(error => codeDrafts.setError(draftTabId, `Apply failed: ${errorMessage(error)}`));
   };
 
   return (
@@ -156,69 +203,100 @@ export const PageAgentDrawer: React.FC<PageAgentDrawerProps> = ({
         />
       )}
 
-      {/* Keyed by tab, so expanded steps and Show code don't carry over to another tab's chat. */}
-      <PageAgentMessages
-        key={tabId ?? 'none'}
-        chat={chat}
-        running={running}
-        actionError={actionError}
-        hasBookmark={bookmarkId !== null}
-        savedStyle={savedStyle}
-        onApproveScripts={approveScripts}
-        onUndo={undo}
-        onReapply={reapply}
-        onSave={saveStyle}
-        onShowOnPage={showOnPage}
-      />
-
-      <div className="shrink-0 border-t border-gray-200 dark:border-gray-700 px-2 py-1.5 space-y-1.5">
-        {block && (
-          <BlockNotice block={block} onOpenSettings={onOpenSettings} onRequestPageAccess={requestPageAccess} />
-        )}
-        {!block && aiSettings.acceptsImages && hasScreenshotAccess === false && (
-          <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-            <span className="flex-1">Screenshots need access to all pages; without it the agent checks numbers only.</span>
-            <button type="button" onClick={requestScreenshotAccess} className={actionButtonClass}>
-              <Camera size={12} />
-              Grant screenshot access
-            </button>
-          </div>
-        )}
-        {!block && pageScriptsOn && <UserScriptsNotice />}
-        <div className="flex items-end gap-1.5">
-          <textarea
-            value={draft}
-            onChange={event => setDraft(event.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={block !== null}
-            rows={2}
-            placeholder={block ? '' : 'Ask about the page or describe a change, e.g. “summarize this page” or “make the video full width”'}
-            className="flex-1 min-w-0 resize-none rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-1.5 py-1 outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+      {tabId !== undefined && codeDraft ? (
+        <PageAgentCodeEditor
+          key={tabId}
+          draft={codeDraft}
+          tabUrl={tabUrl}
+          running={running}
+          hasPageAccess={hasPageAccess}
+          actionError={actionError}
+          onRequestPageAccess={requestPageAccess}
+          onChange={(css, script) => codeDrafts.update(tabId, css, script)}
+          onRebind={origin => codeDrafts.rebind(tabId, origin)}
+          onApply={applyDraft}
+          onError={message => codeDrafts.setError(tabId, `Apply failed: ${message}`)}
+          onCancel={() => codeDrafts.close(tabId)}
+        />
+      ) : (
+        <>
+          {/* Keyed by tab, so expanded steps and Show code don't carry over to another tab's chat. */}
+          <PageAgentMessages
+            key={tabId ?? 'none'}
+            chat={chat}
+            running={running}
+            actionError={actionError}
+            hasBookmark={bookmarkId !== null}
+            savedStyle={savedStyle}
+            canEditCode={editorBlock === null}
+            onApproveScripts={approveScripts}
+            onUndo={undo}
+            onReapply={reapply}
+            onSave={saveStyle}
+            onEditCode={openCode}
+            onShowOnPage={showOnPage}
           />
-          {running ? (
-            <button
-              type="button"
-              onClick={stop}
-              title="Stop the agent"
-              className="shrink-0 inline-flex items-center gap-1 px-2 py-1.5 rounded bg-red-500 text-white hover:bg-red-600"
-            >
-              <Square size={12} />
-              Stop
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={submit}
-              disabled={!canSend}
-              title="Send (Enter)"
-              className="shrink-0 inline-flex items-center gap-1 px-2 py-1.5 rounded bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Send size={12} />
-              Send
-            </button>
-          )}
-        </div>
-      </div>
+
+          <div className="shrink-0 border-t border-gray-200 dark:border-gray-700 px-2 py-1.5 space-y-1.5">
+            {block && (
+              <BlockNotice block={block} onOpenSettings={onOpenSettings} onRequestPageAccess={requestPageAccess} />
+            )}
+            {!block && aiSettings.acceptsImages && hasScreenshotAccess === false && (
+              <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                <span className="flex-1">Screenshots need access to all pages; without it the agent checks numbers only.</span>
+                <button type="button" onClick={requestScreenshotAccess} className={actionButtonClass}>
+                  <Camera size={12} />
+                  Grant screenshot access
+                </button>
+              </div>
+            )}
+            {!block && pageScriptsOn && <UserScriptsNotice />}
+            <div className="flex items-end gap-1.5">
+              <textarea
+                value={draft}
+                onChange={event => setDraft(event.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={block !== null}
+                rows={2}
+                placeholder={block ? '' : 'Ask about the page or describe a change, e.g. “summarize this page” or “make the video full width”'}
+                className="flex-1 min-w-0 resize-none rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-1.5 py-1 outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+              />
+              <button
+                type="button"
+                onClick={openCode}
+                disabled={editorBlock !== null || running}
+                title={running ? 'Wait until the agent has finished' : editorBlock ?? 'Paste or edit CSS and JavaScript for this page'}
+                className="shrink-0 inline-flex items-center gap-1 px-2 py-1.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Code size={12} />
+                Code
+              </button>
+              {running ? (
+                <button
+                  type="button"
+                  onClick={stop}
+                  title="Stop the agent"
+                  className="shrink-0 inline-flex items-center gap-1 px-2 py-1.5 rounded bg-red-500 text-white hover:bg-red-600"
+                >
+                  <Square size={12} />
+                  Stop
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={submit}
+                  disabled={!canSend}
+                  title="Send (Enter)"
+                  className="shrink-0 inline-flex items-center gap-1 px-2 py-1.5 rounded bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Send size={12} />
+                  Send
+                </button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
@@ -422,6 +500,34 @@ function inputBlock(
   return null;
 }
 
+/**
+ * Why the code editor can't open for the tab, or null; a run is checked by the buttons themselves.
+ * Missing page access doesn't block it: without AI settings the drawer shows only the settings notice,
+ * so the editor's own Grant page access is the one the user can reach.
+ */
+function codeEditorBlock(
+  tabId: number | undefined,
+  tabUrl: string | undefined,
+  chatLoaded: boolean,
+): string | null
+{
+  if (tabId === undefined)
+  {
+    return 'No active tab in this window.';
+  }
+  const reason = unscriptablePageReason(tabUrl);
+  if (reason)
+  {
+    return reason;
+  }
+  // The editor opens with the chat's applied code when it has some, which isn't known until the chat loads.
+  if (!chatLoaded)
+  {
+    return 'The chat is still loading.';
+  }
+  return null;
+}
+
 // PDF viewers and other extensions' pages can't be told by URL alone; there the run shows the error.
 function unscriptablePageReason(url: string | undefined): string | null
 {
@@ -582,4 +688,9 @@ function parseStoredHeight(value: string): number | null
 {
   const height = Number.parseInt(value, 10);
   return Number.isFinite(height) && height > 0 ? height : null;
+}
+
+function errorMessage(error: unknown): string
+{
+  return error instanceof Error && error.message ? error.message : String(error);
 }

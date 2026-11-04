@@ -91,6 +91,53 @@ test('save refuses CSS that loads remote content and pages that are not http(s),
   assert.deepEqual(manager.getState().styles, stored);
 });
 
+test('save keeps the user\'s CSS with remote loads and var() as is, and refuses the same CSS from the agent', async () =>
+{
+  const css = [
+    '@import url("https://fonts.test/css?family=Inter");',
+    ':root { --accent: #2a6; }',
+    'body { font-family: Inter; background: url(https://images.test/bg.png); color: var(--accent); }',
+  ].join('\n');
+  const { manager, local } = createManager();
+  await manager.load();
+
+  await assert.rejects(manager.save('10', css, '', 'https://videos.test/u/1', false), /@import is not allowed/);
+  assert.equal(local[BOOKMARK_PAGE_STYLES_KEY], undefined);
+
+  await manager.save('10', css, '', 'https://videos.test/u/1', true);
+
+  assert.deepEqual(local[BOOKMARK_PAGE_STYLES_KEY], {
+    10: { ...entry(css, true, 'https://videos.test', 'rev-1'), cssByUser: true },
+  });
+});
+
+test('save refuses CSS over 20 KB from the user as from the agent', async () =>
+{
+  const { manager, counters } = createManager();
+  await manager.load();
+  const css = `body { color: red; }\n/* ${'x'.repeat(20 * 1024)} */`;
+
+  await assert.rejects(manager.save('10', css, '', 'https://videos.test/u/1', true), /larger than 20 KB/);
+  await assert.rejects(manager.save('10', css, '', 'https://videos.test/u/1', false), /larger than 20 KB/);
+
+  assert.equal(counters.writes, 0);
+});
+
+test('a save through dispatch is the user\'s CSS only when the message says so', async () =>
+{
+  const css = 'body { background: url(https://images.test/bg.png); }';
+  const { manager, local } = createManager();
+  await manager.load();
+
+  await assert.rejects(
+    manager.dispatch('save', { bookmarkId: '10', css, script: '', pageUrl: 'https://a.test/', cssByUser: 'true' }),
+    /url\(\) with a non-data: URL is not allowed/
+  );
+  await manager.dispatch('save', { bookmarkId: '10', css, script: '', pageUrl: 'https://a.test/', cssByUser: true });
+
+  assert.equal(local[BOOKMARK_PAGE_STYLES_KEY][10].cssByUser, true);
+});
+
 test('a script-only save is stored with empty CSS and Auto-apply on', async () =>
 {
   const { manager, local } = createManager();
@@ -151,6 +198,21 @@ test('restore refuses a malformed record, CSS that loads remote content and an o
 
   assert.equal(counters.writes, 0);
   assert.equal(local[BOOKMARK_PAGE_STYLES_KEY], undefined);
+});
+
+test('restore keeps the user\'s CSS with a remote url() and refuses it in a record of the agent\'s CSS', async () =>
+{
+  const css = 'body { background: url(https://images.test/bg.png); }';
+  const byUser = { ...entry(css, false, 'https://a.test', 'r1'), cssByUser: true };
+  const { manager, local } = createManager();
+  await manager.load();
+
+  await assert.rejects(manager.restore('110', entry(css, false, 'https://a.test', 'r1')), /url\(\) with a non-data: URL/);
+  assert.equal(local[BOOKMARK_PAGE_STYLES_KEY], undefined);
+
+  await manager.restore('110', byUser);
+
+  assert.deepEqual(local[BOOKMARK_PAGE_STYLES_KEY], { 110: byUser });
 });
 
 test('an unreadable stored value is not overwritten by a bookmark-removed event, and load still resolves', async (t) =>

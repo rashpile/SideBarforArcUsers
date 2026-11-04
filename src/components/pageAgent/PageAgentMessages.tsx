@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
-import { AppWindow, Check, Code, Copy, Loader2, Redo2, Save, Undo2, X } from 'lucide-react';
+import { AppWindow, Check, Code, Copy, Loader2, Pencil, Redo2, Save, Undo2, X } from 'lucide-react';
 import type { PageAgentChatData, PageAgentTurn, PageAgentTurnStatus } from '../../services/pageAgent/pageAgentChat';
 import type { PageAgentScriptRequest, PageAgentStep } from '../../services/pageAgent/pageAgentRun';
 import { siteName } from '../../stores/savedPageStyles';
@@ -17,12 +17,16 @@ interface PageAgentMessagesProps
   hasBookmark: boolean;
   /** The style saved to that bookmark, or null. */
   savedStyle: SavedPageStyle | null;
+  /** Whether the code editor can open for the tab (a run disables Edit code on its own). */
+  canEditCode: boolean;
   /** Answers the script approval the running turn waits for. */
   onApproveScripts: (allow: boolean) => void;
   onUndo: () => void;
   onReapply: () => void;
   /** Saves the chat's applied CSS and script to the tab's bookmark. */
   onSave: () => void;
+  /** Opens the code editor with the applied CSS and script. */
+  onEditCode: () => void;
   /** Shows an answered turn's answer in a popup on the page. */
   onShowOnPage: (turnIndex: number) => void;
 }
@@ -96,10 +100,12 @@ export const PageAgentMessages: React.FC<PageAgentMessagesProps> = ({
   actionError,
   hasBookmark,
   savedStyle,
+  canEditCode,
   onApproveScripts,
   onUndo,
   onReapply,
   onSave,
+  onEditCode,
   onShowOnPage,
 }) =>
 {
@@ -122,6 +128,8 @@ export const PageAgentMessages: React.FC<PageAgentMessagesProps> = ({
     return <div className="flex-1 min-h-0" />;
   }
 
+  const appliedSaveState = saveState(hasBookmark, savedStyle, chat.appliedCss, chat.appliedScript);
+
   return (
     <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-2 py-2 space-y-2">
       {turns.length === 0 && (
@@ -129,12 +137,21 @@ export const PageAgentMessages: React.FC<PageAgentMessagesProps> = ({
           Ask a question about this page, for example “summarize this page”, or ask for a change, for
           example “make the video player full page width”. For a change the agent sets measurable
           conditions, applies CSS, checks the result with real numbers and reports each condition. Undo
-          removes everything it applied.
+          removes everything it applied. To put your own CSS or JavaScript on the page, paste it under Code.
         </p>
       )}
-      {/* A saved style the chat adopted on a fresh tab has no turn to hold Undo and Show code. */}
+      {/* A saved style the chat adopted on a fresh tab, or code from the editor, has no turn to hold these buttons. */}
       {turns.length === 0 && (chat.appliedCss || chat.appliedScript) && (
-        <AppliedActions css={chat.appliedCss} script={chat.appliedScript} running={running} onUndo={onUndo} />
+        <AppliedActions
+          css={chat.appliedCss}
+          script={chat.appliedScript}
+          running={running}
+          canEditCode={canEditCode}
+          onUndo={onUndo}
+          onEditCode={onEditCode}
+        >
+          <SaveButton state={appliedSaveState} hasScript={chat.appliedScript !== ''} running={running} onSave={onSave} />
+        </AppliedActions>
       )}
       {turns.map((turn, index) => (
         <TurnView
@@ -143,10 +160,12 @@ export const PageAgentMessages: React.FC<PageAgentMessagesProps> = ({
           appliedCss={index === turns.length - 1 ? chat.appliedCss : ''}
           appliedScript={index === turns.length - 1 ? chat.appliedScript : ''}
           running={running}
-          saveState={saveState(hasBookmark, savedStyle, chat.appliedCss, chat.appliedScript)}
+          saveState={appliedSaveState}
+          canEditCode={canEditCode}
           onApproveScripts={onApproveScripts}
           onUndo={onUndo}
           onSave={onSave}
+          onEditCode={onEditCode}
           onShowOnPage={() => onShowOnPage(index)}
         />
       ))}
@@ -176,9 +195,11 @@ interface TurnViewProps
   appliedScript: string;
   running: boolean;
   saveState: SaveState;
+  canEditCode: boolean;
   onApproveScripts: (allow: boolean) => void;
   onUndo: () => void;
   onSave: () => void;
+  onEditCode: () => void;
   onShowOnPage: () => void;
 }
 
@@ -188,9 +209,11 @@ const TurnView: React.FC<TurnViewProps> = ({
   appliedScript,
   running,
   saveState,
+  canEditCode,
   onApproveScripts,
   onUndo,
   onSave,
+  onEditCode,
   onShowOnPage,
 }) =>
 {
@@ -281,7 +304,14 @@ const TurnView: React.FC<TurnViewProps> = ({
         )}
 
         {(appliedCss || appliedScript) && (
-          <AppliedActions css={appliedCss} script={appliedScript} running={running} onUndo={onUndo}>
+          <AppliedActions
+            css={appliedCss}
+            script={appliedScript}
+            running={running}
+            canEditCode={canEditCode}
+            onUndo={onUndo}
+            onEditCode={onEditCode}
+          >
             <SaveButton state={saveState} hasScript={appliedScript !== ''} running={running} onSave={onSave} />
           </AppliedActions>
         )}
@@ -334,12 +364,14 @@ interface AppliedActionsProps
   css: string;
   script: string;
   running: boolean;
+  canEditCode: boolean;
   onUndo: () => void;
-  /** More buttons for the row, after Undo and Show code. */
+  onEditCode: () => void;
+  /** More buttons for the row, after Undo, Show code and Edit code. */
   children?: React.ReactNode;
 }
 
-const AppliedActions: React.FC<AppliedActionsProps> = ({ css, script, running, onUndo, children }) =>
+const AppliedActions: React.FC<AppliedActionsProps> = ({ css, script, running, canEditCode, onUndo, onEditCode, children }) =>
 {
   const [showCode, setShowCode] = useState(false);
 
@@ -350,7 +382,7 @@ const AppliedActions: React.FC<AppliedActionsProps> = ({ css, script, running, o
           type="button"
           className={buttonClass}
           disabled={running}
-          title={running ? 'Wait until the agent has finished' : 'Remove everything the agent applied'}
+          title={running ? 'Wait until the agent has finished' : 'Remove the applied CSS and script'}
           onClick={onUndo}
         >
           <Undo2 size={12} />
@@ -359,6 +391,16 @@ const AppliedActions: React.FC<AppliedActionsProps> = ({ css, script, running, o
         <button type="button" className={buttonClass} onClick={() => setShowCode(!showCode)}>
           <Code size={12} />
           {showCode ? 'Hide code' : 'Show code'}
+        </button>
+        <button
+          type="button"
+          className={buttonClass}
+          disabled={running || !canEditCode}
+          title={running ? 'Wait until the agent has finished' : 'Change the applied CSS and script in the code editor'}
+          onClick={onEditCode}
+        >
+          <Pencil size={12} />
+          Edit code
         </button>
         {children}
       </div>

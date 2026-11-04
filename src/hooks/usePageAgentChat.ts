@@ -21,6 +21,12 @@ export interface PageAgentChatView<Settings>
   /** Shows an answered turn's answer in a popup on the tab's page. */
   showOnPage(turnIndex: number): void;
   /**
+   * Puts the code editor's CSS and script on the tab's page as the chat's applied set, for the origin
+   * the editor opened the code for. Rejects with the reason instead of setting actionError: the editor
+   * shows it next to the code.
+   */
+  applyCode(css: string, script: string, origin: string): Promise<void>;
+  /**
    * Runs another drawer action for this tab (saving its style, say); a failure shows in
    * actionError as "<label> failed: <reason>", like Undo's.
    */
@@ -140,6 +146,16 @@ export function usePageAgentChat<Settings>(
     }
   }, [chats, tabId, runAction]);
 
+  const applyCode = useCallback(async (css: string, script: string, origin: string) =>
+  {
+    if (tabId === undefined)
+    {
+      throw new Error('there is no tab to apply the code on');
+    }
+    setActionError(null);
+    await chats.applyCode(tabId, css, script, origin);
+  }, [chats, tabId]);
+
   return {
     chat,
     running,
@@ -151,6 +167,7 @@ export function usePageAgentChat<Settings>(
     reapply,
     applySaved,
     showOnPage,
+    applyCode,
     runAction,
   };
 }

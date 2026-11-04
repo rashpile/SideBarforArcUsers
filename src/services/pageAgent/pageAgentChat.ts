@@ -43,8 +43,10 @@ export interface PageAgentChatData
 {
   readonly tabId: number;
   readonly turns: readonly PageAgentTurn[];
-  /** The sanitized stylesheet without the marker; Show code and Re-apply use it. */
+  /** The stylesheet without the marker, sanitized unless `appliedCssByUser`; Show code and Re-apply use it. */
   readonly appliedCss: string;
+  /** `appliedCss` came from the user's code editor; saving it keeps the flag, so it isn't sanitized. */
+  readonly appliedCssByUser: boolean;
   /** The script running in the page's user script world; empty when there is none. */
   readonly appliedScript: string;
   /** The exact text last inserted, kept until it has been removed: removeCSS finds it only by text. */
@@ -76,6 +78,7 @@ export class PageAgentChat
       tabId,
       turns: [],
       appliedCss: '',
+      appliedCssByUser: false,
       appliedScript: '',
       appliedInsertedText: '',
       appliedId: '',
@@ -102,6 +105,8 @@ export class PageAgentChat
       tabId,
       turns,
       appliedCss: stringOrEmpty(value.appliedCss),
+      // Chats stored before the code editor hold the agent's CSS only.
+      appliedCssByUser: value.appliedCssByUser === true,
       appliedScript: stringOrEmpty(value.appliedScript),
       appliedInsertedText: stringOrEmpty(value.appliedInsertedText),
       appliedId: stringOrEmpty(value.appliedId),
@@ -124,6 +129,11 @@ export class PageAgentChat
   get appliedCss(): string
   {
     return this.#data.appliedCss;
+  }
+
+  get appliedCssByUser(): boolean
+  {
+    return this.#data.appliedCssByUser;
   }
 
   get appliedScript(): string
@@ -234,6 +244,7 @@ export class PageAgentChat
   {
     this.#update({
       appliedCss: applied.css,
+      appliedCssByUser: applied.cssByUser,
       appliedScript: applied.script,
       appliedInsertedText: applied.insertedText,
       appliedId: applied.appliedId,
@@ -247,6 +258,7 @@ export class PageAgentChat
   {
     this.#update({
       appliedCss: '',
+      appliedCssByUser: false,
       appliedScript: '',
       appliedInsertedText: '',
       appliedId: '',
