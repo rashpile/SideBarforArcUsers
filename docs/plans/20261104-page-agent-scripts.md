@@ -523,20 +523,20 @@ export class UserScriptRunner
 
 ### Task 11: [Final] Update documentation
 
-- [ ] README § Page agent: scripts (turning them on, Allow User Scripts, approval, the `agent` helpers'
+- [x] README § Page agent: scripts (turning them on, Allow User Scripts, approval, the `agent` helpers'
   Undo, Show code, Save and Auto-apply with scripts; the switch stops only the agent writing scripts,
   Allow User Scripts stops saved ones too), drop "It never writes JavaScript", known limitations below;
   Permissions table (optional `userScripts`); Settings line (Page scripts plugin). Network wording: fetch
   / XHR and the images, media, scripts and stylesheets a script loads reach only the page's own site;
   navigation, new windows and frames are not restricted
-- [ ] PRIVACY.md: scripts run in the page, what they can reach (same wording), saved scripts in
+- [x] PRIVACY.md: scripts run in the page, what they can reach (same wording), saved scripts in
   `bookmarkPageStyles`
-- [ ] `docs/chrome-web-store-info.md`: `userScripts` justification, saying the user turns the feature on,
+- [x] `docs/chrome-web-store-info.md`: `userScripts` justification, saying the user turns the feature on,
   sees the code and approves it before it runs
-- [ ] `docs/state-reference.md`: `bookmarkPageStyles` `script`; `pageAgentChat:${tabId}`
+- [x] `docs/state-reference.md`: `bookmarkPageStyles` `script`; `pageAgentChat:${tabId}`
   `appliedScript` and `pendingScript`; the `page-scripts` plugin switch in the AI settings
-- [ ] `docs/changelog.md` and a `src/data/changelog.ts` What's New entry
-- [ ] move this plan to `docs/plans/completed/`
+- [x] `docs/changelog.md` and a `src/data/changelog.ts` What's New entry
+- [x] move this plan to `docs/plans/completed/` (left in place: the make-task harness moves the plan after all phases)
 
 ## Known limitations
 
