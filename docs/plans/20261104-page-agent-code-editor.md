@@ -321,11 +321,12 @@ Hook: `usePageAgentChat` exposes `applyCode(css, script, origin): Promise<void>`
 
 ### Task 6: Verify acceptance criteria
 
-- [ ] verify all requirements from Overview are implemented (entry points, trust of user CSS end to end,
+- [x] verify all requirements from Overview are implemented (entry points, trust of user CSS end to end,
   scripts without the switch or a card, compile error changes nothing, drafts per tab bound to their
   site, Save in a chat with no turns, marker guard)
-- [ ] verify the agent's `apply_css` still goes through `PageAgentCssSanitizer.check` and clears the flag
-- [ ] run full test suite: `make lint && make test && make build`
+- [x] verify the agent's `apply_css` still goes through `PageAgentCssSanitizer.check` and clears the flag
+  (➕ test: a run started on flagged user CSS still rejects the agent's `url()` in `apply_css`)
+- [x] run full test suite: `make lint && make test && make build`
 
 ### Task 7: [Final] Update documentation
 
