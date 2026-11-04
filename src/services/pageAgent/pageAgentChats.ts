@@ -348,11 +348,9 @@ export class PageAgentChats<Settings>
     }
     const { style } = saved;
     // The background may have inserted it already; a second copy of the same text stays after Undo.
-    // The marker also stands for the saved script, which the background ran after the sheet.
     const marker = await this.#page.readMarker(tabId);
     const url = await this.#page.pageUrl(tabId);
     let undoError: string | null = null;
-    let applyError: string | null = null;
     if (marker !== style.appliedId)
     {
       if (chat.appliedInsertedText)
@@ -363,8 +361,10 @@ export class PageAgentChats<Settings>
       // code compiles.
       undoError = chat.appliedScript ? await this.#undoScript(tabId) : null;
       await this.#page.insertCss(tabId, style.insertedText);
-      applyError = style.script ? await this.#applyScript(tabId, style.script) : null;
     }
+    // Also under the saved marker: it shows only that the background's sheet is in, while its script may
+    // not have run (user scripts were off, or it failed). apply first undoes any copy that does run.
+    const applyError = style.script ? await this.#applyScript(tabId, style.script) : null;
     if (this.#owns(chat))
     {
       chat.recordApplied(savedAsApplied(style, url));
@@ -409,8 +409,10 @@ export class PageAgentChats<Settings>
       const marker = await this.#page.readMarker(tabId);
       if (saved && marker === saved.style.appliedId && marker !== appliedId)
       {
-        // The background's sheet becomes the chat's, so Undo removes it, Show CSS shows it and a
-        // run's apply_css replaces it instead of stacking a second sheet.
+        // The background's sheet becomes the chat's, so Undo removes it, Show code shows it and a
+        // run's apply_css replaces it instead of stacking a second sheet. The saved script comes with
+        // it, though the marker doesn't show that the background could run it: Undo must stop it if it
+        // runs, and stopping one that doesn't is harmless.
         adopted = savedAsApplied(saved.style, await this.#page.pageUrl(tabId));
       }
       else if (!chat.appliedInsertedText)

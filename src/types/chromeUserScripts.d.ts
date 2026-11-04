@@ -1,6 +1,6 @@
 // @types/chrome 0.0.260 has no chrome.userScripts. Only the part UserScriptRunner uses is declared:
-// configureWorld with worldId (Chrome 133+), execute (Chrome 135+) and getScripts, the check for the
-// Allow User Scripts toggle.
+// configureWorld, getWorldConfigurations and resetWorldConfiguration with worldId (Chrome 133+), execute
+// (Chrome 135+) and getScripts, the check for the Allow User Scripts toggle.
 
 interface UserScriptsWorldProperties
 {
@@ -29,6 +29,8 @@ interface UserScriptsInjectionResult
 interface UserScriptsApi
 {
   configureWorld(properties: UserScriptsWorldProperties): Promise<void>;
+  getWorldConfigurations(): Promise<UserScriptsWorldProperties[]>;
+  resetWorldConfiguration(worldId?: string): Promise<void>;
   execute(injection: UserScriptsInjection): Promise<UserScriptsInjectionResult[]>;
   getScripts(filter?: { ids?: string[] }): Promise<unknown[]>;
 }

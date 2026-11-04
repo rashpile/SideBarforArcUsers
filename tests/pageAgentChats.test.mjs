@@ -504,6 +504,7 @@ test('applySaved only records the saved style when the page already has it', asy
 
   assert.deepEqual(page.inserted, [], 'a second copy would stay on the page after Undo');
   assert.deepEqual(page.removed, []);
+  assert.deepEqual(page.scriptCommands, [], 'a CSS-only style runs no script');
   const chat = chats.peek(TAB_A);
   assert.equal(chat.appliedId, 'saved-r1');
   assert.equal(chat.appliedInsertedText, style.insertedText);
@@ -733,7 +734,7 @@ test('applySaved undoes the chat\'s script before it puts the saved sheet and sc
   assert.equal((await store.load(TAB_A)).appliedScript, savedScript);
 });
 
-test('applySaved does nothing to the page when the marker shows the saved id, and records the saved script', async () =>
+test('applySaved under the saved marker inserts no second sheet but runs the saved script again, since the marker does not show it ran', async () =>
 {
   const { page, savedStyles, chats } = setup({ [`pageAgentChat:${TAB_A}`]: storedChatWithScript(TAB_A) });
   const style = savedStyle('r1', CSS, 'agent.onUndo(() => {});');
@@ -743,7 +744,24 @@ test('applySaved does nothing to the page when the marker shows the saved id, an
 
   await chats.applySaved(TAB_A);
 
-  assert.deepEqual(page.calls, [], 'the background already inserted the sheet and ran the script');
+  assert.deepEqual(page.calls, [`runUserScript ${TAB_A} apply`], 'apply alone replaces a copy the background ran');
+  assert.deepEqual(page.scriptCommands, [{ tabId: TAB_A, command: { kind: 'apply', code: style.script } }]);
+  assert.equal(chats.peek(TAB_A).appliedId, 'saved-r1');
+  assert.equal(chats.peek(TAB_A).appliedScript, style.script);
+});
+
+test('applySaved under the saved marker records the saved style and rejects when its script can\'t run', async () =>
+{
+  const { page, savedStyles, chats } = setup();
+  const style = savedStyle('r1', CSS, 'agent.onUndo(() => {});');
+  savedStyles.set(TAB_A, '42', style);
+  await chats.get(TAB_A);
+  page.marker = 'saved-r1';
+  page.scriptError = new Error("Chrome doesn't allow user scripts; turn on Allow User Scripts on the extension's Details page");
+
+  await assert.rejects(chats.applySaved(TAB_A), /script error: .*Allow User Scripts/);
+
+  assert.deepEqual(page.inserted, []);
   assert.equal(chats.peek(TAB_A).appliedId, 'saved-r1');
   assert.equal(chats.peek(TAB_A).appliedScript, style.script);
 });

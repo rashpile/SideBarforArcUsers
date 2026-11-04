@@ -5,7 +5,9 @@
 // Only the tab associated with the bookmark gets the style: a hand-opened tab of the same site
 // stays unstyled. The inserted text carries the marker id `saved-<rev>`, so the side panel can
 // recognize the sheet as the saved one and remove it by its exact text. A saved script runs after
-// the sheet is in, so the marker (marker-only for a script-only style) tells that both are on the page.
+// the sheet is in (a marker-only sheet for a script-only style), so the marker shows that the saved
+// style was put on the page, not that its script ran: with user scripts off, or a script that failed,
+// the sheet stays without it.
 
 import { bookmarkIdFromItemKey, httpOriginOf } from '../stores/savedPageStyles.ts';
 import type { SavedPageStyle, SavedPageStyles } from '../stores/savedPageStyles.ts';

@@ -216,6 +216,9 @@ export class UserScriptRunner
 - ➕ `forUrl` also returns `null` for an http(s) origin that isn't a plain CSP host source: `URL`
   accepts hosts such as `a;b.com`, whose `;` would end the CSP directive. A missing result keeps
   `execute()`'s `error` text, when Chrome gives one, in brackets after the "did not run" error.
+- ➕ Chrome keeps world configurations until the extension updates and refuses any once it holds 100. When
+  `configureWorld` rejects, `run` resets every other `page-agent:` world (`getWorldConfigurations`,
+  `resetWorldConfiguration`) and configures once more; with none to reset it rejects with the error.
 - `src/types/chromeUserScripts.d.ts`: the `UserScriptsApi` shape the runner uses (`configureWorld`,
   `execute`, `getScripts`) and an optional `chrome.userScripts` declaration.
 - `src/utils/pageAgentScript.ts`: `PAGE_AGENT_SCRIPT_MAX_BYTES = 64 * 1024` and
@@ -240,7 +243,9 @@ export class UserScriptRunner
   listener.
 - ➕ With `scripts` off the prompt, the tools and the measurement texts stay as they were (CSS only); with
   `scripts` on the core text says "using CSS and JavaScript" and the texts name both kinds of tools. An
-  `apply_script` with blank code removes the script (the applied set holds `''`).
+  `apply_script` with blank code removes the script (the applied set holds `''`): it runs `undo` without
+  asking, as it runs none of the agent's code. A blank `run_check` is refused before the approval and
+  measures nothing.
 - Prompt: the core text says "CSS and, when the tools are offered, JavaScript"; a scripts section after
   the core text explains the world (the page's DOM, not its JS objects; network only to the page's own
   site), the `agent` helpers and that everything a script adds must go through them, idempotence, the
@@ -553,6 +558,9 @@ export class UserScriptRunner
   reload; Undo then clears the chat and asks for a reload.
 - [known-limitation] Allow User Scripts is a Chrome setting the extension can't turn on; before Chrome 138
   it is Developer mode, and before Chrome 135 scripts are unavailable.
+- [known-limitation] The saved marker shows that the background put the saved sheet on the page, not
+  that it ran the saved script (user scripts off at load, or a script that failed). A chat that adopts
+  the saved style lists the script as applied all the same; a reload runs it.
 - [known-limitation] `read_video_transcript` has no YouTube source; the YouTube example script reads the
   subtitle list from the page and fetches the subtitles from youtube.com itself.
 

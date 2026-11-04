@@ -977,13 +977,15 @@ export class PageAgentRun
     {
       return scriptOutcome(name, argsSummary, `rejected: ${check.reason}`, code);
     }
-    if (!(await this.#scriptsApproved({ kind: 'apply', code })))
+    // Removing runs none of the agent's code, so it isn't asked: an empty approval card would use up the
+    // run's only answer, and a Deny there would keep the old script on the page.
+    if (code && !(await this.#scriptsApproved({ kind: 'apply', code })))
     {
       return scriptOutcome(name, argsSummary, SCRIPTS_DECLINED, code);
     }
 
     const url = await this.#adapter.pageUrl(this.tabId);
-    const result = await this.#adapter.runUserScript(this.tabId, { kind: 'apply', code });
+    const result = await this.#adapter.runUserScript(this.tabId, code ? { kind: 'apply', code } : { kind: 'undo' });
     // Code that doesn't compile changed nothing: the script applied before keeps running. Compiled
     // code that threw or timed out keeps what it registered, so the set records it for Undo.
     if (result.compiled)
@@ -1004,6 +1006,11 @@ export class PageAgentRun
 
     const code = parsed.value;
     const argsSummary = `${code.length} characters`;
+    // Not put to the user: a blank check measures nothing, and its card would use up the run's only answer.
+    if (!code.trim())
+    {
+      return toolError(name, argsSummary, 'refused: the code is empty; send a script that returns what it measured');
+    }
     if (!(await this.#scriptsApproved({ kind: 'check', code })))
     {
       return scriptOutcome(name, argsSummary, SCRIPTS_DECLINED, code);

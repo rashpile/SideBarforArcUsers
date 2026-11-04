@@ -885,6 +885,38 @@ test('Deny refuses every later script of the run without asking again, and none 
   assert.deepEqual(listener.applied, []);
 });
 
+test('a blank apply_script removes the script and a blank run_check is refused, neither asking, so a later script is still put to the user', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const css = 'main { color: red !important; }';
+  const client = new ScriptedClient([
+    respond(
+      setConditions('c1'),
+      call('run_check', { code: ' ' }),
+      call('apply_script', { code: '  \n' }),
+      call('apply_script', { code: 'agent.onUndo(() => undefined);' }),
+    ),
+    answer('I stop here.'),
+  ]);
+  const { run, listener } = startRun(client, page, {
+    scripts: true,
+    approve: false,
+    currentCss: css,
+    currentScript: 'agent.on(document, "keydown", () => undefined);',
+    insertedText: withMarker(css, 'saved-id'),
+  });
+
+  await run.run();
+
+  assert.deepEqual(listener.approvals, [{ kind: 'apply', code: 'agent.onUndo(() => undefined);' }]);
+  assert.deepEqual(page.userScripts, [{ kind: 'undo' }], 'the old script is stopped; nothing else runs');
+  assert.deepEqual(listener.applied.map(applied => [applied.appliedId, applied.css, applied.script]), [['applied-1', css, '']]);
+  const results = client.toolResults(1).slice(1).map(message => message.content);
+  assert.match(results[0], /^refused: the code is empty/);
+  assert.match(results[1], /"ok":true/);
+  assert.match(results[2], DECLINED);
+});
+
 test('Stop while the approval waits ends the run as stopped and runs no script', async () =>
 {
   const page = new FakePage(TAB_A);
@@ -929,9 +961,11 @@ test('a report is refused until a compiled run_check in an earlier response foll
       call('run_check', { code: 'return 1;' }),
       report(),
     ),
-    // A new script makes the earlier check stale; a check that doesn't compile measures nothing.
+    // A new script makes the earlier check stale; a check that doesn't compile, or a blank one, measures nothing.
     respond(call('apply_script', { code: 'agent.on(document, "keyup", () => undefined);' })),
     respond(call('run_check', { code: 'return (' })),
+    respond(report()),
+    respond(call('run_check', { code: '' })),
     respond(report()),
     respond(call('run_check', { code: 'return 1;' })),
     respond(report()),
@@ -943,7 +977,7 @@ test('a report is refused until a compiled run_check in an earlier response foll
   assert.equal(result.status, 'met');
   assert.deepEqual(
     listener.steps.filter(entry => entry.tool === 'report').map(entry => entry.result.startsWith('refused')),
-    [true, true, false],
+    [true, true, true, false],
   );
 });
 

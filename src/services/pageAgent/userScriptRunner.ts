@@ -90,7 +90,7 @@ export class UserScriptRunner
       throw new Error("Chrome doesn't allow user scripts; turn on Allow User Scripts on the extension's Details page");
     }
     // Configured on every run: it is cheap, and Chrome may have dropped the world's configuration.
-    await api.configureWorld({ worldId: world.worldId, csp: world.csp });
+    await this.#configure(api, world);
     const results = await api.execute({
       target: { tabId },
       js: [{ code: `(${runUserScriptCommand})(${JSON.stringify(command)}, ${JSON.stringify(LIMITS)})` }],
@@ -98,6 +98,28 @@ export class UserScriptRunner
       injectImmediately: false,
     });
     return scriptResult(results?.[0]);
+  }
+
+  // Chrome keeps a world's configuration until the extension updates and refuses configureWorld once it
+  // holds 100 of them, even for a world it already has; one world per origin gets there over time. The
+  // other origins' worlds are dropped then and the configuration tried once more: every run configures
+  // its world again before it executes, so a dropped one is back when its origin next runs a script.
+  async #configure(api: UserScriptsApi, world: UserScriptWorld): Promise<void>
+  {
+    const properties = { worldId: world.worldId, csp: world.csp };
+    try
+    {
+      await api.configureWorld(properties);
+    }
+    catch (error)
+    {
+      const dropped = await dropOtherWorlds(api, world.worldId).catch(() => 0);
+      if (dropped === 0)
+      {
+        throw error;
+      }
+      await api.configureWorld(properties);
+    }
   }
 
   #availableApi(): UserScriptsApi | null
@@ -112,6 +134,16 @@ export class UserScriptRunner
       return null;
     }
   }
+}
+
+/** Resets the configuration of every page agent world but `keep`; resolves how many were reset. */
+async function dropOtherWorlds(api: UserScriptsApi, keep: string): Promise<number>
+{
+  const others = (await api.getWorldConfigurations())
+    .map(configuration => configuration.worldId)
+    .filter((worldId): worldId is string => typeof worldId === 'string' && worldId.startsWith(WORLD_ID_PREFIX) && worldId !== keep);
+  await Promise.all(others.map(worldId => api.resetWorldConfiguration(worldId)));
+  return others.length;
 }
 
 // execute() gives a null result, with no error, for code that throws or doesn't parse; the runtime

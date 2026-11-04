@@ -55,12 +55,14 @@ export const UserScriptsNotice: React.FC<UserScriptsNoticeProps> = ({ availableT
           </button>
         </div>
       );
+    // Chrome may leave chrome.userScripts undefined in an open page until it reloads, so the rechecks
+    // can miss the toggle; reopening the panel reloads it.
     case 'off':
       return (
         <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
           <span className="flex-1">
             Page scripts are on, but Chrome doesn’t allow them yet: turn on Allow User Scripts on the extension’s
-            Details page.
+            Details page. If this message stays after that, close and reopen the side panel.
           </span>
           <button type="button" onClick={openExtensionDetails} className={buttonClass}>
             <ExternalLink size={12} />

@@ -9,18 +9,41 @@ import { NoUserScriptWorldError } from '../src/utils/pageAgentScript.ts';
 
 const DID_NOT_RUN = 'the script did not run; the page may still be loading or not allow scripts';
 
+const WORLD_LIMIT_ERROR = 'You may only configure up to 100 individual user script worlds.';
+
 class FakeUserScripts
 {
-  constructor({ execute, getScripts } = {})
+  /** `worldLimit`: like Chromium, configureWorld rejects at that many worlds, also for one already configured. */
+  constructor({ execute, getScripts, worldLimit = Infinity, getWorldConfigurations } = {})
   {
     this.calls = [];
+    this.worlds = new Map();
+    this.worldLimit = worldLimit;
     this.executeImpl = execute ?? (injection => [{ frameId: 0, result: (0, eval)(injection.js[0].code) }]);
     this.getScriptsImpl = getScripts ?? (() => Promise.resolve([]));
+    this.getWorldConfigurationsImpl = getWorldConfigurations ?? (() => Promise.resolve([...this.worlds.values()]));
   }
 
   async configureWorld(properties)
   {
     this.calls.push({ method: 'configureWorld', properties });
+    if (this.worlds.size >= this.worldLimit)
+    {
+      throw new Error(WORLD_LIMIT_ERROR);
+    }
+    this.worlds.set(properties.worldId, properties);
+  }
+
+  getWorldConfigurations()
+  {
+    this.calls.push({ method: 'getWorldConfigurations' });
+    return this.getWorldConfigurationsImpl();
+  }
+
+  async resetWorldConfiguration(worldId)
+  {
+    this.calls.push({ method: 'resetWorldConfiguration', worldId });
+    this.worlds.delete(worldId);
   }
 
   async execute(injection)
@@ -105,6 +128,49 @@ test('run configures the page origin world before executing the runtime in it', 
   assert.deepEqual(configure.properties, { worldId: world.worldId, csp: world.csp });
   assert.equal(execute.injection.worldId, world.worldId);
   assert.deepEqual(execute.injection.target, { tabId: 7 });
+});
+
+test('at Chrome\'s world limit the other page agent worlds are reset and the run goes on, also on an origin configured before', async () =>
+{
+  const api = new FakeUserScripts({ worldLimit: 100 });
+  const runner = new UserScriptRunner(() => api);
+  for (let index = 0; index < 99; index++)
+  {
+    api.worlds.set(`page-agent:https://site${index}.test`, { worldId: `page-agent:https://site${index}.test` });
+  }
+  api.worlds.set('other-tool', { worldId: 'other-tool' });
+
+  for (const url of ['https://site0.test/', 'https://example.com/', 'https://site0.test/'])
+  {
+    const result = await runner.run(1, url, { kind: 'apply', code: 'return 1;' });
+    assert.equal(result.ok, true, url);
+  }
+
+  assert.deepEqual([...api.worlds.keys()].sort(), ['other-tool', 'page-agent:https://example.com', 'page-agent:https://site0.test']);
+  const resets = api.calls.filter(call => call.method === 'resetWorldConfiguration').map(call => call.worldId);
+  assert.equal(resets.length, 98, 'every other page agent world, once');
+  assert.ok(!resets.includes('page-agent:https://site0.test') && !resets.includes('other-tool'), 'the run\'s own world and another tool\'s stay');
+  assert.equal(api.calls.filter(call => call.method === 'execute').length, 3);
+});
+
+test('a configureWorld failure with no other page agent world to reset rejects with its error and runs nothing', async () =>
+{
+  const cases = [
+    ['only this world and another tool\'s', {}],
+    ['the world list unreadable', { getWorldConfigurations: () => Promise.reject(new Error('unavailable')) }],
+  ];
+  for (const [name, options] of cases)
+  {
+    const api = new FakeUserScripts({ worldLimit: 2, ...options });
+    api.worlds.set('page-agent:https://example.com', { worldId: 'page-agent:https://example.com' });
+    api.worlds.set('other-tool', { worldId: 'other-tool' });
+    const runner = new UserScriptRunner(() => api);
+
+    await assert.rejects(runner.run(1, 'https://example.com/', { kind: 'undo' }), new RegExp(WORLD_LIMIT_ERROR), name);
+
+    assert.deepEqual(api.calls.filter(call => call.method === 'execute' || call.method === 'resetWorldConfiguration'), [], name);
+    assert.equal(api.worlds.size, 2, name);
+  }
 });
 
 test('a missing result becomes the did-not-run error', async () =>
