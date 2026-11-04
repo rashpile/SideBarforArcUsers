@@ -7,11 +7,13 @@ export interface AudioTabsDropdownProps
 {
   playingTabs: chrome.tabs.Tab[];
   historyTabs?: chrome.tabs.Tab[];
+  side?: DropdownMenu.DropdownSide;
 }
 
 export const AudioTabsDropdown = ({
   playingTabs,
-  historyTabs
+  historyTabs,
+  side
 }: AudioTabsDropdownProps) =>
 {
   const fontSize = useFontSize();
@@ -58,7 +60,7 @@ export const AudioTabsDropdown = ({
   const hasHistoryTabs = historyTabs && historyTabs.length > 0;
 
   return (
-    <DropdownMenu.Content className="min-w-48 max-w-72 max-h-64 overflow-y-auto">
+    <DropdownMenu.Content side={side} className="min-w-48 max-w-72 max-h-64 overflow-y-auto">
       {hasPlayingTabs && (
         playingTabs.map((tab) => renderTabItem(tab, true))
       )}

@@ -1,5 +1,6 @@
 /**
- * DropdownMenu - Left-click dropdown menu that positions below trigger button
+ * DropdownMenu - Left-click dropdown menu that opens below its trigger button,
+ * or to its right (side="right") when the trigger sits in a vertical toolbar strip
  */
 import
 {
@@ -21,6 +22,7 @@ import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { useFontSize } from '../../contexts/FontSizeContext';
 import { Item as BaseItem, Separator, Overlay, useEscapeKey, menuContainerClass } from './MenuBase';
+import { placeSubmenu, MENU_VIEWPORT_MARGIN } from '../../utils/menuPosition';
 
 // Re-export Separator (Item is wrapped below to add close behavior)
 export { Separator };
@@ -167,14 +169,17 @@ export const Trigger = ({ children, asChild }: TriggerProps) =>
 };
 
 // --- Content ---
+export type DropdownSide = 'bottom' | 'right';
+
 interface ContentProps extends HTMLAttributes<HTMLDivElement>
 {
   children: ReactNode;
-  align?: 'start' | 'end';  // align to left or right edge of trigger
+  align?: 'start' | 'end';  // align to left or right edge of trigger; ignored for side="right"
+  side?: DropdownSide;
 }
 
 export const Content = forwardRef<HTMLDivElement, ContentProps>(
-  ({ children, className, align = 'start', style, ...props }, ref) =>
+  ({ children, className, align = 'start', side = 'bottom', style, ...props }, ref) =>
   {
     const { isOpen, triggerRect, close } = useDropdownMenuState();
     const fontSize = useFontSize();
@@ -184,7 +189,7 @@ export const Content = forwardRef<HTMLDivElement, ContentProps>(
     // Use shared escape key handler
     useEscapeKey(isOpen, close);
 
-    // Position below trigger (or above if space is tight), compute max-height to enable scrolling
+    // Position below trigger (or above if space is tight) or to its right, compute max-height to enable scrolling
     useEffect(() =>
     {
       if (!isOpen || !triggerRect || !menuRef.current) return;
@@ -193,6 +198,22 @@ export const Content = forwardRef<HTMLDivElement, ContentProps>(
       const rect = menu.getBoundingClientRect();
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
+
+      if (side === 'right')
+      {
+        // The previous opening's maxHeight (400 at first) is still applied and can clip
+        // rect.height, so measure the whole list; the borders count too, since max-height
+        // includes them (border-box).
+        const borders = menu.offsetHeight - menu.clientHeight;
+        const height = Math.min(menu.scrollHeight + borders, viewportHeight - 2 * MENU_VIEWPORT_MARGIN);
+        const { x, y } = placeSubmenu(
+          triggerRect,
+          { width: rect.width, height },
+          { width: viewportWidth, height: viewportHeight }
+        );
+        setPosition({ x, y, maxHeight: viewportHeight - MENU_VIEWPORT_MARGIN - y });
+        return;
+      }
 
       // Horizontal position: aligned to start or end of trigger
       let x = align === 'start' ? triggerRect.left : triggerRect.right - rect.width;
@@ -220,7 +241,7 @@ export const Content = forwardRef<HTMLDivElement, ContentProps>(
       }
 
       setPosition({ x, y, maxHeight: Math.max(maxHeight, 80) });
-    }, [isOpen, triggerRect, align]);
+    }, [isOpen, triggerRect, align, side]);
 
     if (!isOpen) return null;
 

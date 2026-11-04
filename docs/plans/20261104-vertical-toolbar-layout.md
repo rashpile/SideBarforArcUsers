@@ -155,12 +155,12 @@
 - Modify: `src/components/menu/DropdownMenu.tsx`
 - Modify: `src/components/AudioTabsDropdown.tsx`
 
-- [ ] `DropdownMenu.Content`: add `side?: 'bottom' | 'right'` (default `'bottom'`); for `'right'` compute the
+- [x] `DropdownMenu.Content`: add `side?: 'bottom' | 'right'` (default `'bottom'`); for `'right'` compute the
       position with `placeSubmenu` from the full `scrollHeight` and cap `maxHeight` at the room below the placed
       `y`, as in Technical Details; keep the `'bottom'` path as is;
       add `side` to the effect's dependencies; update the file's header comment
-- [ ] `AudioTabsDropdown`: add an optional `side` prop and pass it to its `DropdownMenu.Content`
-- [ ] run `make lint && make test && make build` - must pass before task 3
+- [x] `AudioTabsDropdown`: add an optional `side` prop and pass it to its `DropdownMenu.Content`
+- [x] run `make lint && make test && make build` - must pass before task 3
 
 ### Task 3: Move the search/filter rows into FilterBar
 
