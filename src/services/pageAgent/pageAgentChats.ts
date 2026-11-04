@@ -33,6 +33,7 @@ export interface PageAgentRunStart<Settings>
   request: string;
   history: PageAgentHistoryTurn[];
   currentCss: string;
+  currentCssByUser: boolean;
   currentScript: string;
   insertedText: string;
   listener: PageAgentRunListener;
@@ -187,6 +188,7 @@ export class PageAgentChats<Settings>
         request: text,
         history,
         currentCss: chat.appliedCss,
+        currentCssByUser: chat.appliedCssByUser,
         currentScript: chat.appliedScript,
         insertedText: chat.appliedInsertedText,
         listener: this.#runListener(chat, turn),
@@ -305,6 +307,7 @@ export class PageAgentChats<Settings>
     }
     const chat = await this.get(tabId);
     const css = chat.appliedCss;
+    const cssByUser = chat.appliedCssByUser;
     const script = chat.appliedScript;
     if (!css && !script)
     {
@@ -327,7 +330,7 @@ export class PageAgentChats<Settings>
     const scriptError = script ? await this.#applyScript(tabId, script) : null;
     if (this.#owns(chat))
     {
-      chat.recordApplied({ css, script, insertedText, appliedId, url });
+      chat.recordApplied({ css, script, insertedText, appliedId, url, cssByUser });
       this.#changed(chat);
     }
     if (scriptError !== null)
@@ -658,7 +661,14 @@ export class PageAgentChats<Settings>
 
 function savedAsApplied(style: SavedPageStyle, url: string): PageAgentApplied
 {
-  return { css: style.css, script: style.script, insertedText: style.insertedText, appliedId: style.appliedId, url };
+  return {
+    css: style.css,
+    script: style.script,
+    insertedText: style.insertedText,
+    appliedId: style.appliedId,
+    url,
+    cssByUser: style.cssByUser,
+  };
 }
 
 function errorMessage(error: unknown): string

@@ -45,6 +45,7 @@ export class PageAgentRuntime
       plugins: this.#enabledPlugins(switches),
       history: start.history,
       currentCss: start.currentCss,
+      currentCssByUser: start.currentCssByUser,
       currentScript: start.currentScript,
       insertedText: start.insertedText,
       debug: this.#debug,

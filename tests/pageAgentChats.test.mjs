@@ -549,6 +549,22 @@ test('applySaved is ignored while the tab has a live run', async () =>
   await sending;
 });
 
+test('applySaved of a saved style the user wrote records and stores its CSS as the user\'s', async () =>
+{
+  const { store, page, savedStyles, chats } = setup();
+  const userCss = 'body { font-family: var(--font, Inter); background: url("https://images.test/bg.png"); }';
+  const style = new SavedPageStyle(userCss, true, 'https://site.test', 'r1', '', true);
+  savedStyles.set(TAB_A, '42', style);
+  await chats.get(TAB_A);
+
+  await chats.applySaved(TAB_A);
+
+  assert.deepEqual(page.inserted, [{ tabId: TAB_A, text: style.insertedText }]);
+  assert.equal(chats.peek(TAB_A).appliedCss, userCss);
+  assert.equal(chats.peek(TAB_A).appliedCssByUser, true, 'saving it again must not put it through the sanitizer');
+  assert.equal((await store.load(TAB_A)).appliedCssByUser, true);
+});
+
 test('a follow-up run gets the earlier answers in its history, one over 4000 characters cut with a note', async () =>
 {
   const { factory, chats } = setup();
@@ -850,4 +866,24 @@ test('a stored chat with a pending script loads without it', async () =>
   assert.equal(chat.data.turns[0].status, 'stopped');
   assert.equal('pendingScript' in chat.data.turns[0], false);
   assert.equal(chat.appliedScript, SCRIPT);
+});
+
+test('a stored chat without appliedCssByUser holds the agent\'s CSS; one with it keeps the flag through reapply and into the next run', async () =>
+{
+  const { factory, chats } = setup({
+    [`pageAgentChat:${TAB_A}`]: storedChatWithCss(TAB_A),
+    [`pageAgentChat:${TAB_B}`]: storedChatWithCss(TAB_B, { appliedCssByUser: true, notice: 'reloaded' }),
+  });
+
+  assert.equal((await chats.get(TAB_A)).appliedCssByUser, false);
+  await chats.get(TAB_B);
+  await chats.reapply(TAB_B);
+  assert.equal(chats.peek(TAB_B).appliedId, 'reapplied-1');
+  assert.equal(chats.peek(TAB_B).appliedCssByUser, true);
+
+  const sending = chats.send(TAB_B, 'make the player a bit narrower', SETTINGS);
+  const run = await factory.runFor(TAB_B);
+  assert.equal(run.start.currentCssByUser, true);
+  run.finish(metResult);
+  await sending;
 });

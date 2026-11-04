@@ -267,16 +267,16 @@ Hook: `usePageAgentChat` exposes `applyCode(css, script, origin): Promise<void>`
 - Modify: `tests/pageAgentRun.test.mjs`
 - Modify: `tests/pageAgentChats.test.mjs`
 
-- [ ] `PageAgentApplied.cssByUser`; chat data `appliedCssByUser` (`empty`, `fromStored`, `recordApplied`,
+- [x] `PageAgentApplied.cssByUser`; chat data `appliedCssByUser` (`empty`, `fromStored`, `recordApplied`,
   `clearApplied`, getter)
-- [ ] run option `currentCssByUser`, `PageAgentRunStart.currentCssByUser` from `send`, `createRun` passes
+- [x] run option `currentCssByUser`, `PageAgentRunStart.currentCssByUser` from `send`, `createRun` passes
   it; `#replaceApplied` clears it on a CSS change and keeps it on a script-only change
-- [ ] `firstUserMessage` neutral labels and the user-CSS label
-- [ ] `savedAsApplied` and `reapply` carry the flag; the drawer's Save passes `chat.appliedCssByUser`
-- [ ] write tests: a run started with user CSS reports `cssByUser: false` after `apply_css` and `true`
+- [x] `firstUserMessage` neutral labels and the user-CSS label
+- [x] `savedAsApplied` and `reapply` carry the flag; the drawer's Save passes `chat.appliedCssByUser`
+- [x] write tests: a run started with user CSS reports `cssByUser: false` after `apply_css` and `true`
   after an `apply_script` that keeps the CSS; the first message names user-written CSS; `applySaved` of a
   flagged saved style records the flag; a stored chat without the field loads `false`
-- [ ] run `make test`, `make lint` and `make build` - must pass before next task
+- [x] run `make test`, `make lint` and `make build` - must pass before next task
 
 ### Task 4: `PageAgentChats.applyCode`
 
