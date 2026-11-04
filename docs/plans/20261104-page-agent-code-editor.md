@@ -338,20 +338,20 @@ Hook: `usePageAgentChat` exposes `applyCode(css, script, origin): Promise<void>`
 - Modify: `docs/chrome-web-store-info.md`
 - Modify: `PRIVACY.md`
 
-- [ ] README: page agent section (the code editor, Code and Edit code, Apply, scripts without the switch,
+- [x] README: page agent section (the code editor, Code and Edit code, Apply, scripts without the switch,
   the world a pasted script runs in, user CSS not checked for network loads and saved as is), the
   security notes, the `userScripts` row of the permissions table
-- [ ] `docs/changelog.md` and a What's New entry in `src/data/changelog.ts`
-- [ ] `docs/state-reference.md`: `appliedCssByUser` in `pageAgentChat:${tabId}`, `cssByUser` in
+- [x] `docs/changelog.md` and a What's New entry in `src/data/changelog.ts`
+- [x] `docs/state-reference.md`: `appliedCssByUser` in `pageAgentChat:${tabId}`, `cssByUser` in
   `bookmarkPageStyles` (save, restore and applier checks by the flag), and the Page scripts switch line
   (editor scripts run without it, like saved ones)
-- [ ] `docs/chrome-web-store-info.md`: `userScripts` is also requested from the code editor for a script
+- [x] `docs/chrome-web-store-info.md`: `userScripts` is also requested from the code editor for a script
   the user pastes; the user's own CSS isn't sanitized
-- [ ] `PRIVACY.md`: CSS the user applies from the code editor isn't checked and loads what it names (also
+- [x] `PRIVACY.md`: CSS the user applies from the code editor isn't checked and loads what it names (also
   with Auto-apply); the user's own scripts run with the `userScripts` permission and Allow User Scripts,
   without the Page scripts plugin or an approval card; the stored chat and saved style may hold the
   user's code
-- [ ] move this plan to `docs/plans/completed/`
+- [x] move this plan to `docs/plans/completed/` (skipped - the make-task harness moves the plan after all phases)
 
 ## Known limitations
 
