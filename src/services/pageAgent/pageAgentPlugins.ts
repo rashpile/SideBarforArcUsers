@@ -10,6 +10,8 @@ export interface PageAgentPluginInfo
 }
 
 export const VIDEO_TRANSCRIPTS_PLUGIN_ID = 'video-transcripts';
+// No tool plugin behind it: the run offers its own script tools when this switch is on.
+export const PAGE_SCRIPTS_PLUGIN_ID = 'page-scripts';
 
 export const PAGE_AGENT_PLUGINS: readonly PageAgentPluginInfo[] = [
   {
@@ -17,6 +19,14 @@ export const PAGE_AGENT_PLUGINS: readonly PageAgentPluginInfo[] = [
     title: 'Video transcripts',
     description: 'Read the subtitles of the video on the page: Prime Video and videos with subtitle tracks',
     defaultEnabled: true,
+  },
+  {
+    id: PAGE_SCRIPTS_PLUGIN_ID,
+    title: 'Page scripts',
+    description: 'Let the agent change the page with JavaScript after you approve it once per request. '
+      + 'A script can read and change anything on the page, as if you did it',
+    // Off until the user opts in: a script acts on the page with the user's own session.
+    defaultEnabled: false,
   },
 ];
 
@@ -52,5 +62,11 @@ export class PageAgentPluginSwitches
   enabledIds(): string[]
   {
     return PAGE_AGENT_PLUGINS.filter(info => this.isEnabled(info)).map(info => info.id);
+  }
+
+  /** False for an id that names no plugin, whatever is stored under it. */
+  isEnabledId(id: string): boolean
+  {
+    return this.enabledIds().includes(id);
   }
 }

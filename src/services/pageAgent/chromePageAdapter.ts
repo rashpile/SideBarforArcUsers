@@ -110,6 +110,12 @@ export class ChromePageAdapter implements PageAgentPageAdapter
     return tab.url ?? '';
   }
 
+  /** Chrome 135+ with the userScripts permission and Allow User Scripts on. Read anew on every call. */
+  userScriptsAvailable(): boolean
+  {
+    return this.#userScripts.available();
+  }
+
   /** The world is picked from the tab's URL now, so a tab that moved to another site gets that site's world. */
   async runUserScript(tabId: number, command: UserScriptCommand): Promise<UserScriptResult>
   {

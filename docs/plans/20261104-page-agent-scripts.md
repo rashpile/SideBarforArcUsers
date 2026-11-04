@@ -467,11 +467,13 @@ export class UserScriptRunner
 - Modify: `src/services/pageAgent/chromePageAdapter.ts`
 - Modify: `tests/pageAgentPlugins.test.mjs`
 
-- [ ] `page-scripts` plugin metadata (off by default, no tool factory)
-- [ ] `ChromePageAdapter.userScriptsAvailable()`; `createRun` sets `scripts` from the switch and
+- [x] `page-scripts` plugin metadata (off by default, no tool factory)
+- [x] `ChromePageAdapter.userScriptsAvailable()`; `createRun` sets `scripts` from the switch and
   availability
-- [ ] write tests: `page-scripts` is off unless the user switched it on (the security default)
-- [ ] run `make test`, `make lint` and `make build` - must pass before next task
+- [x] write tests: `page-scripts` is off unless the user switched it on (the security default)
+- [x] run `make test`, `make lint` and `make build` - must pass before next task
+- ➕ `PageAgentPluginSwitches.isEnabledId(id)` (false for an id no plugin has); `createRun` and the
+  drawer's notice (Task 9) read the switch through it
 
 ### Task 8: Background applier runs saved scripts
 
