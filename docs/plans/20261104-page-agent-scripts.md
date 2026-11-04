@@ -171,6 +171,11 @@ export async function runUserScriptCommand(command: UserScriptCommand, limits: U
 - `agent`: `on(target, type, listener, options)`, `setInterval(fn, ms)`, `setTimeout(fn, ms)`,
   `observe(target, options, callback)` (MutationObserver), `add(node)` (returns the node; Undo removes
   it), `onUndo(fn)`. Callbacks it wraps catch errors into the pending errors (at most `maxErrors`).
+  `setInterval` / `setTimeout` return the timer id and `observe` the observer; a fired `setTimeout`
+  leaves the registry.
+- ➕ An undone registry stays retired: what a timed-out script (or a check after it returned) still
+  registers through `agent` is undone at once, so a script that wakes up after Undo or the next `apply`
+  can't leave a listener behind. A check that times out says "what it registered was removed".
 - Value: `JSON.stringify(value)` in try/catch (`undefined` → `'undefined'`, unserializable → its
   `String()`), cut at `maxValueChars` with a note.
 - Error text: `name: message` (no stack). Line numbers in a `SyntaxError` are offset by the wrapper; the
@@ -321,19 +326,19 @@ export class UserScriptRunner
 - Create: `src/services/pageAgent/userScriptRuntime.ts`
 - Create: `tests/userScriptRuntime.test.mjs`
 
-- [ ] add `UserScriptCommand`, `UserScriptResult`, `UserScriptLimits` and the self-contained
+- [x] add `UserScriptCommand`, `UserScriptResult`, `UserScriptLimits` and the self-contained
   `runUserScriptCommand` as in Technical Details (registry in `globalThis.__sidebarPageAgent`, compile
   before touching the running script, `agent` helpers, pending errors, capped JSON value, time limit,
   check registrations undone when the check returns)
-- [ ] header comment: the self-contained rule and why the code is compiled with `new Function` (the
+- [x] header comment: the self-contained rule and why the code is compiled with `new Function` (the
   world's CSP allows it; `execute()` reports no errors)
-- [ ] write tests: `apply` runs the previous script's cleanups before the new code; a `SyntaxError`
+- [x] write tests: `apply` runs the previous script's cleanups before the new code; a `SyntaxError`
   keeps the running script and its listeners; `undo` removes listeners (Node `EventTarget`), clears
   timers, disconnects observers (stub `MutationObserver`) and removes added nodes (fake node with
   `remove()`); a script that never settles returns the timeout error and keeps its registrations; a
   check's listener is gone after the check returns and the script's registry is untouched; errors thrown
   in a registered listener come back with the next command
-- [ ] run `make test`, `make lint` and `make build` - must pass before next task
+- [x] run `make test`, `make lint` and `make build` - must pass before next task
 
 ### Task 2: Script runner, world CSP and permission
 
