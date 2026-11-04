@@ -516,10 +516,10 @@ export class UserScriptRunner
 
 ### Task 10: Verify acceptance criteria
 
-- [ ] verify every point of the Overview against the code: approval once per request, Deny, refusal
+- [x] verify every point of the Overview against the code: approval once per request, Deny, refusal
   with the switch off, Undo, Show code, Re-apply, Save, Auto-apply, strip, submenu, a script-only change
-- [ ] verify the CSS-only flow is unchanged with the plugin off (prompt, tools, Undo, Save)
-- [ ] run `make lint && make test && make build`
+- [x] verify the CSS-only flow is unchanged with the plugin off (prompt, tools, Undo, Save)
+- [x] run `make lint && make test && make build`
 
 ### Task 11: [Final] Update documentation
 
