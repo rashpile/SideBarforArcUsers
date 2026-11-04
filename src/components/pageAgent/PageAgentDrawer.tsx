@@ -138,12 +138,13 @@ export const PageAgentDrawer: React.FC<PageAgentDrawerProps> = ({
     }
   };
 
-  // The tab's draft if it has one, else the chat's applied code, bound to the site it was applied on.
+  // The tab's draft if it has one, else the chat's applied code or the bookmark's saved style, bound to
+  // the site it was applied or saved on.
   const openCode = () =>
   {
     if (tabId !== undefined && chat && editorBlock === null && !running)
     {
-      codeDrafts.open(tabId, chat, tabUrl);
+      codeDrafts.open(tabId, chat, savedStyle, tabUrl);
     }
   };
 
@@ -519,7 +520,7 @@ function codeEditorBlock(
   {
     return reason;
   }
-  // The editor opens with the chat's applied code, which isn't known until the chat loads.
+  // The editor opens with the chat's applied code when it has some, which isn't known until the chat loads.
   if (!chatLoaded)
   {
     return 'The chat is still loading.';

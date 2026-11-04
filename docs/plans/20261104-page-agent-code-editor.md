@@ -11,7 +11,8 @@ Design: decided in brainstorm (design doc kept by the make-task run). Decisions:
 
 - **Entry points (user's choice):** a **Code** button beside Send, always there (also after Undo or in a
   chat of answers), and **Edit code** next to Show code when something is applied. Both open one editor,
-  prefilled with what is applied, empty otherwise.
+  prefilled with what is applied; when nothing is, with the saved style of the tab's bookmark (also one
+  the chat hasn't adopted, which the strip offers with its Apply); empty otherwise.
 - **CSS from the editor is trusted fully (user's choice).** It skips the sanitizer's construct checks
   (`@import`, non-`data:` `url()`, `image-set()`, `var()`, …) on Apply, Save / Update saved style, restore
   (Undo of a bookmark delete) and in the background applier's re-check, and keeps the 20 KB size cap. The
@@ -193,7 +194,7 @@ Hook: `usePageAgentChat` exposes `applyCode(css, script, origin): Promise<void>`
 - Drafts: `CodeDrafts` class in `src/components/pageAgent/codeDrafts.ts` (no React, no chrome), created
   once in `src/App.tsx` (`useState(() => new CodeDrafts())`, next to `pageAgentChats`) and passed to the
   drawer, so a draft outlives a closed drawer. Per tab an immutable draft `{ css, script, origin,
-  applying, error }`: `draftFor(tabId)`, `open(tabId, applied, tabUrl)`, `update(tabId, css,
+  applying, error }`: `draftFor(tabId)`, `open(tabId, applied, saved, tabUrl)`, `update(tabId, css,
   script)`, `rebind(tabId, origin)`, `setApplying(tabId, on)`, `setError(tabId, message)`,
   `close(tabId)`, `subscribe`; the drawer reads it with `useSyncExternalStore`. App's tab-close handler
   (where it calls `pageAgentChats.tabClosed`) also closes the tab's draft. The editor shows for the
@@ -204,8 +205,9 @@ Hook: `usePageAgentChat` exposes `applyCode(css, script, origin): Promise<void>`
   (`unscriptablePageReason` is null) and the tab doesn't run, whatever the AI settings and page access
   (the editor holds the Grant page access prompt, which the drawer's notice hides when AI settings are
   missing too); it opens the tab's draft, or a new one from the chat's
-  applied CSS and script bound to the origin they were applied on (`appliedUrl`; the tab's origin when
-  nothing is applied), so code from another site needs Use on <site>. While the editor shows, it replaces
+  applied CSS and script bound to the origin they were applied on (`appliedUrl`); when the chat's set is
+  blank, from the bookmark's saved style (the drawer's `savedStyle`) bound to `style.origin`; without
+  either, empty and bound to the tab's origin. Code from another site needs Use on <site>. While the editor shows, it replaces
   `PageAgentMessages` and the input area; the style strip stays.
 - `PageAgentMessages` / `AppliedActions`: **Edit code** after Show code (both rows: the last turn and the
   adopted-saved-style row), disabled while running, calls the same open. The no-turns row also gets the
@@ -381,3 +383,7 @@ Hook: `usePageAgentChat` exposes `applyCode(css, script, origin): Promise<void>`
 - Edit code after an agent run: the editor holds the agent's CSS and script; edit and Apply; ask the agent
   for another change: it sees the user's code
 - switch to another tab while the editor has a draft, come back: the draft is still there
+- in a bookmark's tab whose saved style the chat hasn't adopted (the strip shows Apply), press Code: the
+  editor holds the saved CSS and script
+- make the drawer short with the editor open: the fields keep their height and the editor scrolls, with
+  no field over the hint under it

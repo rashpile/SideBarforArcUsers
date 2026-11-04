@@ -11,6 +11,15 @@ export interface AppliedCode
   readonly appliedUrl: string;
 }
 
+/** The tab's bookmark style a new draft starts from when the chat has no applied code. */
+export interface SavedCode
+{
+  readonly css: string;
+  readonly script: string;
+  /** The http(s) origin the style was saved on. */
+  readonly origin: string;
+}
+
 /**
  * The code editor's state for one tab. Immutable, so a React hook can tell a changed draft by
  * identity. `origin` is the http(s) site the draft was opened for: Apply puts it only there.
@@ -70,19 +79,20 @@ export class CodeDrafts
   }
 
   /**
-   * Starts a draft for the tab with the chat's applied code; a draft the tab already has is kept, so
-   * its edits aren't lost. Nothing opens when there is no http(s) site to bind the draft to.
+   * Starts a draft for the tab with the chat's applied code, or with the bookmark's saved style when
+   * the chat has none; a draft the tab already has is kept, so its edits aren't lost. Nothing opens
+   * when there is no http(s) site to bind the draft to.
    */
-  open(tabId: number, applied: AppliedCode, tabUrl: string | undefined): void
+  open(tabId: number, applied: AppliedCode, saved: SavedCode | null, tabUrl: string | undefined): void
   {
     if (this.#drafts.has(tabId))
     {
       return;
     }
-    const origin = draftOrigin(applied, tabUrl);
-    if (origin !== null)
+    const draft = newDraft(applied, saved, tabUrl);
+    if (draft !== null)
     {
-      this.#set(tabId, new CodeDraft(applied.appliedCss, applied.appliedScript, origin));
+      this.#set(tabId, draft);
     }
   }
 
@@ -147,13 +157,28 @@ export class CodeDrafts
 }
 
 /**
- * Applied code belongs to the site it was applied on, not to the one the tab shows now: bound there,
- * a tab that has moved to another site gets Use on <site> before the code can run on it, as Re-apply
- * refuses there. Without applied code the draft is for the tab's site.
+ * The chat's applied code wins, as what the chat put on the page last. Without it the bookmark's saved
+ * style is the code the user has for this page, also while the chat hasn't adopted it (the strip then
+ * shows its Apply). Code belongs to the site it was applied or saved on, not to the one the tab shows
+ * now: bound there, a tab that has moved to another site gets Use on <site> before the code can run on
+ * it, as Re-apply and the strip's Apply refuse there. Without code the draft is for the tab's site.
  */
-function draftOrigin(applied: AppliedCode, tabUrl: string | undefined): string | null
+function newDraft(applied: AppliedCode, saved: SavedCode | null, tabUrl: string | undefined): CodeDraft | null
 {
-  const hasCode = applied.appliedCss.trim() !== '' || applied.appliedScript.trim() !== '';
-  const appliedOrigin = hasCode ? httpOriginOf(applied.appliedUrl) : null;
-  return appliedOrigin ?? httpOriginOf(tabUrl ?? '');
+  const tabOrigin = httpOriginOf(tabUrl ?? '');
+  if (hasCode(applied.appliedCss, applied.appliedScript))
+  {
+    const origin = httpOriginOf(applied.appliedUrl) ?? tabOrigin;
+    return origin === null ? null : new CodeDraft(applied.appliedCss, applied.appliedScript, origin);
+  }
+  if (saved !== null && hasCode(saved.css, saved.script))
+  {
+    return new CodeDraft(saved.css, saved.script, saved.origin);
+  }
+  return tabOrigin === null ? null : new CodeDraft('', '', tabOrigin);
+}
+
+function hasCode(css: string, script: string): boolean
+{
+  return css.trim() !== '' || script.trim() !== '';
 }

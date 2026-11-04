@@ -25,6 +25,10 @@ interface PageAgentCodeEditorProps
   onCancel: () => void;
 }
 
+// No min-h-0: in a short drawer a field keeps the textarea's minimum height and the editor scrolls,
+// where a field shrunk below it lets the textarea spill over the hint under it.
+const fieldClass = 'flex-1 flex flex-col gap-0.5';
+
 const textareaClass = 'flex-1 min-h-[5em] w-full resize-none rounded border border-gray-300 dark:border-gray-600 ' +
   'bg-white dark:bg-gray-800 px-1.5 py-1 font-mono text-[0.85em] outline-none focus:ring-2 focus:ring-blue-500 ' +
   'read-only:opacity-60';
@@ -100,14 +104,14 @@ export const PageAgentCodeEditor: React.FC<PageAgentCodeEditorProps> = ({
         </div>
       )}
 
-      <label className="flex-1 min-h-0 flex flex-col gap-0.5">
+      <label className={fieldClass}>
         <span className="text-[0.85em] font-medium text-gray-500 dark:text-gray-400">CSS</span>
         <textarea
           value={draft.css}
           onChange={event => onChange(event.target.value, draft.script)}
           readOnly={draft.applying}
           spellCheck={false}
-          placeholder="body { font-size: 18px !important; }"
+          placeholder="Paste or type CSS for this page"
           className={textareaClass}
         />
       </label>
@@ -115,14 +119,14 @@ export const PageAgentCodeEditor: React.FC<PageAgentCodeEditorProps> = ({
         Your CSS isn’t checked: fonts, images and @import it names load from the network.
       </p>
 
-      <label className="flex-1 min-h-0 flex flex-col gap-0.5">
+      <label className={fieldClass}>
         <span className="text-[0.85em] font-medium text-gray-500 dark:text-gray-400">Script</span>
         <textarea
           value={draft.script}
           onChange={event => onChange(draft.css, event.target.value)}
           readOnly={draft.applying}
           spellCheck={false}
-          placeholder="agent.on(document, 'keydown', event => { … });"
+          placeholder="Paste or type JavaScript for this page"
           className={textareaClass}
         />
       </label>
