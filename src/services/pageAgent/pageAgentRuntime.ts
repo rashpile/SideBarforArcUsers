@@ -40,6 +40,7 @@ export class PageAgentRuntime
       listener: start.listener,
       // Also without <all_urls>: the screenshot tool then tells the model why there is no image.
       screenshots: start.settings.acceptsImages,
+      scripts: false,
       plugins: this.#enabledPlugins(start.settings),
       history: start.history,
       currentCss: start.currentCss,

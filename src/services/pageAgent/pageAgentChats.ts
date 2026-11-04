@@ -458,6 +458,8 @@ export class PageAgentChats<Settings>
       onStep: step => this.#apply(chat, () => chat.addStep(turn, step)),
       onConditions: (conditions, replaced) => this.#apply(chat, () => chat.setConditions(turn, conditions, replaced)),
       onApplied: applied => this.#apply(chat, () => chat.recordApplied(applied)),
+      // Declined until the drawer can show the code for approval.
+      onScriptApproval: async () => false,
       onFinished: result => this.#apply(chat, () => chat.finishTurn(turn, result)),
     };
   }

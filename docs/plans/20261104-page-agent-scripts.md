@@ -238,6 +238,9 @@ export class UserScriptRunner
 - Refusal: with `scripts` false, `#runTool` refuses `apply_script` and `run_check` like `screenshot`
   ("refused: scripts are off; change the page with CSS"); nothing reaches the adapter or the approval
   listener.
+- ➕ With `scripts` off the prompt, the tools and the measurement texts stay as they were (CSS only); with
+  `scripts` on the core text says "using CSS and JavaScript" and the texts name both kinds of tools. An
+  `apply_script` with blank code removes the script (the applied set holds `''`).
 - Prompt: the core text says "CSS and, when the tools are offered, JavaScript"; a scripts section after
   the core text explains the world (the page's DOM, not its JS objects; network only to the page's own
   site), the `agent` helpers and that everything a script adds must go through them, idempotence, the
@@ -417,18 +420,18 @@ export class UserScriptRunner
 - Modify: `src/services/pageAgent/pageAgentRuntime.ts` (`scripts: false` until Task 7)
 - Modify: `tests/pageAgentRun.test.mjs`
 
-- [ ] `scripts` option; `apply_script` and `run_check` tools and the prompt section, offered only with
+- [x] `scripts` option; `apply_script` and `run_check` tools and the prompt section, offered only with
   `scripts`; the refusal of both with `scripts` false; the current-script wording of the first message
-- [ ] `apply_script` (conditions first, size check, compile result, new applied id and marker sheet) and
+- [x] `apply_script` (conditions first, size check, compile result, new applied id and marker sheet) and
   `run_check`; `step.script` capped
-- [ ] approval once per run through `listener.onScriptApproval`, raced against Stop; `ChangeMeasurement`
-- [ ] write tests: with `scripts` false a model call to `apply_script` or `run_check` is refused and
+- [x] approval once per run through `listener.onScriptApproval`, raced against Stop; `ChangeMeasurement`
+- [x] write tests: with `scripts` false a model call to `apply_script` or `run_check` is refused and
   nothing reaches the adapter or the approval listener; `apply_script` refused before `set_conditions`;
   approval asked once for several scripts; Deny refuses later scripts without asking again and nothing
   reaches the adapter; Stop while approval waits ends `stopped`; report refused until a `run_check` in an
   earlier response after the last `apply_script`; a script that doesn't compile keeps the applied set and
   id
-- [ ] run `make test`, `make lint` and `make build` - must pass before next task
+- [x] run `make test`, `make lint` and `make build` - must pass before next task
 
 ### Task 6: Chats: applied script, approval, Undo, Re-apply and Apply saved
 
