@@ -482,13 +482,13 @@ export class UserScriptRunner
 - Modify: `src/background.ts`
 - Modify: `tests/pageStyleApplier.test.mjs`
 
-- [ ] deps `scriptsAvailable` and `runScript`; `#insert` runs the script after the sheet; a style whose
+- [x] deps `scriptsAvailable` and `runScript`; `#insert` runs the script after the sheet; a style whose
   script fails the check gets nothing
-- [ ] `background.ts`: one `UserScriptRunner`, `runScript` maps a non-ok result to a logged error
-- [ ] write tests: a style with a script runs it in the bookmark's tab after the sheet; with scripts
+- [x] `background.ts`: one `UserScriptRunner`, `runScript` maps a non-ok result to a logged error
+- [x] write tests: a style with a script runs it in the bookmark's tab after the sheet; with scripts
   unavailable only the sheet goes in; a page that already has the marker gets neither again; a
   hand-opened tab of the same site gets nothing
-- [ ] run `make test`, `make lint` and `make build` - must pass before next task
+- [x] run `make test`, `make lint` and `make build` - must pass before next task
 
 ### Task 9: Drawer and Settings UI
 

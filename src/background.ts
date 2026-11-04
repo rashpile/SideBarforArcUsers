@@ -38,6 +38,7 @@ import { PageStyleManager } from './managers/impl/pageStyleManager';
 import { NoteManager } from './managers/impl/noteManager';
 import { PageStyleApplier } from './services/pageStyleApplier';
 import { readPageMarker } from './services/pageAgent/pageScripts';
+import { UserScriptRunner } from './services/pageAgent/userScriptRunner';
 import { PAGE_AGENT_CSS_ORIGIN, PAGE_AGENT_MARKER_PROPERTY } from './utils/pageAgentCss';
 
 // Set side panel to open when clicking the extension toolbar button
@@ -664,6 +665,19 @@ async function readPageMarkerInTab(tabId: number): Promise<string>
   return injection.result;
 }
 
+// A getter: chrome.userScripts appears only once the user turns on Allow User Scripts.
+const userScriptRunner = new UserScriptRunner(() => chrome.userScripts);
+
+// The runtime gives a script's failure as a result, not a rejection; the applier logs a rejection.
+async function runSavedScript(tabId: number, url: string, code: string): Promise<void>
+{
+  const result = await userScriptRunner.run(tabId, url, { kind: 'apply', code });
+  if (!result.ok)
+  {
+    throw new Error(`script error: ${result.error}`);
+  }
+}
+
 const pageStyleApplier = new PageStyleApplier({
   ready: stateReady,
   sameBrowserSession,
@@ -672,6 +686,8 @@ const pageStyleApplier = new PageStyleApplier({
   getTab: (tabId) => chrome.tabs.get(tabId),
   queryTabs: () => chrome.tabs.query({}),
   insertCss: (tabId, text) => chrome.scripting.insertCSS({ target: { tabId }, css: text, origin: PAGE_AGENT_CSS_ORIGIN }),
+  scriptsAvailable: () => userScriptRunner.available(),
+  runScript: runSavedScript,
   readMarker: readPageMarkerInTab,
   debug: import.meta.env.DEV,
 });

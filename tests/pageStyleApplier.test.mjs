@@ -7,7 +7,7 @@ import { SavedPageStyles } from '../src/stores/savedPageStyles.ts';
 const WINDOW_ID = 1;
 const VIDEO_CSS = 'video { width: 100% !important; }';
 
-const entry = (css, autoApply, origin, rev) => ({ css, autoApply, origin, rev });
+const entry = (css, autoApply, origin, rev, script = '') => ({ css, autoApply, origin, rev, script });
 
 // Bookmark 10 and Favorite 20 have saved styles for videos.test; bookmark 30 has Auto-apply off
 const DEFAULT_STYLES = {
@@ -16,7 +16,8 @@ const DEFAULT_STYLES = {
   30: entry(VIDEO_CSS, false, 'https://videos.test', 'r3'),
 };
 
-// An applier over fake tabs; `inserted` records every insertCss call as [tabId, text]
+// An applier over fake tabs; `inserted` records every insertCss call as [tabId, text], `ran` every
+// runScript call as [tabId, url, code], and `pageCalls` both in order as ['css' | 'script', tabId]
 function createApplier({
   tabs = [],
   associations = {},
@@ -24,9 +25,12 @@ function createApplier({
   markers = {},
   ready = true,
   sameBrowserSession = false,
+  scriptsAvailable = true,
 } = {})
 {
   const inserted = [];
+  const ran = [];
+  const pageCalls = [];
   const markerReads = [];
   const tabsById = new Map(tabs.map(tab => [tab.id, tab]));
   const savedStyles = SavedPageStyles.fromStored(styles);
@@ -47,7 +51,15 @@ function createApplier({
     {
       await new Promise(resolve => setImmediate(resolve));
       inserted.push([tabId, text]);
+      pageCalls.push(['css', tabId]);
       markers[tabId] = /--sidebar-page-agent: "([^"]*)"/.exec(text)?.[1] ?? '';
+    },
+    scriptsAvailable: () => scriptsAvailable,
+    runScript: async (tabId, url, code) =>
+    {
+      await new Promise(resolve => setImmediate(resolve));
+      ran.push([tabId, url, code]);
+      pageCalls.push(['script', tabId]);
     },
     readMarker: async (tabId) =>
     {
@@ -56,7 +68,7 @@ function createApplier({
     },
     debug: false,
   });
-  return { applier, inserted, markerReads, savedStyles };
+  return { applier, inserted, ran, pageCalls, markerReads, savedStyles };
 }
 
 const tab = (id, url, extra = {}) => ({ id, windowId: WINDOW_ID, url, incognito: false, ...extra });
@@ -244,4 +256,93 @@ test('start on a worker restart leaves a bookmark tab without the sheet alone, s
 
   assert.deepEqual(inserted, []);
   assert.deepEqual(markerReads, []);
+});
+
+const SEEK_SCRIPT = "agent.on(document, 'keydown', () => {});";
+
+// Bookmark 50 has CSS and a script, Favorite 60 a script only
+const SCRIPT_STYLES = {
+  ...DEFAULT_STYLES,
+  50: entry(VIDEO_CSS, true, 'https://videos.test', 'r5', SEEK_SCRIPT),
+  60: entry('', true, 'https://videos.test', 'r6', SEEK_SCRIPT),
+};
+
+test('a saved script runs in the bookmark\'s tab after its sheet, also for a script-only style', async () =>
+{
+  const { applier, inserted, ran, pageCalls, savedStyles } = createApplier({
+    tabs: [tab(1, 'https://videos.test/watch?v=1'), tab(2, 'https://videos.test/watch?v=2'), tab(3, 'https://videos.test/u/3')],
+    associations: { 1: 'bookmark-50', 2: 'pinned-60', 3: 'bookmark-10' },
+    styles: SCRIPT_STYLES,
+  });
+
+  await applier.committed(1, 0, []);
+  await applier.committed(2, 0, []);
+  await applier.committed(3, 0, []);
+
+  assert.deepEqual(pageCalls, [['css', 1], ['script', 1], ['css', 2], ['script', 2], ['css', 3]]);
+  assert.deepEqual(ran, [
+    [1, 'https://videos.test/watch?v=1', SEEK_SCRIPT],
+    [2, 'https://videos.test/watch?v=2', SEEK_SCRIPT],
+  ]);
+  // The script-only style still gets the marker sheet, so the page shows the saved set is on it
+  assert.equal(inserted[1][1], savedStyles.styleFor('60').insertedText);
+  assert.match(inserted[1][1], /--sidebar-page-agent: "saved-r6"/);
+});
+
+test('with user scripts unavailable only the sheet goes in', async () =>
+{
+  const { applier, inserted, ran } = createApplier({
+    tabs: [tab(1, 'https://videos.test/u/1')],
+    associations: { 1: 'bookmark-50' },
+    styles: SCRIPT_STYLES,
+    scriptsAvailable: false,
+  });
+
+  await applier.committed(1, 0, []);
+  await applier.loadComplete(1);
+
+  assert.equal(inserted.length, 1);
+  assert.deepEqual(ran, []);
+});
+
+test('a page that already has the agent\'s marker gets neither the sheet nor the script again', async () =>
+{
+  const { applier, pageCalls } = createApplier({
+    tabs: [tab(1, 'https://videos.test/u/1'), tab(2, 'https://videos.test/u/2')],
+    associations: { 1: 'bookmark-50', 2: 'pinned-60' },
+    styles: SCRIPT_STYLES,
+    // 1 came back from the cache with the saved set; 2 has the chat's own run
+    markers: { 1: 'saved-r5', 2: 'run-abc' },
+  });
+
+  for (const id of [1, 2])
+  {
+    await applier.committed(id, 0, ['forward_back']);
+    await applier.loadComplete(id);
+  }
+  await applier.sweep();
+
+  assert.deepEqual(pageCalls, []);
+});
+
+test('a hand-opened tab of the saved site and a style with an oversized script get no script', async () =>
+{
+  const { applier, pageCalls } = createApplier({
+    tabs: [tab(1, 'https://videos.test/u/1'), tab(2, 'https://videos.test/u/1')],
+    // 1 is a hand-opened tab: no association
+    associations: { 2: 'bookmark-70' },
+    styles: {
+      ...SCRIPT_STYLES,
+      70: entry(VIDEO_CSS, true, 'https://videos.test', 'r7', 'x'.repeat(64 * 1024 + 1)),
+    },
+  });
+
+  for (const id of [1, 2])
+  {
+    await applier.committed(id, 0, []);
+    await applier.loadComplete(id);
+  }
+  await applier.sweep();
+
+  assert.deepEqual(pageCalls, []);
 });
