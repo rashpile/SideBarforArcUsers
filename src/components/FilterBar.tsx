@@ -1,11 +1,13 @@
 import { ChevronDown, X, Save, Clock, Bookmark, Trash2, HelpCircle } from 'lucide-react';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { ToolbarLayout } from '../utils/toolbarLayout';
 
 // The search/filter rows under the toolbar. App mounts this only while the
 // search bar is shown, so its state (the session's recent entry, a pending
 // debounce) is dropped when the bar is hidden.
 interface FilterBarProps
 {
+  orientation: ToolbarLayout;
   filterText: string;
   onFilterTextChange: (text: string) => void;
   savedFilters: string[];
@@ -22,6 +24,7 @@ interface FilterBarProps
 const DEBOUNCE_MS = 300;
 
 export const FilterBar = ({
+  orientation,
   filterText,
   onFilterTextChange,
   savedFilters,
@@ -279,8 +282,11 @@ export const FilterBar = ({
 
   const canSave = inputValue.trim() && !savedFilters.includes(inputValue.trim());
 
+  // In the horizontal layout the toolbar row above gives the gap; in the vertical one nothing sits above the bar
+  const topPadding = orientation === 'vertical' ? 'pt-1.5' : '';
+
   return (
-    <div className="arc-toolbar flex flex-col border-b border-gray-200 dark:border-gray-700">
+    <div className={`arc-toolbar flex flex-col border-b border-gray-200 dark:border-gray-700 ${topPadding}`}>
       <div className="flex items-center gap-1 px-2 pb-1.5">
         <div className="relative flex-1 flex items-center">
           <input

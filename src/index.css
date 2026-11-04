@@ -52,6 +52,12 @@ html, body, #root {
   padding: 7px 10px;
 }
 
+/* The vertical toolbar strip separates from the content with the same hairline the horizontal row has below it. */
+.arc-toolbar-vertical {
+  padding: 8px 4px;
+  border-right-color: var(--arc-hairline);
+}
+
 .arc-toolbar button {
   border-radius: 10px;
 }

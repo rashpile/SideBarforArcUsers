@@ -5,9 +5,11 @@ import { useShowActiveTab } from '../hooks/useFollowActiveTab';
 import { useSpacesContext } from '../contexts/SpacesContext';
 import { tabHistoryManagerProxy } from '../managers/proxies/tabHistoryManagerProxy';
 import { TabHistoryItem } from '../managers/shared/tabHistoryManagerApi';
+import { ToolbarLayout } from '../utils/toolbarLayout';
 
 interface ToolbarProps
 {
+  orientation: ToolbarLayout;
   onAudioDialogOpen: () => void;
   // When defined, enables long-press mode: quick click jumps to the latest audio tab, hold opens the list
   onAudioTabJump?: () => void;
@@ -45,6 +47,7 @@ const TreeGutterIcon = ({ size = 16 }: { size?: number }) => (
 );
 
 export const Toolbar = forwardRef<HTMLButtonElement, ToolbarProps>(({
+  orientation,
   onAudioDialogOpen,
   onAudioTabJump,
   onMenuToggle,
@@ -58,6 +61,13 @@ export const Toolbar = forwardRef<HTMLButtonElement, ToolbarProps>(({
 {
   const activeButtonClass = 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 active:bg-blue-200 dark:active:bg-blue-800';
   const inactiveButtonClass = 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-500';
+
+  // Both layouts keep the same elements and only swap classes, so changing the setting remounts nothing
+  const vertical = orientation === 'vertical';
+  const menuSide: DropdownMenu.DropdownSide = vertical ? 'right' : 'bottom';
+  const separatorClass = vertical
+    ? 'h-px w-4 bg-gray-300 dark:bg-gray-600 my-0.5'
+    : 'w-px h-4 bg-gray-300 dark:bg-gray-600 mx-0.5';
 
   // "Show active tab" button: switch to the active tab's space and scroll to it
   const showActiveTab = useShowActiveTab();
@@ -225,12 +235,16 @@ export const Toolbar = forwardRef<HTMLButtonElement, ToolbarProps>(({
 
   return (
     <div
-      className={`arc-toolbar arc-toolbar-row flex items-center justify-between ${
-        showFilterArea ? '' : 'border-b border-gray-200 dark:border-gray-700'
-      }`}
+      className={
+        vertical
+          ? 'arc-toolbar arc-toolbar-vertical flex flex-col items-center gap-1 border-r border-gray-200 dark:border-gray-700'
+          : `arc-toolbar arc-toolbar-row flex items-center justify-between ${
+            showFilterArea ? '' : 'border-b border-gray-200 dark:border-gray-700'
+          }`
+      }
     >
-      {/* Left side - Tab history and Filter buttons */}
-      <div className="flex items-center gap-1">
+      {/* Tab history and Filter buttons: left side of the row, top of the strip */}
+      <div className={`flex items-center gap-1 ${vertical ? 'flex-col' : ''}`}>
         {/* Tab history navigation - Previous */}
         <DropdownMenu.Root
           open={historyDropdown === 'prev'}
@@ -250,7 +264,7 @@ export const Toolbar = forwardRef<HTMLButtonElement, ToolbarProps>(({
             <RotateCcwSquare size={16} className="-rotate-90" />
           </button>
 
-          <DropdownMenu.Content className="min-w-48 max-w-72 max-h-64 overflow-y-auto">
+          <DropdownMenu.Content side={menuSide} className="min-w-48 max-w-72 max-h-64 overflow-y-auto">
             {historyBefore.length > 0 ? (
               historyBefore.map((item) => (
                 <DropdownMenu.Item
@@ -292,7 +306,7 @@ export const Toolbar = forwardRef<HTMLButtonElement, ToolbarProps>(({
             <RotateCwSquare size={16} className="rotate-90" />
           </button>
 
-          <DropdownMenu.Content className="min-w-48 max-w-72 max-h-64 overflow-y-auto">
+          <DropdownMenu.Content side={menuSide} className="min-w-48 max-w-72 max-h-64 overflow-y-auto">
             {historyAfter.length > 0 ? (
               historyAfter.map((item) => (
                 <DropdownMenu.Item
@@ -316,7 +330,7 @@ export const Toolbar = forwardRef<HTMLButtonElement, ToolbarProps>(({
         </DropdownMenu.Root>
 
         {/* Separator */}
-        <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-0.5" />
+        <div className={separatorClass} />
 
         {/* Audio dialog button */}
         <button
@@ -341,7 +355,7 @@ export const Toolbar = forwardRef<HTMLButtonElement, ToolbarProps>(({
         </button>
 
         {/* Separator */}
-        <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-0.5" />
+        <div className={separatorClass} />
 
         {/* Toggle search bar button */}
         {onToggleFilterArea && (
@@ -370,8 +384,8 @@ export const Toolbar = forwardRef<HTMLButtonElement, ToolbarProps>(({
 
       </div>
 
-      {/* Right side - Settings gear button */}
-      <div className="relative">
+      {/* Settings gear button: far right of the row, bottom of the strip */}
+      <div className={`relative ${vertical ? 'mt-auto' : ''}`}>
         <button
           ref={menuButtonRef}
           onClick={onMenuToggle}

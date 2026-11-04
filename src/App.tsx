@@ -928,6 +928,8 @@ function Sidebar() {
     DEFAULT_TOOLBAR_LAYOUT,
     { parse: parseToolbarLayout, serialize: (v) => v }
   );
+  // A list under a button in the vertical strip would cover the strip's next buttons
+  const toolbarMenuSide: DropdownMenu.DropdownSide = toolbarLayout === 'vertical' ? 'right' : 'bottom';
   // Raw string, not JSON: background.ts reads it to decide whether to mark tabs opened in the background
   const [markUnvisitedTabs, setMarkUnvisitedTabs, markUnvisitedTabsLoaded] = useChromeLocalStorage<UnvisitedTabMarkerSetting>(
     UNVISITED_TAB_MARKER_KEY,
@@ -1041,7 +1043,6 @@ function Sidebar() {
   const aiRequestIdsRef = useRef(new Map<string, number>());
   const buttonRef = useRef<HTMLButtonElement>(null!);
   const audioButtonRef = useRef<HTMLButtonElement>(null!);
-  const toolbarRef = useRef<HTMLDivElement>(null);
   const {
     pinnedSites,
     addPin,
@@ -1616,12 +1617,15 @@ function Sidebar() {
         <AudioTabsDropdown
           playingTabs={playingTabs}
           historyTabs={lastAudibleTabs}
+          side={toolbarMenuSide}
         />
       </DropdownMenu.Root>
 
-      {/* Toolbar */}
-      <div ref={toolbarRef} className="relative">
+      {/* Toolbar and content: the toolbar is a row above the content or a column left of it. The same elements in
+          both layouts, so switching the setting remounts neither the tree nor the search input. */}
+      <div className={`flex-1 min-h-0 flex ${toolbarLayout === 'vertical' ? 'flex-row' : 'flex-col'}`}>
         <Toolbar
+          orientation={toolbarLayout}
           onAudioDialogOpen={handleOpenAudioDialog}
           onAudioTabJump={audioQuickJump ? handleJumpToAudioTab : undefined}
           onMenuToggle={() => setShowMenu(!showMenu)}
@@ -1646,7 +1650,7 @@ function Sidebar() {
           onOpenChange={setShowMenu}
           anchorRef={buttonRef}
         >
-          <DropdownMenu.Content align="end">
+          <DropdownMenu.Content align="end" side={toolbarMenuSide}>
             {lastAction && (
               <>
                 <DropdownMenu.Item onSelect={handleUndo}>
@@ -1739,100 +1743,103 @@ function Sidebar() {
             )}
           </DropdownMenu.Content>
         </DropdownMenu.Root>
-      </div>
 
-      {showFilterArea && (
-        <FilterBar
-          filterText={filterText}
-          onFilterTextChange={handleFilterTextChange}
-          savedFilters={savedFilters}
-          recentFilters={recentFilters}
-          onSaveFilter={handleSaveFilter}
-          onDeleteSavedFilter={handleDeleteSavedFilter}
-          onApplyFilter={handleApplyFilter}
-          onUpdateRecent={handleUpdateRecent}
-          onShowToast={showToast}
-          filterLiveTabsActive={filterLiveTabs}
-          onFilterLiveTabsToggle={() =>
-          {
-            const newValue = !filterLiveTabs;
-            setFilterLiveTabs(newValue);
-          }}
-        />
-      )}
+        <div className="flex flex-col flex-1 min-h-0 min-w-0">
+          {showFilterArea && (
+            <FilterBar
+              orientation={toolbarLayout}
+              filterText={filterText}
+              onFilterTextChange={handleFilterTextChange}
+              savedFilters={savedFilters}
+              recentFilters={recentFilters}
+              onSaveFilter={handleSaveFilter}
+              onDeleteSavedFilter={handleDeleteSavedFilter}
+              onApplyFilter={handleApplyFilter}
+              onUpdateRecent={handleUpdateRecent}
+              onShowToast={showToast}
+              filterLiveTabsActive={filterLiveTabs}
+              onFilterLiveTabsToggle={() =>
+              {
+                const newValue = !filterLiveTabs;
+                setFilterLiveTabs(newValue);
+              }}
+            />
+          )}
 
-      {/* Pinned Sites */}
-      <PinnedBar
-        pinnedSites={pinnedSites}
-        needsFolderHint={favoritesNeedFolderHint}
-        removePin={removePin}
-        updatePin={updatePin}
-        resetFavicon={resetFavicon}
-        movePin={movePin}
-        duplicatePin={duplicatePin}
-        addPin={handleAddPin}
-        getMoveTargets={getMoveTargets}
-        movePinToSpace={movePinToSpace}
-        iconSize={pinnedIconSize}
-        bookmarkOpenMode={bookmarkOpenMode}
-        filterLiveTabs={showFilterArea && filterLiveTabs}
-        filterText={filterText}
-        onPerformAction={performAction}
-        onAiRename={handleAiRenamePin}
-      />
-
-      {/* Space Title */}
-      <SpaceTitleWrapper
-        onEditSpace={handleEditSpace}
-        onDeleteSpace={handleDeleteSpace}
-        onPerformAction={performAction}
-        onShowToast={showToast}
-        sectionCollapseState={sectionCollapseState}
-        onToggleSection={toggleShownSection}
-        bookmarkOpenMode={bookmarkOpenMode}
-      />
-
-      {/* Content with 2-finger swipe navigation */}
-      <SwipeableContainer
-        onPin={handlePinFromSidebar}
-        onPinMultiple={handleAddPins}
-        hideOtherBookmarks={hideOtherBookmarks}
-        externalDropTarget={externalDropTarget}
-        bookmarkOpenMode={bookmarkOpenMode}
-        arcSingleClickOpensTab={arcSingleClickOpensTab}
-        onResolverReady={(fn) => { bookmarkDropResolverRef.current = fn; }}
-        filterLiveTabs={showFilterArea && filterLiveTabs}
-        filterText={filterText}
-        tabGroupDisplayOrder={tabGroupDisplayOrder}
-        onTabGroupDisplayOrderChange={setTabGroupDisplayOrder}
-        onExternalDropTargetChange={setExternalDropTarget}
-        resolveBookmarkDropTarget={() => bookmarkDropResolverRef.current}
-        onShowToast={showToast}
-        onPerformAction={performAction}
-        onSpaceDropTargetChange={setSpaceDropTargetId}
-        onAiRenameBookmark={handleAiRenameBookmark}
-        onBookmarkCreated={handleBookmarkCreated}
-        sectionCollapseState={sectionCollapseState}
-        onToggleSection={toggleShownSection}
-        highlightTabAge={shownTabAgeHighlight !== 'off'}
-        markUnvisitedTabs={shownUnvisitedTabMarker === 'on'}
-      />
-
-      {showPageAgent && (
-        <Suspense fallback={null}>
-          <PageAgentDrawer
-            chats={pageAgentChats}
-            tabId={activeTab?.id}
-            tabUrl={activeTab?.url}
-            bookmarkId={activeTabBookmarkId}
-            savedStyle={activeTabSavedStyle}
-            pageStyles={pageStyleActions}
-            aiSettings={aiSettings}
-            onOpenSettings={() => setShowSettings(true)}
-            onClose={() => setShowPageAgent(false)}
+          {/* Pinned Sites */}
+          <PinnedBar
+            pinnedSites={pinnedSites}
+            needsFolderHint={favoritesNeedFolderHint}
+            removePin={removePin}
+            updatePin={updatePin}
+            resetFavicon={resetFavicon}
+            movePin={movePin}
+            duplicatePin={duplicatePin}
+            addPin={handleAddPin}
+            getMoveTargets={getMoveTargets}
+            movePinToSpace={movePinToSpace}
+            iconSize={pinnedIconSize}
+            bookmarkOpenMode={bookmarkOpenMode}
+            filterLiveTabs={showFilterArea && filterLiveTabs}
+            filterText={filterText}
+            onPerformAction={performAction}
+            onAiRename={handleAiRenamePin}
           />
-        </Suspense>
-      )}
+
+          {/* Space Title */}
+          <SpaceTitleWrapper
+            onEditSpace={handleEditSpace}
+            onDeleteSpace={handleDeleteSpace}
+            onPerformAction={performAction}
+            onShowToast={showToast}
+            sectionCollapseState={sectionCollapseState}
+            onToggleSection={toggleShownSection}
+            bookmarkOpenMode={bookmarkOpenMode}
+          />
+
+          {/* Content with 2-finger swipe navigation */}
+          <SwipeableContainer
+            onPin={handlePinFromSidebar}
+            onPinMultiple={handleAddPins}
+            hideOtherBookmarks={hideOtherBookmarks}
+            externalDropTarget={externalDropTarget}
+            bookmarkOpenMode={bookmarkOpenMode}
+            arcSingleClickOpensTab={arcSingleClickOpensTab}
+            onResolverReady={(fn) => { bookmarkDropResolverRef.current = fn; }}
+            filterLiveTabs={showFilterArea && filterLiveTabs}
+            filterText={filterText}
+            tabGroupDisplayOrder={tabGroupDisplayOrder}
+            onTabGroupDisplayOrderChange={setTabGroupDisplayOrder}
+            onExternalDropTargetChange={setExternalDropTarget}
+            resolveBookmarkDropTarget={() => bookmarkDropResolverRef.current}
+            onShowToast={showToast}
+            onPerformAction={performAction}
+            onSpaceDropTargetChange={setSpaceDropTargetId}
+            onAiRenameBookmark={handleAiRenameBookmark}
+            onBookmarkCreated={handleBookmarkCreated}
+            sectionCollapseState={sectionCollapseState}
+            onToggleSection={toggleShownSection}
+            highlightTabAge={shownTabAgeHighlight !== 'off'}
+            markUnvisitedTabs={shownUnvisitedTabMarker === 'on'}
+          />
+
+          {showPageAgent && (
+            <Suspense fallback={null}>
+              <PageAgentDrawer
+                chats={pageAgentChats}
+                tabId={activeTab?.id}
+                tabUrl={activeTab?.url}
+                bookmarkId={activeTabBookmarkId}
+                savedStyle={activeTabSavedStyle}
+                pageStyles={pageStyleActions}
+                aiSettings={aiSettings}
+                onOpenSettings={() => setShowSettings(true)}
+                onClose={() => setShowPageAgent(false)}
+              />
+            </Suspense>
+          )}
+        </div>
+      </div>
 
       {/* Space Dialogs */}
       <SpaceDialogs

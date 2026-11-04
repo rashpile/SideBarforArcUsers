@@ -199,25 +199,25 @@
 - Modify: `src/App.tsx`
 - Modify: `src/index.css`
 
-- [ ] `Toolbar.tsx`: add `orientation: ToolbarLayout`. Vertical: root `arc-toolbar arc-toolbar-vertical flex
+- [x] `Toolbar.tsx`: add `orientation: ToolbarLayout`. Vertical: root `arc-toolbar arc-toolbar-vertical flex
       flex-col items-center border-r` (no `arc-toolbar-row`), the button group a column in the same order,
       separators horizontal, gear wrapper `mt-auto`; Prev / Next `DropdownMenu.Content` get `side="right"`.
       Horizontal unchanged
-- [ ] `App.tsx`: wrap Toolbar and the content in the structure from Solution Overview (outer `flex-1 min-h-0`
+- [x] `App.tsx`: wrap Toolbar and the content in the structure from Solution Overview (outer `flex-1 min-h-0`
       div, `flex-col` or `flex-row` by `toolbarLayout`; inner column `flex flex-col flex-1 min-h-0 min-w-0`
       holding FilterBar, PinnedBar, SpaceTitleWrapper, SwipeableContainer and PageAgentDrawer); SpaceDialogs,
       SpaceBar, Toast and UnifiedDragOverlay stay after the outer div; the same structure in both layouts
-- [ ] `App.tsx`: remove the unused `toolbarRef` and its `<div className="relative">` wrapper, so the Toolbar
+- [x] `App.tsx`: remove the unused `toolbarRef` and its `<div className="relative">` wrapper, so the Toolbar
       root is a direct child of the layout div (it must stretch to the full height for `mt-auto` and the
       strip's background and border); the gear `DropdownMenu.Root` stays next to Toolbar (it renders no DOM of
       its own; `Content` portals to `document.body`)
-- [ ] `App.tsx`: pass `orientation={toolbarLayout}` to Toolbar and FilterBar, `side="right"` to the gear menu's
+- [x] `App.tsx`: pass `orientation={toolbarLayout}` to Toolbar and FilterBar, `side="right"` to the gear menu's
       `DropdownMenu.Content` and to `AudioTabsDropdown` when vertical
-- [ ] `FilterBar.tsx`: add `orientation`; in vertical layout the root gets top padding (about `pt-1.5`), since
+- [x] `FilterBar.tsx`: add `orientation`; in vertical layout the root gets top padding (about `pt-1.5`), since
       nothing sits above it in the right column; horizontal unchanged
-- [ ] `index.css`: `.arc-toolbar-vertical` gets narrow padding (about 8px 4px) and
+- [x] `index.css`: `.arc-toolbar-vertical` gets narrow padding (about 8px 4px) and
       `border-right-color: var(--arc-hairline)`
-- [ ] run `make lint && make test && make build` - must pass before task 5
+- [x] run `make lint && make test && make build` - must pass before task 5
 
 ### Task 5: Verify acceptance criteria
 
