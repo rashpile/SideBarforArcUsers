@@ -62,6 +62,7 @@ import {
 } from './utils/aiConfig';
 import { OpenAiCompatibleClient } from './services/aiRenameService';
 import { createPanelPageAgentChats } from './services/pageAgent/panelPageAgent';
+import { CodeDrafts } from './components/pageAgent/codeDrafts';
 import { usePageStyles } from './hooks/usePageStyles';
 import type { PageStyleActions } from './hooks/usePageStyles';
 import { pageStyleProxy } from './managers/proxies/pageStyleProxy';
@@ -1093,6 +1094,8 @@ function Sidebar() {
       return bookmarkId !== null && style ? { bookmarkId, style } : null;
     },
   }));
+  // The code editor's drafts outlive the drawer, so the user can close it or copy code from another tab.
+  const [codeDrafts] = useState(() => new CodeDrafts());
   const [showPageAgent, setShowPageAgent] = useState(false);
 
   // Whether the drawer is open or not: a closed tab's chat is deleted, and a finished load tells
@@ -1102,6 +1105,7 @@ function Sidebar() {
     const onRemoved = (tabId: number) =>
     {
       void pageAgentChats.tabClosed(tabId);
+      codeDrafts.close(tabId);
     };
     const onUpdated = (tabId: number, changeInfo: chrome.tabs.TabChangeInfo) =>
     {
@@ -1121,7 +1125,7 @@ function Sidebar() {
       chrome.tabs.onRemoved.removeListener(onRemoved);
       chrome.tabs.onUpdated.removeListener(onUpdated);
     };
-  }, [pageAgentChats]);
+  }, [pageAgentChats, codeDrafts]);
 
   const handleApplySettings = (newSettings: SettingsValues) => {
     setFontSize(newSettings.fontSize);
@@ -1827,6 +1831,7 @@ function Sidebar() {
             <Suspense fallback={null}>
               <PageAgentDrawer
                 chats={pageAgentChats}
+                codeDrafts={codeDrafts}
                 tabId={activeTab?.id}
                 tabUrl={activeTab?.url}
                 bookmarkId={activeTabBookmarkId}

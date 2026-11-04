@@ -307,17 +307,17 @@ Hook: `usePageAgentChat` exposes `applyCode(css, script, origin): Promise<void>`
 - Modify: `src/components/pageAgent/PageAgentMessages.tsx`
 - Modify: `src/components/pageAgent/UserScriptsNotice.tsx`
 
-- [ ] `CodeDrafts` (per-tab drafts with site, applying and error) created in `App.tsx` and closed with
+- [x] `CodeDrafts` (per-tab drafts with site, applying and error) created in `App.tsx` and closed with
   the tab
-- [ ] `PageAgentCodeEditor` with the fields, hints, notices (user scripts, page access, `actionError`),
+- [x] `PageAgentCodeEditor` with the fields, hints, notices (user scripts, page access, `actionError`),
   site binding with Use on <site>, error line, Apply and Cancel; `cssKeepsMarker` guard
-- [ ] drawer: Code button beside Send (gated on tab, scriptable page and page access), editor in place of
+- [x] drawer: Code button beside Send (gated on tab, scriptable page and page access), editor in place of
   the messages and the input area while the tab has a draft, Apply through `applyCode` settling on the
   tab it was clicked for
-- [ ] `AppliedActions`: Edit code; Save in the no-turns row; empty-chat hint; Undo title
-- [ ] `UserScriptsNotice` `context` prop with the editor wording
-- [ ] no tests: UI wiring (CLAUDE.md)
-- [ ] run `make test`, `make lint` and `make build` - must pass before next task
+- [x] `AppliedActions`: Edit code; Save in the no-turns row; empty-chat hint; Undo title
+- [x] `UserScriptsNotice` `context` prop with the editor wording
+- [x] no tests: UI wiring (CLAUDE.md)
+- [x] run `make test`, `make lint` and `make build` - must pass before next task
 
 ### Task 6: Verify acceptance criteria
 
