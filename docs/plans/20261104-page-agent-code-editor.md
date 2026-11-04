@@ -285,9 +285,9 @@ Hook: `usePageAgentChat` exposes `applyCode(css, script, origin): Promise<void>`
 - Modify: `src/hooks/usePageAgentChat.ts`
 - Modify: `tests/pageAgentChats.test.mjs`
 
-- [ ] `applyCode(tabId, css, script, origin)` as in Technical Details (steps 1–7)
-- [ ] `usePageAgentChat` exposes `applyCode(css, script, origin): Promise<void>`
-- [ ] write tests: success replaces the chat's sheet by its exact text, inserts `withMarker(css, newId)`,
+- [x] `applyCode(tabId, css, script, origin)` as in Technical Details (steps 1–7)
+- [x] `usePageAgentChat` exposes `applyCode(css, script, origin): Promise<void>`
+- [x] write tests: success replaces the chat's sheet by its exact text, inserts `withMarker(css, newId)`,
   runs the script with `apply` on the chat's own tab and records `cssByUser: true`; CSS with a remote
   `url()` is applied; a script that doesn't compile rejects and leaves the page and the chat unchanged
   (no `removeCss` / `insertCss`); a compiled script that throws is recorded and the call rejects; an
@@ -295,7 +295,7 @@ Hook: `usePageAgentChat` exposes `applyCode(css, script, origin): Promise<void>`
   runs, on a page that isn't http(s) and when the tab's origin isn't the draft's, with nothing run; CSS
   over 20 KB and a script over 64 KB are rejected before the page is touched; unavailable user scripts
   reject with nothing changed; a CSS-only Apply whose insert fails keeps the chat's earlier set
-- [ ] run `make test`, `make lint` and `make build` - must pass before next task
+- [x] run `make test`, `make lint` and `make build` - must pass before next task
 
 ### Task 5: Code editor in the drawer
 
