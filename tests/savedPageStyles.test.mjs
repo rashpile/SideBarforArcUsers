@@ -3,14 +3,14 @@ import test from 'node:test';
 
 import { SavedPageStyles } from '../src/stores/savedPageStyles.ts';
 
-const entry = (css, autoApply, origin, rev) => ({ css, autoApply, origin, rev });
+const entry = (css, autoApply, origin, rev, script = '') => ({ css, autoApply, origin, rev, script });
 
 test('saving new CSS keeps Auto-apply off when the user switched it off', () =>
 {
   const styles = new SavedPageStyles()
-    .withSaved('10', 'video { width: 100% !important; }', 'https://videos.test', 'r1')
+    .withSaved('10', 'video { width: 100% !important; }', '', 'https://videos.test', 'r1')
     .withAutoApply('10', false)
-    .withSaved('10', 'video { width: 90% !important; }', 'https://videos.test', 'r2');
+    .withSaved('10', 'video { width: 90% !important; }', '', 'https://videos.test', 'r2');
 
   const style = styles.styleFor('10');
   assert.equal(style.autoApply, false);
@@ -20,7 +20,7 @@ test('saving new CSS keeps Auto-apply off when the user switched it off', () =>
 
 test('a first save turns Auto-apply on', () =>
 {
-  const styles = new SavedPageStyles().withSaved('10', 'a {}', 'https://videos.test', 'r1');
+  const styles = new SavedPageStyles().withSaved('10', 'a {}', '', 'https://videos.test', 'r1');
 
   assert.equal(styles.styleFor('10').autoApply, true);
 });
@@ -43,7 +43,7 @@ test('without drops only the given bookmarks and returns the same instance when 
 
 test('appliesTo accepts pages on the saved origin and refuses other origins and non-http(s) URLs', () =>
 {
-  const style = new SavedPageStyles().withSaved('10', 'a {}', 'https://videos.test', 'r1').styleFor('10');
+  const style = new SavedPageStyles().withSaved('10', 'a {}', '', 'https://videos.test', 'r1').styleFor('10');
 
   assert.equal(style.appliesTo('https://videos.test/u/1?t=3'), true);
   assert.equal(style.appliesTo('https://other.test/u/1'), false);
@@ -63,6 +63,7 @@ test('fromStored drops malformed entries and non-http(s) origins and throws on a
     13: entry('d {}', true, 'https://d.test/path', 'r4'),
     14: entry('e {}', true, 'https://e.test', ''),
     15: 'f {}',
+    16: { ...entry('g {}', true, 'https://g.test', 'r6'), script: 42 },
   });
 
   assert.deepEqual(styles.toStored(), { 10: entry('a {}', true, 'https://a.test', 'r1') });
@@ -70,4 +71,26 @@ test('fromStored drops malformed entries and non-http(s) origins and throws on a
   assert.throws(() => SavedPageStyles.fromStored('broken'));
   assert.throws(() => SavedPageStyles.fromStored([]));
   assert.throws(() => SavedPageStyles.fromStored(null));
+});
+
+test('an entry saved before page scripts loads with its CSS and no script', () =>
+{
+  const styles = SavedPageStyles.fromStored({
+    10: { css: 'video { width: 100% !important; }', autoApply: false, origin: 'https://videos.test', rev: 'r1' },
+  });
+
+  const style = styles.styleFor('10');
+  assert.equal(style.css, 'video { width: 100% !important; }');
+  assert.equal(style.script, '');
+  assert.equal(style.autoApply, false);
+  assert.equal(style.appliedId, 'saved-r1');
+});
+
+test('a new save replaces the script as a whole, also with none', () =>
+{
+  const styles = new SavedPageStyles()
+    .withSaved('10', '', 'agent.on(document, "keydown", () => {});', 'https://videos.test', 'r1')
+    .withSaved('10', 'a {}', '', 'https://videos.test', 'r2');
+
+  assert.equal(styles.styleFor('10').script, '');
 });

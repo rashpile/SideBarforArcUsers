@@ -4,6 +4,7 @@
 // so a run keeps acting on its own tab whichever tab the user switches to.
 
 import { PageAgentCssSanitizer, withMarker } from '../../utils/pageAgentCss.ts';
+import { PageAgentScriptCheck } from '../../utils/pageAgentScript.ts';
 import type { PageAgentPluginResult, PageAgentToolPlugin } from './pageAgentPlugin.ts';
 import {
   PAGE_AGENT_MAX_ROUNDS,
@@ -13,6 +14,7 @@ import {
   parseApplyCssArgs,
   parseInspectArgs,
   parseReportArgs,
+  parseScriptArgs,
   parseSetConditionsArgs,
   parseShowPopupArgs,
 } from './pageAgentTools.ts';
@@ -21,6 +23,7 @@ import type {
   PageAgentReportEntry,
   PageAgentToolDefinition,
 } from './pageAgentTools.ts';
+import type { UserScriptCommand, UserScriptResult } from './userScriptRuntime.ts';
 
 export interface PageAgentToolCall
 {
@@ -98,6 +101,11 @@ export interface PageAgentPageAdapter
   removeCss(tabId: number, text: string): Promise<void>;
   capture(tabId: number): Promise<PageAgentCapture>;
   pageUrl(tabId: number): Promise<string>;
+  /**
+   * Runs the command in the user script world of the tab's page origin. Rejects when the page has
+   * none (not http or https) or Chrome blocks user scripts.
+   */
+  runUserScript(tabId: number, command: UserScriptCommand): Promise<UserScriptResult>;
 }
 
 export interface PageAgentConditionOutcome
@@ -137,25 +145,39 @@ export interface PageAgentStep
   args: string;
   result: string;
   css?: string;
+  /** The code of apply_script or run_check, cut at a length it notes. */
+  script?: string;
   /** Kept in side panel memory only; never persisted. */
   screenshotDataUrl?: string;
 }
 
-export interface PageAgentAppliedCss
+/** The CSS and script on the page: one set under one marker id. */
+export interface PageAgentApplied
 {
-  /** The sanitized stylesheet without the marker. */
+  /** The sanitized stylesheet without the marker; empty when only a script is applied. */
   css: string;
+  /** The script running in the page's user script world; empty when there is none. */
+  script: string;
   /** The exact text inserted into the page; removeCSS needs it. */
   insertedText: string;
   appliedId: string;
   url: string;
 }
 
+/** A script the run asks the user to approve before it runs. */
+export interface PageAgentScriptRequest
+{
+  kind: 'apply' | 'check';
+  code: string;
+}
+
 export interface PageAgentRunListener
 {
   onStep(step: PageAgentStep): void;
   onConditions(conditions: PageAgentConditionSpec[], replaced: PageAgentReplacedCondition[]): void;
-  onCssApplied(applied: PageAgentAppliedCss): void;
+  onApplied(applied: PageAgentApplied): void;
+  /** Asked before the run's first script only: the answer holds for every script of the run. */
+  onScriptApproval(request: PageAgentScriptRequest): Promise<boolean>;
   onFinished(result: PageAgentRunResult): void;
 }
 
@@ -178,11 +200,15 @@ export interface PageAgentRunOptions
   listener: PageAgentRunListener;
   /** "Model accepts images": the screenshot tool is offered. */
   screenshots: boolean;
+  /** The Page scripts switch is on and Chrome allows user scripts: apply_script and run_check are offered. */
+  scripts: boolean;
   /** The enabled plugins; their tools are offered after the core tools. */
   plugins?: readonly PageAgentToolPlugin[];
   history?: readonly PageAgentHistoryTurn[];
   /** The stylesheet the chat applied last, without the marker; the model edits it. */
   currentCss?: string;
+  /** The script the chat applied last; it stays on the page while the run changes only the CSS. */
+  currentScript?: string;
   /** The exact text inserted last, removed before the next insert; empty when there is none. */
   insertedText?: string;
   createId?: () => string;
@@ -193,10 +219,12 @@ const SCREENSHOT_OMITTED = '[screenshot omitted]';
 const SCREENSHOTS_REJECTED = 'screenshots unavailable: the API rejected images';
 const SCREENSHOTS_REJECTED_NOTE = 'Screenshots were turned off for this request: the API rejected images.';
 const NO_REPORT = 'no report';
-const NOT_MEASURED = 'not measured after the last CSS change';
 const NOT_REPORTED = 'not reported';
 const NO_ANSWER = 'The model gave no answer.';
+const SCRIPTS_OFF = 'refused: scripts are off; change the page with CSS';
+const SCRIPTS_DECLINED = 'refused: the user declined to run scripts for this request; continue without scripts';
 const STEP_TEXT_LIMIT = 500;
+const STEP_SCRIPT_LIMIT = 8000;
 
 class RunStoppedError extends Error
 {
@@ -257,30 +285,44 @@ class RunConditions
 }
 
 /**
- * Whether the model has seen numbers measured after its last apply_css. Tool results reach the
- * model only with the next request, so an inspect in the same response as the report doesn't count:
- * the report's numbers would be written before the model saw any.
+ * Whether the model has seen values measured after its last change to the page (apply_css or
+ * apply_script). Tool results reach the model only with the next request, so a measurement (inspect
+ * or a compiled run_check) in the same response as the report doesn't count: the report's numbers
+ * would be written before the model saw any.
  */
-class StylesheetMeasurement
+class ChangeMeasurement
 {
-  #applyCalled = false;
-  #inspectRound: number | undefined;
+  /** The tools the run's texts name; without scripts only the CSS ones, as the model has no others. */
+  readonly changeTools: string;
+  readonly measureTools: string;
+  /** What a condition's measured text calls the last change. */
+  readonly lastChange: string;
+  #changed = false;
+  #measuredRound: number | undefined;
 
-  applyCalled(): void
+  constructor(scripts: boolean)
   {
-    this.#applyCalled = true;
-    this.#inspectRound = undefined;
+    const names = PAGE_AGENT_TOOL_NAMES;
+    this.changeTools = scripts ? `${names.applyCss} or ${names.applyScript}` : names.applyCss;
+    this.measureTools = scripts ? `${names.inspect} or ${names.runCheck}` : names.inspect;
+    this.lastChange = scripts ? 'change' : 'CSS change';
   }
 
-  inspected(round: number): void
+  changed(): void
   {
-    this.#inspectRound ??= round;
+    this.#changed = true;
+    this.#measuredRound = undefined;
   }
 
-  /** True when the run called no apply_css, or an inspect after the last one ran in an earlier response. */
+  measured(round: number): void
+  {
+    this.#measuredRound ??= round;
+  }
+
+  /** True when the run changed nothing, or a measurement after the last change ran in an earlier response. */
   seenBefore(round: number): boolean
   {
-    return !this.#applyCalled || (this.#inspectRound !== undefined && this.#inspectRound < round);
+    return !this.#changed || (this.#measuredRound !== undefined && this.#measuredRound < round);
   }
 }
 
@@ -309,9 +351,9 @@ class ChatHistory
 
   /**
    * The first user message of a run. Earlier tool calls are not resent; the condensed turns and
-   * the current stylesheet are enough for "a bit narrower" to edit the current result.
+   * the current stylesheet and script are enough for "a bit narrower" to edit the current result.
    */
-  firstUserMessage(request: string, currentCss: string): string
+  firstUserMessage(request: string, currentCss: string, currentScript: string, scripts: boolean): string
   {
     const sections = [`Request: ${request}`];
     if (this.#turns.length > 0)
@@ -326,6 +368,22 @@ class ChatHistory
     else if (this.#turns.length > 0)
     {
       sections.push('No stylesheet is applied now.');
+    }
+    if (scripts)
+    {
+      if (currentScript.trim())
+      {
+        sections.push(`Current script (applied by the last apply_script; a new apply_script replaces it as a whole):\n${currentScript}`);
+      }
+      else if (this.#turns.length > 0)
+      {
+        sections.push('No script is applied now.');
+      }
+    }
+    else if (currentScript.trim())
+    {
+      // Without the code: the model can't change the script, and apply_css keeps it running.
+      sections.push('A script is applied on the page; scripts are off for this request, so leave it as it is.');
     }
     return sections.join('\n\n');
   }
@@ -456,6 +514,7 @@ export class PageAgentRun
   readonly #adapter: PageAgentPageAdapter;
   readonly #listener: PageAgentRunListener;
   readonly #screenshots: boolean;
+  readonly #scripts: boolean;
   readonly #plugins: RunPlugins;
   readonly #history: ChatHistory;
   readonly #conversation: RunConversation;
@@ -464,8 +523,12 @@ export class PageAgentRun
   readonly #debug: boolean;
   readonly #controller = new AbortController();
   readonly #conditions = new RunConditions();
-  readonly #measurement = new StylesheetMeasurement();
+  readonly #measurement: ChangeMeasurement;
+  #currentCss: string;
+  #currentScript: string;
   #insertedText: string;
+  /** The user's answer to the run's first script; kept for every later one. */
+  #scriptApproval: Promise<boolean> | undefined;
   #imagesRejected = false;
   #started = false;
   #round = 0;
@@ -478,13 +541,17 @@ export class PageAgentRun
     this.#adapter = options.adapter;
     this.#listener = options.listener;
     this.#screenshots = options.screenshots;
+    this.#scripts = options.scripts;
+    this.#measurement = new ChangeMeasurement(options.scripts);
     this.#plugins = new RunPlugins(options.plugins ?? []);
     this.#history = new ChatHistory(options.history ?? []);
+    this.#currentCss = options.currentCss ?? '';
+    this.#currentScript = options.currentScript ?? '';
     this.#conversation = new RunConversation(
-      pageAgentSystemPrompt(options.screenshots, this.#plugins.promptSections()),
-      this.#history.firstUserMessage(options.request, options.currentCss ?? ''),
+      pageAgentSystemPrompt(options.screenshots, options.scripts, this.#plugins.promptSections()),
+      this.#history.firstUserMessage(options.request, this.#currentCss, this.#currentScript, options.scripts),
     );
-    this.#tools = [...pageAgentToolDefinitions(options.screenshots), ...this.#plugins.tools()];
+    this.#tools = [...pageAgentToolDefinitions(options.screenshots, options.scripts), ...this.#plugins.tools()];
     this.#insertedText = options.insertedText ?? '';
     this.#createId = options.createId ?? (() => crypto.randomUUID());
     this.#debug = options.debug ?? false;
@@ -572,10 +639,11 @@ export class PageAgentRun
 
     this.#round = PAGE_AGENT_MAX_ROUNDS;
     const report = PAGE_AGENT_TOOL_NAMES.report;
+    const measurement = this.#measurement;
     this.#conversation.addUserText(
       `You have used all ${PAGE_AGENT_MAX_ROUNDS} responses for this request. Call ${report} now: give each ` +
-      `condition the last value you measured, and mark it met only if an ${PAGE_AGENT_TOOL_NAMES.inspect} after ` +
-      `your last ${PAGE_AGENT_TOOL_NAMES.applyCss} showed it.`,
+      `condition the last value you measured, and mark it met only if an ${measurement.measureTools} after ` +
+      `your last ${measurement.changeTools} showed it.`,
     );
     let message: PageAgentAssistantMessage;
     try
@@ -599,14 +667,14 @@ export class PageAgentRun
     {
       return limitReached;
     }
-    if (!this.#measurement.seenBefore(this.#round))
+    if (!measurement.seenBefore(this.#round))
     {
-      // The model's numbers predate its last CSS change, so none of them counts.
-      this.#listener.onStep(step(report, '', `refused: no ${PAGE_AGENT_TOOL_NAMES.inspect} after the last ${PAGE_AGENT_TOOL_NAMES.applyCss}`));
+      // The model's numbers predate its last change, so none of them counts.
+      this.#listener.onStep(step(report, '', `refused: no ${measurement.measureTools} after the last ${measurement.changeTools}`));
       return this.#result(
         'not-met',
-        this.#conditions.allUnmet(NOT_MEASURED),
-        `No measurement after the last CSS change within ${PAGE_AGENT_MAX_ROUNDS} steps.`,
+        this.#conditions.allUnmet(`not measured after the last ${measurement.lastChange}`),
+        `No measurement after the last ${measurement.lastChange} within ${PAGE_AGENT_MAX_ROUNDS} steps.`,
       );
     }
     const outcome = await this.#runTool(call);
@@ -703,6 +771,11 @@ export class PageAgentRun
         return await this.#applyCss(parsed.value);
       case PAGE_AGENT_TOOL_NAMES.inspect:
         return await this.#inspect(parsed.value);
+      // Refused rather than unknown: a model that saw the tools in an earlier request learns why.
+      case PAGE_AGENT_TOOL_NAMES.applyScript:
+        return this.#scripts ? await this.#applyScript(parsed.value) : toolError(name, '', SCRIPTS_OFF);
+      case PAGE_AGENT_TOOL_NAMES.runCheck:
+        return this.#scripts ? await this.#runCheck(parsed.value) : toolError(name, '', SCRIPTS_OFF);
       case PAGE_AGENT_TOOL_NAMES.screenshot:
         if (this.#screenshots)
         {
@@ -839,7 +912,7 @@ export class PageAgentRun
       return toolError(name, '', `refused: call ${PAGE_AGENT_TOOL_NAMES.setConditions} first`);
     }
     // Whatever its outcome, the model learns it only from the next request.
-    this.#measurement.applyCalled();
+    this.#measurement.changed();
     const parsed = parseApplyCssArgs(args);
     if (!parsed.ok)
     {
@@ -855,6 +928,18 @@ export class PageAgentRun
     }
 
     const url = await this.#adapter.pageUrl(this.tabId);
+    await this.#replaceApplied(url, { css });
+
+    return { content: 'ok', step: { ...step(name, argsSummary, 'ok'), css } };
+  }
+
+  // CSS and script are one applied set under one marker id: a change to either part mints a new id
+  // and replaces the marker sheet (marker-only without CSS), so the marker tells whether the page
+  // still has the set. The part the change leaves out is kept.
+  async #replaceApplied(url: string, change: { css?: string; script?: string }): Promise<void>
+  {
+    const css = change.css ?? this.#currentCss;
+    const script = change.script ?? this.#currentScript;
     if (this.#insertedText)
     {
       await this.#adapter.removeCss(this.tabId, this.#insertedText);
@@ -863,10 +948,87 @@ export class PageAgentRun
     const insertedText = withMarker(css, appliedId);
     await this.#adapter.insertCss(this.tabId, insertedText);
     this.#insertedText = insertedText;
+    this.#currentCss = css;
+    this.#currentScript = script;
     // Recorded before any stop check: the stylesheet is on the page now, and Undo needs its text.
-    this.#listener.onCssApplied({ css, insertedText, appliedId, url });
+    this.#listener.onApplied({ css, script, insertedText, appliedId, url });
+  }
 
-    return { content: 'ok', step: { ...step(name, argsSummary, 'ok'), css } };
+  async #applyScript(args: unknown): Promise<ToolOutcome>
+  {
+    const name = PAGE_AGENT_TOOL_NAMES.applyScript;
+    if (!this.#conditions.isSet)
+    {
+      return toolError(name, '', `refused: call ${PAGE_AGENT_TOOL_NAMES.setConditions} first`);
+    }
+    // Whatever its outcome, the model learns it only from the next request.
+    this.#measurement.changed();
+    const parsed = parseScriptArgs(args);
+    if (!parsed.ok)
+    {
+      return toolError(name, '', parsed.error);
+    }
+
+    // Blank code removes the script, so the chat holds no blank script with Undo and Show code for it.
+    const code = parsed.value.trim() ? parsed.value : '';
+    const argsSummary = `${code.length} characters`;
+    const check = PageAgentScriptCheck.check(code);
+    if (!check.ok)
+    {
+      return scriptOutcome(name, argsSummary, `rejected: ${check.reason}`, code);
+    }
+    // Removing runs none of the agent's code, so it isn't asked: an empty approval card would use up the
+    // run's only answer, and a Deny there would keep the old script on the page.
+    if (code && !(await this.#scriptsApproved({ kind: 'apply', code })))
+    {
+      return scriptOutcome(name, argsSummary, SCRIPTS_DECLINED, code);
+    }
+
+    const url = await this.#adapter.pageUrl(this.tabId);
+    const result = await this.#adapter.runUserScript(this.tabId, code ? { kind: 'apply', code } : { kind: 'undo' });
+    // Code that doesn't compile changed nothing: the script applied before keeps running. Compiled
+    // code that threw or timed out keeps what it registered, so the set records it for Undo.
+    if (result.compiled)
+    {
+      await this.#replaceApplied(url, { script: code });
+    }
+    return scriptOutcome(name, argsSummary, JSON.stringify(result), code);
+  }
+
+  async #runCheck(args: unknown): Promise<ToolOutcome>
+  {
+    const name = PAGE_AGENT_TOOL_NAMES.runCheck;
+    const parsed = parseScriptArgs(args);
+    if (!parsed.ok)
+    {
+      return toolError(name, '', parsed.error);
+    }
+
+    const code = parsed.value;
+    const argsSummary = `${code.length} characters`;
+    // Not put to the user: a blank check measures nothing, and its card would use up the run's only answer.
+    if (!code.trim())
+    {
+      return toolError(name, argsSummary, 'refused: the code is empty; send a script that returns what it measured');
+    }
+    if (!(await this.#scriptsApproved({ kind: 'check', code })))
+    {
+      return scriptOutcome(name, argsSummary, SCRIPTS_DECLINED, code);
+    }
+    const result = await this.#adapter.runUserScript(this.tabId, { kind: 'check', code });
+    if (result.compiled)
+    {
+      this.#measurement.measured(this.#round);
+    }
+    return scriptOutcome(name, argsSummary, JSON.stringify(result), code);
+  }
+
+  // Asked once per run: the first script's answer covers the rest of the request, so a Deny is never
+  // asked again. Raced against Stop, as the user may never answer.
+  async #scriptsApproved(request: PageAgentScriptRequest): Promise<boolean>
+  {
+    this.#scriptApproval ??= this.#listener.onScriptApproval(request);
+    return await this.#untilStopped(this.#scriptApproval);
   }
 
   async #inspect(args: unknown): Promise<ToolOutcome>
@@ -877,7 +1039,7 @@ export class PageAgentRun
       return toolError(PAGE_AGENT_TOOL_NAMES.inspect, '', parsed.error);
     }
     const result = await this.#adapter.inspect(this.tabId, parsed.value);
-    this.#measurement.inspected(this.#round);
+    this.#measurement.measured(this.#round);
     return {
       content: result,
       step: step(PAGE_AGENT_TOOL_NAMES.inspect, shortText(parsed.value.join(', ')), shortText(result)),
@@ -911,18 +1073,19 @@ export class PageAgentRun
 
     const { results, summary } = parsed.value;
     const reportStep = step(name, shortText(summary), 'done');
-    // Without conditions nothing can have changed (apply_css is refused), so the summary is an answer.
+    // Without conditions nothing can have changed (apply_css and apply_script are refused), so the summary is an answer.
     if (!this.#conditions.isSet)
     {
       const finished = summary ? this.#result('answered', [], summary) : this.#result('not-met', [], NO_ANSWER);
       return { content: 'done', step: reportStep, finished };
     }
-    if (!this.#measurement.seenBefore(this.#round))
+    const measurement = this.#measurement;
+    if (!measurement.seenBefore(this.#round))
     {
       return toolError(
         name,
         shortText(summary),
-        `refused: ${PAGE_AGENT_TOOL_NAMES.inspect} after your last ${PAGE_AGENT_TOOL_NAMES.applyCss} and call ${name} in a later response, once you have seen the numbers`,
+        `refused: ${measurement.measureTools} after your last ${measurement.changeTools} and call ${name} in a later response, once you have seen the numbers`,
       );
     }
 
@@ -1026,6 +1189,16 @@ function toolError(name: string, args: string, error: string): ToolOutcome
 function step(tool: string, args: string, result: string): PageAgentStep
 {
   return { tool, args, result };
+}
+
+// The step log is persisted with the chat, so a long script is cut there; the applied one is kept
+// whole in the chat's applied set.
+function scriptOutcome(tool: string, args: string, content: string, code: string): ToolOutcome
+{
+  const script = code.length > STEP_SCRIPT_LIMIT
+    ? `${code.slice(0, STEP_SCRIPT_LIMIT)}\n… (cut at ${STEP_SCRIPT_LIMIT} characters)`
+    : code;
+  return { content, step: { ...step(tool, args, shortText(content)), ...(script !== '' && { script }) } };
 }
 
 function shortText(text: string): string

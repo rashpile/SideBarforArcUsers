@@ -1,8 +1,8 @@
 // The page agent's access to a real tab: page scripts through chrome.scripting.executeScript, the
-// stylesheet through insertCSS / removeCSS, screenshots through ActiveTabCapture, the answer popup
-// through runPagePopupCommand, and the video transcript reader's page access through pageUrl and
-// runScript. Every call names its tab; nothing here looks up the active tab. Scripts and CSS go to the
-// top frame only.
+// stylesheet through insertCSS / removeCSS, the agent's own scripts through UserScriptRunner,
+// screenshots through ActiveTabCapture, the answer popup through runPagePopupCommand, and the video
+// transcript reader's page access through pageUrl and runScript. Every call names its tab; nothing here
+// looks up the active tab. Scripts and CSS go to the top frame only.
 
 import { parseMarkdown } from '../../utils/markdown.ts';
 import { PAGE_AGENT_CSS_ORIGIN, PAGE_AGENT_MARKER_PROPERTY } from '../../utils/pageAgentCss.ts';
@@ -20,6 +20,8 @@ import {
   readPageMarker,
 } from './pageScripts.ts';
 import type { OutlineLimits } from './pageScripts.ts';
+import { UserScriptRunner } from './userScriptRunner.ts';
+import type { UserScriptCommand, UserScriptResult } from './userScriptRuntime.ts';
 
 const OUTLINE_LIMITS: OutlineLimits = {
   maxNodes: 250,
@@ -40,10 +42,13 @@ export type PageScriptWorld = 'MAIN' | 'ISOLATED';
 export class ChromePageAdapter implements PageAgentPageAdapter
 {
   readonly #capture: ActiveTabCapture;
+  readonly #userScripts: UserScriptRunner;
 
   constructor()
   {
     this.#capture = new ActiveTabCapture(chrome.tabs);
+    // A getter: chrome.userScripts appears only once the user turns on Allow User Scripts.
+    this.#userScripts = new UserScriptRunner(() => chrome.userScripts);
   }
 
   async outline(tabId: number): Promise<string>
@@ -103,6 +108,18 @@ export class ChromePageAdapter implements PageAgentPageAdapter
   {
     const tab = await chrome.tabs.get(tabId);
     return tab.url ?? '';
+  }
+
+  /** Chrome 135+ with the userScripts permission and Allow User Scripts on. Read anew on every call. */
+  userScriptsAvailable(): boolean
+  {
+    return this.#userScripts.available();
+  }
+
+  /** The world is picked from the tab's URL now, so a tab that moved to another site gets that site's world. */
+  async runUserScript(tabId: number, command: UserScriptCommand): Promise<UserScriptResult>
+  {
+    return await this.#userScripts.run(tabId, await this.pageUrl(tabId), command);
   }
 
   async runScript<Args extends unknown[], Result>(

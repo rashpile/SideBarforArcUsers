@@ -12,7 +12,8 @@ import {
   getHostPermissionPattern,
 } from '../utils/aiConfig';
 import { OpenAiCompatibleClient } from '../services/aiRenameService';
-import { PAGE_AGENT_PLUGINS, PageAgentPluginSwitches } from '../services/pageAgent/pageAgentPlugins';
+import { PAGE_AGENT_PLUGINS, PAGE_SCRIPTS_PLUGIN_ID, PageAgentPluginSwitches } from '../services/pageAgent/pageAgentPlugins';
+import { UserScriptsNotice, requestUserScriptsPermission } from './pageAgent/UserScriptsNotice';
 
 export type BookmarkOpenMode = 'arc' | 'newTab' | 'activeTab';
 export type TabGroupDisplayOrder = 'groupsFirst' | 'groupsLast' | 'chromeOrder';
@@ -196,6 +197,32 @@ export function SettingsDialog({
   };
 
   const pluginSwitches = new PageAgentPluginSwitches(tempAiSettings.agentPlugins);
+
+  const setPluginEnabled = (id: string, enabled: boolean) =>
+  {
+    setTempAiSettings(current => ({
+      ...current,
+      agentPlugins: new PageAgentPluginSwitches(current.agentPlugins).with(id, enabled).toStored(),
+    }));
+  };
+
+  // Page scripts need the userScripts permission, asked in the click itself (Chrome asks only during
+  // a user gesture); the switch stays off when it is refused.
+  const handlePluginChange = (id: string, enabled: boolean) =>
+  {
+    if (id === PAGE_SCRIPTS_PLUGIN_ID && enabled)
+    {
+      requestUserScriptsPermission().then(granted =>
+      {
+        if (granted)
+        {
+          setPluginEnabled(id, true);
+        }
+      });
+      return;
+    }
+    setPluginEnabled(id, enabled);
+  };
 
   const tabClass = (tab: SettingsTab) =>
     `flex-1 px-3 py-2 text-sm font-medium transition-colors ${
@@ -631,10 +658,7 @@ export function SettingsDialog({
                     <input
                       type="checkbox"
                       checked={pluginSwitches.isEnabled(plugin)}
-                      onChange={(event) => setTempAiSettings({
-                        ...tempAiSettings,
-                        agentPlugins: pluginSwitches.with(plugin.id, event.target.checked).toStored(),
-                      })}
+                      onChange={(event) => handlePluginChange(plugin.id, event.target.checked)}
                       className="rounded border-gray-300 dark:border-gray-600"
                     />
                     {plugin.title}
@@ -642,6 +666,11 @@ export function SettingsDialog({
                   <p className="mt-1 text-gray-500 dark:text-gray-400">
                     {plugin.description}
                   </p>
+                  {plugin.id === PAGE_SCRIPTS_PLUGIN_ID && pluginSwitches.isEnabled(plugin) && (
+                    <div className="mt-1">
+                      <UserScriptsNotice availableText="Chrome allows page scripts." />
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

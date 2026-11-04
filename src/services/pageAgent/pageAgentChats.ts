@@ -5,16 +5,18 @@
 import type { SavedPageStyle } from '../../stores/savedPageStyles.ts';
 import { isSameOriginHttpUrl } from '../../utils/aiConfig.ts';
 import { withMarker } from '../../utils/pageAgentCss.ts';
+import { NoUserScriptWorldError } from '../../utils/pageAgentScript.ts';
 import { PageAgentChat } from './pageAgentChat.ts';
 import type { PageAgentNotice } from './pageAgentChat.ts';
 import type { PageAgentChatStore } from './pageAgentChatStore.ts';
 import type {
   PageAgentAnswer,
-  PageAgentAppliedCss,
+  PageAgentApplied,
   PageAgentHistoryTurn,
   PageAgentPageAdapter,
   PageAgentRunListener,
   PageAgentRunResult,
+  PageAgentScriptRequest,
 } from './pageAgentRun.ts';
 
 /** A started run, as PageAgentRun is one. */
@@ -30,6 +32,7 @@ export interface PageAgentRunStart<Settings>
   request: string;
   history: PageAgentHistoryTurn[];
   currentCss: string;
+  currentScript: string;
   insertedText: string;
   listener: PageAgentRunListener;
   settings: Settings;
@@ -38,7 +41,8 @@ export interface PageAgentRunStart<Settings>
 export type PageAgentRunFactory<Settings> = (start: PageAgentRunStart<Settings>) => PageAgentLiveRun;
 
 /** What Undo, Re-apply, applying a saved style, the marker check and the answer popup do to a page. */
-export interface PageAgentChatPage extends Pick<PageAgentPageAdapter, 'insertCss' | 'removeCss' | 'pageUrl' | 'showPopup'>
+export interface PageAgentChatPage
+  extends Pick<PageAgentPageAdapter, 'insertCss' | 'removeCss' | 'pageUrl' | 'showPopup' | 'runUserScript'>
 {
   /** The applied id of the agent's stylesheet on the page, or '' when the page has none. */
   readMarker(tabId: number): Promise<string>;
@@ -72,6 +76,30 @@ export interface PageAgentChatsOptions<Settings>
 
 const POPUP_TITLE = 'Page agent';
 
+/** The runs waiting for the user to allow or deny their scripts: one per tab, as runs are. */
+class PendingScriptApprovals
+{
+  readonly #waiting = new Map<number, (allow: boolean) => void>();
+
+  /** Resolves with the answer given for the tab; an earlier question of the tab is denied. */
+  wait(tabId: number): Promise<boolean>
+  {
+    this.answer(tabId, false);
+    return new Promise(resolve => this.#waiting.set(tabId, resolve));
+  }
+
+  /** Does nothing when the tab has no question waiting. */
+  answer(tabId: number, allow: boolean): void
+  {
+    const resolve = this.#waiting.get(tabId);
+    if (resolve)
+    {
+      this.#waiting.delete(tabId);
+      resolve(allow);
+    }
+  }
+}
+
 export class PageAgentChats<Settings>
 {
   readonly #store: PageAgentChatStore;
@@ -83,6 +111,7 @@ export class PageAgentChats<Settings>
   readonly #chats = new Map<number, PageAgentChat>();
   readonly #loads = new Map<number, Promise<PageAgentChat>>();
   readonly #runs = new Map<number, PageAgentLiveRun>();
+  readonly #scriptApprovals = new PendingScriptApprovals();
   // Tab ids aren't reused within a browser session, so a closed tab stays closed.
   readonly #closedTabs = new Set<number>();
   readonly #listeners = new Set<() => void>();
@@ -157,6 +186,7 @@ export class PageAgentChats<Settings>
         request: text,
         history,
         currentCss: chat.appliedCss,
+        currentScript: chat.appliedScript,
         insertedText: chat.appliedInsertedText,
         listener: this.#runListener(chat, turn),
         settings,
@@ -191,6 +221,8 @@ export class PageAgentChats<Settings>
     {
       if (this.#runs.get(tabId) === run)
       {
+        // A run that ended while asking (Stop, a closed tab) leaves no question for the next run's Allow.
+        this.#scriptApprovals.answer(tabId, false);
         this.#runs.delete(tabId);
       }
       this.#notify();
@@ -201,6 +233,12 @@ export class PageAgentChats<Settings>
   stop(tabId: number): void
   {
     this.#runs.get(tabId)?.stop();
+  }
+
+  /** Answers the script approval the tab's run waits for; the answer holds for the rest of the run. */
+  approveScripts(tabId: number, allow: boolean): void
+  {
+    this.#scriptApprovals.answer(tabId, allow);
   }
 
   /**
@@ -218,7 +256,11 @@ export class PageAgentChats<Settings>
     await this.#page.showPopup(tabId, POPUP_TITLE, answer);
   }
 
-  /** Removes the applied stylesheet from the page and forgets it. Rejects when the page refused. */
+  /**
+   * Removes the applied stylesheet and script from the page and forgets them. Rejects when the page
+   * refused the stylesheet; a script that couldn't be stopped is forgotten too, and the rejection
+   * then asks for a reload, the only other way to stop it.
+   */
   async undo(tabId: number): Promise<void>
   {
     if (this.#runs.has(tabId))
@@ -226,24 +268,34 @@ export class PageAgentChats<Settings>
       return;
     }
     const chat = await this.get(tabId);
-    if (!chat.appliedCss && !chat.appliedInsertedText)
+    if (!chat.appliedCss && !chat.appliedScript && !chat.appliedInsertedText)
     {
       return;
     }
     // Also with a notice set: the marker may have missed a stylesheet that is still there, and
-    // removing one that is gone does nothing.
+    // removing one that is gone does nothing. Likewise undoing a script after a reload finds an empty
+    // registry.
     if (chat.appliedInsertedText)
     {
       await this.#page.removeCss(tabId, chat.appliedInsertedText);
     }
+    const scriptError = chat.appliedScript ? await this.#undoScript(tabId) : null;
     if (this.#owns(chat))
     {
       chat.clearApplied();
       this.#changed(chat);
     }
+    if (scriptError !== null)
+    {
+      throw new Error(`the script couldn't be stopped (${scriptError}); reload the page to remove it`);
+    }
   }
 
-  /** Inserts the applied stylesheet again after a reload or on another page of the same site, under a new id. */
+  /**
+   * Puts the applied stylesheet and script on the page again after a reload or on another page of the
+   * same site, under a new id. A script that fails is recorded all the same, as what it registered
+   * before failing stays in the page until Undo; the action then rejects with its error.
+   */
   async reapply(tabId: number): Promise<void>
   {
     if (this.#runs.has(tabId))
@@ -252,7 +304,8 @@ export class PageAgentChats<Settings>
     }
     const chat = await this.get(tabId);
     const css = chat.appliedCss;
-    if (!css)
+    const script = chat.appliedScript;
+    if (!css && !script)
     {
       return;
     }
@@ -264,16 +317,22 @@ export class PageAgentChats<Settings>
     const insertedText = withMarker(css, appliedId);
     const url = await this.#page.pageUrl(tabId);
     await this.#page.insertCss(tabId, insertedText);
+    const scriptError = script ? await this.#applyScript(tabId, script) : null;
     if (this.#owns(chat))
     {
-      chat.recordApplied({ css, insertedText, appliedId, url });
+      chat.recordApplied({ css, script, insertedText, appliedId, url });
       this.#changed(chat);
+    }
+    if (scriptError !== null)
+    {
+      throw new Error(scriptError);
     }
   }
 
   /**
-   * Puts the tab's saved style on the page as the chat's stylesheet, in place of the chat's own.
-   * Rejects when the page refused.
+   * Puts the tab's saved style on the page as the chat's stylesheet and script, in place of the chat's
+   * own. Rejects when the page refused, or, after recording the saved style, with the error of a script
+   * that failed.
    */
   async applySaved(tabId: number): Promise<void>
   {
@@ -291,18 +350,33 @@ export class PageAgentChats<Settings>
     // The background may have inserted it already; a second copy of the same text stays after Undo.
     const marker = await this.#page.readMarker(tabId);
     const url = await this.#page.pageUrl(tabId);
+    let undoError: string | null = null;
     if (marker !== style.appliedId)
     {
       if (chat.appliedInsertedText)
       {
         await this.#page.removeCss(tabId, chat.appliedInsertedText);
       }
+      // Undone even when the saved style has a script: apply undoes the running one only once the new
+      // code compiles.
+      undoError = chat.appliedScript ? await this.#undoScript(tabId) : null;
       await this.#page.insertCss(tabId, style.insertedText);
     }
+    // Also under the saved marker: it shows only that the background's sheet is in, while its script may
+    // not have run (user scripts were off, or it failed). apply first undoes any copy that does run.
+    const applyError = style.script ? await this.#applyScript(tabId, style.script) : null;
     if (this.#owns(chat))
     {
       chat.recordApplied(savedAsApplied(style, url));
       this.#changed(chat);
+    }
+    if (applyError !== null)
+    {
+      throw new Error(applyError);
+    }
+    if (undoError !== null)
+    {
+      throw new Error(`the earlier script couldn't be stopped (${undoError}); reload the page to remove it`);
     }
   }
 
@@ -328,15 +402,17 @@ export class PageAgentChats<Settings>
     }
     const appliedId = chat.appliedId;
     const savedRev = saved?.style.rev ?? null;
-    let adopted: PageAgentAppliedCss | null = null;
+    let adopted: PageAgentApplied | null = null;
     let notice: PageAgentNotice = 'none';
     try
     {
       const marker = await this.#page.readMarker(tabId);
       if (saved && marker === saved.style.appliedId && marker !== appliedId)
       {
-        // The background's sheet becomes the chat's, so Undo removes it, Show CSS shows it and a
-        // run's apply_css replaces it instead of stacking a second sheet.
+        // The background's sheet becomes the chat's, so Undo removes it, Show code shows it and a
+        // run's apply_css replaces it instead of stacking a second sheet. The saved script comes with
+        // it, though the marker doesn't show that the background could run it: Undo must stop it if it
+        // runs, and stopping one that doesn't is harmless.
         adopted = savedAsApplied(saved.style, await this.#page.pageUrl(tabId));
       }
       else if (!chat.appliedInsertedText)
@@ -455,9 +531,58 @@ export class PageAgentChats<Settings>
     return {
       onStep: step => this.#apply(chat, () => chat.addStep(turn, step)),
       onConditions: (conditions, replaced) => this.#apply(chat, () => chat.setConditions(turn, conditions, replaced)),
-      onCssApplied: applied => this.#apply(chat, () => chat.recordApplied(applied)),
+      onApplied: applied => this.#apply(chat, () => chat.recordApplied(applied)),
+      onScriptApproval: request => this.#askScriptApproval(chat, turn, request),
       onFinished: result => this.#apply(chat, () => chat.finishTurn(turn, result)),
     };
+  }
+
+  // The turn shows the code with Allow and Deny until approveScripts answers or the run ends.
+  async #askScriptApproval(chat: PageAgentChat, turn: number, request: PageAgentScriptRequest): Promise<boolean>
+  {
+    if (!this.#owns(chat))
+    {
+      return false;
+    }
+    const answer = this.#scriptApprovals.wait(chat.tabId);
+    this.#apply(chat, () => chat.setPendingScript(turn, request));
+    const allow = await answer;
+    // A run that ended has dropped the pending script with its turn's result already.
+    if (this.#owns(chat) && chat.clearPendingScript(turn))
+    {
+      this.#changed(chat);
+    }
+    return allow;
+  }
+
+  // The error text, or null when the script stopped. A page with no world (the tab moved to a page
+  // that isn't http or https) has nothing running to stop.
+  async #undoScript(tabId: number): Promise<string | null>
+  {
+    try
+    {
+      const result = await this.#page.runUserScript(tabId, { kind: 'undo' });
+      return result.ok ? null : result.error;
+    }
+    catch (error)
+    {
+      return error instanceof NoUserScriptWorldError ? null : errorMessage(error);
+    }
+  }
+
+  // The error text, or null when the script ran. Saved scripts run without asking: the user approved
+  // them when the agent wrote them, and saved or kept them since.
+  async #applyScript(tabId: number, code: string): Promise<string | null>
+  {
+    try
+    {
+      const result = await this.#page.runUserScript(tabId, { kind: 'apply', code });
+      return result.ok ? null : `script error: ${result.error}`;
+    }
+    catch (error)
+    {
+      return `script error: ${errorMessage(error)}`;
+    }
   }
 
   // Before the run leaves #runs, so the next request's answer can't reach the popup ahead of this one.
@@ -519,9 +644,9 @@ export class PageAgentChats<Settings>
   }
 }
 
-function savedAsApplied(style: SavedPageStyle, url: string): PageAgentAppliedCss
+function savedAsApplied(style: SavedPageStyle, url: string): PageAgentApplied
 {
-  return { css: style.css, insertedText: style.insertedText, appliedId: style.appliedId, url };
+  return { css: style.css, script: style.script, insertedText: style.insertedText, appliedId: style.appliedId, url };
 }
 
 function errorMessage(error: unknown): string

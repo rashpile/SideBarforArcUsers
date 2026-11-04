@@ -12,6 +12,7 @@ import type { PageStyleApi, PageStylesState } from '../shared/pageStyleApi.ts';
 import { SavedPageStyle, SavedPageStyles, httpOriginOf } from '../../stores/savedPageStyles.ts';
 import type { StoredPageStyle } from '../../stores/savedPageStyles.ts';
 import { PageAgentCssSanitizer } from '../../utils/pageAgentCss.ts';
+import { PageAgentScriptCheck } from '../../utils/pageAgentScript.ts';
 
 /** The chrome APIs and the rev source the manager uses, injected so tests run under Node. */
 export interface PageStyleManagerDeps
@@ -57,7 +58,13 @@ export class PageStyleManager implements RoutedManager, PageStyleApi
         return this.getState();
 
       case 'save':
-        return this.save(message.bookmarkId as string, message.css as string, message.pageUrl as string, originId);
+        return this.save(
+          message.bookmarkId as string,
+          message.css as string,
+          typeof message.script === 'string' ? message.script : '',
+          message.pageUrl as string,
+          originId
+        );
 
       case 'setAutoApply':
         return this.setAutoApply(message.bookmarkId as string, message.on as boolean, originId);
@@ -102,27 +109,23 @@ export class PageStyleManager implements RoutedManager, PageStyleApi
     return { styles: this.#styles.toStored() };
   }
 
-  async save(bookmarkId: string, css: string, pageUrl: string, originId?: string): Promise<PageStylesState>
+  async save(bookmarkId: string, css: string, script: string, pageUrl: string, originId?: string): Promise<PageStylesState>
   {
     requireBookmarkId(bookmarkId);
-    if (typeof css !== 'string' || css.trim() === '')
+    if (typeof css !== 'string' || (css.trim() === '' && script.trim() === ''))
     {
-      throw new Error('Can\'t save this style: there is no CSS to save');
+      throw new Error('Can\'t save this style: there is no CSS or script to save');
     }
-    // The background inserts the saved CSS without a request, so it gets the same check as CSS
-    // the agent applies: whatever reaches storage is put on pages later.
-    const check = PageAgentCssSanitizer.check(css);
-    if (!check.ok)
-    {
-      throw new Error(`Can't save this style: ${check.reason}`);
-    }
+    // The background inserts the saved CSS and runs the script without a request, so they get the
+    // same checks as what the agent applies: whatever reaches storage is put on pages later.
+    checkSavable(css, script, 'save');
     const origin = typeof pageUrl === 'string' ? httpOriginOf(pageUrl) : null;
     if (origin === null)
     {
       throw new Error('Can\'t save this style: only http and https pages can have a saved style');
     }
 
-    await this.#commitUserChange(this.#styles.withSaved(bookmarkId, css, origin, this.#deps.newRev()), originId);
+    await this.#commitUserChange(this.#styles.withSaved(bookmarkId, css, script, origin, this.#deps.newRev()), originId);
     return this.getState();
   }
 
@@ -148,12 +151,8 @@ export class PageStyleManager implements RoutedManager, PageStyleApi
     {
       throw new Error('Can\'t restore this style: the record is incomplete');
     }
-    // The same gate as save: the sidebar sends the record back, and the background inserts it later
-    const check = PageAgentCssSanitizer.check(style.css);
-    if (!check.ok)
-    {
-      throw new Error(`Can't restore this style: ${check.reason}`);
-    }
+    // The same gate as save: the sidebar sends the record back, and the background applies it later
+    checkSavable(style.css, style.script, 'restore');
 
     await this.#commitUserChange(this.#styles.withRestored(bookmarkId, style), originId);
     return this.getState();
@@ -199,6 +198,20 @@ export class PageStyleManager implements RoutedManager, PageStyleApi
     {
       // No sidebar open
     });
+  }
+}
+
+function checkSavable(css: string, script: string, verb: 'save' | 'restore'): void
+{
+  const check = PageAgentCssSanitizer.check(css);
+  if (!check.ok)
+  {
+    throw new Error(`Can't ${verb} this style: ${check.reason}`);
+  }
+  const scriptCheck = PageAgentScriptCheck.check(script);
+  if (!scriptCheck.ok)
+  {
+    throw new Error(`Can't ${verb} this style: ${scriptCheck.reason}`);
   }
 }
 

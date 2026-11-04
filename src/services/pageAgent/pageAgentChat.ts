@@ -1,16 +1,17 @@
-// The page agent chat of one tab: its turns (one per user message) and the stylesheet the agent
+// The page agent chat of one tab: its turns (one per user message) and the CSS and script the agent
 // applied last. The data inside is plain JSON, so the session store keeps it as is, minus the
 // screenshots, which stay in side panel memory. Every change replaces the data object, so a React
 // hook can tell a changed chat by identity.
 
 import type {
   PageAgentAnswer,
-  PageAgentAppliedCss,
+  PageAgentApplied,
   PageAgentConditionOutcome,
   PageAgentHistoryTurn,
   PageAgentReplacedCondition,
   PageAgentRunResult,
   PageAgentRunStatus,
+  PageAgentScriptRequest,
   PageAgentStep,
 } from './pageAgentRun.ts';
 import type { PageAgentConditionSpec } from './pageAgentTools.ts';
@@ -34,14 +35,18 @@ export interface PageAgentTurn
   readonly summary: string;
   readonly error?: string;
   readonly screenshotsNote?: string;
+  /** The script the run waits to have allowed or denied; only while the turn runs. */
+  readonly pendingScript?: PageAgentScriptRequest;
 }
 
 export interface PageAgentChatData
 {
   readonly tabId: number;
   readonly turns: readonly PageAgentTurn[];
-  /** The sanitized stylesheet without the marker; Show CSS and Re-apply use it. */
+  /** The sanitized stylesheet without the marker; Show code and Re-apply use it. */
   readonly appliedCss: string;
+  /** The script running in the page's user script world; empty when there is none. */
+  readonly appliedScript: string;
   /** The exact text last inserted, kept until it has been removed: removeCSS finds it only by text. */
   readonly appliedInsertedText: string;
   readonly appliedId: string;
@@ -71,6 +76,7 @@ export class PageAgentChat
       tabId,
       turns: [],
       appliedCss: '',
+      appliedScript: '',
       appliedInsertedText: '',
       appliedId: '',
       appliedUrl: '',
@@ -81,7 +87,7 @@ export class PageAgentChat
   /**
    * A chat read back from storage, or null when the value isn't one. A turn stored as running has
    * no run any more: runs live in the side panel that started them, and loading happens only in a
-   * panel that has no run on the tab yet.
+   * panel that has no run on the tab yet, so no run waits for a script approval either.
    */
   static fromStored(value: unknown, tabId: number): PageAgentChat | null
   {
@@ -89,11 +95,14 @@ export class PageAgentChat
     {
       return null;
     }
-    const turns = value.turns.filter(isRecord).map(turn => stoppedIfRunning(turn as unknown as PageAgentTurn));
+    const turns = value.turns
+      .filter(isRecord)
+      .map(turn => withoutPendingScript(stoppedIfRunning(turn as unknown as PageAgentTurn)));
     return new PageAgentChat({
       tabId,
       turns,
       appliedCss: stringOrEmpty(value.appliedCss),
+      appliedScript: stringOrEmpty(value.appliedScript),
       appliedInsertedText: stringOrEmpty(value.appliedInsertedText),
       appliedId: stringOrEmpty(value.appliedId),
       appliedUrl: stringOrEmpty(value.appliedUrl),
@@ -115,6 +124,11 @@ export class PageAgentChat
   get appliedCss(): string
   {
     return this.#data.appliedCss;
+  }
+
+  get appliedScript(): string
+  {
+    return this.#data.appliedScript;
   }
 
   get appliedInsertedText(): string
@@ -179,10 +193,27 @@ export class PageAgentChat
     this.#updateTurn(turnIndex, turn => ({ ...turn, steps: [...turn.steps, step] }));
   }
 
+  /** The run waits for the user to allow or deny this script. */
+  setPendingScript(turnIndex: number, request: PageAgentScriptRequest): void
+  {
+    this.#updateTurn(turnIndex, turn => ({ ...turn, pendingScript: { kind: request.kind, code: request.code } }));
+  }
+
+  /** Returns whether the turn had a pending script. */
+  clearPendingScript(turnIndex: number): boolean
+  {
+    if (this.#data.turns[turnIndex]?.pendingScript === undefined)
+    {
+      return false;
+    }
+    this.#updateTurn(turnIndex, withoutPendingScript);
+    return true;
+  }
+
   finishTurn(turnIndex: number, result: PageAgentRunResult): void
   {
     this.#updateTurn(turnIndex, turn => ({
-      ...turn,
+      ...withoutPendingScript(turn),
       status: result.status,
       conditions: result.conditions,
       replaced: result.replaced,
@@ -195,14 +226,15 @@ export class PageAgentChat
   /** Ends a turn whose run failed without reporting a result. */
   failTurn(turnIndex: number, error: string): void
   {
-    this.#updateTurn(turnIndex, turn => ({ ...unreported(turn), status: 'error', error }));
+    this.#updateTurn(turnIndex, turn => ({ ...unreported(withoutPendingScript(turn)), status: 'error', error }));
   }
 
-  /** The stylesheet now on the page; the page has it, so any notice is out of date. */
-  recordApplied(applied: PageAgentAppliedCss): void
+  /** The CSS and script now on the page; the page has them, so any notice is out of date. */
+  recordApplied(applied: PageAgentApplied): void
   {
     this.#update({
       appliedCss: applied.css,
+      appliedScript: applied.script,
       appliedInsertedText: applied.insertedText,
       appliedId: applied.appliedId,
       appliedUrl: applied.url,
@@ -210,10 +242,17 @@ export class PageAgentChat
     });
   }
 
-  /** After Undo removed the stylesheet. */
+  /** After Undo removed the stylesheet and the script. */
   clearApplied(): void
   {
-    this.#update({ appliedCss: '', appliedInsertedText: '', appliedId: '', appliedUrl: '', notice: 'none' });
+    this.#update({
+      appliedCss: '',
+      appliedScript: '',
+      appliedInsertedText: '',
+      appliedId: '',
+      appliedUrl: '',
+      notice: 'none',
+    });
   }
 
   /** Returns whether the notice changed. */
@@ -289,6 +328,16 @@ function unreported(turn: PageAgentTurn): PageAgentTurn
 {
   const conditions = (turn.conditions ?? []).map(condition => ({ ...condition, met: false, measured: NO_REPORT }));
   return { ...turn, conditions };
+}
+
+function withoutPendingScript(turn: PageAgentTurn): PageAgentTurn
+{
+  if (turn.pendingScript === undefined)
+  {
+    return turn;
+  }
+  const { pendingScript: _pending, ...rest } = turn;
+  return rest;
 }
 
 function withoutScreenshot(step: PageAgentStep): PageAgentStep

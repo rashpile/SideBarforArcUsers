@@ -22,16 +22,17 @@ export interface PageStylesState
 export interface PageStyleApi
 {
   /**
-   * Saves the CSS to the bookmark for pages on `pageUrl`'s origin. Rejects with the reason when
-   * the CSS fails the page agent's sanitizer or the page isn't http(s). A new record starts with
-   * Auto-apply on; an update keeps the bookmark's choice.
+   * Saves the CSS and script to the bookmark for pages on `pageUrl`'s origin; either may be empty,
+   * not both. Rejects with the reason when the CSS fails the page agent's sanitizer, the script is
+   * too large or the page isn't http(s). A new record starts with Auto-apply on; an update keeps
+   * the bookmark's choice.
    */
-  save(bookmarkId: string, css: string, pageUrl: string): Promise<PageStylesState>;
+  save(bookmarkId: string, css: string, script: string, pageUrl: string): Promise<PageStylesState>;
   setAutoApply(bookmarkId: string, on: boolean): Promise<PageStylesState>;
   remove(bookmarkId: string): Promise<PageStylesState>;
   /**
    * Puts a deleted bookmark's record, unchanged, onto the bookmark Undo created in its place.
-   * Rejects a malformed record and CSS that fails the sanitizer.
+   * Rejects a malformed record, CSS that fails the sanitizer and a script that is too large.
    */
   restore(bookmarkId: string, style: StoredPageStyle): Promise<PageStylesState>;
   getState(): PageStylesState;

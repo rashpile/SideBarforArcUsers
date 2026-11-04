@@ -206,7 +206,7 @@ Set or change shortcuts in `chrome://extensions/shortcuts`.
 
 ### Page agent (experimental)
 
-Ask an AI model about the current page, or ask it to change how the page looks. The sparkles button in the toolbar opens a drawer at the bottom of the panel, above the Space bar. Drag its top edge to resize it. Each tab has its own chat, and the drawer shows the chat of the window's active tab. A chip at the top names that tab's site and path.
+Ask an AI model about the current page, or ask it to change how the page looks or, with Page scripts on, how it behaves. The sparkles button in the toolbar opens a drawer at the bottom of the panel, above the Space bar. Drag its top edge to resize it. Each tab has its own chat, and the drawer shows the chat of the window's active tab. A chip at the top names that tab's site and path.
 
 Ask a question, for example "summarize this page" or "explain the term in the second paragraph". The agent reads the page with `read_page_text`: the text of its main content (the `main` element, or the page's only `article`, else the whole page), up to 30,000 characters. When the layout matters to the answer it can read the page outline as well. The reply shows as an **Answer**, rendered as markdown: headings, bold, italic, code, lists, quotes and links, which open in a new tab. Only http and https links work; HTML in an answer shows as text, and images don't load. When the agent needs more detail, its question shows as an Answer too. A follow-up question sees the earlier answers of the chat, up to 4,000 characters each, so "explain X" after a summary knows what the summary said. The page text isn't carried over: the agent reads the page again when it needs it.
 
@@ -225,7 +225,7 @@ Ask a question, for example "summarize this page" or "explain the term in the se
 - No spoilers by default. Past the first minute and before the subtitles end, the agent reads only up to the playback position and says up to which time its answer goes. It reads the rest when you ask about the whole video or its ending. "What was just said" reads the two minutes before the position. When the position isn't known, which can happen on Prime after you close the player, the agent asks how far you watched
 - One read returns up to 60,000 characters. For a longer video the agent reads on from where the text was cut when the answer needs it
 
-**Page agent plugins** in Settings > AI switch optional tools on and off. Video transcripts is the first one and is on by default. A switch takes effect from the next request.
+**Page agent plugins** in Settings > AI switch optional tools on and off. Video transcripts is on by default; Page scripts, which lets the agent write JavaScript (see below), is off. A switch takes effect from the next request.
 
 For a change, type what you want, for example "make the video player full page width". The agent then works in rounds, up to 8 per message:
 
@@ -234,24 +234,33 @@ For a change, type what you want, for example "make the video player full page w
 3. It applies CSS to the tab, measures the elements and fixes the CSS until the conditions hold.
 4. It reports each condition as met or unmet, with the numbers it measured.
 
-A condition the agent couldn't meet shows as unmet. When the 8 rounds run out, the agent gets one more turn in which it can only report, so the report still carries the numbers it measured; a condition it didn't measure after its last CSS change shows as unmet. A run that set no conditions or was stopped never counts as met. "N steps · show steps" opens the log of every tool call, the CSS and the screenshots.
+A condition the agent couldn't meet shows as unmet. When the 8 rounds run out, the agent gets one more turn in which it can only report, so the report still carries the numbers it measured; a condition it didn't measure after its last change shows as unmet. A run that set no conditions or was stopped never counts as met. "N steps · show steps" opens the log of every tool call, the CSS, the scripts and the screenshots.
 
 A second message in the same chat edits the current CSS, so "a bit narrower" works. When the new request replaces an earlier condition, the report shows it as replaced, not failed.
 
 - While the agent works, Send becomes **Stop**
-- **Undo** removes everything the agent applied to the tab. **Show CSS** shows the current stylesheet with a Copy button, to put into your own site
+- **Undo** removes everything the agent applied to the tab. **Show code** shows the current stylesheet, and the script when there is one, each with a Copy button, to put into your own site
 - A reload drops the CSS. The chat then says "Page reloaded, changes removed" and offers **Re-apply**. When the tab has moved on to another page of the same site (for example the next video) it says "Page changed, changes removed" and offers **Re-apply** too, which puts the same CSS on the new page. On another site there is no Re-apply, since the CSS was written for the first site
-- The agent changes the page only with CSS and shows answers only in the popup, which the extension builds from the answer's text. It never writes JavaScript. The extension rejects CSS that would load anything from the network (`@import`, `url()` other than `data:`, `image-set()`, and `var()`, which could pick up a URL the page defines) before it reaches the page
-- A run stays on the tab it started on when you switch tabs: its CSS, its popup and the answers added to an open popup go to that tab
+- With Page scripts off, the agent changes the page only with CSS. It shows answers only in the popup, which the extension builds from the answer's text. The extension rejects CSS that would load anything from the network (`@import`, `url()` other than `data:`, `image-set()`, and `var()`, which could pick up a URL the page defines) before it reaches the page
+- A run stays on the tab it started on when you switch tabs: its CSS, its script, its popup and the answers added to an open popup go to that tab
 
-**Save to bookmark** keeps the CSS for a tab you opened from a bookmark or Favorite. The button sits next to Undo and Show CSS in the last reply. With **Auto-apply** on, which a new saved style starts with, the extension puts the style back whenever a page of the same site loads in that bookmark's tab: after a reload, on the next video, after Back and after a browser restart, also with the side panel closed. A tab of the same site you opened by hand stays unstyled, and so does another site in the bookmark's tab. After a follow-up change the button reads **Update saved style**; when the bookmark already has this CSS it reads **Saved**.
+**Save to bookmark** keeps the CSS, and the script when there is one, for a tab you opened from a bookmark or Favorite. The button sits next to Undo and Show code in the last reply. With **Auto-apply** on, which a new saved style starts with, the extension puts the style back whenever a page of the same site loads in that bookmark's tab: after a reload, on the next video, after Back and after a browser restart, also with the side panel closed. A tab of the same site you opened by hand stays unstyled, and so does another site in the bookmark's tab. After a follow-up change the button reads **Update saved style**; when the bookmark already has this CSS it reads **Saved**.
 
-- A strip under the drawer's header names the tab's bookmark and says whether it has a saved style. With one it has an **Auto-apply** switch, **Apply**, which puts the saved style on the page in place of the current CSS, and **Remove**, which deletes the saved style. Auto-apply off and Remove change only later page loads; the page in front of you keeps its look until a reload or Undo
-- When the extension has put the saved style on the page, the chat takes it as its current CSS, also in a new chat after a browser restart: **Undo** removes it from the page, **Show CSS** shows it, and a follow-up request edits it instead of adding a second stylesheet
+- A strip under the drawer's header names the tab's bookmark and says whether it has a saved style. With one it has an **Auto-apply** switch, **Apply**, which puts the saved style on the page in place of the current CSS and script, and **Remove**, which deletes the saved style. Auto-apply off and Remove change only later page loads; the page in front of you keeps its look until a reload or Undo
+- When the extension has put the saved style on the page, the chat takes it as its current CSS and script, also in a new chat after a browser restart: **Undo** removes it from the page, **Show code** shows it, and a follow-up request edits it instead of adding a second stylesheet
 - Bookmark rows with a saved style show a small brush at the right, blue while Auto-apply is on and gray when it's off
 - The right-click menu of a bookmark or Favorite with a saved style has a **Page style** submenu with **Auto-apply on load** and **Remove saved style**
 - Saved styles are stored locally, one per bookmark, and survive a browser restart. Deleting the bookmark, or a folder that holds it, deletes its style; Undo of the delete brings the style back
 - Saving, the strip and the menu work without AI settings. Putting the style on the page needs the page access the agent asked for
+
+**Page scripts.** Some changes need behaviour that CSS can't give, such as keys or player buttons on YouTube that seek to the previous or next subtitle line. With the **Page scripts** plugin on, the agent can also write JavaScript and run it on the tab, with the same rounds as for CSS: it sets conditions it can check, such as "pressing ] sets the video position to the start of the next subtitle line ±0.3 s", runs the script, then runs short checks that press the keys or click the buttons and read the values back, and reports each condition. It still prefers CSS for how the page looks.
+
+- Page scripts is off by default. Turn it on in Settings > AI > Page agent plugins; Chrome asks for the `userScripts` permission and the switch stays off if you refuse. Chrome also runs the extension's scripts only after you turn on **Allow User Scripts** on the extension's Details page (before Chrome 138, Developer mode in `chrome://extensions` does this). Until then a notice under the drawer's input says scripts aren't allowed yet, with **Allow scripts** or **Open extension details**; if it stays after you turn Allow User Scripts on, close and reopen the side panel. Settings shows the same status under the switch. Scripts need Chrome 135 or later
+- The first script of a request pauses the run and shows its code with **Allow** and **Deny**. Allow covers the other scripts of that request, so the agent can fix the script and check it again without asking. Deny refuses every script of the request: the agent goes on with CSS, or says what it can't do without a script. Stop still ends the run. The next request asks again
+- A script acts on the page as you would: it reads and changes anything the page shows. It runs in a separate world of the extension, not among the page's own scripts. Its fetch and XHR requests and the images, media, scripts and stylesheets it loads reach only the page's own site; navigation, new windows and frames are not restricted. A script gets 10 seconds to finish; after that the agent is told it is still running
+- Scripts add their listeners, timers, observers and elements through the extension's `agent` helpers, which keep track of them. **Undo** removes them together with the CSS, and a new script from the agent replaces the previous one as a whole. **Show code** shows the script under the CSS. **Re-apply** after a reload or on another page of the same site runs the script again
+- **Save to bookmark** saves the script with the CSS. Auto-apply runs it whenever a page of the site loads in the bookmark's tab, without asking again, and so does the strip's **Apply**. A saved style can also be a script with no CSS. A script can be up to 64 KB
+- The Page scripts switch stops only the agent from writing new scripts; saved scripts keep running on their pages. Turning off **Allow User Scripts**, or removing the permission, stops saved scripts too, while their CSS still goes on the page
 
 The agent uses the AI settings of AI naming: Base URL, API key, model, API protocol and reasoning effort. It calls the model with tool calling through the protocol you chose: Responses API or Chat Completions. Auto works as for AI naming: a Base URL ending in `/responses` or `/chat/completions` decides, otherwise it tries the Responses API first and falls back to Chat Completions when the endpoint doesn't have it. The model must support function calling. It needs access to http and https pages; the drawer shows **Grant page access** until you allow it. Screenshots need **Model accepts images** in Settings and access to all pages, which **Grant screenshot access** in the drawer asks for. Without them the agent checks numbers only. If the API rejects images, the run goes on without screenshots and says so.
 
@@ -270,7 +279,7 @@ Known limitations:
 - Players that load subtitles in pieces while the video plays give only the subtitles loaded so far
 - A reload during a run leaves the agent measuring the unstyled page, so it may apply the CSS again or report conditions as unmet
 - Pressing Stop or closing the panel at the moment CSS reaches the page can leave CSS the chat doesn't know about, with no Undo. A reload removes it
-- Reloading or updating the extension deletes every chat, while their CSS stays on the pages until they reload
+- Reloading or updating the extension deletes every chat, while their CSS and scripts stay on the pages until they reload
 - Auto-apply works only in a tab linked to the bookmark or Favorite, which the Arc style **Open bookmark** mode makes. A bookmark opened in a new tab or in the active tab gets no style
 - A reload with follow-up CSS you haven't saved brings back the saved style. The unsaved CSS is left only in the turn's steps
 - A bookmark opened on a page Chrome has cached can show unstyled until the page finishes loading
@@ -283,7 +292,14 @@ Known limitations:
 - Every follow-up sends all earlier answers of the chat again, up to 4,000 characters each, so a long chat makes long requests
 - Markdown tables and bare URLs in an answer show as plain text
 - The agent's CSS and saved page styles can reach the popup when they style every element (`*`) with `!important` or the whole page (a `filter` on `html`). A screenshot the agent takes for a style change shows an open popup over the page
-- The page text, the page outline, measurements, screenshots, your requests, earlier answers and the CSS go to the AI endpoint you configured. See [PRIVACY.md](PRIVACY.md)
+- A script can still navigate the page, open a window or load a frame, so a page that slips instructions to the agent could have a script send the page's data out that way. Read the code before you press Allow
+- What a script changed without the `agent` helpers, such as an attribute it set or a video it seeked, stays after Undo until a reload
+- A script stuck in a loop that never waits freezes the page; the 10-second limit covers only scripts that wait
+- Scripts run only in the page's top frame. They see the page's elements, but not the page's own JavaScript objects, such as a video player's API, and not the content of iframes
+- Turning off Allow User Scripts while a script runs leaves it on the page until a reload. Undo then clears the chat and asks you to reload the page
+- Allow User Scripts is a Chrome setting the extension can't turn on for you. Before Chrome 138 it is Developer mode; before Chrome 135 scripts don't work
+- Video transcripts doesn't read YouTube's subtitles. A script the agent writes for YouTube reads the subtitle list from the page and downloads the subtitles from youtube.com itself
+- The page text, the page outline, measurements, screenshots, your requests, earlier answers, the CSS, the scripts and what they return go to the AI endpoint you configured. See [PRIVACY.md](PRIVACY.md)
 
 ### Settings
 
@@ -297,7 +313,7 @@ Gear menu → Settings:
 - **Mark unvisited tabs**: a dot on tabs opened in the background that you haven't switched to yet. On by default
 - **Mark for Attention colour**: the ring around marked tabs and bookmarks - green, blue, orange, red, purple, yellow or the Space colour, each dim, normal or bright (default: Space colour - dim). Space colour follows the active Space whether or not the Space colour tints the sidebar; in the All view it is the theme violet
 - Space color tint
-- **AI naming**: rename Favorites and pinned pages with an OpenAI-compatible API you configure (endpoint, model, prompt, automatic or manual). The endpoint must use HTTPS; HTTP works only for localhost, e.g. Ollama or LM Studio. A page's Markdown version and the pages listed in its site's `llms.txt` are read only from the page's own site. The page agent uses the same endpoint and model. **Model accepts images** lets the page agent send screenshots; off by default. **Page agent plugins** switch the page agent's optional tools; Video transcripts is on by default
+- **AI naming**: rename Favorites and pinned pages with an OpenAI-compatible API you configure (endpoint, model, prompt, automatic or manual). The endpoint must use HTTPS; HTTP works only for localhost, e.g. Ollama or LM Studio. A page's Markdown version and the pages listed in its site's `llms.txt` are read only from the page's own site. The page agent uses the same endpoint and model. **Model accepts images** lets the page agent send screenshots; off by default. **Page agent plugins** switch the page agent's optional tools; Video transcripts is on by default. **Page scripts**, off by default, lets the page agent run JavaScript on the page once you approve it; turning it on asks for the `userScripts` permission, and a line under it says whether Chrome allows the scripts yet
 
 ### Backup
 
@@ -320,6 +336,7 @@ Light and dark mode follow your system.
 | `alarms` | Check for unused tabs every few minutes while auto-archive is on |
 | Optional `http://*/*`, `https://*/*` | Asked for when you use AI naming or the page agent, to read the page, restyle it, show answers on it and call your AI endpoint |
 | Optional `<all_urls>` | Asked for only when you turn on page agent screenshots, to capture the visible tab |
+| Optional `userScripts` | Asked for only when you turn on Page scripts, to run the page agent's JavaScript on the page after you approve it, and a saved script when its page loads in the bookmark's tab. Chrome also needs Allow User Scripts on the extension's Details page |
 
 ## More
 

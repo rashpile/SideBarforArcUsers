@@ -5,10 +5,13 @@ import { bookmarkTreeStore } from '../../hooks/useBookmarks';
 import { useChromeLocalStorage } from '../../hooks/useChromeLocalStorage';
 import { usePageAgentChat } from '../../hooks/usePageAgentChat';
 import type { PageStyleActions } from '../../hooks/usePageStyles';
+import type { PageAgentChatData } from '../../services/pageAgent/pageAgentChat';
 import type { PageAgentChats } from '../../services/pageAgent/pageAgentChats';
+import { PAGE_SCRIPTS_PLUGIN_ID, PageAgentPluginSwitches } from '../../services/pageAgent/pageAgentPlugins';
 import type { SavedPageStyle } from '../../stores/savedPageStyles';
 import type { AiRenameSettings } from '../../utils/aiConfig';
 import { PageAgentMessages } from './PageAgentMessages';
+import { UserScriptsNotice } from './UserScriptsNotice';
 
 export const PAGE_AGENT_DRAWER_HEIGHT_KEY = 'pageAgentDrawerHeight';
 
@@ -54,7 +57,7 @@ export const PageAgentDrawer: React.FC<PageAgentDrawerProps> = ({
   onClose,
 }) =>
 {
-  const { chat, running, actionError, send, stop, undo, reapply, applySaved, showOnPage, runAction } =
+  const { chat, running, actionError, send, stop, approveScripts, undo, reapply, applySaved, showOnPage, runAction } =
     usePageAgentChat(chats, tabId, savedStyle?.rev ?? null);
   const bookmarkTitle = useBookmarkTitle(bookmarkId);
   const [hasPageAccess, requestPageAccess] = useOriginsGranted(PAGE_ORIGINS);
@@ -64,6 +67,7 @@ export const PageAgentDrawer: React.FC<PageAgentDrawerProps> = ({
 
   const block = inputBlock(tabId, tabUrl, aiSettings, hasPageAccess);
   const canSend = block === null && !running && draft.trim() !== '';
+  const pageScriptsOn = new PageAgentPluginSwitches(aiSettings.agentPlugins).isEnabledId(PAGE_SCRIPTS_PLUGIN_ID);
 
   const submit = () =>
   {
@@ -84,13 +88,13 @@ export const PageAgentDrawer: React.FC<PageAgentDrawerProps> = ({
     }
   };
 
-  // Saved with the URL the CSS was applied on: its origin is the site the style comes back on.
+  // Saved with the URL the CSS and script were applied on: its origin is the site the style comes back on.
   const saveStyle = () =>
   {
     if (bookmarkId !== null && chat)
     {
-      const { appliedCss, appliedUrl } = chat;
-      runAction('Save', () => pageStyles.save(bookmarkId, appliedCss, appliedUrl));
+      const { appliedCss, appliedScript, appliedUrl } = chat;
+      runAction('Save', () => pageStyles.save(bookmarkId, appliedCss, appliedScript, appliedUrl));
     }
   };
 
@@ -142,7 +146,7 @@ export const PageAgentDrawer: React.FC<PageAgentDrawerProps> = ({
         <StyleStrip
           title={bookmarkTitle}
           savedStyle={savedStyle}
-          stylesheet={chat?.appliedCss}
+          chat={chat}
           running={running}
           onSetAutoApply={setAutoApply}
           onApply={applySaved}
@@ -150,7 +154,7 @@ export const PageAgentDrawer: React.FC<PageAgentDrawerProps> = ({
         />
       )}
 
-      {/* Keyed by tab, so expanded steps and Show CSS don't carry over to another tab's chat. */}
+      {/* Keyed by tab, so expanded steps and Show code don't carry over to another tab's chat. */}
       <PageAgentMessages
         key={tabId ?? 'none'}
         chat={chat}
@@ -158,6 +162,7 @@ export const PageAgentDrawer: React.FC<PageAgentDrawerProps> = ({
         actionError={actionError}
         hasBookmark={bookmarkId !== null}
         savedStyle={savedStyle}
+        onApproveScripts={approveScripts}
         onUndo={undo}
         onReapply={reapply}
         onSave={saveStyle}
@@ -177,6 +182,7 @@ export const PageAgentDrawer: React.FC<PageAgentDrawerProps> = ({
             </button>
           </div>
         )}
+        {!block && pageScriptsOn && <UserScriptsNotice />}
         <div className="flex items-end gap-1.5">
           <textarea
             value={draft}
@@ -223,8 +229,8 @@ interface StyleStripProps
 {
   title: string;
   savedStyle: SavedPageStyle | null;
-  /** The chat's current stylesheet; undefined while the chat loads. */
-  stylesheet: string | undefined;
+  /** The tab's chat, which holds the applied CSS and script; undefined while it loads. */
+  chat: PageAgentChatData | undefined;
   running: boolean;
   onSetAutoApply: (on: boolean) => void;
   onApply: () => void;
@@ -238,7 +244,7 @@ interface StyleStripProps
 const StyleStrip: React.FC<StyleStripProps> = ({
   title,
   savedStyle,
-  stylesheet,
+  chat,
   running,
   onSetAutoApply,
   onApply,
@@ -246,8 +252,8 @@ const StyleStrip: React.FC<StyleStripProps> = ({
 }) =>
 {
   const waitTitle = 'Wait until the agent has finished';
-  // By CSS text, not applied id: right after a save the sheet on the page still has the run's id.
-  const showApply = savedStyle !== null && stylesheet !== undefined && stylesheet !== savedStyle.css;
+  // By code, not applied id: right after a save the sheet on the page still has the run's id.
+  const showApply = savedStyle !== null && chat !== undefined && !savedStyle.holds(chat.appliedCss, chat.appliedScript);
 
   return (
     <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 px-2 pb-1 text-[0.85em] text-gray-600 dark:text-gray-300">

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
 import { AppWindow, Check, Code, Copy, Loader2, Redo2, Save, Undo2, X } from 'lucide-react';
 import type { PageAgentChatData, PageAgentTurn, PageAgentTurnStatus } from '../../services/pageAgent/pageAgentChat';
-import type { PageAgentStep } from '../../services/pageAgent/pageAgentRun';
+import type { PageAgentScriptRequest, PageAgentStep } from '../../services/pageAgent/pageAgentRun';
 import type { SavedPageStyle } from '../../stores/savedPageStyles';
 import { parseMarkdown } from '../../utils/markdown';
 import { MarkdownView } from './MarkdownView';
@@ -16,21 +16,23 @@ interface PageAgentMessagesProps
   hasBookmark: boolean;
   /** The style saved to that bookmark, or null. */
   savedStyle: SavedPageStyle | null;
+  /** Answers the script approval the running turn waits for. */
+  onApproveScripts: (allow: boolean) => void;
   onUndo: () => void;
   onReapply: () => void;
-  /** Saves the chat's current stylesheet to the tab's bookmark. */
+  /** Saves the chat's applied CSS and script to the tab's bookmark. */
   onSave: () => void;
   /** Shows an answered turn's answer in a popup on the page. */
   onShowOnPage: (turnIndex: number) => void;
 }
 
 /**
- * What Save can do with the chat's stylesheet. Compared by CSS text, not by applied id: right
+ * What Save can do with the chat's CSS and script. Compared by their text, not by applied id: right
  * after a save the sheet on the page still carries the run's id.
  */
 type SaveState = 'no-bookmark' | 'new' | 'update' | 'saved';
 
-function saveState(hasBookmark: boolean, savedStyle: SavedPageStyle | null, stylesheet: string): SaveState
+function saveState(hasBookmark: boolean, savedStyle: SavedPageStyle | null, css: string, script: string): SaveState
 {
   if (!hasBookmark)
   {
@@ -40,7 +42,7 @@ function saveState(hasBookmark: boolean, savedStyle: SavedPageStyle | null, styl
   {
     return 'new';
   }
-  return savedStyle.css === stylesheet ? 'saved' : 'update';
+  return savedStyle.holds(css, script) ? 'saved' : 'update';
 }
 
 interface OutcomeStyle
@@ -86,13 +88,14 @@ const OUTCOME_STYLES: Record<PageAgentTurnStatus, OutcomeStyle> = {
 const buttonClass = 'inline-flex items-center gap-1 px-2 py-0.5 rounded border border-gray-300 dark:border-gray-600 ' +
   'bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed';
 
-/** The chat of one tab: user requests, the agent's turns, and the state of the applied stylesheet. */
+/** The chat of one tab: user requests, the agent's turns, and the state of the applied CSS and script. */
 export const PageAgentMessages: React.FC<PageAgentMessagesProps> = ({
   chat,
   running,
   actionError,
   hasBookmark,
   savedStyle,
+  onApproveScripts,
   onUndo,
   onReapply,
   onSave,
@@ -111,7 +114,7 @@ export const PageAgentMessages: React.FC<PageAgentMessagesProps> = ({
     {
       container.scrollTop = container.scrollHeight;
     }
-  }, [chat?.tabId, turns.length, lastTurn?.steps.length, lastTurn?.status, chat?.notice]);
+  }, [chat?.tabId, turns.length, lastTurn?.steps.length, lastTurn?.status, lastTurn?.pendingScript, chat?.notice]);
 
   if (!chat)
   {
@@ -128,17 +131,19 @@ export const PageAgentMessages: React.FC<PageAgentMessagesProps> = ({
           removes everything it applied.
         </p>
       )}
-      {/* A saved style the chat adopted on a fresh tab has no turn to hold Undo and Show CSS. */}
-      {turns.length === 0 && chat.appliedCss && (
-        <StylesheetActions stylesheet={chat.appliedCss} running={running} onUndo={onUndo} />
+      {/* A saved style the chat adopted on a fresh tab has no turn to hold Undo and Show code. */}
+      {turns.length === 0 && (chat.appliedCss || chat.appliedScript) && (
+        <AppliedActions css={chat.appliedCss} script={chat.appliedScript} running={running} onUndo={onUndo} />
       )}
       {turns.map((turn, index) => (
         <TurnView
           key={index}
           turn={turn}
-          stylesheet={index === turns.length - 1 ? chat.appliedCss : ''}
+          appliedCss={index === turns.length - 1 ? chat.appliedCss : ''}
+          appliedScript={index === turns.length - 1 ? chat.appliedScript : ''}
           running={running}
-          saveState={saveState(hasBookmark, savedStyle, chat.appliedCss)}
+          saveState={saveState(hasBookmark, savedStyle, chat.appliedCss, chat.appliedScript)}
+          onApproveScripts={onApproveScripts}
           onUndo={onUndo}
           onSave={onSave}
           onShowOnPage={() => onShowOnPage(index)}
@@ -149,7 +154,7 @@ export const PageAgentMessages: React.FC<PageAgentMessagesProps> = ({
           <span className="flex-1 text-amber-700 dark:text-amber-300">
             {chat.notice === 'reloaded' ? 'Page reloaded, changes removed' : 'Page changed, changes removed'}
           </span>
-          {chat.notice !== 'navigated-other-site' && chat.appliedCss && (
+          {chat.notice !== 'navigated-other-site' && (chat.appliedCss || chat.appliedScript) && (
             <button type="button" className={buttonClass} disabled={running} onClick={onReapply}>
               <Redo2 size={12} />
               Re-apply
@@ -165,16 +170,28 @@ export const PageAgentMessages: React.FC<PageAgentMessagesProps> = ({
 interface TurnViewProps
 {
   turn: PageAgentTurn;
-  /** The chat's current stylesheet, given only to the last turn, which holds Undo, Show CSS and Save. */
-  stylesheet: string;
+  /** The chat's applied CSS and script, given only to the last turn, which holds Undo, Show code and Save. */
+  appliedCss: string;
+  appliedScript: string;
   running: boolean;
   saveState: SaveState;
+  onApproveScripts: (allow: boolean) => void;
   onUndo: () => void;
   onSave: () => void;
   onShowOnPage: () => void;
 }
 
-const TurnView: React.FC<TurnViewProps> = ({ turn, stylesheet, running, saveState, onUndo, onSave, onShowOnPage }) =>
+const TurnView: React.FC<TurnViewProps> = ({
+  turn,
+  appliedCss,
+  appliedScript,
+  running,
+  saveState,
+  onApproveScripts,
+  onUndo,
+  onSave,
+  onShowOnPage,
+}) =>
 {
   const [showSteps, setShowSteps] = useState(false);
   const outcome = OUTCOME_STYLES[turn.status];
@@ -248,6 +265,10 @@ const TurnView: React.FC<TurnViewProps> = ({ turn, stylesheet, running, saveStat
           </div>
         )}
 
+        {isRunning && turn.pendingScript && (
+          <ScriptApproval request={turn.pendingScript} onAnswer={onApproveScripts} />
+        )}
+
         {/* Not disabled by a run: showing an answer touches only the popup, never the stylesheet. */}
         {isAnswer && (
           <div className="flex flex-wrap gap-1.5">
@@ -258,28 +279,62 @@ const TurnView: React.FC<TurnViewProps> = ({ turn, stylesheet, running, saveStat
           </div>
         )}
 
-        {stylesheet && (
-          <StylesheetActions stylesheet={stylesheet} running={running} onUndo={onUndo}>
+        {(appliedCss || appliedScript) && (
+          <AppliedActions css={appliedCss} script={appliedScript} running={running} onUndo={onUndo}>
             <SaveButton state={saveState} running={running} onSave={onSave} />
-          </StylesheetActions>
+          </AppliedActions>
         )}
       </div>
     </div>
   );
 };
 
-interface StylesheetActionsProps
+/**
+ * The run waits on this: the first script of a request runs only once the user allows it, and the
+ * answer holds for the request's other scripts. Stop still ends the run.
+ */
+const ScriptApproval: React.FC<{ request: PageAgentScriptRequest; onAnswer: (allow: boolean) => void }> = ({ request, onAnswer }) => (
+  <div className="rounded border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 px-2 py-1.5 space-y-1.5">
+    <div className="font-medium text-amber-800 dark:text-amber-200">The agent wants to run JavaScript on this page</div>
+    <p className="text-gray-600 dark:text-gray-300">
+      {request.kind === 'check'
+        ? 'A check: it reads the page and removes what it added when it returns.'
+        : 'It stays on the page until Undo or a reload.'}
+      {' '}Allow also covers the other scripts of this request; Deny refuses them all.
+    </p>
+    <pre className="max-h-48 overflow-auto rounded bg-white dark:bg-gray-900 p-1.5 font-mono text-[0.85em] whitespace-pre-wrap break-all">
+      {request.code}
+    </pre>
+    <div className="flex flex-wrap gap-1.5">
+      <button
+        type="button"
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-500 text-white hover:bg-blue-600"
+        onClick={() => onAnswer(true)}
+      >
+        <Check size={12} />
+        Allow
+      </button>
+      <button type="button" className={buttonClass} onClick={() => onAnswer(false)}>
+        <X size={12} />
+        Deny
+      </button>
+    </div>
+  </div>
+);
+
+interface AppliedActionsProps
 {
-  stylesheet: string;
+  css: string;
+  script: string;
   running: boolean;
   onUndo: () => void;
-  /** More buttons for the row, after Undo and Show CSS. */
+  /** More buttons for the row, after Undo and Show code. */
   children?: React.ReactNode;
 }
 
-const StylesheetActions: React.FC<StylesheetActionsProps> = ({ stylesheet, running, onUndo, children }) =>
+const AppliedActions: React.FC<AppliedActionsProps> = ({ css, script, running, onUndo, children }) =>
 {
-  const [showCss, setShowCss] = useState(false);
+  const [showCode, setShowCode] = useState(false);
 
   return (
     <div className="space-y-1.5">
@@ -294,13 +349,14 @@ const StylesheetActions: React.FC<StylesheetActionsProps> = ({ stylesheet, runni
           <Undo2 size={12} />
           Undo
         </button>
-        <button type="button" className={buttonClass} onClick={() => setShowCss(!showCss)}>
+        <button type="button" className={buttonClass} onClick={() => setShowCode(!showCode)}>
           <Code size={12} />
-          {showCss ? 'Hide CSS' : 'Show CSS'}
+          {showCode ? 'Hide code' : 'Show code'}
         </button>
         {children}
       </div>
-      {showCss && <CssBlock css={stylesheet} />}
+      {showCode && css && <CodeBlock label="CSS" code={css} />}
+      {showCode && script && <CodeBlock label="Script" code={script} />}
     </div>
   );
 };
@@ -310,7 +366,7 @@ const SaveButton: React.FC<{ state: SaveState; running: boolean; onSave: () => v
   if (state === 'saved')
   {
     return (
-      <button type="button" className={buttonClass} disabled title="The bookmark’s saved style is this stylesheet">
+      <button type="button" className={buttonClass} disabled title="The bookmark’s saved style is what is applied now">
         <Check size={12} />
         Saved
       </button>
@@ -330,8 +386,8 @@ const SaveButton: React.FC<{ state: SaveState; running: boolean; onSave: () => v
   else
   {
     title = state === 'update'
-      ? 'Replace the bookmark’s saved style with this stylesheet'
-      : 'Save this stylesheet to the bookmark and apply it whenever a page of this site loads in the bookmark’s tab';
+      ? 'Replace the bookmark’s saved style with what is applied now'
+      : 'Save what is applied to the bookmark and apply it whenever a page of this site loads in the bookmark’s tab';
   }
 
   return (
@@ -360,18 +416,21 @@ const StepView: React.FC<{ step: PageAgentStep }> = ({ step }) => (
       {step.args && <span className="text-gray-500 dark:text-gray-400"> ({step.args})</span>}
       {step.result && <span className="text-gray-500 dark:text-gray-400"> → {step.result}</span>}
     </div>
-    {step.css && (
-      <pre className="max-h-40 overflow-auto rounded bg-gray-100 dark:bg-gray-800 p-1 font-mono text-[0.85em] whitespace-pre-wrap break-all">
-        {step.css}
-      </pre>
-    )}
+    {step.css && <StepCode code={step.css} />}
+    {step.script && <StepCode code={step.script} />}
     {step.screenshotDataUrl && (
       <img src={step.screenshotDataUrl} alt="Screenshot the agent took" className="max-w-full rounded border border-gray-200 dark:border-gray-700" />
     )}
   </li>
 );
 
-const CssBlock: React.FC<{ css: string }> = ({ css }) =>
+const StepCode: React.FC<{ code: string }> = ({ code }) => (
+  <pre className="max-h-40 overflow-auto rounded bg-gray-100 dark:bg-gray-800 p-1 font-mono text-[0.85em] whitespace-pre-wrap break-all">
+    {code}
+  </pre>
+);
+
+const CodeBlock: React.FC<{ label: string; code: string }> = ({ label, code }) =>
 {
   const [copied, setCopied] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -386,7 +445,7 @@ const CssBlock: React.FC<{ css: string }> = ({ css }) =>
 
   const copy = () =>
   {
-    navigator.clipboard.writeText(css)
+    navigator.clipboard.writeText(code)
       .then(() =>
       {
         setCopied(true);
@@ -400,14 +459,17 @@ const CssBlock: React.FC<{ css: string }> = ({ css }) =>
   };
 
   return (
-    <div className="relative">
-      <pre className="max-h-48 overflow-auto rounded bg-gray-100 dark:bg-gray-800 p-1.5 pr-14 font-mono text-[0.85em] whitespace-pre-wrap break-all">
-        {css}
-      </pre>
-      <button type="button" className={clsx(buttonClass, 'absolute top-1 right-1')} onClick={copy}>
-        {copied ? <Check size={12} /> : <Copy size={12} />}
-        {copied ? 'Copied' : 'Copy'}
-      </button>
+    <div className="space-y-0.5">
+      <div className="text-[0.85em] font-medium text-gray-500 dark:text-gray-400">{label}</div>
+      <div className="relative">
+        <pre className="max-h-48 overflow-auto rounded bg-gray-100 dark:bg-gray-800 p-1.5 pr-14 font-mono text-[0.85em] whitespace-pre-wrap break-all">
+          {code}
+        </pre>
+        <button type="button" className={clsx(buttonClass, 'absolute top-1 right-1')} onClick={copy}>
+          {copied ? <Check size={12} /> : <Copy size={12} />}
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
     </div>
   );
 };

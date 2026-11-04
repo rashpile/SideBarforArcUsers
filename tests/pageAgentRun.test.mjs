@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import { PageAgentRun } from '../src/services/pageAgent/pageAgentRun.ts';
 import { PAGE_AGENT_MAX_ROUNDS } from '../src/services/pageAgent/pageAgentTools.ts';
+import { withMarker } from '../src/utils/pageAgentCss.ts';
 
 const TAB_A = 11;
 const TAB_B = 22;
@@ -65,6 +66,9 @@ class FakePage
     this.inserted = [];
     this.removed = [];
     this.popups = [];
+    this.userScripts = [];
+    /** Results runUserScript answers with in order; then a script that ran and returned nothing. */
+    this.scriptResults = [];
   }
 
   async outline(tabId)
@@ -116,6 +120,13 @@ class FakePage
     this.calls.push({ method: 'pageUrl', tabId });
     return 'https://site.test/videos/1';
   }
+
+  async runUserScript(tabId, command)
+  {
+    this.calls.push({ method: 'runUserScript', tabId });
+    this.userScripts.push(command);
+    return this.scriptResults.shift() ?? { ok: true, compiled: true, value: 'undefined', errors: [] };
+  }
 }
 
 const PLUGIN_TOOL = 'read_video_transcript';
@@ -154,11 +165,14 @@ class FakePlugin
 
 class RecordingListener
 {
-  constructor()
+  /** `approve`: the user's answer to a script, or a function that returns the promise of one. */
+  constructor(approve)
   {
+    this.approve = approve;
     this.steps = [];
     this.conditions = [];
     this.applied = [];
+    this.approvals = [];
     this.finished = [];
   }
 
@@ -172,9 +186,15 @@ class RecordingListener
     this.conditions.push({ conditions, replaced });
   }
 
-  onCssApplied(applied)
+  onApplied(applied)
   {
     this.applied.push(applied);
+  }
+
+  async onScriptApproval(request)
+  {
+    this.approvals.push(request);
+    return typeof this.approve === 'function' ? await this.approve(request) : this.approve;
   }
 
   onFinished(result)
@@ -185,7 +205,8 @@ class RecordingListener
 
 function startRun(client, page, options = {})
 {
-  const listener = new RecordingListener();
+  const { approve = true, ...runOptions } = options;
+  const listener = new RecordingListener(approve);
   let nextId = 0;
   const run = new PageAgentRun({
     tabId: TAB_A,
@@ -194,8 +215,9 @@ function startRun(client, page, options = {})
     adapter: page,
     listener,
     screenshots: false,
+    scripts: false,
     createId: () => `applied-${++nextId}`,
-    ...options,
+    ...runOptions,
   });
   return { run, listener };
 }
@@ -526,6 +548,57 @@ test('apply_css before set_conditions is refused and nothing is inserted', async
   assert.deepEqual(listener.applied, []);
 });
 
+test('apply_css in a CSS-only run inserts withMarker(css, id) in place of the earlier sheet', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const css = 'iframe { width: 100% !important; }';
+  const client = new ScriptedClient([
+    respond(setConditions('c1'), call('apply_css', { css })),
+    answer('I stop here.'),
+  ]);
+  const { run, listener } = startRun(client, page, { currentCss: 'main { color: red; }', insertedText: 'earlier stylesheet' });
+
+  await run.run();
+
+  assert.deepEqual(page.removed, ['earlier stylesheet']);
+  assert.deepEqual(page.inserted, [withMarker(css, 'applied-1')]);
+  assert.deepEqual(listener.applied, [{
+    css,
+    script: '',
+    insertedText: withMarker(css, 'applied-1'),
+    appliedId: 'applied-1',
+    url: 'https://site.test/videos/1',
+  }]);
+});
+
+test('apply_css after a run started with a script keeps the script in the applied set and leaves it running', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const script = 'agent.on(document, "keydown", event => console.log(event.key));';
+  const client = new ScriptedClient([
+    respond(
+      setConditions('c1'),
+      call('apply_css', { css: 'iframe { width: 100% !important; }' }),
+      call('apply_css', { css: 'iframe { width: 90% !important; }' }),
+    ),
+    answer('I stop here.'),
+  ]);
+  const { run, listener } = startRun(client, page, {
+    currentCss: '',
+    currentScript: script,
+    insertedText: withMarker('', 'saved-id'),
+  });
+
+  await run.run();
+
+  assert.deepEqual(listener.applied.map(applied => [applied.appliedId, applied.script]), [
+    ['applied-1', script],
+    ['applied-2', script],
+  ]);
+  assert.deepEqual(page.removed, [withMarker('', 'saved-id'), withMarker('iframe { width: 100% !important; }', 'applied-1')]);
+  assert.deepEqual(page.userScripts, [], 'a CSS change neither undoes nor re-runs the script');
+});
+
 test('a stylesheet the sanitizer rejects goes back to the model and nothing is inserted', async () =>
 {
   const page = new FakePage(TAB_A);
@@ -708,4 +781,239 @@ test('Stop during a plugin call that never settles ends the run as stopped', asy
   assert.equal(result.status, 'stopped');
   assert.equal(client.requests.length, 1);
   assert.deepEqual(listener.finished, [result]);
+});
+
+const SCRIPTS_OFF = 'refused: scripts are off; change the page with CSS';
+const DECLINED = /^refused: the user declined to run scripts/;
+
+test('with scripts off, apply_script and run_check are refused and reach neither the page nor the approval listener', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const client = new ScriptedClient([
+    respond(
+      setConditions('c1'),
+      call('apply_script', { code: 'agent.on(document, "keydown", () => undefined);' }),
+      call('run_check', { code: 'return document.title;' }),
+    ),
+    answer('I stop here.'),
+  ]);
+  const { run, listener } = startRun(client, page, { currentScript: 'agent.onUndo(() => undefined);' });
+
+  await run.run();
+
+  const offered = client.requests[0].tools.map(tool => tool.function.name);
+  assert.ok(!offered.includes('apply_script') && !offered.includes('run_check'));
+  assert.deepEqual(client.toolResults(1).slice(1).map(message => message.content), [SCRIPTS_OFF, SCRIPTS_OFF]);
+  assert.deepEqual(page.calls, []);
+  assert.deepEqual(listener.approvals, []);
+  assert.deepEqual(listener.applied, []);
+});
+
+test('apply_script before set_conditions is refused before the approval and the page', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const client = new ScriptedClient([
+    respond(call('apply_script', { code: 'agent.on(document, "keydown", () => undefined);' })),
+    answer('I stop here.'),
+  ]);
+  const { run, listener } = startRun(client, page, { scripts: true });
+
+  await run.run();
+
+  assert.match(client.toolResults(1)[0].content, /set_conditions first/);
+  assert.deepEqual(page.calls, []);
+  assert.deepEqual(listener.approvals, []);
+  assert.deepEqual(listener.applied, []);
+});
+
+test('the user approves the first script of a run once, and every script runs on the run tab with a new applied id', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const css = 'main { color: red !important; }';
+  const first = 'agent.on(document, "keydown", () => undefined);';
+  const second = `${first}\nagent.on(document, "keyup", () => undefined);`;
+  const client = new ScriptedClient([
+    respond(setConditions('c1'), call('apply_script', { code: first }), call('run_check', { code: 'return 1;' })),
+    () =>
+    {
+      page.activeTabId = TAB_B;
+      return respond(call('apply_script', { code: second }), call('run_check', { code: 'return 2;' }));
+    },
+    respond(call('report', { results: [{ id: 'c1', met: true, measured: '2' }], summary: 'done' })),
+  ]);
+  const { run, listener } = startRun(client, page, {
+    scripts: true,
+    currentCss: css,
+    insertedText: withMarker(css, 'saved-id'),
+  });
+
+  const result = await run.run();
+
+  assert.equal(result.status, 'met');
+  assert.deepEqual(listener.approvals, [{ kind: 'apply', code: first }]);
+  assert.deepEqual(page.userScripts, [
+    { kind: 'apply', code: first },
+    { kind: 'check', code: 'return 1;' },
+    { kind: 'apply', code: second },
+    { kind: 'check', code: 'return 2;' },
+  ]);
+  assert.deepEqual(page.calls.filter(entry => entry.tabId !== TAB_A), []);
+  assert.deepEqual(listener.applied.map(applied => [applied.appliedId, applied.css, applied.script]), [
+    ['applied-1', css, first],
+    ['applied-2', css, second],
+  ]);
+  assert.deepEqual(page.inserted, [withMarker(css, 'applied-1'), withMarker(css, 'applied-2')]);
+  assert.deepEqual(page.removed, [withMarker(css, 'saved-id'), withMarker(css, 'applied-1')]);
+});
+
+test('Deny refuses every later script of the run without asking again, and none reaches the page', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const client = new ScriptedClient([
+    respond(setConditions('c1'), call('apply_script', { code: 'agent.on(document, "keydown", () => undefined);' })),
+    respond(call('run_check', { code: 'return 1;' }), call('apply_script', { code: 'agent.onUndo(() => undefined);' })),
+    answer('I stop here.'),
+  ]);
+  const { run, listener } = startRun(client, page, { scripts: true, approve: false });
+
+  await run.run();
+
+  assert.equal(listener.approvals.length, 1);
+  assert.match(client.toolResults(1).at(-1).content, DECLINED);
+  assert.ok(client.toolResults(2).slice(-2).every(message => DECLINED.test(message.content)));
+  assert.deepEqual(page.calls, []);
+  assert.deepEqual(listener.applied, []);
+});
+
+test('a blank apply_script removes the script and a blank run_check is refused, neither asking, so a later script is still put to the user', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const css = 'main { color: red !important; }';
+  const client = new ScriptedClient([
+    respond(
+      setConditions('c1'),
+      call('run_check', { code: ' ' }),
+      call('apply_script', { code: '  \n' }),
+      call('apply_script', { code: 'agent.onUndo(() => undefined);' }),
+    ),
+    answer('I stop here.'),
+  ]);
+  const { run, listener } = startRun(client, page, {
+    scripts: true,
+    approve: false,
+    currentCss: css,
+    currentScript: 'agent.on(document, "keydown", () => undefined);',
+    insertedText: withMarker(css, 'saved-id'),
+  });
+
+  await run.run();
+
+  assert.deepEqual(listener.approvals, [{ kind: 'apply', code: 'agent.onUndo(() => undefined);' }]);
+  assert.deepEqual(page.userScripts, [{ kind: 'undo' }], 'the old script is stopped; nothing else runs');
+  assert.deepEqual(listener.applied.map(applied => [applied.appliedId, applied.css, applied.script]), [['applied-1', css, '']]);
+  const results = client.toolResults(1).slice(1).map(message => message.content);
+  assert.match(results[0], /^refused: the code is empty/);
+  assert.match(results[1], /"ok":true/);
+  assert.match(results[2], DECLINED);
+});
+
+test('Stop while the approval waits ends the run as stopped and runs no script', async () =>
+{
+  const page = new FakePage(TAB_A);
+  let asked;
+  const approvalAsked = new Promise(resolve =>
+  {
+    asked = resolve;
+  });
+  const client = new ScriptedClient([
+    respond(setConditions('c1'), call('apply_script', { code: 'agent.on(document, "keydown", () => undefined);' })),
+  ]);
+  const { run, listener } = startRun(client, page, {
+    scripts: true,
+    approve: () =>
+    {
+      asked();
+      return new Promise(() => undefined);
+    },
+  });
+
+  const finished = run.run();
+  await approvalAsked;
+  run.stop();
+  const result = await finished;
+
+  assert.equal(result.status, 'stopped');
+  assert.deepEqual(page.calls, []);
+  assert.deepEqual(listener.finished, [result]);
+});
+
+test('a report is refused until a compiled run_check in an earlier response follows the last apply_script', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const ran = { ok: true, compiled: true, value: '1', errors: [] };
+  page.scriptResults = [ran, ran, ran, { ok: false, compiled: false, error: 'SyntaxError: Unexpected end of input', errors: [] }];
+  const report = () => call('report', { results: [{ id: 'c1', met: true, measured: 'seeks to 12.4 s' }], summary: 'done' });
+  const client = new ScriptedClient([
+    // In the same response as the change and the check: written before any value came back.
+    respond(
+      setConditions('c1'),
+      call('apply_script', { code: 'agent.on(document, "keydown", () => undefined);' }),
+      call('run_check', { code: 'return 1;' }),
+      report(),
+    ),
+    // A new script makes the earlier check stale; a check that doesn't compile, or a blank one, measures nothing.
+    respond(call('apply_script', { code: 'agent.on(document, "keyup", () => undefined);' })),
+    respond(call('run_check', { code: 'return (' })),
+    respond(report()),
+    respond(call('run_check', { code: '' })),
+    respond(report()),
+    respond(call('run_check', { code: 'return 1;' })),
+    respond(report()),
+  ]);
+  const { run, listener } = startRun(client, page, { scripts: true });
+
+  const result = await run.run();
+
+  assert.equal(result.status, 'met');
+  assert.deepEqual(
+    listener.steps.filter(entry => entry.tool === 'report').map(entry => entry.result.startsWith('refused')),
+    [true, true, true, false],
+  );
+});
+
+test('an apply_script that does not compile keeps the applied set and id; one that compiles and fails is recorded for Undo', async () =>
+{
+  const page = new FakePage(TAB_A);
+  const css = 'iframe { width: 100% !important; }';
+  const running = 'agent.on(document, "keydown", () => undefined);';
+  const stalled = 'agent.on(document, "keyup", () => undefined); await new Promise(() => undefined);';
+  page.scriptResults = [
+    { ok: true, compiled: true, value: 'undefined', errors: [] },
+    { ok: false, compiled: false, error: 'SyntaxError: Unexpected end of input', errors: [] },
+    { ok: false, compiled: true, error: 'still running after 10 s; what it registered stays, Undo removes it', errors: [] },
+  ];
+  const client = new ScriptedClient([
+    respond(
+      setConditions('c1'),
+      call('apply_css', { css }),
+      call('apply_script', { code: running }),
+      call('apply_script', { code: 'agent.on(document, "keydown", (' }),
+      call('apply_css', { css: `${css} main { color: red !important; }` }),
+      call('apply_script', { code: stalled }),
+    ),
+    answer('I stop here.'),
+  ]);
+  const { run, listener } = startRun(client, page, { scripts: true });
+
+  await run.run();
+
+  assert.match(client.toolResults(1)[3].content, /"compiled":false/);
+  assert.deepEqual(listener.applied.map(applied => [applied.appliedId, applied.script]), [
+    ['applied-1', ''],
+    ['applied-2', running],
+    ['applied-3', running],
+    ['applied-4', stalled],
+  ]);
+  assert.equal(page.inserted.length, 4);
+  assert.deepEqual(page.removed, page.inserted.slice(0, 3));
 });

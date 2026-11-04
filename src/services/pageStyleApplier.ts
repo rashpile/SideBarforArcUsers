@@ -4,11 +4,15 @@
 //
 // Only the tab associated with the bookmark gets the style: a hand-opened tab of the same site
 // stays unstyled. The inserted text carries the marker id `saved-<rev>`, so the side panel can
-// recognize the sheet as the saved one and remove it by its exact text.
+// recognize the sheet as the saved one and remove it by its exact text. A saved script runs after
+// the sheet is in (a marker-only sheet for a script-only style), so the marker shows that the saved
+// style was put on the page, not that its script ran: with user scripts off, or a script that failed,
+// the sheet stays without it.
 
 import { bookmarkIdFromItemKey, httpOriginOf } from '../stores/savedPageStyles.ts';
 import type { SavedPageStyle, SavedPageStyles } from '../stores/savedPageStyles.ts';
 import { PageAgentCssSanitizer } from '../utils/pageAgentCss.ts';
+import { PageAgentScriptCheck } from '../utils/pageAgentScript.ts';
 
 /** The fields of chrome.tabs.Tab the applier decides on. */
 export interface PageStyleTab
@@ -32,6 +36,10 @@ export interface PageStyleApplierDeps
   getTab: (tabId: number) => Promise<PageStyleTab>;
   queryTabs: () => Promise<PageStyleTab[]>;
   insertCss: (tabId: number, text: string) => Promise<void>;
+  /** Chrome 135+ with the userScripts permission and Allow User Scripts on, read at each insert. */
+  scriptsAvailable: () => boolean;
+  /** Applies the saved script in the tab's page; rejects when it doesn't compile, throws or times out. */
+  runScript: (tabId: number, url: string, code: string) => Promise<void>;
   /** The applied id of the page agent's stylesheet on the page, or '' when the page has none. */
   readMarker: (tabId: number) => Promise<string>;
   debug: boolean;
@@ -86,7 +94,7 @@ export class PageStyleApplier
       const tab = await this.#deps.getTab(tabId);
       const style = await this.#styleForTab(tab, this.#deps.associationsOf);
       if (!style) return;
-      await this.#insert(tabId, style);
+      await this.#insert(tabId, tab.url!, style);
       this.#awaitingLoadCheck.delete(tabId);
     });
   }
@@ -140,7 +148,7 @@ export class PageStyleApplier
       this.#log(`tab ${tabId} already has the sheet "${marker}"`);
       return;
     }
-    await this.#insert(tabId, style);
+    await this.#insert(tabId, tab.url!, style);
   }
 
   // The style to put on the tab's current page, or null when the tab doesn't get one
@@ -161,13 +169,36 @@ export class PageStyleApplier
       this.#log(`saved style of bookmark ${bookmarkId} fails the CSS check, not applied`);
       return null;
     }
+    if (!PageAgentScriptCheck.check(style.script).ok)
+    {
+      this.#log(`saved style of bookmark ${bookmarkId} fails the script check, not applied`);
+      return null;
+    }
     return style;
   }
 
-  async #insert(tabId: number, style: SavedPageStyle): Promise<void>
+  // The sheet goes in first, so a script that fails or can't run still leaves the saved look on the
+  // page; its marker then keeps the load-complete check and the sweep from trying again.
+  async #insert(tabId: number, url: string, style: SavedPageStyle): Promise<void>
   {
     await this.#deps.insertCss(tabId, style.insertedText);
     this.#log(`applied saved style "${style.appliedId}" to tab ${tabId}`);
+    if (style.script === '') return;
+
+    if (!this.#deps.scriptsAvailable())
+    {
+      this.#log(`user scripts are unavailable, the script of "${style.appliedId}" not run in tab ${tabId}`);
+      return;
+    }
+    try
+    {
+      await this.#deps.runScript(tabId, url, style.script);
+      this.#log(`ran the script of "${style.appliedId}" in tab ${tabId}`);
+    }
+    catch (error)
+    {
+      this.#logError(`the script of "${style.appliedId}" failed in tab ${tabId}`, error);
+    }
   }
 
   // Waits for readiness inside the tab's queue, so events that arrive before the restore ends keep

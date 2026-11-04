@@ -175,7 +175,7 @@ Array<{ tabId: number, url: string, title: string, incognito: boolean, spaceId?:
 - Instances: 1 per extension
 
 ### `pageAgentChat:${tabId}`
-Page agent chat of one tab (experimental): the user's requests, the agent's turns (style changes and answers) and the stylesheet it applied last
+Page agent chat of one tab (experimental): the user's requests, the agent's turns (style changes and answers) and the stylesheet and script it applied last
 ```typescript
 {
   tabId: number,
@@ -184,14 +184,16 @@ Page agent chat of one tab (experimental): the user's requests, the agent's turn
     status: 'running' | 'met' | 'not-met' | 'answered' | 'stopped' | 'error',  // answered: a question was answered (or asked back), nothing changed
     conditions: Array<{ id: string, text: string, met: boolean, measured: string }>,
     replaced: Array<{ id: string, text: string, reason: string }>,  // earlier conditions this request replaced
-    steps: Array<{ tool: string, args: string, result: string, css?: string }>,  // no screenshots; outline and page text keep a 500-character preview
+    steps: Array<{ tool: string, args: string, result: string, css?: string, script?: string }>,  // no screenshots; outline and page text keep a 500-character preview; script: the code of apply_script / run_check, cut at 8000 characters
     summary: string,             // the full markdown answer for answered turns; follow-up history cuts it at 4000 characters
     error?: string,
-    screenshotsNote?: string
+    screenshotsNote?: string,
+    pendingScript?: { kind: 'apply' | 'check', code: string }  // only while the run waits for Allow / Deny of its first script
   }>,
-  appliedCss: string,           // sanitized stylesheet without the marker; Show CSS and Re-apply use it
+  appliedCss: string,           // sanitized stylesheet without the marker; Show code and Re-apply use it
+  appliedScript: string,        // the script applied last (apply_script, Re-apply, a saved style); '' when none; Show code and Re-apply use it
   appliedInsertedText: string,  // exact text passed to insertCSS; removeCSS finds a sheet only by its text
-  appliedId: string,            // value of the --sidebar-page-agent marker in that text
+  appliedId: string,            // value of the --sidebar-page-agent marker in that text; the CSS and script are one set under this id, marker-only text when the CSS is empty
   appliedUrl: string,           // tab URL when the stylesheet was applied
   notice: 'none' | 'reloaded' | 'navigated-same-site' | 'navigated-other-site'  // Re-apply offered for the first two
 }
@@ -199,13 +201,16 @@ Page agent chat of one tab (experimental): the user's requests, the agent's turn
 - Owner: `PageAgentChats` (`src/services/pageAgent/pageAgentChats.ts`) through `PageAgentChatStore` (`pageAgentChatStore.ts`, writes queued in order), one per side panel, created in `src/App.tsx` by `createPanelPageAgentChats` and alive as long as the panel, not the drawer
 - Writer: the side panel of the window that holds the tab. It saves after every event of a run it started, also while the drawer shows another tab or is closed, and after Undo, Re-apply, the style strip's Apply and a marker check. A panel loads only the chats of tabs its drawer shows, and `tabs.onUpdated` marker checks skip chats it hasn't loaded, so it doesn't write the chat of a tab in another window. A tab moved to another window mid-chat is a known limitation
 - Deletes: any panel on `tabs.onRemoved` (`tabClosed` aborts the tab's run and keeps its later events from writing the key back); the sweep at panel start deletes the keys of tabs missing from `chrome.tabs.query({})`
-- `appliedInsertedText` stays until it has been removed: Undo, the next `apply_css` and Re-apply call `removeCSS` with it first. Undo then clears the applied fields and the notice
-- Notice (`checkMarker`, on `tabs.onUpdated` with `status: 'complete'` and whenever a chat with applied CSS or a tab with a saved style is shown, and again when that saved style's `rev` changes, since `onUpdated` is unreliable in the side panel): the page's `--sidebar-page-agent` equal to `appliedId` clears it; an empty marker sets `reloaded` when the tab URL equals `appliedUrl`, else `navigated`. A chat with no applied CSS in a tab without a saved style is not checked, so it gets no notice and no page read
-- Saved styles (`bookmarkPageStyles`): when the marker is the `saved-<rev>` id of the style saved to the tab's bookmark or Favorite and differs from `appliedId`, `checkMarker` adopts that sheet as the applied fields (also into a chat with no turns), so Undo, Show CSS and the next `apply_css` work on it. The strip's Apply removes the chat's sheet, inserts the saved one unless the marker already shows it, and records it the same way; it is ignored during a run
+- `appliedInsertedText` stays until it has been removed: Undo, the next `apply_css` or `apply_script` and Re-apply call `removeCSS` with it first. Undo then clears the applied fields and the notice
+- `appliedScript`: Undo also runs the `undo` command in the page's user script world, and clears the chat even when that fails (it then asks for a reload); a tab that moved to a page that isn't http(s) has no world and nothing to stop. Re-apply and the strip's Apply run the script again with `apply`; a script that fails there is still recorded, since what it registered stays until Undo. A stored chat without the field reads it as `''`
+- `pendingScript`: set when the run asks for approval (`onScriptApproval`, the first script of a run only) and cleared when `approveScripts` answers or the turn ends; a run that ends while asking is answered Deny. A stored turn loads without it, as its run is gone
+- Notice (`checkMarker`, on `tabs.onUpdated` with `status: 'complete'` and whenever a chat with applied CSS or script or a tab with a saved style is shown, and again when that saved style's `rev` changes, since `onUpdated` is unreliable in the side panel): the page's `--sidebar-page-agent` equal to `appliedId` clears it; an empty marker sets `reloaded` when the tab URL equals `appliedUrl`, else `navigated`. A chat with nothing applied (no `appliedInsertedText`) in a tab without a saved style is not checked, so it gets no notice and no page read
+- Saved styles (`bookmarkPageStyles`): when the marker is the `saved-<rev>` id of the style saved to the tab's bookmark or Favorite and differs from `appliedId`, `checkMarker` adopts that sheet as the applied fields (also into a chat with no turns), so Undo, Show code and the next `apply_css` or `apply_script` work on it; the saved script comes with it, though the marker shows only that the sheet is in, not that the background could run the script. Unless the marker already shows the saved id, the strip's Apply removes the chat's sheet, undoes the chat's script and inserts the saved sheet; either way it then applies the saved script (`apply` replaces a copy the background ran) and records the saved style the same way. It is ignored during a run
 - Loading: a turn stored as `running` loads as `stopped` ("Side panel closed during the run"), since runs live only in the panel that started them. A value that isn't a chat of that tab loads as no chat
 - Screenshots stay in the open panel's memory and are never written
+- The running script has no key: its registry (listeners, timers, observers, added nodes and pending errors) is `globalThis.__sidebarPageAgent` in the USER_SCRIPT world `page-agent:<origin>` of the page (`runUserScriptCommand`, `src/services/pageAgent/userScriptRuntime.ts`), gone with a reload or a move to another document. Each origin's world gets its CSP from `configureWorld` before every command; Chrome keeps these world configurations until the extension updates and refuses `configureWorld` once it holds 100, so `UserScriptRunner` then resets the other `page-agent:` worlds and configures again
 - The answer popup has no key: its state is a reference on the extension's isolated-world `window` in the page (`runPagePopupCommand`, `src/services/pageAgent/pagePopup.ts`), dropped by ✕, a reload, a `pagehide` (also when the page goes into the back/forward cache, so Back doesn't bring the popup back), or a push or back/forward navigation to another path or query (a `replace` that rewrites the query keeps it). At the end of an answered turn the panel appends the answer to the run's tab only when that popup is still there; Show on page opens a new one from the turn's `summary`
-- Why session storage: chats are keyed by tab ID, which is valid for one browser session. An extension reload or update clears them while their CSS stays on the pages until a reload
+- Why session storage: chats are keyed by tab ID, which is valid for one browser session. An extension reload or update clears them while their CSS and scripts stay on the pages until a reload
 - Instances: 1 per tab with a chat
 
 ---
@@ -437,13 +442,14 @@ string  // JSON of
   prompt: string,          // AI naming prompt
   autoRename: boolean,     // name new Favorites and pinned pages automatically
   acceptsImages: boolean,  // "Model accepts images": the page agent may send screenshots; default false
-  agentPlugins: Record<string, boolean>  // "Page agent plugins": on/off by plugin id, e.g. { 'video-transcripts': false }; default {}
+  agentPlugins: Record<string, boolean>  // "Page agent plugins": on/off by plugin id, e.g. { 'video-transcripts': false, 'page-scripts': true }; default {}
 }
 ```
 - Owner: `src/App.tsx` (via `useChromeLocalStorage`, JSON), set from `src/components/SettingsDialog.tsx` (AI tab)
 - Consumers: `src/App.tsx` (AI naming through `OpenAiCompatibleClient`, `src/services/aiRenameService.ts`), `src/components/pageAgent/PageAgentDrawer.tsx` (from `App`; each page agent run gets the settings current at send time, and `PageAgentRuntime.createRun` in `src/services/pageAgent/pageAgentRuntime.ts` gives the run only the enabled plugins); not read by background
 - Parsing: `parseAiRenameSettings` (`src/utils/aiConfig.ts`); missing fields take the defaults, an unknown `protocol` reads as `'auto'`, an unknown `reasoningEffort` as `'medium'`, `autoRename` and `acceptsImages` are true only when stored as `true`, and the old Chinese default prompt is replaced by the current default. `agentPlugins` keeps only entries whose value is a boolean; a value that isn't an object reads as `{}`
-- `agentPlugins` holds an entry only for a plugin the user switched in Settings. A missing id takes the plugin's `defaultEnabled` from `PAGE_AGENT_PLUGINS` (`src/services/pageAgent/pageAgentPlugins.ts`; Video transcripts: on), so a plugin added in a later version starts with its default. `PageAgentPluginSwitches` reads and writes the field
+- `agentPlugins` holds an entry only for a plugin the user switched in Settings. A missing id takes the plugin's `defaultEnabled` from `PAGE_AGENT_PLUGINS` (`src/services/pageAgent/pageAgentPlugins.ts`; Video transcripts: on, Page scripts: off), so a plugin added in a later version starts with its default. `PageAgentPluginSwitches` reads and writes the field
+- `page-scripts` (Page scripts) has no tool plugin behind it: `PageAgentRuntime.createRun` gives the run `scripts: true`, which offers `apply_script` and `run_check`, only when the switch is on (`isEnabledId`) and Chrome allows user scripts. Ticking it in Settings requests the optional `userScripts` permission and leaves the switch off when that is refused. The drawer reads it to show the scripts-blocked notice. It stops only the agent writing scripts: saved scripts (`bookmarkPageStyles`) run without it
 - Instances: 1 per extension (shared across windows)
 
 ### `pageAgentDrawerHeight`
@@ -456,19 +462,20 @@ string  // raw integer, not JSON; absent until the first resize
 - Instances: 1 per extension (shared across windows)
 
 ### `bookmarkPageStyles`
-Page agent CSS saved to bookmarks and Favorites (experimental), put back on the pages of its site that load in the bookmark's tab
+Page agent CSS and script saved to bookmarks and Favorites (experimental), put back on the pages of its site that load in the bookmark's tab
 ```typescript
 Record<string, {       // by bookmark id; a Favorite's id is its bookmark node id
   css: string,         // sanitized stylesheet without the marker
   autoApply: boolean,  // apply on page loads in the bookmark's tab; true for a new record, kept on an update
   origin: string,      // origin of the http(s) page the style was saved on
-  rev: string          // random id, new on every save; the inserted text carries the marker id `saved-<rev>`
+  rev: string,         // random id, new on every save; the inserted text carries the marker id `saved-<rev>`
+  script: string       // the page agent's script, run after the sheet; '' for a CSS-only style; entries saved before page scripts have no field and read as ''
 }>
 ```
 - Owner: `src/managers/impl/pageStyleManager.ts` (`PageStyleManager`, background, the only writer; writes serialized); the model is `SavedPageStyles` in `src/stores/savedPageStyles.ts`
 - Consumers: `src/managers/proxies/pageStyleProxy.ts` → `src/hooks/usePageStyles.ts` (sidebar mirror: the drawer's style strip and Save button in `src/components/pageAgent/`, the brush and the Page style submenu in `BookmarkTree.tsx` and `PinnedIcon.tsx`); `src/App.tsx` reads the mirror at call time for `PageAgentChats`, which adopts a saved sheet it finds on the page (see `pageAgentChat:${tabId}`); `src/services/pageStyleApplier.ts` (background) reads the manager's styles
-- Updates: Save to bookmark / Update saved style (`save`: refuses CSS that fails `PageAgentCssSanitizer.check` and pages that aren't http(s), makes a new `rev`), the strip's Auto-apply switch and the submenu's Auto-apply on load (`setAutoApply`), the strip's Remove and the submenu's Remove saved style (`remove`); `bookmarks.onRemoved` drops the removed id and, for a folder, every descendant id; Undo of a deleted bookmark, folder or Favorite puts the records `DeleteBookmarkAction` / `DeletePinnedSiteAction` read before the delete back, unchanged, on the ids Undo created (`restore`, same sanitizer check as `save`)
-- Applier: inserts `withMarker(css, 'saved-' + rev)` with `chrome.scripting.insertCSS` (origin `USER`) when the tab isn't incognito, its association (`tabAssociations_${windowId}`) is `bookmark-<id>` or `pinned-<id>`, that id's record has `autoApply`, the page's origin equals `origin` and the CSS passes the sanitizer. On `webNavigation.onCommitted` (top frame) it inserts without a marker check, except on a `forward_back` commit, whose restored document may still hold its sheets; on `tabs.onUpdated` with `status: 'complete'` it inserts only when the page's `--sidebar-page-agent` marker is empty, and checks only once after a top-frame commit that put no sheet on the page (`forward_back`, no association or style yet): Chrome reports `complete` again for the same document after a late iframe load, and that check would put back a style the user took off with Undo. A sweep over the open tabs runs once per worker start, and only in a new browser session or after an extension reload (`tabRestoreSessionStarted` absent): on a worker restart it would put back a style the user just took off with Undo. Nothing is applied when the association restore failed (`stateReady` false)
+- Updates: Save to bookmark / Update saved style (`save`: replaces CSS and script together, refuses when both are empty, CSS that fails `PageAgentCssSanitizer.check`, a script over 64 KB (`PageAgentScriptCheck`) and pages that aren't http(s), makes a new `rev`; `css` may be empty for a script-only style), the strip's Auto-apply switch and the submenu's Auto-apply on load (`setAutoApply`), the strip's Remove and the submenu's Remove saved style (`remove`); `bookmarks.onRemoved` drops the removed id and, for a folder, every descendant id; Undo of a deleted bookmark, folder or Favorite puts the records `DeleteBookmarkAction` / `DeletePinnedSiteAction` read before the delete back, unchanged, on the ids Undo created (`restore`, same CSS and script checks as `save`)
+- Applier: inserts `withMarker(css, 'saved-' + rev)` with `chrome.scripting.insertCSS` (origin `USER`) when the tab isn't incognito, its association (`tabAssociations_${windowId}`) is `bookmark-<id>` or `pinned-<id>`, that id's record has `autoApply`, the page's origin equals `origin`, the CSS passes the sanitizer and the script the size check. Then, when the record has a script and Chrome allows user scripts (`userScripts` permission, Allow User Scripts on, Chrome 135+), it runs the script with `apply` in the page's user script world (`UserScriptRunner`, `src/services/pageAgent/userScriptRunner.ts`), without asking; a script that fails is logged and the sheet stays. The checks below go by the marker the sheet sets, so they don't run the script twice, nor again after it failed or couldn't run. On `webNavigation.onCommitted` (top frame) it inserts without a marker check, except on a `forward_back` commit, whose restored document may still hold its sheets; on `tabs.onUpdated` with `status: 'complete'` it inserts only when the page's `--sidebar-page-agent` marker is empty, and checks only once after a top-frame commit that put no sheet on the page (`forward_back`, no association or style yet): Chrome reports `complete` again for the same document after a late iframe load, and that check would put back a style the user took off with Undo. A sweep over the open tabs runs once per worker start, and only in a new browser session or after an extension reload (`tabRestoreSessionStarted` absent): on a worker restart it would put back a style the user just took off with Undo. Nothing is applied when the association restore failed (`stateReady` false)
 - Auto-apply off and Remove change only later page loads; the open page keeps its sheet until a reload or Undo
 - Unreadable value: logged, saved styles start empty and `bookmarks.onRemoved` doesn't write the key until the user's next save, or an Undo of a delete that brings a style back (`restore`); Auto-apply and Remove have no style to change then. Malformed records and origins that aren't http(s) are dropped when parsed
 - Not in Backup / Restore: a restore creates new bookmark ids
