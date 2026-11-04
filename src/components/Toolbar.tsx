@@ -1,4 +1,4 @@
-import { Settings, Volume2, ChevronDown, X, Save, Clock, Bookmark, Trash2, RotateCcwSquare, RotateCwSquare, HelpCircle, Search, Sparkles } from 'lucide-react';
+import { Settings, Volume2, RotateCcwSquare, RotateCwSquare, Search, Sparkles } from 'lucide-react';
 import React, { forwardRef, useState, useRef, useEffect, useCallback } from 'react';
 import * as DropdownMenu from './menu/DropdownMenu';
 import { useShowActiveTab } from '../hooks/useFollowActiveTab';
@@ -8,24 +8,13 @@ import { TabHistoryItem } from '../managers/shared/tabHistoryManagerApi';
 
 interface ToolbarProps
 {
-  filterLiveTabsActive: boolean;
-  onFilterLiveTabsToggle: () => void;
   onAudioDialogOpen: () => void;
   // When defined, enables long-press mode: quick click jumps to the latest audio tab, hold opens the list
   onAudioTabJump?: () => void;
   onMenuToggle: () => void;
   menuButtonRef: React.RefObject<HTMLButtonElement>;
   audioButtonRef?: React.RefObject<HTMLButtonElement>;
-  // Text filter props
-  filterText: string;
-  onFilterTextChange: (text: string) => void;
-  savedFilters: string[];
-  recentFilters: string[];
-  onSaveFilter: (text: string) => void;
-  onDeleteSavedFilter: (text: string) => void;
-  onApplyFilter: (text: string) => void;
-  onUpdateRecent?: (text: string, existingEntry?: string) => void;
-  onShowToast?: (message: string) => void;
+  // The search rows themselves are FilterBar; this only drives the toggle button and the bottom border
   showFilterArea?: boolean;
   onToggleFilterArea?: () => void;
   pageAgentOpen?: boolean;
@@ -55,25 +44,12 @@ const TreeGutterIcon = ({ size = 16 }: { size?: number }) => (
   </svg>
 );
 
-const DEBOUNCE_MS = 300;
-
 export const Toolbar = forwardRef<HTMLButtonElement, ToolbarProps>(({
-  filterLiveTabsActive,
-  onFilterLiveTabsToggle,
   onAudioDialogOpen,
   onAudioTabJump,
   onMenuToggle,
   menuButtonRef,
   audioButtonRef,
-  filterText,
-  onFilterTextChange,
-  savedFilters,
-  recentFilters,
-  onSaveFilter,
-  onDeleteSavedFilter,
-  onApplyFilter,
-  onUpdateRecent,
-  onShowToast,
   showFilterArea = false,
   onToggleFilterArea,
   pageAgentOpen = false,
@@ -247,589 +223,164 @@ export const Toolbar = forwardRef<HTMLButtonElement, ToolbarProps>(({
     setHistoryDropdown(null);
   }, [windowId]);
 
-  // DropdownMenu handles click-outside and escape key automatically
-
-  const [showDropdown, setShowDropdown] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const dropdownButtonRef = useRef<HTMLButtonElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  // Syntax help popover state
-  const [showSyntaxHelp, setShowSyntaxHelp] = useState(false);
-  const syntaxHelpRef = useRef<HTMLDivElement>(null);
-  const syntaxHelpButtonRef = useRef<HTMLButtonElement>(null);
-
-  // Local input value for immediate display (debounced before filtering)
-  const [inputValue, setInputValue] = useState(filterText);
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Track current session's recent entry (for updating instead of adding new)
-  const [sessionRecentEntry, setSessionRecentEntry] = useState<string | null>(null);
-
-  // Sync inputValue when filterText changes externally (e.g., from selecting a filter)
-  useEffect(() =>
-  {
-    setInputValue(filterText);
-  }, [filterText]);
-
-  // Debounced filter change
-  const handleInputChange = useCallback((value: string) =>
-  {
-    const oldValue = inputValue.trim();
-    const newValue = value.trim();
-
-    // Detect "select all and clear/replace" pattern:
-    // If old value had meaningful content (3+ chars) and is being cleared or replaced
-    const hadMeaningfulContent = oldValue.length >= 3;
-    const isCleared = newValue.length === 0;
-    const isReplacement = newValue.length > 0 &&
-      newValue.length <= 2 &&
-      !oldValue.toLowerCase().startsWith(newValue.toLowerCase());
-
-    // If clearing or replacing meaningful content, save the old search first
-    if (hadMeaningfulContent && (isCleared || isReplacement) && onUpdateRecent)
-    {
-      onUpdateRecent(oldValue, sessionRecentEntry ?? undefined);
-      setSessionRecentEntry(null); // Start fresh session
-    }
-
-    setInputValue(value);
-
-    // Clear existing timer
-    if (debounceTimerRef.current)
-    {
-      clearTimeout(debounceTimerRef.current);
-    }
-
-    // If cleared completely, reset session and apply immediately
-    if (newValue === '')
-    {
-      setSessionRecentEntry(null);
-      onFilterTextChange('');
-      return;
-    }
-
-    // Debounce the actual filter change
-    debounceTimerRef.current = setTimeout(() =>
-    {
-      onFilterTextChange(value);
-    }, DEBOUNCE_MS);
-  }, [onFilterTextChange, inputValue, sessionRecentEntry, onUpdateRecent]);
-
-  // Cleanup debounce timer on unmount
-  useEffect(() =>
-  {
-    return () =>
-    {
-      if (debounceTimerRef.current)
-      {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, []);
-
-  // Commit current search to recent (on blur or Enter)
-  const commitToRecent = useCallback(() =>
-  {
-    const trimmed = inputValue.trim();
-    if (!trimmed || !onUpdateRecent) return;
-
-    // Update existing entry or add new
-    onUpdateRecent(trimmed, sessionRecentEntry ?? undefined);
-    setSessionRecentEntry(trimmed);
-  }, [inputValue, sessionRecentEntry, onUpdateRecent]);
-
-  // Close dropdown when clicking outside or pressing Escape
-  useEffect(() =>
-  {
-    const handleClickOutside = (e: MouseEvent) =>
-    {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(e.target as Node) &&
-        dropdownButtonRef.current &&
-        !dropdownButtonRef.current.contains(e.target as Node)
-      )
-      {
-        setShowDropdown(false);
-      }
-    };
-
-    const handleEscape = (e: KeyboardEvent) =>
-    {
-      if (e.key === 'Escape' && showDropdown)
-      {
-        e.preventDefault();
-        setShowDropdown(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-    return () =>
-    {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [showDropdown]);
-
-  // Close syntax help popover when clicking outside or pressing Escape
-  useEffect(() =>
-  {
-    if (!showSyntaxHelp) return;
-
-    const handleClickOutside = (e: MouseEvent) =>
-    {
-      if (
-        syntaxHelpRef.current &&
-        !syntaxHelpRef.current.contains(e.target as Node) &&
-        syntaxHelpButtonRef.current &&
-        !syntaxHelpButtonRef.current.contains(e.target as Node)
-      )
-      {
-        setShowSyntaxHelp(false);
-      }
-    };
-
-    const handleEscape = (e: KeyboardEvent) =>
-    {
-      if (e.key === 'Escape')
-      {
-        e.preventDefault();
-        setShowSyntaxHelp(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-    return () =>
-    {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [showSyntaxHelp]);
-
-  // Listen for Chrome extension commands directly
-  useEffect(() =>
-  {
-    const focusInputWithCursorAtEnd = () =>
-    {
-      const input = inputRef.current;
-      if (input)
-      {
-        input.focus();
-        // Use setSelectionRange for controlled inputs to avoid fighting with React
-        const len = input.value.length;
-        input.setSelectionRange(len, len);
-      }
-    };
-
-    const handleCommand = (command: string) =>
-    {
-      if (command === 'focus-filter-input')
-      {
-        focusInputWithCursorAtEnd();
-      }
-    };
-
-    chrome.commands.onCommand.addListener(handleCommand);
-    return () => chrome.commands.onCommand.removeListener(handleCommand);
-  }, []);
-
-  // Handle input keydown for ArrowDown to open dropdown, Enter to commit
-  const handleInputKeydown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) =>
-  {
-    if (e.key === 'ArrowDown')
-    {
-      e.preventDefault();
-      setShowDropdown(true);
-    }
-    else if (e.key === 'Enter')
-    {
-      e.preventDefault();
-      commitToRecent();
-    }
-  }, [commitToRecent]);
-
-  // Handle input blur to commit to recent
-  const handleInputBlur = useCallback(() =>
-  {
-    commitToRecent();
-  }, [commitToRecent]);
-
-  const handleSaveFilter = () =>
-  {
-    const trimmed = inputValue.trim();
-    if (trimmed && !savedFilters.includes(trimmed))
-    {
-      onSaveFilter(trimmed);
-      onShowToast?.(`"${trimmed}" filter saved`);
-    }
-  };
-
-  const handleSelectFilter = (text: string) =>
-  {
-    // Commit current search to recent before switching (if any)
-    commitToRecent();
-
-    // Apply the selected filter and start a new session
-    onApplyFilter(text);
-    setSessionRecentEntry(text);
-    setShowDropdown(false);
-  };
-
-  const handleClearFilter = () =>
-  {
-    // Clear debounce timer
-    if (debounceTimerRef.current)
-    {
-      clearTimeout(debounceTimerRef.current);
-    }
-    setInputValue('');
-    setSessionRecentEntry(null);
-    onFilterTextChange('');
-  };
-
-  const canSave = inputValue.trim() && !savedFilters.includes(inputValue.trim());
-
   return (
-    <div className="arc-toolbar flex flex-col border-b border-gray-200 dark:border-gray-700">
-      {/* Top row - Filter buttons and settings */}
-      <div className="flex items-center justify-between px-2 py-1">
-        {/* Left side - Tab history and Filter buttons */}
-        <div className="flex items-center gap-1">
-          {/* Tab history navigation - Previous */}
-          <DropdownMenu.Root
-            open={historyDropdown === 'prev'}
-            onOpenChange={(open) => !open && setHistoryDropdown(null)}
-            anchorRef={prevButtonRef}
-          >
-            <button
-              ref={prevButtonRef}
-              onMouseDown={() => handleHistoryMouseDown('prev')}
-              onMouseUp={() => handleHistoryMouseUp('prev')}
-              onMouseLeave={handleHistoryMouseLeave}
-              title={`Previous used tab${prevTabShortcut ? ` (${prevTabShortcut})` : ''}\nHold for history`}
-              className={`p-1.5 rounded transition-all duration-150 focus:outline-none ${
-                historyDropdown === 'prev' ? activeButtonClass : inactiveButtonClass
-              }`}
-            >
-              <RotateCcwSquare size={16} className="-rotate-90" />
-            </button>
-
-            <DropdownMenu.Content className="min-w-48 max-w-72 max-h-64 overflow-y-auto">
-              {historyBefore.length > 0 ? (
-                historyBefore.map((item) => (
-                  <DropdownMenu.Item
-                    key={item.tabId}
-                    onSelect={() => handleHistoryItemClick(item.index)}
-                  >
-                    {item.favIconUrl ? (
-                      <img src={item.favIconUrl} alt="" className="w-4 h-4 flex-shrink-0 mr-2" />
-                    ) : (
-                      <div className="w-4 h-4 flex-shrink-0 bg-gray-300 dark:bg-gray-600 rounded mr-2" />
-                    )}
-                    <span className="truncate">{item.title}</span>
-                  </DropdownMenu.Item>
-                ))
-              ) : (
-                <div className="px-3 py-2 text-gray-500 dark:text-gray-400">
-                  No previous tabs
-                </div>
-              )}
-            </DropdownMenu.Content>
-          </DropdownMenu.Root>
-
-          {/* Tab history navigation - Next */}
-          <DropdownMenu.Root
-            open={historyDropdown === 'next'}
-            onOpenChange={(open) => !open && setHistoryDropdown(null)}
-            anchorRef={nextButtonRef}
-          >
-            <button
-              ref={nextButtonRef}
-              onMouseDown={() => handleHistoryMouseDown('next')}
-              onMouseUp={() => handleHistoryMouseUp('next')}
-              onMouseLeave={handleHistoryMouseLeave}
-              title={`Next used tab${nextTabShortcut ? ` (${nextTabShortcut})` : ''}\nHold for history`}
-              className={`p-1.5 rounded transition-all duration-150 focus:outline-none ${
-                historyDropdown === 'next' ? activeButtonClass : inactiveButtonClass
-              }`}
-            >
-              <RotateCwSquare size={16} className="rotate-90" />
-            </button>
-
-            <DropdownMenu.Content className="min-w-48 max-w-72 max-h-64 overflow-y-auto">
-              {historyAfter.length > 0 ? (
-                historyAfter.map((item) => (
-                  <DropdownMenu.Item
-                    key={item.tabId}
-                    onSelect={() => handleHistoryItemClick(item.index)}
-                  >
-                    {item.favIconUrl ? (
-                      <img src={item.favIconUrl} alt="" className="w-4 h-4 flex-shrink-0 mr-2" />
-                    ) : (
-                      <div className="w-4 h-4 flex-shrink-0 bg-gray-300 dark:bg-gray-600 rounded mr-2" />
-                    )}
-                    <span className="truncate">{item.title}</span>
-                  </DropdownMenu.Item>
-                ))
-              ) : (
-                <div className="px-3 py-2 text-gray-500 dark:text-gray-400">
-                  No next tabs
-                </div>
-              )}
-            </DropdownMenu.Content>
-          </DropdownMenu.Root>
-
-          {/* Separator */}
-          <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-0.5" />
-
-          {/* Audio dialog button */}
+    <div
+      className={`arc-toolbar arc-toolbar-row flex items-center justify-between ${
+        showFilterArea ? '' : 'border-b border-gray-200 dark:border-gray-700'
+      }`}
+    >
+      {/* Left side - Tab history and Filter buttons */}
+      <div className="flex items-center gap-1">
+        {/* Tab history navigation - Previous */}
+        <DropdownMenu.Root
+          open={historyDropdown === 'prev'}
+          onOpenChange={(open) => !open && setHistoryDropdown(null)}
+          anchorRef={prevButtonRef}
+        >
           <button
-            ref={audioButtonRef}
-            onClick={onAudioTabJump ? undefined : onAudioDialogOpen}
-            onMouseDown={onAudioTabJump ? handleAudioMouseDown : undefined}
-            onMouseUp={onAudioTabJump ? handleAudioMouseUp : undefined}
-            onMouseLeave={onAudioTabJump ? handleAudioMouseLeave : undefined}
-            title={onAudioTabJump ? 'Click to jump to audio tab · Hold to show list' : 'Show tabs playing audio/video'}
-            className={`p-1.5 rounded transition-all duration-150 focus:outline-none ${inactiveButtonClass}`}
-          >
-            <Volume2 size={16} />
-          </button>
-
-          {/* Scroll to active tab button */}
-          <button
-            onClick={showActiveTab}
-            title="Show active tab"
-            className={`p-1.5 rounded transition-all duration-150 focus:outline-none ${inactiveButtonClass}`}
-          >
-            <TreeGutterIcon size={16} />
-          </button>
-
-          {/* Separator */}
-          <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-0.5" />
-
-          {/* Toggle search bar button */}
-          {onToggleFilterArea && (
-            <button
-              onClick={onToggleFilterArea}
-              title={showFilterArea ? "Hide search bar" : "Show search bar"}
-              className={`p-1.5 rounded transition-all duration-150 focus:outline-none ${
-                showFilterArea ? activeButtonClass : inactiveButtonClass
-              }`}
-            >
-              <Search size={16} />
-            </button>
-          )}
-
-          {onTogglePageAgent && (
-            <button
-              onClick={onTogglePageAgent}
-              title="Page agent (experimental)"
-              className={`p-1.5 rounded transition-all duration-150 focus:outline-none ${
-                pageAgentOpen ? activeButtonClass : inactiveButtonClass
-              }`}
-            >
-              <Sparkles size={16} />
-            </button>
-          )}
-
-        </div>
-
-        {/* Right side - Settings gear button */}
-        <div className="relative">
-          <button
-            ref={menuButtonRef}
-            onClick={onMenuToggle}
-            title="Menu"
-            className={`p-1.5 rounded transition-all duration-150 ${inactiveButtonClass}`}
-          >
-            <Settings size={16} />
-          </button>
-        </div>
-      </div>
-
-      {/* Bottom row - Text filter (conditionally rendered) */}
-      {showFilterArea && (
-        <>
-        <div className="flex items-center gap-1 px-2 pb-1.5">
-          <div className="relative flex-1 flex items-center">
-            <input
-              ref={inputRef}
-              type="text"
-              value={inputValue}
-              onChange={(e) => handleInputChange(e.target.value)}
-              onKeyDown={handleInputKeydown}
-              onBlur={handleInputBlur}
-              placeholder="Filter by title or URL..."
-              className="w-full pl-2 pr-16 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-            />
-
-            {/* Clear button - inside input on right */}
-            {inputValue && (
-              <button
-                onClick={handleClearFilter}
-                title="Clear filter"
-                className="absolute right-8 p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              >
-                <X size={14} />
-              </button>
-            )}
-
-            {/* Dropdown button - inside input on right */}
-            <button
-              ref={dropdownButtonRef}
-              onClick={() => setShowDropdown(!showDropdown)}
-              title="Saved Filters"
-              className="absolute right-1 p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              <ChevronDown size={16} />
-            </button>
-
-            {/* Dropdown menu */}
-            {showDropdown && (
-              <div
-                ref={dropdownRef}
-                className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 z-50 max-h-64 overflow-y-auto"
-              >
-                {/* Saved Filters Section */}
-                {savedFilters.length > 0 && (
-                  <>
-                    <div className="px-3 py-1 font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                      <Bookmark size={12} />
-                      Saved Filters
-                    </div>
-                    {savedFilters.map((filter) => (
-                      <div
-                        key={`saved-${filter}`}
-                        className="flex items-center justify-between px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer group"
-                      >
-                        <span
-                          onClick={() => handleSelectFilter(filter)}
-                          className="flex-1 text-gray-700 dark:text-gray-200 truncate"
-                        >
-                          {filter}
-                        </span>
-                        <button
-                          onClick={(e) =>
-                          {
-                            e.stopPropagation();
-                            onDeleteSavedFilter(filter);
-                          }}
-                          className="p-0.5 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                          title="Delete saved filter"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    ))}
-                  </>
-                )}
-
-                {/* Recent Filters Section */}
-                {recentFilters.length > 0 && (
-                  <>
-                    {savedFilters.length > 0 && (
-                      <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
-                    )}
-                    <div className="px-3 py-1 font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                      <Clock size={12} />
-                      Recent
-                    </div>
-                    {recentFilters.map((filter) => (
-                      <div
-                        key={`recent-${filter}`}
-                        onClick={() => handleSelectFilter(filter)}
-                        className="px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-                      >
-                        <span className="text-gray-700 dark:text-gray-200 truncate block">
-                          {filter}
-                        </span>
-                      </div>
-                    ))}
-                  </>
-                )}
-
-                {/* Empty state */}
-                {savedFilters.length === 0 && recentFilters.length === 0 && (
-                  <div className="px-3 py-2 text-gray-500 dark:text-gray-400 text-center">
-                    No saved or recent filters
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Save button */}
-          <button
-            onClick={handleSaveFilter}
-            disabled={!canSave}
-            title={canSave ? "Save filter" : inputValue.trim() ? "Already saved" : "Enter filter text first"}
-            className={`p-1.5 rounded transition-all duration-150 ${
-              canSave
-                ? 'text-blue-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30'
-                : 'text-gray-300 dark:text-gray-600'
+            ref={prevButtonRef}
+            onMouseDown={() => handleHistoryMouseDown('prev')}
+            onMouseUp={() => handleHistoryMouseUp('prev')}
+            onMouseLeave={handleHistoryMouseLeave}
+            title={`Previous used tab${prevTabShortcut ? ` (${prevTabShortcut})` : ''}\nHold for history`}
+            className={`p-1.5 rounded transition-all duration-150 focus:outline-none ${
+              historyDropdown === 'prev' ? activeButtonClass : inactiveButtonClass
             }`}
           >
-            <Save size={16} />
+            <RotateCcwSquare size={16} className="-rotate-90" />
           </button>
 
-          {/* Syntax help button */}
-          <div className="relative">
-            <button
-              ref={syntaxHelpButtonRef}
-              onClick={() => setShowSyntaxHelp(!showSyntaxHelp)}
-              title="Search syntax help"
-              className="p-1.5 rounded transition-all duration-150 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              <HelpCircle size={16} />
-            </button>
-
-            {/* Syntax help popover */}
-            {showSyntaxHelp && (
-              <div
-                ref={syntaxHelpRef}
-                className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2 px-3 z-50 w-56 text-sm"
-              >
-                <div className="font-medium text-gray-700 dark:text-gray-200 mb-2">Search Syntax</div>
-                <div className="space-y-1 text-gray-600 dark:text-gray-400 text-xs">
-                  <div className="flex justify-between"><span>space</span><span className="text-gray-500">implicit AND</span></div>
-                  <div className="flex justify-between"><span>&&</span><span className="text-gray-500">AND</span></div>
-                  <div className="flex justify-between"><span>||</span><span className="text-gray-500">OR</span></div>
-                  <div className="flex justify-between"><span>!</span><span className="text-gray-500">NOT</span></div>
-                  <div className="flex justify-between"><span>( )</span><span className="text-gray-500">grouping</span></div>
-                  <div className="flex justify-between"><span>"..." '...'</span><span className="text-gray-500">exact phrase</span></div>
-                </div>
-                <div className="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2">
-                  <div className="text-gray-500 dark:text-gray-500 text-xs mb-1">Examples:</div>
-                  <div className="space-y-0.5 text-gray-600 dark:text-gray-400 text-xs">
-                    <div>youtube canada</div>
-                    <div>youtube || instagram</div>
-                    <div>react !tutorial</div>
-                    <div>(a || b) && c</div>
-                  </div>
-                </div>
+          <DropdownMenu.Content className="min-w-48 max-w-72 max-h-64 overflow-y-auto">
+            {historyBefore.length > 0 ? (
+              historyBefore.map((item) => (
+                <DropdownMenu.Item
+                  key={item.tabId}
+                  onSelect={() => handleHistoryItemClick(item.index)}
+                >
+                  {item.favIconUrl ? (
+                    <img src={item.favIconUrl} alt="" className="w-4 h-4 flex-shrink-0 mr-2" />
+                  ) : (
+                    <div className="w-4 h-4 flex-shrink-0 bg-gray-300 dark:bg-gray-600 rounded mr-2" />
+                  )}
+                  <span className="truncate">{item.title}</span>
+                </DropdownMenu.Item>
+              ))
+            ) : (
+              <div className="px-3 py-2 text-gray-500 dark:text-gray-400">
+                No previous tabs
               </div>
             )}
-          </div>
-        </div>
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
 
-        {/* Open tabs only checkbox */}
-        <label
-          className="flex items-center gap-1.5 px-2 pb-1.5 cursor-pointer select-none"
-          title="When checked, only shows bookmarks and pinned sites that are currently open in a tab"
+        {/* Tab history navigation - Next */}
+        <DropdownMenu.Root
+          open={historyDropdown === 'next'}
+          onOpenChange={(open) => !open && setHistoryDropdown(null)}
+          anchorRef={nextButtonRef}
         >
-          <input
-            type="checkbox"
-            checked={filterLiveTabsActive}
-            onChange={onFilterLiveTabsToggle}
-            className="w-3.5 h-3.5 accent-blue-500"
-          />
-          <span className="text-xs text-gray-500 dark:text-gray-400">With open tabs</span>
-        </label>
-        </>
-      )}
+          <button
+            ref={nextButtonRef}
+            onMouseDown={() => handleHistoryMouseDown('next')}
+            onMouseUp={() => handleHistoryMouseUp('next')}
+            onMouseLeave={handleHistoryMouseLeave}
+            title={`Next used tab${nextTabShortcut ? ` (${nextTabShortcut})` : ''}\nHold for history`}
+            className={`p-1.5 rounded transition-all duration-150 focus:outline-none ${
+              historyDropdown === 'next' ? activeButtonClass : inactiveButtonClass
+            }`}
+          >
+            <RotateCwSquare size={16} className="rotate-90" />
+          </button>
+
+          <DropdownMenu.Content className="min-w-48 max-w-72 max-h-64 overflow-y-auto">
+            {historyAfter.length > 0 ? (
+              historyAfter.map((item) => (
+                <DropdownMenu.Item
+                  key={item.tabId}
+                  onSelect={() => handleHistoryItemClick(item.index)}
+                >
+                  {item.favIconUrl ? (
+                    <img src={item.favIconUrl} alt="" className="w-4 h-4 flex-shrink-0 mr-2" />
+                  ) : (
+                    <div className="w-4 h-4 flex-shrink-0 bg-gray-300 dark:bg-gray-600 rounded mr-2" />
+                  )}
+                  <span className="truncate">{item.title}</span>
+                </DropdownMenu.Item>
+              ))
+            ) : (
+              <div className="px-3 py-2 text-gray-500 dark:text-gray-400">
+                No next tabs
+              </div>
+            )}
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
+
+        {/* Separator */}
+        <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-0.5" />
+
+        {/* Audio dialog button */}
+        <button
+          ref={audioButtonRef}
+          onClick={onAudioTabJump ? undefined : onAudioDialogOpen}
+          onMouseDown={onAudioTabJump ? handleAudioMouseDown : undefined}
+          onMouseUp={onAudioTabJump ? handleAudioMouseUp : undefined}
+          onMouseLeave={onAudioTabJump ? handleAudioMouseLeave : undefined}
+          title={onAudioTabJump ? 'Click to jump to audio tab · Hold to show list' : 'Show tabs playing audio/video'}
+          className={`p-1.5 rounded transition-all duration-150 focus:outline-none ${inactiveButtonClass}`}
+        >
+          <Volume2 size={16} />
+        </button>
+
+        {/* Scroll to active tab button */}
+        <button
+          onClick={showActiveTab}
+          title="Show active tab"
+          className={`p-1.5 rounded transition-all duration-150 focus:outline-none ${inactiveButtonClass}`}
+        >
+          <TreeGutterIcon size={16} />
+        </button>
+
+        {/* Separator */}
+        <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-0.5" />
+
+        {/* Toggle search bar button */}
+        {onToggleFilterArea && (
+          <button
+            onClick={onToggleFilterArea}
+            title={showFilterArea ? "Hide search bar" : "Show search bar"}
+            className={`p-1.5 rounded transition-all duration-150 focus:outline-none ${
+              showFilterArea ? activeButtonClass : inactiveButtonClass
+            }`}
+          >
+            <Search size={16} />
+          </button>
+        )}
+
+        {onTogglePageAgent && (
+          <button
+            onClick={onTogglePageAgent}
+            title="Page agent (experimental)"
+            className={`p-1.5 rounded transition-all duration-150 focus:outline-none ${
+              pageAgentOpen ? activeButtonClass : inactiveButtonClass
+            }`}
+          >
+            <Sparkles size={16} />
+          </button>
+        )}
+
+      </div>
+
+      {/* Right side - Settings gear button */}
+      <div className="relative">
+        <button
+          ref={menuButtonRef}
+          onClick={onMenuToggle}
+          title="Menu"
+          className={`p-1.5 rounded transition-all duration-150 ${inactiveButtonClass}`}
+        >
+          <Settings size={16} />
+        </button>
+      </div>
     </div>
   );
 });

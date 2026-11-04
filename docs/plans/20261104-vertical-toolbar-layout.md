@@ -170,25 +170,27 @@
 - Modify: `src/App.tsx`
 - Modify: `src/index.css`
 
-- [ ] create `src/components/FilterBar.tsx` with the filter rows moved from `Toolbar.tsx`: input with
+- [x] create `src/components/FilterBar.tsx` with the filter rows moved from `Toolbar.tsx`: input with
       saved/recent dropdown, clear button, Save, syntax help popover, "With open tabs" checkbox, their state,
       handlers, outside-click/Escape effects, the debounce cleanup and the `focus-filter-input` command
       listener. Props: `filterText`, `onFilterTextChange`, `savedFilters`, `recentFilters`, `onSaveFilter`,
       `onDeleteSavedFilter`, `onApplyFilter`, `onUpdateRecent`, `onShowToast`, `filterLiveTabsActive`,
       `onFilterLiveTabsToggle`. Root: `arc-toolbar flex flex-col border-b` (see Technical Details)
-- [ ] two intended behaviour changes, since FilterBar mounts only while the search bar is shown: the
+- [x] two intended behaviour changes, since FilterBar mounts only while the search bar is shown: the
       session's recent entry (`sessionRecentEntry`) resets when the bar is hidden and shown again, and a
       pending 300 ms debounce is cancelled on hide (today it can set `filterText` again after the bar is
       hidden). Everything else works as before
-- [ ] `Toolbar.tsx`: remove the moved code and props; the root becomes the button row itself
+- [x] `Toolbar.tsx`: remove the moved code and props; the root becomes the button row itself
       (`arc-toolbar arc-toolbar-row flex items-center justify-between`), with `border-b` only while
       `showFilterArea` is false
-- [ ] `App.tsx`: render `<FilterBar>` right after the toolbar block when `showFilterArea` is true, with the
+- [x] `App.tsx`: render `<FilterBar>` right after the toolbar block when `showFilterArea` is true, with the
       props Toolbar used to get
-- [ ] `index.css`: replace `.arc-toolbar > div:first-child` (min-height 44px, padding 7px 10px) with
+- [x] `index.css`: replace `.arc-toolbar > div:first-child` (min-height 44px, padding 7px 10px) with
       `.arc-toolbar-row`; the other `.arc-toolbar` rules stay and now also style FilterBar, so the horizontal
       layout looks as before with the search bar shown and hidden
-- [ ] run `make lint && make test && make build` - must pass before task 4
+      (done as `box-sizing: content-box; min-height: 30px; padding: 7px 10px`: the row now carries its own
+      bottom border, and content-box keeps that 1px below the 44px row as before instead of inside it)
+- [x] run `make lint && make test && make build` - must pass before task 4
 
 ### Task 4: Vertical toolbar strip and the two-column layout
 

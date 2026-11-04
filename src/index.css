@@ -42,8 +42,13 @@ html, body, #root {
   background: rgba(255, 255, 255, 0.12);
 }
 
-.arc-toolbar > div:first-child {
-  min-height: 44px;
+/*
+ * The horizontal toolbar's button row: 44px tall with its padding. Content-box, so the bottom border it carries
+ * while the search bar is hidden adds 1px below the 44px, as when the border sat on a wrapper around the row.
+ */
+.arc-toolbar-row {
+  box-sizing: content-box;
+  min-height: 30px;
   padding: 7px 10px;
 }
 

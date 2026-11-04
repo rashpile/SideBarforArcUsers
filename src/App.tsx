@@ -4,6 +4,7 @@ import { ArchiveSection } from './components/ArchiveSection';
 import { TabList, ExternalDropTarget, ResolveBookmarkDropTarget } from './components/TabList';
 import { PinnedBar } from './components/PinnedBar';
 import { Toolbar } from './components/Toolbar';
+import { FilterBar } from './components/FilterBar';
 import { SpaceBar } from './components/SpaceBar';
 import type { SettingsValues, BookmarkOpenMode, TabGroupDisplayOrder } from './components/SettingsDialog';
 import { getWhatsNewSince, getRecentWhatsNew, ChangelogGroup } from './data/changelog';
@@ -1621,26 +1622,11 @@ function Sidebar() {
       {/* Toolbar */}
       <div ref={toolbarRef} className="relative">
         <Toolbar
-          filterLiveTabsActive={filterLiveTabs}
-          onFilterLiveTabsToggle={() =>
-          {
-            const newValue = !filterLiveTabs;
-            setFilterLiveTabs(newValue);
-          }}
           onAudioDialogOpen={handleOpenAudioDialog}
           onAudioTabJump={audioQuickJump ? handleJumpToAudioTab : undefined}
           onMenuToggle={() => setShowMenu(!showMenu)}
           menuButtonRef={buttonRef}
           audioButtonRef={audioButtonRef}
-          filterText={filterText}
-          onFilterTextChange={handleFilterTextChange}
-          savedFilters={savedFilters}
-          recentFilters={recentFilters}
-          onSaveFilter={handleSaveFilter}
-          onDeleteSavedFilter={handleDeleteSavedFilter}
-          onApplyFilter={handleApplyFilter}
-          onUpdateRecent={handleUpdateRecent}
-          onShowToast={showToast}
           showFilterArea={showFilterArea}
           onToggleFilterArea={() => {
             const newShowFilterArea = !showFilterArea;
@@ -1754,6 +1740,26 @@ function Sidebar() {
           </DropdownMenu.Content>
         </DropdownMenu.Root>
       </div>
+
+      {showFilterArea && (
+        <FilterBar
+          filterText={filterText}
+          onFilterTextChange={handleFilterTextChange}
+          savedFilters={savedFilters}
+          recentFilters={recentFilters}
+          onSaveFilter={handleSaveFilter}
+          onDeleteSavedFilter={handleDeleteSavedFilter}
+          onApplyFilter={handleApplyFilter}
+          onUpdateRecent={handleUpdateRecent}
+          onShowToast={showToast}
+          filterLiveTabsActive={filterLiveTabs}
+          onFilterLiveTabsToggle={() =>
+          {
+            const newValue = !filterLiveTabs;
+            setFilterLiveTabs(newValue);
+          }}
+        />
+      )}
 
       {/* Pinned Sites */}
       <PinnedBar
