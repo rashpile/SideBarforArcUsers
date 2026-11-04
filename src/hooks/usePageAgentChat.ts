@@ -12,6 +12,8 @@ export interface PageAgentChatView<Settings>
   actionError: string | null;
   send(text: string, settings: Settings): void;
   stop(): void;
+  /** Answers the script approval the tab's run waits for; the answer holds for the rest of the request. */
+  approveScripts(allow: boolean): void;
   undo(): void;
   reapply(): void;
   /** Puts the tab's saved page style on the page as the chat's stylesheet. */
@@ -55,7 +57,7 @@ export function usePageAgentChat<Settings>(
 
   // A reload while the drawer was closed or showed another tab went unseen, and tabs.onUpdated
   // isn't reliable in the side panel, so the chat is checked whenever it is shown (checkMarker
-  // reads the page only for a chat with applied CSS or a tab with a saved style). It is checked
+  // reads the page only for a chat with an applied set or a tab with a saved style). It is checked
   // again when the tab's saved style changes: the styles can load after the drawer opened.
   useEffect(() =>
   {
@@ -84,6 +86,14 @@ export function usePageAgentChat<Settings>(
     if (tabId !== undefined)
     {
       chats.stop(tabId);
+    }
+  }, [chats, tabId]);
+
+  const approveScripts = useCallback((allow: boolean) =>
+  {
+    if (tabId !== undefined)
+    {
+      chats.approveScripts(tabId, allow);
     }
   }, [chats, tabId]);
 
@@ -136,6 +146,7 @@ export function usePageAgentChat<Settings>(
     actionError: actionError !== null && actionError.tabId === tabId ? actionError.message : null,
     send,
     stop,
+    approveScripts,
     undo,
     reapply,
     applySaved,

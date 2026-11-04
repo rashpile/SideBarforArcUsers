@@ -6,7 +6,7 @@
 // Named UserScript* so it isn't confused with PageScriptWorld and pageScripts.ts, which are the
 // chrome.scripting injections.
 
-import { NoUserScriptWorldError } from '../../utils/pageAgentScript.ts';
+import { NoUserScriptWorldError, userScriptsApiState } from '../../utils/pageAgentScript.ts';
 import { runUserScriptCommand } from './userScriptRuntime.ts';
 import type { UserScriptCommand, UserScriptLimits, UserScriptResult } from './userScriptRuntime.ts';
 
@@ -105,14 +105,7 @@ export class UserScriptRunner
     try
     {
       const api = this.#api();
-      if (!api || typeof api.execute !== 'function')
-      {
-        return null;
-      }
-      // getScripts throws while Allow User Scripts is off; the promise it returns otherwise carries
-      // nothing this check needs, so its rejection is dropped.
-      Promise.resolve(api.getScripts()).catch(() => undefined);
-      return api;
+      return api && userScriptsApiState(api) === 'available' ? api : null;
     }
     catch
     {

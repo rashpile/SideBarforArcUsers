@@ -99,6 +99,12 @@ export class SavedPageStyle
     return httpOriginOf(url) === this.origin;
   }
 
+  /** Whether this style is exactly this CSS and script, as a chat applied them. */
+  holds(css: string, script: string): boolean
+  {
+    return this.css === css && this.script === script;
+  }
+
   withAutoApply(on: boolean): SavedPageStyle
   {
     return on === this.autoApply ? this : new SavedPageStyle(this.css, on, this.origin, this.rev, this.script);

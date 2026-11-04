@@ -498,14 +498,21 @@ export class UserScriptRunner
 - Modify: `src/components/pageAgent/PageAgentMessages.tsx`
 - Modify: `src/components/SettingsDialog.tsx`
 
-- [ ] approval card with Allow / Deny wired to `approveScripts`
-- [ ] Undo, Show code, Save and Re-apply gated on CSS or script; Show code with CSS and Script blocks and
+- [x] approval card with Allow / Deny wired to `approveScripts`
+- [x] Undo, Show code, Save and Re-apply gated on CSS or script; Show code with CSS and Script blocks and
   Copy; script steps show their code
-- [ ] Save passes `appliedScript`; `saveState` and the strip's Apply compare CSS and script
-- [ ] scripts-blocked notice with Allow scripts / Open extension details (in the panel's window);
+- [x] Save passes `appliedScript`; `saveState` and the strip's Apply compare CSS and script
+- [x] scripts-blocked notice with Allow scripts / Open extension details (in the panel's window);
   Settings entry requests the permission and shows the status
-- [ ] no tests: UI wiring (CLAUDE.md)
-- [ ] run `make test`, `make lint` and `make build` - must pass before next task
+- [x] no tests: UI wiring (CLAUDE.md)
+- [x] run `make test`, `make lint` and `make build` - must pass before next task
+- ➕ `src/components/pageAgent/UserScriptsNotice.tsx`: the notice and `requestUserScriptsPermission`,
+  shared by the drawer and Settings; it reads the status on mount, on panel focus / visibility, on a tab
+  switch and on permission changes, and also says when Chrome is too old (no `execute()`, before 135)
+- ➕ `userScriptsApiState(api)` in `src/utils/pageAgentScript.ts` (`available` / `off` / `outdated`): the
+  runner's `available()` and the notice share it, so the panel reads it without loading the runner and
+  the in-page runtime
+- ➕ `SavedPageStyle.holds(css, script)`: `saveState` and the strip's Apply compare through it
 
 ### Task 10: Verify acceptance criteria
 
