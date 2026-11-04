@@ -221,12 +221,21 @@
 
 ### Task 5: Verify acceptance criteria
 
-- [ ] verify every Overview requirement against the code: setting key, default, Settings select, button order
+- [x] verify every Overview requirement against the code: setting key, default, Settings select, button order
       in both layouts, Space bar at the bottom full width, Prev / Next / audio / gear menus open right in
       vertical, switching applies without reopening (App state + `chrome.storage.onChanged`)
-- [ ] verify the horizontal layout's DOM classes and CSS give the same look as before (border under the
+      (key `toolbarLayout`, default `'horizontal'`, raw string; select on the Appearance tab after Pinned Icon
+      Size; one button JSX for both layouts, vertical only switches the group to `flex-col` and the gear to
+      `mt-auto`; SpaceBar is a child of `AppContainer` after the layout div; Prev / Next get `menuSide`, audio and
+      gear get `toolbarMenuSide`; `handleApplySettings` sets App state and `useChromeLocalStorage`'s
+      `onChanged` listener updates other windows)
+- [x] verify the horizontal layout's DOM classes and CSS give the same look as before (border under the
       filter rows or under the buttons, toolbar background over both)
-- [ ] run the full checks: `make lint && make test && make build`
+      (button row: padding 7px 10px and 44px tall as before, `border-b` only with the search bar hidden, 45px
+      with its border as the old wrapper; FilterBar: `arc-toolbar` background, hairline `border-b`, `pb-1.5` rows
+      and the 10px button radius as before; the two boxes sit edge to edge, so the shared translucent background
+      reads as one band; `.arc-toolbar` has no other users)
+- [x] run the full checks: `make lint && make test && make build`
 
 ### Task 6: [Final] Update documentation
 
@@ -236,16 +245,16 @@
 - Modify: `src/data/changelog.ts`
 - Modify: `docs/state-reference.md`
 
-- [ ] `README.md` § Settings: add a **Toolbar** bullet: Horizontal (default) or Vertical, a column of the
+- [x] `README.md` § Settings: add a **Toolbar** bullet: Horizontal (default) or Vertical, a column of the
       toolbar buttons at the left edge; its menus open to the right
-- [ ] `docs/changelog.md` → "Latest Version": a "New:" entry describing the setting, where it is, what moves
+- [x] `docs/changelog.md` → "Latest Version": a "New:" entry describing the setting, where it is, what moves
       where, and that menus open to the right
-- [ ] `src/data/changelog.ts` → `'2.0.388'`: a short What's New line for the setting
-- [ ] `docs/state-reference.md`: a `### \`toolbarLayout\`` section next to `attentionMarkStyle` (type, raw
+- [x] `src/data/changelog.ts` → `'2.0.388'`: a short What's New line for the setting
+- [x] `docs/state-reference.md`: a `### \`toolbarLayout\`` section next to `attentionMarkStyle` (type, raw
       string, default, owner `src/App.tsx` set from SettingsDialog Appearance tab, consumers, parser,
       not read by background, 1 per extension), and a `toolbarLayout   (toolbar layout)` line in the "State
       Architecture" diagram's `chrome.storage.local` list, after `attentionMarkStyle`
-- [ ] move this plan to `docs/plans/completed/`
+- [x] move this plan to `docs/plans/completed/` (skipped - the make-task harness moves the plan after all phases)
 
 ## Known limitations
 
