@@ -91,7 +91,7 @@ export const PageAgentDrawer: React.FC<PageAgentDrawerProps> = ({
   const canSend = block === null && !running && draft.trim() !== '';
   const pageScriptsOn = new PageAgentPluginSwitches(aiSettings.agentPlugins).isEnabledId(PAGE_SCRIPTS_PLUGIN_ID);
   // The editor needs no AI settings: it puts the user's own code on the page.
-  const editorBlock = codeEditorBlock(tabId, tabUrl, hasPageAccess, chat !== undefined);
+  const editorBlock = codeEditorBlock(tabId, tabUrl, chat !== undefined);
 
   const submit = () =>
   {
@@ -500,11 +500,14 @@ function inputBlock(
   return null;
 }
 
-/** Why the code editor can't open for the tab, or null; a run is checked by the buttons themselves. */
+/**
+ * Why the code editor can't open for the tab, or null; a run is checked by the buttons themselves.
+ * Missing page access doesn't block it: without AI settings the drawer shows only the settings notice,
+ * so the editor's own Grant page access is the one the user can reach.
+ */
 function codeEditorBlock(
   tabId: number | undefined,
   tabUrl: string | undefined,
-  hasPageAccess: boolean | null,
   chatLoaded: boolean,
 ): string | null
 {
@@ -516,10 +519,6 @@ function codeEditorBlock(
   if (reason)
   {
     return reason;
-  }
-  if (hasPageAccess === false)
-  {
-    return 'The extension needs access to http and https pages first.';
   }
   // The editor opens with the chat's applied code, which isn't known until the chat loads.
   if (!chatLoaded)

@@ -201,8 +201,9 @@ Hook: `usePageAgentChat` exposes `applyCode(css, script, origin): Promise<void>`
   captures the tab id at the click: when `applyCode` settles it closes that tab's draft on success or
   sets that tab's error, whichever tab the drawer shows by then. Cancel closes the draft.
 - Drawer: a **Code** button left of Send, enabled when there is a tab, its page is scriptable
-  (`unscriptablePageReason` is null) and page access isn't known to be missing (`hasPageAccess !== false`),
-  whatever the AI settings, and the tab doesn't run; it opens the tab's draft, or a new one from the chat's
+  (`unscriptablePageReason` is null) and the tab doesn't run, whatever the AI settings and page access
+  (the editor holds the Grant page access prompt, which the drawer's notice hides when AI settings are
+  missing too); it opens the tab's draft, or a new one from the chat's
   applied CSS and script bound to the tab's origin. While the editor shows, it replaces
   `PageAgentMessages` and the input area; the style strip stays.
 - `PageAgentMessages` / `AppliedActions`: **Edit code** after Show code (both rows: the last turn and the
@@ -311,7 +312,8 @@ Hook: `usePageAgentChat` exposes `applyCode(css, script, origin): Promise<void>`
   the tab
 - [x] `PageAgentCodeEditor` with the fields, hints, notices (user scripts, page access, `actionError`),
   site binding with Use on <site>, error line, Apply and Cancel; `cssKeepsMarker` guard
-- [x] drawer: Code button beside Send (gated on tab, scriptable page and page access), editor in place of
+- [x] drawer: Code button beside Send (gated on tab and scriptable page; ⚠️ review: not on page access, so the
+  editor's Grant page access stays reachable without AI settings), editor in place of
   the messages and the input area while the tab has a draft, Apply through `applyCode` settling on the
   tab it was clicked for
 - [x] `AppliedActions`: Edit code; Save in the no-turns row; empty-chat hint; Undo title
