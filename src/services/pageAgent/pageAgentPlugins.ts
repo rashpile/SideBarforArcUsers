@@ -23,8 +23,8 @@ export const PAGE_AGENT_PLUGINS: readonly PageAgentPluginInfo[] = [
   {
     id: PAGE_SCRIPTS_PLUGIN_ID,
     title: 'Page scripts',
-    description: 'Let the agent change the page with JavaScript after you approve it once per request. '
-      + 'A script can read and change anything on the page, as if you did it',
+    description: 'Let the agent change how pages behave with JavaScript. You allow the first script of each request; '
+      + 'scripts act with your login on that site and can read and change anything on the page',
     // Off until the user opts in: a script acts on the page with the user's own session.
     defaultEnabled: false,
   },

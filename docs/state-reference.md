@@ -188,7 +188,7 @@ Page agent chat of one tab (experimental): the user's requests, the agent's turn
     summary: string,             // the full markdown answer for answered turns; follow-up history cuts it at 4000 characters
     error?: string,
     screenshotsNote?: string,
-    pendingScript?: { kind: 'apply' | 'check', code: string }  // only while the run waits for Allow / Deny of its first script
+    pendingScript?: { kind: 'apply' | 'check', code: string, origin: string }  // only while the run waits for Allow / Deny of its first script; origin: the site the answer covers
   }>,
   appliedCss: string,           // sanitized stylesheet without the marker; Show code and Re-apply use it
   appliedScript: string,        // the script applied last (apply_script, Re-apply, a saved style); '' when none; Show code and Re-apply use it
@@ -459,7 +459,7 @@ string  // JSON of
 - Consumers: `src/App.tsx` (AI naming through `OpenAiCompatibleClient`, `src/services/aiRenameService.ts`), `src/components/pageAgent/PageAgentDrawer.tsx` (from `App`; each page agent run gets the settings current at send time, and `PageAgentRuntime.createRun` in `src/services/pageAgent/pageAgentRuntime.ts` gives the run only the enabled plugins); not read by background
 - Parsing: `parseAiRenameSettings` (`src/utils/aiConfig.ts`); missing fields take the defaults, an unknown `protocol` reads as `'auto'`, an unknown `reasoningEffort` as `'medium'`, `autoRename` and `acceptsImages` are true only when stored as `true`, and the old Chinese default prompt is replaced by the current default. `agentPlugins` keeps only entries whose value is a boolean; a value that isn't an object reads as `{}`
 - `agentPlugins` holds an entry only for a plugin the user switched in Settings. A missing id takes the plugin's `defaultEnabled` from `PAGE_AGENT_PLUGINS` (`src/services/pageAgent/pageAgentPlugins.ts`; Video transcripts: on, Page scripts: off), so a plugin added in a later version starts with its default. `PageAgentPluginSwitches` reads and writes the field
-- `page-scripts` (Page scripts) has no tool plugin behind it: `PageAgentRuntime.createRun` gives the run `scripts: true`, which offers `apply_script` and `run_check`, only when the switch is on (`isEnabledId`) and Chrome allows user scripts. Ticking it in Settings requests the optional `userScripts` permission and leaves the switch off when that is refused. The drawer reads it to show the scripts-blocked notice. It stops only the agent writing scripts: saved scripts (`bookmarkPageStyles`) run without it
+- `page-scripts` (Page scripts) has no tool plugin behind it: `PageAgentRuntime.createRun` gives the run `scripts: true`, which offers `apply_script` and `run_check`, only when the switch is on (`isEnabledId`) and Chrome allows user scripts. Ticking it in Settings shows a warning first; its Turn on requests the optional `userScripts` permission and leaves the switch off when that is refused. The drawer reads it to show the scripts-blocked notice. It stops only the agent writing scripts: saved scripts (`bookmarkPageStyles`) run without it
 - Instances: 1 per extension (shared across windows)
 
 ### `pageAgentDrawerHeight`

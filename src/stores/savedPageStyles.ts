@@ -40,6 +40,19 @@ export function httpOriginOf(url: string): string | null
   return parsed.origin;
 }
 
+/** The host of a URL or origin, such as `www.youtube.com`, to name a site to the user. */
+export function siteName(url: string): string
+{
+  try
+  {
+    return new URL(url).host || url;
+  }
+  catch
+  {
+    return url;
+  }
+}
+
 /**
  * The bookmark (or Favorite, whose id is its bookmark node id) a tab association belongs to:
  * the id of `bookmark-<id>` and `pinned-<id>`, null for any other item key.

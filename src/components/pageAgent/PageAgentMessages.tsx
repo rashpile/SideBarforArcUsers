@@ -3,6 +3,7 @@ import clsx from 'clsx';
 import { AppWindow, Check, Code, Copy, Loader2, Redo2, Save, Undo2, X } from 'lucide-react';
 import type { PageAgentChatData, PageAgentTurn, PageAgentTurnStatus } from '../../services/pageAgent/pageAgentChat';
 import type { PageAgentScriptRequest, PageAgentStep } from '../../services/pageAgent/pageAgentRun';
+import { siteName } from '../../stores/savedPageStyles';
 import type { SavedPageStyle } from '../../stores/savedPageStyles';
 import { parseMarkdown } from '../../utils/markdown';
 import { MarkdownView } from './MarkdownView';
@@ -281,7 +282,7 @@ const TurnView: React.FC<TurnViewProps> = ({
 
         {(appliedCss || appliedScript) && (
           <AppliedActions css={appliedCss} script={appliedScript} running={running} onUndo={onUndo}>
-            <SaveButton state={saveState} running={running} onSave={onSave} />
+            <SaveButton state={saveState} hasScript={appliedScript !== ''} running={running} onSave={onSave} />
           </AppliedActions>
         )}
       </div>
@@ -291,36 +292,42 @@ const TurnView: React.FC<TurnViewProps> = ({
 
 /**
  * The run waits on this: the first script of a request runs only once the user allows it, and the
- * answer holds for the request's other scripts. Stop still ends the run.
+ * answer holds for the request's other scripts on the same site. Stop still ends the run.
  */
-const ScriptApproval: React.FC<{ request: PageAgentScriptRequest; onAnswer: (allow: boolean) => void }> = ({ request, onAnswer }) => (
-  <div className="rounded border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 px-2 py-1.5 space-y-1.5">
-    <div className="font-medium text-amber-800 dark:text-amber-200">The agent wants to run JavaScript on this page</div>
-    <p className="text-gray-600 dark:text-gray-300">
-      {request.kind === 'check'
-        ? 'A check: it reads the page and removes what it added when it returns.'
-        : 'It stays on the page until Undo or a reload.'}
-      {' '}Allow also covers the other scripts of this request; Deny refuses them all.
-    </p>
-    <pre className="max-h-48 overflow-auto rounded bg-white dark:bg-gray-900 p-1.5 font-mono text-[0.85em] whitespace-pre-wrap break-all">
-      {request.code}
-    </pre>
-    <div className="flex flex-wrap gap-1.5">
-      <button
-        type="button"
-        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-500 text-white hover:bg-blue-600"
-        onClick={() => onAnswer(true)}
-      >
-        <Check size={12} />
-        Allow
-      </button>
-      <button type="button" className={buttonClass} onClick={() => onAnswer(false)}>
-        <X size={12} />
-        Deny
-      </button>
+const ScriptApproval: React.FC<{ request: PageAgentScriptRequest; onAnswer: (allow: boolean) => void }> = ({ request, onAnswer }) =>
+{
+  const site = siteName(request.origin);
+  return (
+    <div className="rounded border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 px-2 py-1.5 space-y-1.5">
+      <div className="font-medium text-amber-800 dark:text-amber-200">The agent wants to run JavaScript on {site}</div>
+      <p className="text-gray-600 dark:text-gray-300">
+        {request.kind === 'check'
+          ? 'A check: it reads the page and removes what it added when it returns.'
+          : 'It stays on the page until Undo or a reload.'}
+        {' '}Allow also runs the agent’s other scripts on {site} until this request ends, without showing them
+        first. Deny if the code does anything you didn’t ask for, such as opening another site, sending data,
+        submitting a form or clicking a button; Deny refuses every script of this request.
+      </p>
+      <pre className="max-h-48 overflow-auto rounded bg-white dark:bg-gray-900 p-1.5 font-mono text-[0.85em] whitespace-pre-wrap break-all">
+        {request.code}
+      </pre>
+      <div className="flex flex-wrap gap-1.5">
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-500 text-white hover:bg-blue-600"
+          onClick={() => onAnswer(true)}
+        >
+          <Check size={12} />
+          Allow
+        </button>
+        <button type="button" className={buttonClass} onClick={() => onAnswer(false)}>
+          <X size={12} />
+          Deny
+        </button>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 interface AppliedActionsProps
 {
@@ -361,7 +368,16 @@ const AppliedActions: React.FC<AppliedActionsProps> = ({ css, script, running, o
   );
 };
 
-const SaveButton: React.FC<{ state: SaveState; running: boolean; onSave: () => void }> = ({ state, running, onSave }) =>
+interface SaveButtonProps
+{
+  state: SaveState;
+  /** The applied set has a script, which Auto-apply then runs on every load without asking. */
+  hasScript: boolean;
+  running: boolean;
+  onSave: () => void;
+}
+
+const SaveButton: React.FC<SaveButtonProps> = ({ state, hasScript, running, onSave }) =>
 {
   if (state === 'saved')
   {
@@ -388,6 +404,11 @@ const SaveButton: React.FC<{ state: SaveState; running: boolean; onSave: () => v
     title = state === 'update'
       ? 'Replace the bookmark’s saved style with what is applied now'
       : 'Save what is applied to the bookmark and apply it whenever a page of this site loads in the bookmark’s tab';
+    // The saved script may be a later one than the user allowed: Allow covers the request's other scripts.
+    if (hasScript)
+    {
+      title += '. The script runs on every load without asking: check it with Show code first';
+    }
   }
 
   return (
