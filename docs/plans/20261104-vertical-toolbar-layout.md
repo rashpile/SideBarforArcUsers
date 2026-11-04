@@ -137,17 +137,17 @@
 - Modify: `src/components/SettingsDialog.tsx`
 - Modify: `src/App.tsx`
 
-- [ ] create `src/utils/toolbarLayout.ts` with `ToolbarLayout`, `TOOLBAR_LAYOUT_KEY`, `DEFAULT_TOOLBAR_LAYOUT`
+- [x] create `src/utils/toolbarLayout.ts` with `ToolbarLayout`, `TOOLBAR_LAYOUT_KEY`, `DEFAULT_TOOLBAR_LAYOUT`
       and `parseToolbarLayout` (Technical Details); a short header comment like `attentionMarkStyle.ts` (who
       writes and reads the key)
-- [ ] `SettingsDialog.tsx`: add `toolbarLayout: ToolbarLayout` to `SettingsValues`, a `tempToolbarLayout` state
+- [x] `SettingsDialog.tsx`: add `toolbarLayout: ToolbarLayout` to `SettingsValues`, a `tempToolbarLayout` state
       synced on open and passed in `handleApply`, and on the Appearance tab (after Pinned Icon Size) a
       **Toolbar** `<select>` with Horizontal / Vertical and the hint "Vertical puts the toolbar buttons in a
       column at the left edge of the panel", styled like the other selects
-- [ ] `App.tsx`: read the setting with `useChromeLocalStorage` (Technical Details), pass it in the `settings`
+- [x] `App.tsx`: read the setting with `useChromeLocalStorage` (Technical Details), pass it in the `settings`
       object of `SettingsDialog`, and call `setToolbarLayout(newSettings.toolbarLayout)` in
       `handleApplySettings`
-- [ ] run `make lint && make test && make build` - must pass before task 2
+- [x] run `make lint && make test && make build` - must pass before task 2
 
 ### Task 2: Let dropdown menus open to the right of their button
 

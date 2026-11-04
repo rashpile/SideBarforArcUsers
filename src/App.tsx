@@ -50,6 +50,7 @@ import { AutoArchivePeriod, AUTO_ARCHIVE_AFTER_KEY, DEFAULT_AUTO_ARCHIVE_PERIOD,
 import { TabAgeHighlightStyle, TAB_AGE_HIGHLIGHT_KEY, DEFAULT_TAB_AGE_HIGHLIGHT_STYLE, parseTabAgeHighlightStyle } from './utils/tabAgeHighlight';
 import { AttentionMarkStyle, ATTENTION_MARK_STYLE_KEY, DEFAULT_ATTENTION_MARK_STYLE, parseAttentionMarkStyle } from './utils/attentionMarkStyle';
 import { UnvisitedTabMarkerSetting, UNVISITED_TAB_MARKER_KEY, DEFAULT_UNVISITED_TAB_MARKER, parseUnvisitedTabMarker } from './utils/unvisitedTabMarker';
+import { ToolbarLayout, TOOLBAR_LAYOUT_KEY, DEFAULT_TOOLBAR_LAYOUT, parseToolbarLayout } from './utils/toolbarLayout';
 import * as DropdownMenu from './components/menu/DropdownMenu';
 import {
   AI_SETTINGS_STORAGE_KEY,
@@ -920,6 +921,12 @@ function Sidebar() {
     DEFAULT_ATTENTION_MARK_STYLE,
     { parse: parseAttentionMarkStyle, serialize: (v) => v }
   );
+  // Raw string like the other appearance settings in chrome.storage.local; only the sidebar reads it
+  const [toolbarLayout, setToolbarLayout] = useChromeLocalStorage<ToolbarLayout>(
+    TOOLBAR_LAYOUT_KEY,
+    DEFAULT_TOOLBAR_LAYOUT,
+    { parse: parseToolbarLayout, serialize: (v) => v }
+  );
   // Raw string, not JSON: background.ts reads it to decide whether to mark tabs opened in the background
   const [markUnvisitedTabs, setMarkUnvisitedTabs, markUnvisitedTabsLoaded] = useChromeLocalStorage<UnvisitedTabMarkerSetting>(
     UNVISITED_TAB_MARKER_KEY,
@@ -1119,6 +1126,7 @@ function Sidebar() {
     setHideOtherBookmarks(newSettings.hideOtherBookmarks);
     setTabGroupDisplayOrder(newSettings.tabGroupDisplayOrder);
     setPinnedIconSize(newSettings.pinnedIconSize);
+    setToolbarLayout(newSettings.toolbarLayout);
     setBookmarkOpenMode(newSettings.bookmarkOpenMode);
     setArcSingleClickOpensTab(newSettings.arcSingleClickOpensTab);
     setAudioQuickJump(newSettings.audioQuickJump);
@@ -1525,6 +1533,7 @@ function Sidebar() {
               hideOtherBookmarks,
               tabGroupDisplayOrder,
               pinnedIconSize,
+              toolbarLayout,
               bookmarkOpenMode,
               arcSingleClickOpensTab,
               audioQuickJump,
