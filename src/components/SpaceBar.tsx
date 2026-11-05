@@ -23,6 +23,8 @@ interface SpaceBarProps
   onDeleteSpace: (space: Space) => void;
   dropTargetSpaceId?: string | null;
   onPerformAction?: (action: UndoableAction) => Promise<void>;
+  // Puts the label and the Space buttons at the right end of the bar, next to "+" (vertical toolbar)
+  alignEnd?: boolean;
 }
 
 export const SpaceBar: React.FC<SpaceBarProps> = ({
@@ -31,6 +33,7 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
   onDeleteSpace,
   dropTargetSpaceId,
   onPerformAction,
+  alignEnd,
 }) =>
 {
   const { spaces, activeSpace, activeSpaceId, switchToSpace, moveSpace, getTabIdsInSpace, windowId } = useSpacesContext();
@@ -226,9 +229,17 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
     [spaces]
   );
 
+  // alignEnd packs the row, not the scroll container: justify-end inside an overflow-x container makes the
+  // leftmost Spaces unreachable once they overflow, while here the scroll container shrinks first and leaves
+  // the row no free space. Not an auto margin on the label either: the Arc styling hides it (index.css).
   return (
     <>
-      <div className="arc-space-bar flex items-stretch border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+      <div
+        className={clsx(
+          'arc-space-bar flex items-stretch border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50',
+          alignEnd && 'justify-end'
+        )}
+      >
         {/* Vertical "SPACE" label */}
         <div className="arc-space-label flex items-center justify-center px-0.5">
           <span
@@ -245,7 +256,10 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
         {/* Horizontal scrollable space icons */}
         <div
           ref={scrollContainerRef}
-          className="flex-1 flex items-center gap-1.5 px-1 py-1 overflow-x-auto"
+          className={clsx(
+            alignEnd ? 'min-w-0' : 'flex-1',
+            'flex items-center gap-1.5 px-1 py-1 overflow-x-auto'
+          )}
           style={{ scrollbarWidth: 'none' }}
           data-dnd-zone="spaceBar"
         >

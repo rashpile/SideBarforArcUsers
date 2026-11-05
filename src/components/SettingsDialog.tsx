@@ -4,7 +4,7 @@ import { FollowActiveTabMode } from '../utils/followActiveTab';
 import { AutoArchivePeriod } from '../utils/autoArchive';
 import { TabAgeHighlightStyle } from '../utils/tabAgeHighlight';
 import { AttentionMarkStyle, ATTENTION_MARK_STYLE_OPTIONS } from '../utils/attentionMarkStyle';
-import { ToolbarLayout } from '../utils/toolbarLayout';
+import { ToolbarLayout, toolbarLayoutChoice, toolbarLayoutForChoice } from '../utils/toolbarLayout';
 import { UnvisitedTabMarkerSetting } from '../utils/unvisitedTabMarker';
 import { Eye, EyeOff } from 'lucide-react';
 import {
@@ -59,7 +59,7 @@ export function SettingsDialog({
   const [tempHideOtherBookmarks, setTempHideOtherBookmarks] = useState(settings.hideOtherBookmarks);
   const [tempTabGroupDisplayOrder, setTempTabGroupDisplayOrder] = useState(settings.tabGroupDisplayOrder);
   const [tempPinnedIconSize, setTempPinnedIconSize] = useState(settings.pinnedIconSize);
-  const [tempToolbarLayout, setTempToolbarLayout] = useState(settings.toolbarLayout);
+  const [tempToolbarLayout, setTempToolbarLayout] = useState(toolbarLayoutChoice(settings.toolbarLayout));
   const [tempBookmarkOpenMode, setTempBookmarkOpenMode] = useState(settings.bookmarkOpenMode);
   const [tempArcSingleClickOpensTab, setTempArcSingleClickOpensTab] = useState(settings.arcSingleClickOpensTab);
   const [tempAudioQuickJump, setTempAudioQuickJump] = useState(settings.audioQuickJump);
@@ -98,7 +98,7 @@ export function SettingsDialog({
 
       // These don't need fresh read - not shown in dialog or use chrome.storage.local
       setTempHideOtherBookmarks(settings.hideOtherBookmarks);
-      setTempToolbarLayout(settings.toolbarLayout);
+      setTempToolbarLayout(toolbarLayoutChoice(settings.toolbarLayout));
       setTempBookmarkOpenMode(settings.bookmarkOpenMode);
       setTempArcSingleClickOpensTab(settings.arcSingleClickOpensTab);
       setTempAudioQuickJump(settings.audioQuickJump);
@@ -126,7 +126,7 @@ export function SettingsDialog({
       hideOtherBookmarks: tempHideOtherBookmarks,
       tabGroupDisplayOrder: tempTabGroupDisplayOrder,
       pinnedIconSize: tempPinnedIconSize,
-      toolbarLayout: tempToolbarLayout,
+      toolbarLayout: toolbarLayoutForChoice(settings.toolbarLayout, tempToolbarLayout),
       bookmarkOpenMode: tempBookmarkOpenMode,
       arcSingleClickOpensTab: tempArcSingleClickOpensTab,
       audioQuickJump: tempAudioQuickJump,
@@ -333,11 +333,10 @@ export function SettingsDialog({
               >
                 <option value="horizontal">Horizontal</option>
                 <option value="vertical">Vertical</option>
-                <option value="vertical-big">Vertical big</option>
               </select>
               <p className="mt-1 text-gray-500 dark:text-gray-400">
-                Vertical puts the toolbar buttons in a column at the left edge of the panel; Vertical big makes the
-                column three times wider, with a label on each button
+                Vertical puts the toolbar buttons in a column at the left edge of the panel. The button at the top of
+                the column widens it and shows a label on each button.
               </p>
             </div>
 
