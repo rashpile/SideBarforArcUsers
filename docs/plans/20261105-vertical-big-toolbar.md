@@ -166,18 +166,18 @@
 - Modify: `src/data/changelog.ts`
 - Modify: `docs/state-reference.md`
 
-- [ ] `README.md`: the Toolbar setting line (~320) lists Horizontal (default), Vertical or Vertical big, and says
+- [x] `README.md`: the Toolbar setting line (~320) lists Horizontal (default), Vertical or Vertical big, and says
       Vertical big is the Vertical column three times wider with a label on each button
-- [ ] `docs/changelog.md`: the Toolbar setting (#70) is still unreleased, so extend its existing "New: Toolbar
+- [x] `docs/changelog.md`: the Toolbar setting (#70) is still unreleased, so extend its existing "New: Toolbar
       setting" bullet under Latest Version instead of adding a second one: Horizontal, Vertical or Vertical big,
       plus one sentence on what Vertical big does (#74)
-- [ ] `src/data/changelog.ts`: extend the existing `'2.0.388'` Toolbar What's New line with Vertical big (a wider
+- [x] `src/data/changelog.ts`: extend the existing `'2.0.388'` Toolbar What's New line with Vertical big (a wider
       column with a label on each button), instead of adding a second line for the same setting
-- [ ] `docs/state-reference.md` `### toolbarLayout`: type includes `'vertical-big'`; consumers say the column,
+- [x] `docs/state-reference.md` `### toolbarLayout`: type includes `'vertical-big'`; consumers say the column,
       right-side menus and filter padding apply to both vertical layouts, and Toolbar shows labels in
       `'vertical-big'`
-- [ ] update CLAUDE.md only if a new pattern was discovered (none expected)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] update CLAUDE.md only if a new pattern was discovered (none expected) (skipped - no new pattern)
+- [x] move this plan to `docs/plans/completed/` (left in place - the harness moves it after all phases)
 
 ## Post-Completion
 
