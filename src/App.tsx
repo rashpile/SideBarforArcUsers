@@ -1865,6 +1865,7 @@ function Sidebar() {
         onDeleteSpace={handleDeleteSpace}
         dropTargetSpaceId={spaceDropTargetId}
         onPerformAction={performAction}
+        alignEnd={isVerticalToolbar(toolbarLayout)}
       />
 
       <Toast

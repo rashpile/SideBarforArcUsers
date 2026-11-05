@@ -73,10 +73,13 @@
   choosing Vertical from Horizontal gives `'vertical'` (collapsed).
 - **Toggle at the top of the strip**, before Previous, followed by a separator; rendered in both vertical values,
   never in Horizontal.
-- **Space bar right alignment in Vertical** with an auto left margin on the label, not
-  `justify-content: flex-end` on the scroll container: `flex-end` in an `overflow-x: auto` container makes the
-  leftmost Spaces unreachable once they overflow, while an auto margin collapses to 0 when there is no free space,
-  so the overflowing row scrolls as today.
+- **Space bar right alignment in Vertical** with `justify-content: flex-end` on the bar row, not on the scroll
+  container: `flex-end` in an `overflow-x: auto` container makes the leftmost Spaces unreachable once they
+  overflow, while on the row the shrinkable scroll container takes the overflow first, so the row has no free
+  space and the overflowing Spaces scroll as today.
+  ⚠️ The plan first put an auto left margin on the label. The Arc styling hides the label
+  (`.arc-space-label { display: none }` in `src/index.css`, after the Tailwind utilities), so a margin on it does
+  nothing; `justify-end` on the row packs the label (if ever shown), the Spaces and "+" at the right.
 
 ## Technical Details
 
@@ -110,8 +113,9 @@
     of the column widens it and shows a label on each button."
 - `src/components/SpaceBar.tsx`, new prop `alignEnd?: boolean`:
   - `alignEnd` false: every class exactly as today;
-  - `alignEnd` true: label wrapper gets `ml-auto`; the scroll container drops `flex-1` and gets `min-w-0` (no
-    grow, may shrink), so it is only as wide as its icons until they overflow, then it shrinks and scrolls;
+  - `alignEnd` true: the `.arc-space-bar` row gets `justify-end`; the scroll container drops `flex-1` and gets
+    `min-w-0` (no grow, may shrink), so it is only as wide as its icons until they overflow, then it shrinks and
+    scrolls;
   - `data-dnd-zone="spaceBar"`, `scrollContainerRef`, the active-Space auto-scroll, `SortableContext` and the
     Create menu stay as they are.
 - `src/index.css`: no change expected (`.arc-toolbar-vertical-big` still drives the expanded width).
@@ -169,13 +173,16 @@
 - Modify: `src/components/SpaceBar.tsx`
 - Modify: `src/App.tsx`
 
-- [ ] in `src/components/SpaceBar.tsx`, add an optional `alignEnd` prop; when set, give the label wrapper
+- [x] in `src/components/SpaceBar.tsx`, add an optional `alignEnd` prop; when set, give the label wrapper
       (`.arc-space-label`) `ml-auto` and the scroll container `min-w-0` instead of `flex-1`, with a short comment
       on why not `justify-end` (overflowing Spaces would become unreachable); when unset, classes exactly as today
-- [ ] keep `data-dnd-zone="spaceBar"`, `scrollContainerRef`, the active-Space auto-scroll, `SortableContext` and
+      ⚠️ done with `justify-end` on the `.arc-space-bar` row instead of `ml-auto` on the label: the Arc styling
+      hides the label (`display: none`), so its margin would align nothing (see Solution Overview); the comment
+      explains why the row and not the scroll container, and why not the label
+- [x] keep `data-dnd-zone="spaceBar"`, `scrollContainerRef`, the active-Space auto-scroll, `SortableContext` and
       the Create menu unchanged
-- [ ] in `src/App.tsx`, pass `alignEnd={isVerticalToolbar(toolbarLayout)}` to `SpaceBar`
-- [ ] run `make lint && make test && make build` - must pass before task 4
+- [x] in `src/App.tsx`, pass `alignEnd={isVerticalToolbar(toolbarLayout)}` to `SpaceBar`
+- [x] run `make lint && make test && make build` - must pass before task 4
 
 ### Task 4: Verify acceptance criteria
 
@@ -185,9 +192,9 @@
       Vertical from Horizontal stores `'vertical'`
 - [ ] verify the toggle renders only in the vertical layouts, writes through `setToolbarLayout` (raw string,
       `serialize: v => v`), and Horizontal renders the same elements and classes as before
-- [ ] verify the Space bar's classes are unchanged when `alignEnd` is false; with `alignEnd` the label wrapper has
-      `ml-auto` and the scroll container `min-w-0` without `flex-1`, and `data-dnd-zone`, `scrollContainerRef` and
-      `SortableContext` are unchanged
+- [ ] verify the Space bar's classes are unchanged when `alignEnd` is false; with `alignEnd` the `.arc-space-bar`
+      row has `justify-end` and the scroll container `min-w-0` without `flex-1`, and `data-dnd-zone`,
+      `scrollContainerRef` and `SortableContext` are unchanged
 - [ ] verify `App.tsx` passes `alignEnd={isVerticalToolbar(toolbarLayout)}`, so both vertical values align right
 - [ ] run full test suite: `make lint && make test && make build`
 
