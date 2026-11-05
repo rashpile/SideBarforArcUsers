@@ -186,17 +186,17 @@
 
 ### Task 4: Verify acceptance criteria
 
-- [ ] verify Settings > Toolbar lists Horizontal and Vertical only, and a stored `'vertical-big'` shows Vertical
+- [x] verify Settings > Toolbar lists Horizontal and Vertical only, and a stored `'vertical-big'` shows Vertical
       selected
-- [ ] verify saving Settings with Vertical selected keeps `'vertical-big'` when it was stored, and choosing
+- [x] verify saving Settings with Vertical selected keeps `'vertical-big'` when it was stored, and choosing
       Vertical from Horizontal stores `'vertical'`
-- [ ] verify the toggle renders only in the vertical layouts, writes through `setToolbarLayout` (raw string,
+- [x] verify the toggle renders only in the vertical layouts, writes through `setToolbarLayout` (raw string,
       `serialize: v => v`), and Horizontal renders the same elements and classes as before
-- [ ] verify the Space bar's classes are unchanged when `alignEnd` is false; with `alignEnd` the `.arc-space-bar`
+- [x] verify the Space bar's classes are unchanged when `alignEnd` is false; with `alignEnd` the `.arc-space-bar`
       row has `justify-end` and the scroll container `min-w-0` without `flex-1`, and `data-dnd-zone`,
       `scrollContainerRef` and `SortableContext` are unchanged
-- [ ] verify `App.tsx` passes `alignEnd={isVerticalToolbar(toolbarLayout)}`, so both vertical values align right
-- [ ] run full test suite: `make lint && make test && make build`
+- [x] verify `App.tsx` passes `alignEnd={isVerticalToolbar(toolbarLayout)}`, so both vertical values align right
+- [x] run full test suite: `make lint && make test && make build`
 
 ### Task 5: [Final] Update documentation
 
