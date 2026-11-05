@@ -149,17 +149,19 @@
 - Modify: `src/utils/toolbarLayout.ts`
 - Modify: `src/components/SettingsDialog.tsx`
 
-- [ ] in `src/utils/toolbarLayout.ts`, add `toolbarLayoutForChoice(current, choice)`: Vertical chosen while the
+- [x] in `src/utils/toolbarLayout.ts`, add `toolbarLayoutForChoice(current, choice)`: Vertical chosen while the
       current layout is vertical keeps the current value, any other choice is saved as chosen
-- [ ] in `src/components/SettingsDialog.tsx`, show `'vertical'` in the select for both vertical stored values
+- [x] in `src/components/SettingsDialog.tsx`, show `'vertical'` in the select for both vertical stored values
       (initial state and the reset at line ~101), remove the Vertical big option, and replace the help line with:
       "Vertical puts the toolbar buttons in a column at the left edge of the panel. The button at the top of the
       column widens it and shows a label on each button."
-- [ ] in `SettingsDialog.handleApply` (line ~129), pass
+      ➕ the `'vertical-big'` → `'vertical'` mapping is a helper `toolbarLayoutChoice(layout)` in
+      `src/utils/toolbarLayout.ts`, used for both the initial state and the reset
+- [x] in `SettingsDialog.handleApply` (line ~129), pass
       `toolbarLayout: toolbarLayoutForChoice(settings.toolbarLayout, tempToolbarLayout)`, so saving Settings with
       Vertical selected leaves an expanded strip expanded and a collapsed one collapsed; `App.tsx:1135` stays as
       it is
-- [ ] run `make lint && make test && make build` - must pass before task 3
+- [x] run `make lint && make test && make build` - must pass before task 3
 
 ### Task 3: Space buttons at the right of the Space bar in Vertical
 
