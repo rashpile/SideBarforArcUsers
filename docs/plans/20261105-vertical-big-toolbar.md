@@ -151,12 +151,12 @@
 
 ### Task 4: Verify acceptance criteria
 
-- [ ] verify the select lists Horizontal, Vertical, Vertical big in that order and stores `'vertical-big'` as a
+- [x] verify the select lists Horizontal, Vertical, Vertical big in that order and stores `'vertical-big'` as a
       raw string (same `serialize: v => v` path as the other values)
-- [ ] verify `'horizontal'` and `'vertical'` are parsed and rendered as before, and an unknown stored value still
+- [x] verify `'horizontal'` and `'vertical'` are parsed and rendered as before, and an unknown stored value still
       reads as Horizontal
-- [ ] verify all four former `=== 'vertical'` sites go through `isVerticalToolbar`
-- [ ] run full test suite: `make lint && make test && make build`
+- [x] verify all four former `=== 'vertical'` sites go through `isVerticalToolbar`
+- [x] run full test suite: `make lint && make test && make build`
 
 ### Task 5: [Final] Update documentation
 
