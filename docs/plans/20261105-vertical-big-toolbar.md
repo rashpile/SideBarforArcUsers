@@ -103,18 +103,18 @@
 - Modify: `src/components/Toolbar.tsx`
 - Modify: `src/components/FilterBar.tsx`
 
-- [ ] in `src/utils/toolbarLayout.ts`, add `'vertical-big'` to `ToolbarLayout`, make `parseToolbarLayout` return
+- [x] in `src/utils/toolbarLayout.ts`, add `'vertical-big'` to `ToolbarLayout`, make `parseToolbarLayout` return
       it for the stored string `'vertical-big'` (unknown values still `'horizontal'`), update the file's top
       comment to name the third value, and add `isVerticalToolbar(layout)` (true for `'vertical'` and
       `'vertical-big'`)
-- [ ] in `src/App.tsx`, use `isVerticalToolbar(toolbarLayout)` for `toolbarMenuSide` (line ~933) and for the
+- [x] in `src/App.tsx`, use `isVerticalToolbar(toolbarLayout)` for `toolbarMenuSide` (line ~933) and for the
       panel flex direction (line ~1630); update the comment above the flex container if it names only two
       layouts
-- [ ] in `src/components/Toolbar.tsx`, set `vertical = isVerticalToolbar(orientation)`
-- [ ] in `src/components/FilterBar.tsx`, use `isVerticalToolbar(orientation)` for `topPadding`; update its
+- [x] in `src/components/Toolbar.tsx`, set `vertical = isVerticalToolbar(orientation)`
+- [x] in `src/components/FilterBar.tsx`, use `isVerticalToolbar(orientation)` for `topPadding`; update its
       comment ("the vertical one" → both vertical layouts)
-- [ ] grep `src/` for any other `'vertical'` comparison on a `ToolbarLayout` and route it through the helper
-- [ ] run `make lint && make test && make build` - must pass before task 2
+- [x] grep `src/` for any other `'vertical'` comparison on a `ToolbarLayout` and route it through the helper
+- [x] run `make lint && make test && make build` - must pass before task 2
 
 ### Task 2: Render the wide strip with labelled full-width buttons
 

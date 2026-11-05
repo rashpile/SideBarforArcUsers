@@ -5,7 +5,7 @@ import { useShowActiveTab } from '../hooks/useFollowActiveTab';
 import { useSpacesContext } from '../contexts/SpacesContext';
 import { tabHistoryManagerProxy } from '../managers/proxies/tabHistoryManagerProxy';
 import { TabHistoryItem } from '../managers/shared/tabHistoryManagerApi';
-import { ToolbarLayout } from '../utils/toolbarLayout';
+import { ToolbarLayout, isVerticalToolbar } from '../utils/toolbarLayout';
 
 interface ToolbarProps
 {
@@ -63,7 +63,7 @@ export const Toolbar = forwardRef<HTMLButtonElement, ToolbarProps>(({
   const inactiveButtonClass = 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-500';
 
   // Both layouts keep the same elements and only swap classes, so changing the setting remounts nothing
-  const vertical = orientation === 'vertical';
+  const vertical = isVerticalToolbar(orientation);
   const menuSide: DropdownMenu.DropdownSide = vertical ? 'right' : 'bottom';
   const separatorClass = vertical
     ? 'h-px w-4 bg-gray-300 dark:bg-gray-600 my-0.5'
