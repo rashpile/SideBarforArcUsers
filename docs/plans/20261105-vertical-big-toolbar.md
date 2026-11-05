@@ -122,22 +122,22 @@
 - Modify: `src/components/Toolbar.tsx`
 - Modify: `src/index.css`
 
-- [ ] in `src/components/Toolbar.tsx`, add `big = orientation === 'vertical-big'`; in big mode give the root the
+- [x] in `src/components/Toolbar.tsx`, add `big = orientation === 'vertical-big'`; in big mode give the root the
       extra class `arc-toolbar-vertical-big` and `items-stretch` instead of `items-center`, and the inner button
       group `items-stretch`
-- [ ] in big mode give every toolbar button (Previous, Next, Audio, Show active tab, Search, Page agent, gear)
+- [x] in big mode give every toolbar button (Previous, Next, Audio, Show active tab, Search, Page agent, gear)
       `w-full flex items-center gap-2 text-left` and a label `<span className="text-xs truncate min-w-0">`
       rendered only when `big`: Previous, Next, Audio, Active tab, Search, Agent, Menu; keep icons, tooltips,
       handlers, refs and active/inactive classes as they are
-- [ ] in big mode make both separators full width (`h-px w-full ... my-0.5`); Vertical keeps the 16px stub and
+- [x] in big mode make both separators full width (`h-px w-full ... my-0.5`); Vertical keeps the 16px stub and
       Horizontal the vertical bar
-- [ ] update the comment above `vertical` in `Toolbar.tsx` ("Both layouts keep the same elements…"): three
+- [x] update the comment above `vertical` in `Toolbar.tsx` ("Both layouts keep the same elements…"): three
       layouts, and Vertical big only adds the label spans, so switching still remounts nothing
-- [ ] in `src/index.css`, add `.arc-toolbar-vertical-big { width: 111px; flex-shrink: 0; }` after
+- [x] in `src/index.css`, add `.arc-toolbar-vertical-big { width: 111px; flex-shrink: 0; }` after
       `.arc-toolbar-vertical`, with a comment saying why 111px (3 × the 37px Vertical strip, border-box)
-- [ ] check that Horizontal and Vertical render the same classes and elements as before (diff the JSX for those
+- [x] check that Horizontal and Vertical render the same classes and elements as before (diff the JSX for those
       branches) and that the element tree is the same in all three layouts (labels are the only extra nodes)
-- [ ] run `make lint && make test && make build` - must pass before task 3
+- [x] run `make lint && make test && make build` - must pass before task 3
 
 ### Task 3: Add Vertical big to the Settings dialog
 

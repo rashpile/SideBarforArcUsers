@@ -58,6 +58,16 @@ html, body, #root {
   border-right-color: var(--arc-hairline);
 }
 
+/*
+ * Vertical big: three times the Vertical strip, whose width comes from its content (4px padding + 28px button +
+ * 4px padding + 1px border = 37px). Border-box, so the 111px includes that padding and border. A fixed width keeps
+ * the labels from widening the strip, and flex-shrink: 0 keeps a narrow panel from squeezing it.
+ */
+.arc-toolbar-vertical-big {
+  width: 111px;
+  flex-shrink: 0;
+}
+
 .arc-toolbar button {
   border-radius: 10px;
 }
