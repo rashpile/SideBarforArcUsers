@@ -361,12 +361,12 @@ number  // epoch millis
 - Instances: 1 per extension (shared across windows)
 
 ### `toolbarLayout`
-"Toolbar" setting: the toolbar buttons in a row across the top of the panel, or in a narrow or wide (labelled) column at its left edge
+"Toolbar" setting: the toolbar buttons in a row across the top of the panel (Horizontal), or in a column at its left edge (Vertical) that is collapsed (`'vertical'`, a narrow strip) or expanded (`'vertical-big'`, three times wider with a label on each button)
 ```typescript
 'horizontal' | 'vertical' | 'vertical-big'  // raw string, not JSON; default 'horizontal'
 ```
-- Owner: `src/App.tsx` (via `useChromeLocalStorage` with `serialize: v => v`), set from `src/components/SettingsDialog.tsx` (Appearance tab)
-- Consumers: `src/App.tsx` (lays the panel out as a column or as two columns, passes `orientation` to `Toolbar` and `FilterBar`, and opens the gear menu and the audio list to the right in both vertical layouts; other windows' panels follow through `chrome.storage.onChanged`), `src/components/Toolbar.tsx` (button row or strip; Previous / Next lists open to the right in both vertical layouts; `'vertical-big'` is a three times wider strip with a label on each button), `src/components/FilterBar.tsx` (top padding in both vertical layouts), `src/components/SettingsDialog.tsx`; not read by background. `isVerticalToolbar` (`src/utils/toolbarLayout.ts`) is true for `'vertical'` and `'vertical-big'`
+- Owner: `src/App.tsx` (via `useChromeLocalStorage` with `serialize: v => v`). Two writers go through its `setToolbarLayout`: `src/components/SettingsDialog.tsx` (Appearance tab; offers Horizontal and Vertical, and saving Vertical while a vertical strip is shown keeps it collapsed or expanded, `toolbarLayoutForChoice`) and the expand/collapse toggle at the top of the strip in `src/components/Toolbar.tsx` (`toggleVerticalToolbar`)
+- Consumers: `src/App.tsx` (lays the panel out as a column or as two columns, passes `orientation` to `Toolbar` and `FilterBar`, and opens the gear menu and the audio list to the right in both vertical layouts; other windows' panels follow through `chrome.storage.onChanged`), `src/components/Toolbar.tsx` (button row or strip; the expand/collapse toggle only in the vertical layouts; Previous / Next lists open to the right in both vertical layouts; `'vertical-big'` is a three times wider strip with a label on each button), `src/components/FilterBar.tsx` (top padding in both vertical layouts), `src/components/SpaceBar.tsx` (`alignEnd`: the Space buttons at the right end of the Space bar, next to "+", in both vertical layouts), `src/components/SettingsDialog.tsx` (shows `'vertical-big'` as Vertical, `toolbarLayoutChoice`); not read by background. `isVerticalToolbar` (`src/utils/toolbarLayout.ts`) is true for `'vertical'` and `'vertical-big'`
 - Parsing: `parseToolbarLayout` (`src/utils/toolbarLayout.ts`); absent or unknown values read as `'horizontal'`
 - Instances: 1 per extension (shared across windows)
 

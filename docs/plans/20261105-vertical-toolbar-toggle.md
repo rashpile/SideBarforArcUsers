@@ -206,24 +206,26 @@
 - Modify: `src/data/changelog.ts`
 - Modify: `docs/state-reference.md`
 
-- [ ] `README.md` (~320): the Toolbar setting is Horizontal (default) or Vertical; Vertical puts the buttons in a
+- [x] `README.md` (~320): the Toolbar setting is Horizontal (default) or Vertical; Vertical puts the buttons in a
       column at the left edge, menus open to the right, the button at the top of the column widens it with a
       label on each button and narrows it again, and the Space buttons sit at the right of the Space bar
-- [ ] `docs/changelog.md`: the Toolbar setting is still unreleased, so rewrite its existing "New: Toolbar
+- [x] `docs/changelog.md`: the Toolbar setting is still unreleased, so rewrite its existing "New: Toolbar
       setting" bullet under Latest Version instead of adding a second one: Horizontal or Vertical; the toggle at
       the top of the column switches between the narrow column and the wide one with labels, remembered and
       followed by every window; in Vertical the SPACE label and the Space buttons sit at the right end of the
       Space bar; keep the #74 reference for the wide strip next to the new #76
-- [ ] `src/data/changelog.ts`: rewrite the existing `'2.0.388'` Toolbar What's New line the same way (Vertical,
+      ⚠️ the bullet names only the Space buttons, not the SPACE label: the Arc styling always hides the label
+      (`.arc-space-label { display: none }`), so users never see it move
+- [x] `src/data/changelog.ts`: rewrite the existing `'2.0.388'` Toolbar What's New line the same way (Vertical,
       with a button at the top of the column that widens it with labels, and the Space buttons at the right of the
       Space bar), instead of adding a second line; escape apostrophes as the other entries do (`\'`)
-- [ ] `docs/state-reference.md` `### toolbarLayout`: describe `'vertical'` as the collapsed and `'vertical-big'`
+- [x] `docs/state-reference.md` `### toolbarLayout`: describe `'vertical'` as the collapsed and `'vertical-big'`
       as the expanded Vertical strip; writers: the Settings dialog (Horizontal / Vertical, keeping the expanded
       state) and the strip's toggle, both through App.tsx; add `src/components/SpaceBar.tsx` to consumers (Space
       buttons at the right in both vertical values)
-- [ ] update CLAUDE.md only if a new pattern was discovered (none expected)
-- [ ] run `make lint && make test && make build` - must pass (`src/data/changelog.ts` is TypeScript)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] update CLAUDE.md only if a new pattern was discovered (none expected) - none found, CLAUDE.md unchanged
+- [x] run `make lint && make test && make build` - must pass (`src/data/changelog.ts` is TypeScript)
+- [x] move this plan to `docs/plans/completed/` (skipped - the harness moves the plan after all phases finish)
 
 ## Post-Completion
 
