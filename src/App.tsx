@@ -51,7 +51,7 @@ import { AutoArchivePeriod, AUTO_ARCHIVE_AFTER_KEY, DEFAULT_AUTO_ARCHIVE_PERIOD,
 import { TabAgeHighlightStyle, TAB_AGE_HIGHLIGHT_KEY, DEFAULT_TAB_AGE_HIGHLIGHT_STYLE, parseTabAgeHighlightStyle } from './utils/tabAgeHighlight';
 import { AttentionMarkStyle, ATTENTION_MARK_STYLE_KEY, DEFAULT_ATTENTION_MARK_STYLE, parseAttentionMarkStyle } from './utils/attentionMarkStyle';
 import { UnvisitedTabMarkerSetting, UNVISITED_TAB_MARKER_KEY, DEFAULT_UNVISITED_TAB_MARKER, parseUnvisitedTabMarker } from './utils/unvisitedTabMarker';
-import { ToolbarLayout, TOOLBAR_LAYOUT_KEY, DEFAULT_TOOLBAR_LAYOUT, parseToolbarLayout, isVerticalToolbar } from './utils/toolbarLayout';
+import { ToolbarLayout, TOOLBAR_LAYOUT_KEY, DEFAULT_TOOLBAR_LAYOUT, parseToolbarLayout, isVerticalToolbar, toggleVerticalToolbar } from './utils/toolbarLayout';
 import * as DropdownMenu from './components/menu/DropdownMenu';
 import {
   AI_SETTINGS_STORAGE_KEY,
@@ -1647,6 +1647,7 @@ function Sidebar() {
           }}
           pageAgentOpen={showPageAgent}
           onTogglePageAgent={() => setShowPageAgent(open => !open)}
+          onToggleExpanded={() => setToolbarLayout(toggleVerticalToolbar(toolbarLayout))}
         />
 
         {/* Settings popup menu */}

@@ -1,4 +1,4 @@
-import { Settings, Volume2, RotateCcwSquare, RotateCwSquare, Search, Sparkles } from 'lucide-react';
+import { Settings, Volume2, RotateCcwSquare, RotateCwSquare, Search, Sparkles, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
 import React, { forwardRef, useState, useRef, useEffect, useCallback } from 'react';
 import * as DropdownMenu from './menu/DropdownMenu';
 import { useShowActiveTab } from '../hooks/useFollowActiveTab';
@@ -21,6 +21,8 @@ interface ToolbarProps
   onToggleFilterArea?: () => void;
   pageAgentOpen?: boolean;
   onTogglePageAgent?: () => void;
+  // Switches the vertical strip between collapsed and expanded; the toggle shows only in the vertical layouts
+  onToggleExpanded?: () => void;
 }
 
 
@@ -57,13 +59,15 @@ export const Toolbar = forwardRef<HTMLButtonElement, ToolbarProps>(({
   onToggleFilterArea,
   pageAgentOpen = false,
   onTogglePageAgent,
+  onToggleExpanded,
 }, _ref) =>
 {
   const activeButtonClass = 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 active:bg-blue-200 dark:active:bg-blue-800';
   const inactiveButtonClass = 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-500';
 
-  // All three layouts keep the same elements and only swap classes; Vertical big adds just the label spans
-  // inside the buttons, so changing the setting remounts nothing
+  // All three layouts keep the same elements and only swap classes. The expand/collapse toggle is the one
+  // element that exists only in the vertical layouts; the expanded strip adds just the label spans inside the
+  // buttons, so switching between collapsed and expanded remounts nothing
   const vertical = isVerticalToolbar(orientation);
   const big = orientation === 'vertical-big';
   const menuSide: DropdownMenu.DropdownSide = vertical ? 'right' : 'bottom';
@@ -255,6 +259,22 @@ export const Toolbar = forwardRef<HTMLButtonElement, ToolbarProps>(({
     >
       {/* Tab history and Filter buttons: left side of the row, top of the strip */}
       <div className={`flex gap-1 ${big ? 'flex-col items-stretch' : vertical ? 'flex-col items-center' : 'items-center'}`}>
+        {vertical && onToggleExpanded && (
+          <>
+            <button
+              onClick={onToggleExpanded}
+              title={big ? 'Collapse toolbar' : 'Expand toolbar'}
+              aria-label={big ? 'Collapse toolbar' : 'Expand toolbar'}
+              className={`p-1.5 rounded transition-all duration-150 focus:outline-none ${buttonLayoutClass} ${inactiveButtonClass}`}
+            >
+              {big ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
+              {buttonLabel('Collapse')}
+            </button>
+
+            <div className={separatorClass} />
+          </>
+        )}
+
         {/* Tab history navigation - Previous */}
         <DropdownMenu.Root
           open={historyDropdown === 'prev'}

@@ -130,18 +130,18 @@
 - Modify: `src/components/Toolbar.tsx`
 - Modify: `src/App.tsx`
 
-- [ ] in `src/utils/toolbarLayout.ts`, add `toggleVerticalToolbar(layout)` and update the file's header comment
+- [x] in `src/utils/toolbarLayout.ts`, add `toggleVerticalToolbar(layout)` and update the file's header comment
       (`'vertical'` is the collapsed strip, `'vertical-big'` the expanded one, switched from the strip's toggle) and
       the `TOOLBAR_LAYOUT_KEY` comment (written by App.tsx, from the Settings dialog and from the strip's toggle)
-- [ ] in `src/components/Toolbar.tsx`, add the optional `onToggleExpanded` prop and, in both vertical layouts, a
+- [x] in `src/components/Toolbar.tsx`, add the optional `onToggleExpanded` prop and, in both vertical layouts, a
       first button (before Previous) with the shared button classes, `PanelLeftOpen` / `PanelLeftClose` icon,
       title and aria-label "Expand toolbar" / "Collapse toolbar", label "Collapse" via `buttonLabel`, followed by
       a separator using `separatorClass`; nothing new in Horizontal
-- [ ] update the comment above `vertical` in `Toolbar.tsx` so it still holds (the toggle is the one element that
+- [x] update the comment above `vertical` in `Toolbar.tsx` so it still holds (the toggle is the one element that
       exists only in the vertical layouts; switching collapsed/expanded still remounts nothing)
-- [ ] in `src/App.tsx`, pass `onToggleExpanded={() => setToolbarLayout(toggleVerticalToolbar(toolbarLayout))}` to
+- [x] in `src/App.tsx`, pass `onToggleExpanded={() => setToolbarLayout(toggleVerticalToolbar(toolbarLayout))}` to
       `Toolbar`
-- [ ] run `make lint && make test && make build` - must pass before task 2
+- [x] run `make lint && make test && make build` - must pass before task 2
 
 ### Task 2: One Vertical option in Settings
 
