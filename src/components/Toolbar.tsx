@@ -5,7 +5,7 @@ import { useShowActiveTab } from '../hooks/useFollowActiveTab';
 import { useSpacesContext } from '../contexts/SpacesContext';
 import { tabHistoryManagerProxy } from '../managers/proxies/tabHistoryManagerProxy';
 import { TabHistoryItem } from '../managers/shared/tabHistoryManagerApi';
-import { ToolbarLayout } from '../utils/toolbarLayout';
+import { ToolbarLayout, isVerticalToolbar } from '../utils/toolbarLayout';
 
 interface ToolbarProps
 {
@@ -62,12 +62,20 @@ export const Toolbar = forwardRef<HTMLButtonElement, ToolbarProps>(({
   const activeButtonClass = 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 active:bg-blue-200 dark:active:bg-blue-800';
   const inactiveButtonClass = 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-500';
 
-  // Both layouts keep the same elements and only swap classes, so changing the setting remounts nothing
-  const vertical = orientation === 'vertical';
+  // All three layouts keep the same elements and only swap classes; Vertical big adds just the label spans
+  // inside the buttons, so changing the setting remounts nothing
+  const vertical = isVerticalToolbar(orientation);
+  const big = orientation === 'vertical-big';
   const menuSide: DropdownMenu.DropdownSide = vertical ? 'right' : 'bottom';
-  const separatorClass = vertical
-    ? 'h-px w-4 bg-gray-300 dark:bg-gray-600 my-0.5'
-    : 'w-px h-4 bg-gray-300 dark:bg-gray-600 mx-0.5';
+  const separatorClass = big
+    ? 'h-px w-full bg-gray-300 dark:bg-gray-600 my-0.5'
+    : vertical
+      ? 'h-px w-4 bg-gray-300 dark:bg-gray-600 my-0.5'
+      : 'w-px h-4 bg-gray-300 dark:bg-gray-600 mx-0.5';
+  // In the wide strip each button is a full-width row, so its label reads without hovering and the whole row clicks
+  const buttonLayoutClass = big ? 'w-full flex items-center gap-2 text-left' : '';
+  // Fixed 12px instead of the panel font size, which could overflow the fixed-width strip
+  const buttonLabel = (text: string) => (big ? <span className="text-xs truncate min-w-0">{text}</span> : null);
 
   // "Show active tab" button: switch to the active tab's space and scroll to it
   const showActiveTab = useShowActiveTab();
@@ -236,15 +244,17 @@ export const Toolbar = forwardRef<HTMLButtonElement, ToolbarProps>(({
   return (
     <div
       className={
-        vertical
-          ? 'arc-toolbar arc-toolbar-vertical flex flex-col items-center gap-1 border-r border-gray-200 dark:border-gray-700'
-          : `arc-toolbar arc-toolbar-row flex items-center justify-between ${
-            showFilterArea ? '' : 'border-b border-gray-200 dark:border-gray-700'
-          }`
+        big
+          ? 'arc-toolbar arc-toolbar-vertical arc-toolbar-vertical-big flex flex-col items-stretch gap-1 border-r border-gray-200 dark:border-gray-700'
+          : vertical
+            ? 'arc-toolbar arc-toolbar-vertical flex flex-col items-center gap-1 border-r border-gray-200 dark:border-gray-700'
+            : `arc-toolbar arc-toolbar-row flex items-center justify-between ${
+              showFilterArea ? '' : 'border-b border-gray-200 dark:border-gray-700'
+            }`
       }
     >
       {/* Tab history and Filter buttons: left side of the row, top of the strip */}
-      <div className={`flex items-center gap-1 ${vertical ? 'flex-col' : ''}`}>
+      <div className={`flex gap-1 ${big ? 'flex-col items-stretch' : vertical ? 'flex-col items-center' : 'items-center'}`}>
         {/* Tab history navigation - Previous */}
         <DropdownMenu.Root
           open={historyDropdown === 'prev'}
@@ -257,11 +267,12 @@ export const Toolbar = forwardRef<HTMLButtonElement, ToolbarProps>(({
             onMouseUp={() => handleHistoryMouseUp('prev')}
             onMouseLeave={handleHistoryMouseLeave}
             title={`Previous used tab${prevTabShortcut ? ` (${prevTabShortcut})` : ''}\nHold for history`}
-            className={`p-1.5 rounded transition-all duration-150 focus:outline-none ${
+            className={`p-1.5 rounded transition-all duration-150 focus:outline-none ${buttonLayoutClass} ${
               historyDropdown === 'prev' ? activeButtonClass : inactiveButtonClass
             }`}
           >
             <RotateCcwSquare size={16} className="-rotate-90" />
+            {buttonLabel('Previous')}
           </button>
 
           <DropdownMenu.Content side={menuSide} className="min-w-48 max-w-72 max-h-64 overflow-y-auto">
@@ -299,11 +310,12 @@ export const Toolbar = forwardRef<HTMLButtonElement, ToolbarProps>(({
             onMouseUp={() => handleHistoryMouseUp('next')}
             onMouseLeave={handleHistoryMouseLeave}
             title={`Next used tab${nextTabShortcut ? ` (${nextTabShortcut})` : ''}\nHold for history`}
-            className={`p-1.5 rounded transition-all duration-150 focus:outline-none ${
+            className={`p-1.5 rounded transition-all duration-150 focus:outline-none ${buttonLayoutClass} ${
               historyDropdown === 'next' ? activeButtonClass : inactiveButtonClass
             }`}
           >
             <RotateCwSquare size={16} className="rotate-90" />
+            {buttonLabel('Next')}
           </button>
 
           <DropdownMenu.Content side={menuSide} className="min-w-48 max-w-72 max-h-64 overflow-y-auto">
@@ -340,18 +352,20 @@ export const Toolbar = forwardRef<HTMLButtonElement, ToolbarProps>(({
           onMouseUp={onAudioTabJump ? handleAudioMouseUp : undefined}
           onMouseLeave={onAudioTabJump ? handleAudioMouseLeave : undefined}
           title={onAudioTabJump ? 'Click to jump to audio tab · Hold to show list' : 'Show tabs playing audio/video'}
-          className={`p-1.5 rounded transition-all duration-150 focus:outline-none ${inactiveButtonClass}`}
+          className={`p-1.5 rounded transition-all duration-150 focus:outline-none ${buttonLayoutClass} ${inactiveButtonClass}`}
         >
           <Volume2 size={16} />
+          {buttonLabel('Audio')}
         </button>
 
         {/* Scroll to active tab button */}
         <button
           onClick={showActiveTab}
           title="Show active tab"
-          className={`p-1.5 rounded transition-all duration-150 focus:outline-none ${inactiveButtonClass}`}
+          className={`p-1.5 rounded transition-all duration-150 focus:outline-none ${buttonLayoutClass} ${inactiveButtonClass}`}
         >
           <TreeGutterIcon size={16} />
+          {buttonLabel('Active tab')}
         </button>
 
         {/* Separator */}
@@ -362,11 +376,12 @@ export const Toolbar = forwardRef<HTMLButtonElement, ToolbarProps>(({
           <button
             onClick={onToggleFilterArea}
             title={showFilterArea ? "Hide search bar" : "Show search bar"}
-            className={`p-1.5 rounded transition-all duration-150 focus:outline-none ${
+            className={`p-1.5 rounded transition-all duration-150 focus:outline-none ${buttonLayoutClass} ${
               showFilterArea ? activeButtonClass : inactiveButtonClass
             }`}
           >
             <Search size={16} />
+            {buttonLabel('Search')}
           </button>
         )}
 
@@ -374,11 +389,12 @@ export const Toolbar = forwardRef<HTMLButtonElement, ToolbarProps>(({
           <button
             onClick={onTogglePageAgent}
             title="Page agent (experimental)"
-            className={`p-1.5 rounded transition-all duration-150 focus:outline-none ${
+            className={`p-1.5 rounded transition-all duration-150 focus:outline-none ${buttonLayoutClass} ${
               pageAgentOpen ? activeButtonClass : inactiveButtonClass
             }`}
           >
             <Sparkles size={16} />
+            {buttonLabel('Agent')}
           </button>
         )}
 
@@ -390,9 +406,10 @@ export const Toolbar = forwardRef<HTMLButtonElement, ToolbarProps>(({
           ref={menuButtonRef}
           onClick={onMenuToggle}
           title="Menu"
-          className={`p-1.5 rounded transition-all duration-150 ${inactiveButtonClass}`}
+          className={`p-1.5 rounded transition-all duration-150 ${buttonLayoutClass} ${inactiveButtonClass}`}
         >
           <Settings size={16} />
+          {buttonLabel('Menu')}
         </button>
       </div>
     </div>

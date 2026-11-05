@@ -51,7 +51,7 @@ import { AutoArchivePeriod, AUTO_ARCHIVE_AFTER_KEY, DEFAULT_AUTO_ARCHIVE_PERIOD,
 import { TabAgeHighlightStyle, TAB_AGE_HIGHLIGHT_KEY, DEFAULT_TAB_AGE_HIGHLIGHT_STYLE, parseTabAgeHighlightStyle } from './utils/tabAgeHighlight';
 import { AttentionMarkStyle, ATTENTION_MARK_STYLE_KEY, DEFAULT_ATTENTION_MARK_STYLE, parseAttentionMarkStyle } from './utils/attentionMarkStyle';
 import { UnvisitedTabMarkerSetting, UNVISITED_TAB_MARKER_KEY, DEFAULT_UNVISITED_TAB_MARKER, parseUnvisitedTabMarker } from './utils/unvisitedTabMarker';
-import { ToolbarLayout, TOOLBAR_LAYOUT_KEY, DEFAULT_TOOLBAR_LAYOUT, parseToolbarLayout } from './utils/toolbarLayout';
+import { ToolbarLayout, TOOLBAR_LAYOUT_KEY, DEFAULT_TOOLBAR_LAYOUT, parseToolbarLayout, isVerticalToolbar } from './utils/toolbarLayout';
 import * as DropdownMenu from './components/menu/DropdownMenu';
 import {
   AI_SETTINGS_STORAGE_KEY,
@@ -930,7 +930,7 @@ function Sidebar() {
     { parse: parseToolbarLayout, serialize: (v) => v }
   );
   // A list under a button in the vertical strip would cover the strip's next buttons
-  const toolbarMenuSide: DropdownMenu.DropdownSide = toolbarLayout === 'vertical' ? 'right' : 'bottom';
+  const toolbarMenuSide: DropdownMenu.DropdownSide = isVerticalToolbar(toolbarLayout) ? 'right' : 'bottom';
   // Raw string, not JSON: background.ts reads it to decide whether to mark tabs opened in the background
   const [markUnvisitedTabs, setMarkUnvisitedTabs, markUnvisitedTabsLoaded] = useChromeLocalStorage<UnvisitedTabMarkerSetting>(
     UNVISITED_TAB_MARKER_KEY,
@@ -1625,9 +1625,10 @@ function Sidebar() {
         />
       </DropdownMenu.Root>
 
-      {/* Toolbar and content: the toolbar is a row above the content or a column left of it. The same elements in
-          both layouts, so switching the setting remounts neither the tree nor the search input. */}
-      <div className={`flex-1 min-h-0 flex ${toolbarLayout === 'vertical' ? 'flex-row' : 'flex-col'}`}>
+      {/* Toolbar and content: the toolbar is a row above the content or, in both vertical layouts, a column left of
+          it. The same elements in every layout, so switching the setting remounts neither the tree nor the search
+          input. */}
+      <div className={`flex-1 min-h-0 flex ${isVerticalToolbar(toolbarLayout) ? 'flex-row' : 'flex-col'}`}>
         <Toolbar
           orientation={toolbarLayout}
           onAudioDialogOpen={handleOpenAudioDialog}

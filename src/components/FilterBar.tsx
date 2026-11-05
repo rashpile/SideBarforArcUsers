@@ -1,6 +1,6 @@
 import { ChevronDown, X, Save, Clock, Bookmark, Trash2, HelpCircle } from 'lucide-react';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ToolbarLayout } from '../utils/toolbarLayout';
+import { ToolbarLayout, isVerticalToolbar } from '../utils/toolbarLayout';
 
 // The search/filter rows under the toolbar. App mounts this only while the
 // search bar is shown, so its state (the session's recent entry, a pending
@@ -282,8 +282,8 @@ export const FilterBar = ({
 
   const canSave = inputValue.trim() && !savedFilters.includes(inputValue.trim());
 
-  // In the horizontal layout the toolbar row above gives the gap; in the vertical one nothing sits above the bar
-  const topPadding = orientation === 'vertical' ? 'pt-1.5' : '';
+  // In the horizontal layout the toolbar row above gives the gap; in both vertical ones nothing sits above the bar
+  const topPadding = isVerticalToolbar(orientation) ? 'pt-1.5' : '';
 
   return (
     <div className={`arc-toolbar flex flex-col border-b border-gray-200 dark:border-gray-700 ${topPadding}`}>

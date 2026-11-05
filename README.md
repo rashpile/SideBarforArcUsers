@@ -317,7 +317,7 @@ Known limitations:
 Gear menu → Settings:
 
 - Font size (6-36px) and Pinned icon size (12-48px)
-- **Toolbar**: Horizontal (default) or Vertical. Vertical puts the toolbar buttons in a column at the left edge of the panel, and the menus of Previous / Next, the audio button and the gear open to the right of the button
+- **Toolbar**: Horizontal (default), Vertical or Vertical big. Vertical puts the toolbar buttons in a column at the left edge of the panel, and the menus of Previous / Next, the audio button and the gear open to the right of the button. Vertical big is the same column three times wider, with a label on each button
 - **Open bookmark**: Arc style (pinned pages act as tabs and are hidden from the Tab list), in a new tab, or in the active tab
 - **Follow active tab**: switch Space, switch and scroll, or keep the sidebar where it is
 - **Archive tabs after**: Never, or 12 hours to 30 days
