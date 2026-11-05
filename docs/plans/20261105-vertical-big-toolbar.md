@@ -144,10 +144,10 @@
 **Files:**
 - Modify: `src/components/SettingsDialog.tsx`
 
-- [ ] add `<option value="vertical-big">Vertical big</option>` after Vertical in the Toolbar select
-- [ ] update the help line: Vertical puts the toolbar buttons in a column at the left edge of the panel; Vertical
+- [x] add `<option value="vertical-big">Vertical big</option>` after Vertical in the Toolbar select
+- [x] update the help line: Vertical puts the toolbar buttons in a column at the left edge of the panel; Vertical
       big makes the column three times wider, with a label on each button
-- [ ] run `make lint && make test && make build` - must pass before task 4
+- [x] run `make lint && make test && make build` - must pass before task 4
 
 ### Task 4: Verify acceptance criteria
 

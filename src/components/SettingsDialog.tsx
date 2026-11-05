@@ -333,9 +333,11 @@ export function SettingsDialog({
               >
                 <option value="horizontal">Horizontal</option>
                 <option value="vertical">Vertical</option>
+                <option value="vertical-big">Vertical big</option>
               </select>
               <p className="mt-1 text-gray-500 dark:text-gray-400">
-                Vertical puts the toolbar buttons in a column at the left edge of the panel
+                Vertical puts the toolbar buttons in a column at the left edge of the panel; Vertical big makes the
+                column three times wider, with a label on each button
               </p>
             </div>
 
