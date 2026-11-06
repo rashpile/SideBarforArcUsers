@@ -132,10 +132,10 @@
 
 ### Task 3: Verify acceptance criteria
 
-- [ ] verify Esc and Cmd+. / Ctrl+. cancel in the overlay code path for both hosts (the page overlay and
+- [x] verify Esc and Cmd+. / Ctrl+. cancel in the overlay code path for both hosts (the page overlay and
       `switcher.html` run the same script) and in the search popup
-- [ ] verify a shortcut on Period still moves in both
-- [ ] run `make lint && make test && make build`
+- [x] verify a shortcut on Period still moves in both
+- [x] run `make lint && make test && make build`
 
 ### Task 4: [Final] Update documentation
 
