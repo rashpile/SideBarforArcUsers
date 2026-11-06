@@ -368,18 +368,24 @@ Flow:
 - `SHOW`: `!document.hasFocus()` → `{shown: false}`. Otherwise:
   - attach a host element on `documentElement` with a closed shadow root holding a fixed backdrop
     (`rgba(0,0,0,0.25)`, z-index max) and the iframe
-  - the iframe: width `min(640px, 100vw - 32px)`, height `min(560px, 100vh - 64px)`, top 12vh, centered,
+  - the iframe: width `min(640px, 100vw - 32px)`, height `min(560px, 88vh - 32px)` (so top 12vh + height
+    never passes the viewport's bottom), top 12vh, centered,
     `border: 0; border-radius: 14px; box-shadow`, `allow=""`, with `src` set to the `url` the message
-    carries, but only when it starts with `chrome.runtime.getURL('search.html')`
-  - remember `document.activeElement`
-  - on the iframe's `load`, call `iframe.contentWindow?.focus()`
+    carries, but only when it starts with `chrome.runtime.getURL('search.html')`; a URL that doesn't →
+    `{shown: false}`
+  - `:host { all: initial }`, so the page's inherited styles (above all `color-scheme`) don't reach the iframe
+  - remember `document.activeElement` (kept from the first frame when a SHOW replaces a frame still up)
+  - focus the iframe element at once, so keys typed while `search.html` loads don't reach the page; on the
+    iframe's `load`, call `iframe.contentWindow?.focus()`
   - reply `{shown: true}`
-- A backdrop `mousedown` outside the iframe, or `visibilitychange` to hidden → remove the frame and
-  `chrome.runtime.sendMessage({action: CLOSED})`, catching the rejection.
+- A backdrop `mousedown` outside the iframe, or `visibilitychange` to hidden → remove the frame, give focus
+  back to the remembered element and `chrome.runtime.sendMessage({action: CLOSED})`, catching the rejection.
 - `REMOVE` → remove the frame and give focus back to the remembered element.
-- A window `message` whose `event.source` is the iframe's `contentWindow`, whose `event.origin` is the
-  extension's origin and whose data is `{type: SEARCH_FRAME_CLOSE_REQUEST}` → remove the frame, restore
-  focus and send `CLOSED`. Messages from anything else are ignored.
+- A window `message` that `isTrusted`, whose `event.source` is the iframe's `contentWindow`, whose
+  `event.origin` is the extension's origin and whose data is `{type: SEARCH_FRAME_CLOSE_REQUEST}` → remove
+  the frame, restore focus and send `CLOSED`. Messages from anything else are ignored.
+- Disposal by a newer copy removes the frame (focus restored) without sending `CLOSED`: background is about
+  to show the new session's frame in the same tab.
 - Do not close on the page window's `blur`: focus moving into the iframe blurs the page.
 
 ## What Goes Where
@@ -502,13 +508,13 @@ Flow:
 **Files:**
 - Modify: `src/searchPopupFrame.ts`
 
-- [ ] implement the classic IIFE per Technical Details: dispose of an older copy, `SHOW` with the
+- [x] implement the classic IIFE per Technical Details: dispose of an older copy, `SHOW` with the
       `document.hasFocus()` check, closed shadow root with backdrop + iframe (`src` from the message's `url`,
       accepted only under `chrome.runtime.getURL('search.html')`), focus into the iframe on `load`
-- [ ] closing: backdrop mousedown / page hidden → remove + `CLOSED`; `REMOVE` → remove and restore focus;
+- [x] closing: backdrop mousedown / page hidden → remove + `CLOSED`; `REMOVE` → remove and restore focus;
       the close request posted by the iframe (source and origin checked) → remove, restore focus, `CLOSED`;
       repeat the message strings with a "change both" comment
-- [ ] no tests (DOM wiring); run `make lint && make test && make build` - must pass before Task 6
+- [x] no tests (DOM wiring); run `make lint && make test && make build` - must pass before Task 6
 
 ### Task 6: The popup page
 
