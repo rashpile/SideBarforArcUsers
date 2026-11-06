@@ -1,0 +1,252 @@
+/* No color-scheme on this page: in the iframe over a site, a color-scheme that differs from the
+   site's makes Chrome paint an opaque canvas behind the frame. Light and dark come from
+   prefers-color-scheme alone. */
+:root {
+  --bg: #f6f6f8;
+  --fg: #1d1d1f;
+  --muted: rgba(29, 29, 31, 0.6);
+  --field-bg: #ffffff;
+  --border: rgba(0, 0, 0, 0.12);
+  --hover: rgba(0, 0, 0, 0.04);
+  --selected: rgba(0, 0, 0, 0.09);
+  --focus-ring: rgba(10, 132, 255, 0.35);
+  --color-all: #6e6e73;
+  --color-tab: #0a84ff;
+  --color-bookmark: #30a14e;
+  --color-archive: #e8890c;
+  --color-closed: #a259d9;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #28282c;
+    --fg: #f5f5f7;
+    --muted: rgba(245, 245, 247, 0.6);
+    --field-bg: #1c1c1f;
+    --border: rgba(255, 255, 255, 0.14);
+    --hover: rgba(255, 255, 255, 0.05);
+    --selected: rgba(255, 255, 255, 0.12);
+    --focus-ring: rgba(64, 156, 255, 0.45);
+    --color-all: #a1a1a6;
+    --color-tab: #409cff;
+    --color-bookmark: #3fb950;
+    --color-archive: #f5a03c;
+    --color-closed: #bf8af0;
+  }
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--fg);
+  font: 13px/1.3 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+/* Fills the iframe over the page (which draws the rounded corners and the shadow) and the popup
+   window alike */
+.panel {
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+}
+
+.query {
+  flex: none;
+  height: 36px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+  background: var(--field-bg);
+  color: inherit;
+  font: inherit;
+  font-size: 15px;
+}
+
+.query:focus {
+  border-color: var(--color-tab);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.scopes {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.scope,
+.spaces {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.scope {
+  --scope-color: var(--color-all);
+}
+
+.scope[data-scope='tabs'] { --scope-color: var(--color-tab); }
+.scope[data-scope='bookmarks'] { --scope-color: var(--color-bookmark); }
+.scope[data-scope='archive'] { --scope-color: var(--color-archive); }
+.scope[data-scope='closed'] { --scope-color: var(--color-closed); }
+
+.scope::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--scope-color);
+}
+
+.scope[data-scope='all']::before {
+  display: none;
+}
+
+.scope:hover,
+.spaces:hover {
+  background: var(--hover);
+}
+
+.scope.active {
+  border-color: var(--scope-color);
+  background: var(--scope-color);
+  color: #ffffff;
+}
+
+.scope.active::before {
+  background: #ffffff;
+}
+
+.spaces {
+  margin-left: auto;
+}
+
+.spaces.all-spaces {
+  border-color: var(--fg);
+}
+
+.spaces-hint {
+  font: 11px ui-monospace, Menlo, monospace;
+  opacity: 0.6;
+}
+
+/* 44px rows, about 10 in view */
+.list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.row {
+  --kind-color: var(--color-tab);
+  height: 44px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-right: 10px;
+  border-radius: 8px;
+  cursor: default;
+}
+
+.row[data-kind='bookmark'] { --kind-color: var(--color-bookmark); }
+.row[data-kind='archive'] { --kind-color: var(--color-archive); }
+.row[data-kind='closed'] { --kind-color: var(--color-closed); }
+
+.row:hover {
+  background: var(--hover);
+}
+
+.row.selected {
+  background: var(--selected);
+}
+
+.stripe {
+  flex: none;
+  align-self: stretch;
+  width: 3px;
+  margin: 8px 0;
+  border-radius: 2px;
+  background: var(--kind-color);
+}
+
+.icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.icon img {
+  width: 20px;
+  height: 20px;
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+}
+
+.title,
+.subtitle {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.title {
+  font-weight: 500;
+}
+
+.subtitle {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.kind {
+  flex: none;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--kind-color);
+}
+
+.empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+}

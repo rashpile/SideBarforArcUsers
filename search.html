@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Search</title>
+  </head>
+  <body>
+    <div class="panel">
+      <input
+        class="query"
+        type="text"
+        placeholder="Search tabs, bookmarks, archive, recently closed"
+        aria-label="Search"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <div class="scopes">
+        <button class="spaces" type="button" tabindex="-1" hidden>
+          <span class="spaces-label">This Space</span>
+          <kbd class="spaces-hint"></kbd>
+        </button>
+      </div>
+      <div class="list" role="listbox" aria-label="Results"></div>
+      <div class="empty" hidden>No matches</div>
+    </div>
+    <script type="module" src="/src/searchPopup/main.ts"></script>
+  </body>
+</html>

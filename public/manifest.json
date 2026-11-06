@@ -42,6 +42,12 @@
   "side_panel": {
     "default_path": "index.html"
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["search.html"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "commands": {
     "_execute_side_panel": {
       "suggested_key": {
@@ -72,6 +78,9 @@
     },
     "space-switcher-next": {
       "description": "Space Switcher: next Space"
+    },
+    "search-popup": {
+      "description": "Search popup: open tabs, bookmarks, archive and recently closed tabs"
     },
     "space-1": {
       "description": "Switch to Space 1"

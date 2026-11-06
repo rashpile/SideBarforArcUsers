@@ -5,9 +5,9 @@ import { ManagerId, callManager, Remote } from './messageRouting';
 import { RecentlyClosedApi, ClosedTabRecord } from '../shared/recentlyClosedApi';
 
 export const recentlyClosedProxy: Remote<RecentlyClosedApi> = {
-  async reopen(windowId: number, spaceId: string, recordId: string): Promise<void>
+  async reopen(windowId: number, spaceId: string, recordId: string): Promise<number | undefined>
   {
-    await callManager<void>(ManagerId.RECENTLY_CLOSED, 'reopen', { windowId, spaceId, recordId });
+    return callManager<number | undefined>(ManagerId.RECENTLY_CLOSED, 'reopen', { windowId, spaceId, recordId });
   },
 
   async clear(spaceId: string): Promise<void>

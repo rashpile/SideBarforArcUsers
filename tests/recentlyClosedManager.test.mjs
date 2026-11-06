@@ -70,14 +70,30 @@ test('reopen opens the page in the given window, registers it in the record\'s S
   const { manager, registered } = createManager();
   await manager.load();
 
-  await manager.reopen(3, 'home', 'b');
+  const tabId = await manager.reopen(3, 'home', 'b');
 
   assert.deepEqual(created.map(tab => ({ windowId: tab.windowId, url: tab.url, active: tab.active })),
     [{ windowId: 3, url: 'https://mail.test/', active: true }]);
+  assert.equal(tabId, created[0].id);
   assert.deepEqual(registered, [{ windowId: 3, tabId: created[0].id, spaceId: 'home' }]);
   const after = RecentlyClosedTabs.fromStored(local[RECENTLY_CLOSED_TABS_KEY]);
   assert.deepEqual(after.forSpace('home'), []);
   assert.deepEqual(after.forSpace('work').map(entry => entry.id), ['a']);
+});
+
+test('reopen of a record that is gone opens nothing and resolves to undefined', async () =>
+{
+  const { created } = installChrome({
+    stored: { [RECENTLY_CLOSED_TABS_KEY]: storedList({ work: [record('a', 'https://mail.test/', 2)] }) },
+  });
+  const { manager, registered } = createManager();
+  await manager.load();
+
+  assert.equal(await manager.reopen(3, 'work', 'missing'), undefined);
+  assert.equal(await manager.reopen(3, 'home', 'a'), undefined);
+
+  assert.deepEqual(created, []);
+  assert.deepEqual(registered, []);
 });
 
 test('a failed tab create keeps the record and reports the error', async () =>

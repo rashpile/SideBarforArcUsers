@@ -6,7 +6,7 @@ import { PinnedBar } from './components/PinnedBar';
 import { Toolbar } from './components/Toolbar';
 import { FilterBar } from './components/FilterBar';
 import { SpaceBar } from './components/SpaceBar';
-import type { SettingsValues, BookmarkOpenMode, TabGroupDisplayOrder } from './components/SettingsDialog';
+import type { SettingsValues, TabGroupDisplayOrder } from './components/SettingsDialog';
 import { getWhatsNewSince, getRecentWhatsNew, ChangelogGroup } from './data/changelog';
 import { AudioTabsDropdown } from './components/AudioTabsDropdown';
 import { Toast } from './components/Toast';
@@ -47,6 +47,7 @@ import { SpaceContextMenuContent } from './components/SpaceContextMenuContent';
 import { lastAudibleTrackerProxy } from './managers/proxies/lastAudibleTrackerProxy';
 import { useFollowActiveTab } from './hooks/useFollowActiveTab';
 import { FollowActiveTabMode, FOLLOW_ACTIVE_TAB_KEY, DEFAULT_FOLLOW_ACTIVE_TAB_MODE, parseFollowActiveTabMode } from './utils/followActiveTab';
+import { BookmarkOpenMode, BOOKMARK_OPEN_MODE_KEY, DEFAULT_BOOKMARK_OPEN_MODE, parseBookmarkOpenMode } from './utils/bookmarkOpenMode';
 import { AutoArchivePeriod, AUTO_ARCHIVE_AFTER_KEY, DEFAULT_AUTO_ARCHIVE_PERIOD, parseAutoArchivePeriod } from './utils/autoArchive';
 import { TabAgeHighlightStyle, TAB_AGE_HIGHLIGHT_KEY, DEFAULT_TAB_AGE_HIGHLIGHT_STYLE, parseTabAgeHighlightStyle } from './utils/tabAgeHighlight';
 import { AttentionMarkStyle, ATTENTION_MARK_STYLE_KEY, DEFAULT_ATTENTION_MARK_STYLE, parseAttentionMarkStyle } from './utils/attentionMarkStyle';
@@ -866,17 +867,9 @@ function Sidebar() {
     { parse: (v) => parseInt(v, 10), serialize: (v) => v.toString() }
   );
   const [bookmarkOpenMode, setBookmarkOpenMode] = useChromeLocalStorage<BookmarkOpenMode>(
-    'sidebar-bookmark-open-mode',
-    'arc',
-    {
-      parse: (v) => {
-        // Migration from old boolean setting
-        if (v === 'true') return 'arc';
-        if (v === 'false') return 'newTab';
-        return v as BookmarkOpenMode;
-      },
-      serialize: (v) => v
-    }
+    BOOKMARK_OPEN_MODE_KEY,
+    DEFAULT_BOOKMARK_OPEN_MODE,
+    { parse: parseBookmarkOpenMode, serialize: (v) => v }
   );
   const [arcSingleClickOpensTab, setArcSingleClickOpensTab] = useChromeLocalStorage(
     'sidebar-arc-single-click-opens-tab',

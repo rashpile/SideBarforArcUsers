@@ -189,6 +189,19 @@ The extension hides `asd_Archive` and `asd_Favorites` in the Bookmarks tree, sea
 - Show only items with an open tab, or only items playing audio
 - One button clears all filters
 
+### Search popup
+
+One search field over the page that finds open tabs, bookmarks, archived pages and recently closed tabs. It has no shortcut by default; set one for **Search popup** in `chrome://extensions/shortcuts`.
+
+- The shortcut opens the popup over the current page, where the Tab Switcher list shows, with the search field focused. The page's own shortcuts don't see what you type. On pages the extension can't draw on, such as `chrome://` pages and the New Tab page, the popup opens as a small window
+- Up to 20 results, most recently used first. An empty field lists the 20 most recently used items. The field matches titles and URLs, with the same syntax as the sidebar's search
+- Each kind of result has its colour: open tabs blue, bookmarks green, Archive orange, Recently Closed purple. The buttons under the field (All, Open tabs, Bookmarks, Archive, Recently closed) narrow the list to one kind; `Tab` and `Shift+Tab` step through them
+- **This Space**, the default each time the popup opens, lists the tabs of the active Space in the current window and that Space's bookmarks, Archive and recently closed tabs. **All Spaces** adds the other Spaces and the tabs of other windows, with the Space's name before each result's site. Click the switch or press `Option+A` / `Alt+A`
+- Bookmarks are those of the Space folders. Favorites and the pages in `asd_Archive` and `asd_Favorites` are not bookmark results; archived pages show as Archive results. The current tab is not listed, and neither is the bookmark it is open for
+- Picking a result does what a click on it in the sidebar does. An open tab comes forward, also in another window. A bookmark opens as your **Open bookmark** setting says: in Arc style it switches to the bookmark's tab, or opens one. An archived page opens in a new tab and leaves the Archive. A recently closed tab reopens in the current window, in its Space. A result of another Space switches to that Space
+- Keys: hold the modifier and press the shortcut again to move down a row, then release the modifier to open it. Released without a second press, the popup stays open for typing. Arrow keys and `Enter`, or a click, open a row too. `Esc`, a click outside the popup or switching to another app closes it
+- The results are those of the moment the popup opened. A tab opened or closed while it is open shows the next time
+
 ### Keyboard
 
 | Shortcut | Action |
@@ -198,6 +211,7 @@ The extension hides `asd_Archive` and `asd_Favorites` in the Bookmarks tree, sea
 | `Cmd+Shift+>` / `Ctrl+Shift+>` | Next tab in history |
 | not set | Tab Switcher: hold the modifier, press to list the Space's tabs (its Favorite tabs included) by last use, press again to move, release to switch |
 | not set | Space Switcher: the same for Spaces |
+| not set | Search popup: one field over the page that finds open tabs, bookmarks, archived pages and recently closed tabs; press again to move down, release to open (see Search popup) |
 | not set | Switch to Space 1 … 9: the Space at that position in the Space bar, opened as by a click on it |
 
 Set or change shortcuts in `chrome://extensions/shortcuts`.
@@ -344,7 +358,7 @@ Light and dark mode follow your system.
 | `favicon` | Website icons |
 | `scripting` | Read a page's text when you ask for AI naming; read the page's text, layout and video subtitles, insert or remove CSS and show the answer popup when you use the page agent; insert CSS when a saved page style loads |
 | `webNavigation` | Notice when a page starts loading in a bookmark's tab, to put the bookmark's saved page style on it |
-| `activeTab` | Draw the Tab and Space Switcher over the current page |
+| `activeTab` | Draw the Tab and Space Switcher and the search popup over the current page |
 | `alarms` | Check for unused tabs every few minutes while auto-archive is on |
 | Optional `http://*/*`, `https://*/*` | Asked for when you use AI naming or the page agent, to read the page, restyle it, show answers on it and call your AI endpoint |
 | Optional `<all_urls>` | Asked for only when you turn on page agent screenshots, to capture the visible tab |

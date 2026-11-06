@@ -152,11 +152,11 @@ export class RecentlyClosedManager implements RoutedManager, RecentlyClosedApi
     return this.#archiveCloses.delete(tabId);
   }
 
-  async reopen(windowId: number, spaceId: string, recordId: string): Promise<void>
+  async reopen(windowId: number, spaceId: string, recordId: string): Promise<number | undefined>
   {
     await this.#writeTail;
     const record = this.#tabs.find(spaceId, recordId);
-    if (!record) return;
+    if (!record) return undefined;
 
     // A failed create rejects here and keeps the record, so the user can try again
     const tab = await chrome.tabs.create({ windowId, url: record.url, active: true });
@@ -173,6 +173,7 @@ export class RecentlyClosedManager implements RoutedManager, RecentlyClosedApi
     }
 
     await this.#change(tabs => tabs.remove(spaceId, recordId));
+    return tab.id;
   }
 
   async #load(): Promise<void>

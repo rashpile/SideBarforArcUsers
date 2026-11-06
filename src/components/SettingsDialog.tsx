@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Dialog } from './Dialog';
 import { FollowActiveTabMode } from '../utils/followActiveTab';
+import { BookmarkOpenMode } from '../utils/bookmarkOpenMode';
 import { AutoArchivePeriod } from '../utils/autoArchive';
 import { TabAgeHighlightStyle } from '../utils/tabAgeHighlight';
 import { AttentionMarkStyle, ATTENTION_MARK_STYLE_OPTIONS } from '../utils/attentionMarkStyle';
@@ -17,7 +18,6 @@ import { PAGE_AGENT_PLUGINS, PAGE_SCRIPTS_PLUGIN_ID, PageAgentPluginSwitches } f
 import { PageScriptsWarning } from './pageAgent/PageScriptsWarning';
 import { UserScriptsNotice, requestUserScriptsPermission } from './pageAgent/UserScriptsNotice';
 
-export type BookmarkOpenMode = 'arc' | 'newTab' | 'activeTab';
 export type TabGroupDisplayOrder = 'groupsFirst' | 'groupsLast' | 'chromeOrder';
 
 export interface SettingsValues {
