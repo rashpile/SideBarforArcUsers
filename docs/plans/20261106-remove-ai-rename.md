@@ -247,17 +247,17 @@
 
 ### Task 5: Verify acceptance criteria
 
-- [ ] no **AI Rename** item in any menu: `grep -rn "AI Rename\|onAiRename" src` prints nothing
-- [ ] nothing renames new Favorites, pinned pages or bookmarks:
+- [x] no **AI Rename** item in any menu: `grep -rn "AI Rename\|onAiRename" src` prints nothing
+- [x] nothing renames new Favorites, pinned pages or bookmarks:
       `grep -rn "autoRename\|generateTitle\|renamePinIfUnchanged\|onBookmarkCreated" src` prints nothing
-- [ ] the page agent's imports resolve and the storage key is unchanged:
+- [x] the page agent's imports resolve and the storage key is unchanged:
       `grep -n "sidebar-ai-rename-settings" src/utils/aiConfig.ts`
-- [ ] `grep -rnE "llms\.txt|Llms|PageContentReader|sanitizeGeneratedTitle|selectPageContent|DEFAULT_AI_PROMPT" src tests tools`
+- [x] `grep -rnE "llms\.txt|Llms|PageContentReader|sanitizeGeneratedTitle|selectPageContent|DEFAULT_AI_PROMPT" src tests tools`
       prints nothing (a case-insensitive `llms` would match `pollMs` in `videoPageScripts.ts`)
-- [ ] Pin to Sidebar on a single tab calls `onPin` with three arguments (`TabList.tsx` ~2517), and the
+- [x] Pin to Sidebar on a single tab calls `onPin` with three arguments (`TabList.tsx` ~2517), and the
       outer `onPin` types have no `tabId`
-- [ ] `public/manifest.json` still has `scripting`, the optional host permissions and `userScripts`
-- [ ] run `make lint && make test && make build`
+- [x] `public/manifest.json` still has `scripting`, the optional host permissions and `userScripts`
+- [x] run `make lint && make test && make build`
 
 ### Task 6: [Final] Update documentation
 
