@@ -579,15 +579,15 @@ Flow:
 
 ### Task 9: Verify acceptance criteria
 
-- [ ] verify every Overview point maps to code: scopes and colours, the 20 cap and the ordering, the empty
+- [x] verify every Overview point maps to code: scopes and colours, the 20 cap and the ordering, the empty
       query, the scope row and the toggle, the pick behaviour per kind, Space switching, the keyboard flow
       (open + focus, press-to-move, release-to-pick only after a press, arrows / Enter / click, Esc)
-- [ ] verify the CLAUDE.md invariants in the new code: `isSystemFolder` skipping (through
+- [x] verify the CLAUDE.md invariants in the new code: `isSystemFolder` skipping (through
       `collectFolderBookmarks`), no hard-coded bookmark roots, first-Space-wins for a shared folder (bookmarks
       and archive), the `stateReady` result checked before acting on tabs through associations, no tab id kept
       across sessions (the session lives in worker memory, kept alive by the page's ping, and clears with the
       port)
-- [ ] run the full suite: `make lint && make test && make build`
+- [x] run the full suite: `make lint && make test && make build`
 
 ### Task 10: [Final] Update documentation
 
