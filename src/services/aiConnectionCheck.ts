@@ -1,6 +1,6 @@
 import {
   AiEndpointCandidate,
-  AiRenameSettings,
+  AiSettings,
   ResolvedAiApiProtocol,
   aiEndpointLacksProtocol,
   aiHttpStatusMessage,
@@ -37,7 +37,7 @@ class AiHttpError extends Error
  */
 export class AiConnectionCheck
 {
-  async run(settings: AiRenameSettings): Promise<AiConnectionCheckResult>
+  async run(settings: AiSettings): Promise<AiConnectionCheckResult>
   {
     this.#validateRequiredSettings(settings);
     const startedAt = performance.now();
@@ -48,14 +48,14 @@ export class AiConnectionCheck
     };
   }
 
-  #validateRequiredSettings(settings: AiRenameSettings): void
+  #validateRequiredSettings(settings: AiSettings): void
   {
     if (!settings.baseUrl.trim()) throw new Error('Base URL is required');
     if (!settings.apiKey.trim()) throw new Error('API Key is required');
     if (!settings.model.trim()) throw new Error('Model is required');
   }
 
-  async #requestWithFallback(settings: AiRenameSettings): Promise<ResolvedAiApiProtocol>
+  async #requestWithFallback(settings: AiSettings): Promise<ResolvedAiApiProtocol>
   {
     const candidates = resolveAiEndpointCandidates(settings.baseUrl, settings.protocol);
     let firstError: unknown;
@@ -82,7 +82,7 @@ export class AiConnectionCheck
   }
 
   async #requestCandidate(
-    settings: AiRenameSettings,
+    settings: AiSettings,
     candidate: AiEndpointCandidate
   ): Promise<unknown>
   {

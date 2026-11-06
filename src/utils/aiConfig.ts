@@ -2,7 +2,7 @@ export type AiApiProtocol = 'auto' | 'responses' | 'chat-completions';
 export type ResolvedAiApiProtocol = Exclude<AiApiProtocol, 'auto'>;
 export type AiReasoningEffort = 'off' | 'low' | 'medium' | 'high';
 
-export interface AiRenameSettings
+export interface AiSettings
 {
   baseUrl: string;
   apiKey: string;
@@ -22,7 +22,7 @@ export interface AiEndpointCandidate
 
 export const AI_SETTINGS_STORAGE_KEY = 'sidebar-ai-rename-settings';
 
-export const DEFAULT_AI_RENAME_SETTINGS: AiRenameSettings = {
+export const DEFAULT_AI_SETTINGS: AiSettings = {
   baseUrl: 'https://api.openai.com/v1',
   apiKey: '',
   model: '',
@@ -43,9 +43,9 @@ const SECRET_QUERY_KEYS = new Set([
 /**
  * Fields added in later versions get their default values.
  */
-export function parseAiRenameSettings(value: string): AiRenameSettings
+export function parseAiSettings(value: string): AiSettings
 {
-  const parsed = JSON.parse(value) as Partial<AiRenameSettings>;
+  const parsed = JSON.parse(value) as Partial<AiSettings>;
   const protocol: AiApiProtocol = parsed.protocol === 'responses' ||
     parsed.protocol === 'chat-completions' || parsed.protocol === 'auto'
     ? parsed.protocol
@@ -57,7 +57,7 @@ export function parseAiRenameSettings(value: string): AiRenameSettings
     : 'medium';
 
   return {
-    ...DEFAULT_AI_RENAME_SETTINGS,
+    ...DEFAULT_AI_SETTINGS,
     ...parsed,
     protocol,
     reasoningEffort,
@@ -80,7 +80,7 @@ function parseAgentPluginSwitches(value: unknown): Record<string, boolean>
  * One builder for both OpenAI-style protocols keeps the output limit and reasoning settings equal.
  */
 export function buildAiRequestBody(
-  settings: AiRenameSettings,
+  settings: AiSettings,
   protocol: ResolvedAiApiProtocol,
   prompt: string
 ): Record<string, unknown>
@@ -231,7 +231,8 @@ export function aiEndpointLacksProtocol(status: number, responseText: string): b
 }
 
 /**
- * Shared by AI Rename and the page agent, so both say the same thing for the same failure.
+ * Shared by the connection check in Settings and the page agent, so both say the same thing for the
+ * same failure.
  */
 export function aiHttpStatusMessage(status: number): string
 {
@@ -251,7 +252,8 @@ export function getHostPermissionPattern(urlValue: string): string
 }
 
 /**
- * Reads only the protocol's text fields, so reasoning or tool call content never becomes the title.
+ * Reads only the protocol's text fields, so reasoning or tool call content alone doesn't count as a
+ * reply.
  */
 export function extractAiResponseText(
   protocol: ResolvedAiApiProtocol,

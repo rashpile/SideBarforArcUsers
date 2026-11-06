@@ -3,7 +3,7 @@
 // (PageAgentRuntime) load on first use: most panels never run the agent, and the panel's cold start
 // shouldn't carry them.
 
-import type { AiRenameSettings } from '../../utils/aiConfig.ts';
+import type { AiSettings } from '../../utils/aiConfig.ts';
 import { PageAgentChats } from './pageAgentChats.ts';
 import type { PageAgentChatPage, PageAgentLiveRun, PageAgentRunStart, PageAgentSavedStyles } from './pageAgentChats.ts';
 import { PageAgentChatStore } from './pageAgentChatStore.ts';
@@ -40,11 +40,11 @@ class LazyPageAgentRuntime
 class DeferredRun implements PageAgentLiveRun
 {
   readonly #runtime: LazyPageAgentRuntime;
-  readonly #start: PageAgentRunStart<AiRenameSettings>;
+  readonly #start: PageAgentRunStart<AiSettings>;
   #run: PageAgentLiveRun | null = null;
   #stopped = false;
 
-  constructor(runtime: LazyPageAgentRuntime, start: PageAgentRunStart<AiRenameSettings>)
+  constructor(runtime: LazyPageAgentRuntime, start: PageAgentRunStart<AiSettings>)
   {
     this.#runtime = runtime;
     this.#start = start;
@@ -123,10 +123,10 @@ export function createPanelPageAgentChats(
   storageArea: PageAgentChatStorageArea,
   debug: boolean,
   savedStyles: PageAgentSavedStyles,
-): PageAgentChats<AiRenameSettings>
+): PageAgentChats<AiSettings>
 {
   const runtime = new LazyPageAgentRuntime(debug);
-  return new PageAgentChats<AiRenameSettings>({
+  return new PageAgentChats<AiSettings>({
     store: new PageAgentChatStore(storageArea),
     runFactory: start => new DeferredRun(runtime, start),
     page: new LazyChatPage(runtime),

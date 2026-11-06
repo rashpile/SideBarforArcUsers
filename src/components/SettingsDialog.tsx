@@ -9,8 +9,8 @@ import { ToolbarLayout, toolbarLayoutChoice, toolbarLayoutForChoice } from '../u
 import { UnvisitedTabMarkerSetting } from '../utils/unvisitedTabMarker';
 import { Eye, EyeOff } from 'lucide-react';
 import {
-  AiRenameSettings,
-  DEFAULT_AI_RENAME_SETTINGS,
+  AiSettings,
+  DEFAULT_AI_SETTINGS,
   getHostPermissionPattern,
 } from '../utils/aiConfig';
 import { AiConnectionCheck } from '../services/aiConnectionCheck';
@@ -36,7 +36,7 @@ export interface SettingsValues {
   tabAgeHighlight: TabAgeHighlightStyle;
   attentionMarkStyle: AttentionMarkStyle;
   markUnvisitedTabs: UnvisitedTabMarkerSetting;
-  aiSettings: AiRenameSettings;
+  aiSettings: AiSettings;
 }
 
 interface SettingsDialogProps {
@@ -612,7 +612,7 @@ export function SettingsDialog({
                   value={tempAiSettings.protocol}
                   onChange={(event) => setTempAiSettings({
                     ...tempAiSettings,
-                    protocol: event.target.value as AiRenameSettings['protocol'],
+                    protocol: event.target.value as AiSettings['protocol'],
                   })}
                   className="w-full px-2 py-1.5 border rounded dark:bg-gray-900 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
                 >
@@ -631,7 +631,7 @@ export function SettingsDialog({
                 value={tempAiSettings.reasoningEffort}
                 onChange={(event) => setTempAiSettings({
                   ...tempAiSettings,
-                  reasoningEffort: event.target.value as AiRenameSettings['reasoningEffort'],
+                  reasoningEffort: event.target.value as AiSettings['reasoningEffort'],
                 })}
                 className="w-full px-2 py-1.5 border rounded dark:bg-gray-900 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
               >
@@ -715,7 +715,7 @@ export function SettingsDialog({
 
             <button
               type="button"
-              onClick={() => setTempAiSettings({ ...DEFAULT_AI_RENAME_SETTINGS })}
+              onClick={() => setTempAiSettings({ ...DEFAULT_AI_SETTINGS })}
               className="text-blue-500 hover:text-blue-600"
             >
               Reset AI settings to defaults

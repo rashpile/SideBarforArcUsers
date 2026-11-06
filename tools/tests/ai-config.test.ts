@@ -2,17 +2,17 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   buildAiRequestBody,
-  DEFAULT_AI_RENAME_SETTINGS,
+  DEFAULT_AI_SETTINGS,
   extractAiResponseText,
   getHostPermissionPattern,
   normalizeAiEndpoint,
-  parseAiRenameSettings,
+  parseAiSettings,
   resolveAiEndpointCandidates,
 } from '../../src/utils/aiConfig.ts';
 
 test('old AI settings without reasoning effort get medium', () =>
 {
-  const settings = parseAiRenameSettings(JSON.stringify({
+  const settings = parseAiSettings(JSON.stringify({
     baseUrl: 'https://example.com/v1',
     apiKey: 'key',
     model: 'model',
@@ -21,13 +21,13 @@ test('old AI settings without reasoning effort get medium', () =>
     autoRename: false,
   }));
   assert.equal(settings.reasoningEffort, 'medium');
-  assert.equal(DEFAULT_AI_RENAME_SETTINGS.reasoningEffort, 'medium');
+  assert.equal(DEFAULT_AI_SETTINGS.reasoningEffort, 'medium');
 });
 
 test('a Responses request uses 100 max output tokens and a reasoning object', () =>
 {
   const body = buildAiRequestBody(
-    { ...DEFAULT_AI_RENAME_SETTINGS, model: 'model', reasoningEffort: 'high' },
+    { ...DEFAULT_AI_SETTINGS, model: 'model', reasoningEffort: 'high' },
     'responses',
     'prompt'
   );
@@ -42,7 +42,7 @@ test('a Responses request uses 100 max output tokens and a reasoning object', ()
 test('a Chat Completions request uses 100 max completion tokens and reasoning_effort', () =>
 {
   const body = buildAiRequestBody(
-    { ...DEFAULT_AI_RENAME_SETTINGS, model: 'model', reasoningEffort: 'low' },
+    { ...DEFAULT_AI_SETTINGS, model: 'model', reasoningEffort: 'low' },
     'chat-completions',
     'prompt'
   );
@@ -56,7 +56,7 @@ test('a Chat Completions request uses 100 max completion tokens and reasoning_ef
 
 test('reasoning effort None sends no reasoning field', () =>
 {
-  const settings = { ...DEFAULT_AI_RENAME_SETTINGS, model: 'model', reasoningEffort: 'off' as const };
+  const settings = { ...DEFAULT_AI_SETTINGS, model: 'model', reasoningEffort: 'off' as const };
   assert.equal('reasoning' in buildAiRequestBody(settings, 'responses', 'prompt'), false);
   assert.equal('reasoning_effort' in buildAiRequestBody(settings, 'chat-completions', 'prompt'), false);
 });

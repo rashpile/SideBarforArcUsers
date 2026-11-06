@@ -233,17 +233,17 @@
 - Modify: `tests/aiConfig.test.mjs`
 - Modify: `tools/tests/ai-config.test.ts`
 
-- [ ] rename `AiRenameSettings` → `AiSettings`, `DEFAULT_AI_RENAME_SETTINGS` → `DEFAULT_AI_SETTINGS`,
+- [x] rename `AiRenameSettings` → `AiSettings`, `DEFAULT_AI_RENAME_SETTINGS` → `DEFAULT_AI_SETTINGS`,
       `parseAiRenameSettings` → `parseAiSettings` everywhere (source, tests, test names);
       `AI_SETTINGS_STORAGE_KEY` keeps `'sidebar-ai-rename-settings'`
-- [ ] reword comments that mention AI Rename / AI naming: the `pageAgentModelClient.ts` header ("the same
+- [x] reword comments that mention AI Rename / AI naming: the `pageAgentModelClient.ts` header ("the same
       way AI Rename picks it" → the connection check), `aiHttpStatusMessage` ("Shared by AI Rename and the
       page agent"), `extractAiResponseText` ("never becomes the title"), any other hit of
       `grep -rniE "ai rename|ai naming|rename" src/utils/aiConfig.ts src/utils/readablePage.ts src/services/pageAgent src/services/aiConnectionCheck.ts`
       that refers to naming
-- [ ] reword the `getHostPermissionPattern` test name in `tests/aiConfig.test.mjs` ("Validate and every
+- [x] reword the `getHostPermissionPattern` test name in `tests/aiConfig.test.mjs` ("Validate and every
       rename run first" → Validate and the page agent)
-- [ ] run `make lint && make test && make build` - must pass before task 5
+- [x] run `make lint && make test && make build` - must pass before task 5
 
 ### Task 5: Verify acceptance criteria
 

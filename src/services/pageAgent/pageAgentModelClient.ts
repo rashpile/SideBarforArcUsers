@@ -1,13 +1,14 @@
 // The page agent's model client: one request per round of the run, through the API protocol of the
-// AI settings, the same way AI Rename picks it. Auto with a Base URL that names no endpoint tries
-// Responses first and falls back to Chat Completions when the endpoint lacks Responses.
+// AI settings, the same way the connection check in Settings picks it. Auto with a Base URL that
+// names no endpoint tries Responses first and falls back to Chat Completions when the endpoint lacks
+// Responses.
 
 import {
   aiEndpointLacksProtocol,
   aiHttpStatusMessage,
   resolveAiEndpointCandidates,
 } from '../../utils/aiConfig.ts';
-import type { AiEndpointCandidate, AiRenameSettings } from '../../utils/aiConfig.ts';
+import type { AiEndpointCandidate, AiSettings } from '../../utils/aiConfig.ts';
 import { asRecord, asString, pageAgentApiFormat } from './pageAgentApiFormats.ts';
 import { PageAgentModelError } from './pageAgentRun.ts';
 import type {
@@ -17,7 +18,7 @@ import type {
 } from './pageAgentRun.ts';
 
 export type PageAgentClientSettings = Pick<
-  AiRenameSettings,
+  AiSettings,
   'baseUrl' | 'apiKey' | 'model' | 'protocol' | 'reasoningEffort'
 >;
 

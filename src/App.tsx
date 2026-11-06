@@ -56,9 +56,9 @@ import { ToolbarLayout, TOOLBAR_LAYOUT_KEY, DEFAULT_TOOLBAR_LAYOUT, parseToolbar
 import * as DropdownMenu from './components/menu/DropdownMenu';
 import {
   AI_SETTINGS_STORAGE_KEY,
-  AiRenameSettings,
-  DEFAULT_AI_RENAME_SETTINGS,
-  parseAiRenameSettings,
+  AiSettings,
+  DEFAULT_AI_SETTINGS,
+  parseAiSettings,
 } from './utils/aiConfig';
 import { createPanelPageAgentChats } from './services/pageAgent/panelPageAgent';
 import { CodeDrafts } from './components/pageAgent/codeDrafts';
@@ -923,10 +923,10 @@ function Sidebar() {
   );
   // Off until the stored setting is known, so dots don't flash for a user who switched them off
   const shownUnvisitedTabMarker: UnvisitedTabMarkerSetting = markUnvisitedTabsLoaded ? markUnvisitedTabs : 'off';
-  const [aiSettings, setAiSettings] = useChromeLocalStorage<AiRenameSettings>(
+  const [aiSettings, setAiSettings] = useChromeLocalStorage<AiSettings>(
     AI_SETTINGS_STORAGE_KEY,
-    DEFAULT_AI_RENAME_SETTINGS,
-    { parse: parseAiRenameSettings, serialize: JSON.stringify }
+    DEFAULT_AI_SETTINGS,
+    { parse: parseAiSettings, serialize: JSON.stringify }
   );
   const [showFilterArea, setShowFilterArea] = useLocalStorage(
     'sidebar-show-filter-area',
