@@ -185,10 +185,10 @@
 
 ### Task 4: Verify acceptance criteria
 
-- [ ] Shift+Enter with text sends one `searchWeb` and closes the popup; Enter still picks; Shift+Enter with a blank field does nothing (by reading the code paths and the tests)
-- [ ] the search tab is created in the origin window, never the popup window, and no code registers it to a Space by hand (onCreated does)
-- [ ] the hint shows only with text and its click does what Shift+Enter does
-- [ ] run the full checks: `make lint && make test && make build`
+- [x] Shift+Enter with text sends one `searchWeb` and closes the popup; Enter still picks; Shift+Enter with a blank field does nothing (by reading the code paths and the tests)
+- [x] the search tab is created in the origin window, never the popup window, and no code registers it to a Space by hand (onCreated does)
+- [x] the hint shows only with text and its click does what Shift+Enter does
+- [x] run the full checks: `make lint && make test && make build`
 
 ### Task 5: [Final] Update documentation
 
