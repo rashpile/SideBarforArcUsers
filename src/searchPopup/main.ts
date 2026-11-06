@@ -236,7 +236,7 @@ class SearchPopupPage
 
   #handleKeydown(event: KeyboardEvent): void
   {
-    const action = this.#keyboard.keydown(event);
+    const action = this.#keyboard.keydown(event, this.#view.input.value);
     switch (action.kind)
     {
       case 'move':

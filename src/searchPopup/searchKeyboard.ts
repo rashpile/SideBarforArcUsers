@@ -23,6 +23,7 @@ export type SearchKeyAction =
   | { kind: 'close' }
   | { kind: 'scope'; step: 1 | -1 }
   | { kind: 'toggleSpaces' }
+  | { kind: 'searchWeb' }
   | { kind: 'none' };
 
 const NONE: SearchKeyAction = { kind: 'none' };
@@ -52,7 +53,8 @@ export class SearchKeyboard
     return steps;
   }
 
-  keydown(event: SearchKeyEvent): SearchKeyAction
+  // The text is the search field's, not the event's: Shift+Enter with a blank field does nothing
+  keydown(event: SearchKeyEvent, text: string): SearchKeyAction
   {
     // A key pressed with no modifier held shows it is already up. A release the page missed
     // (the modifier let go before the frame had focus) must not turn the next typed letter into a pick.
@@ -63,7 +65,10 @@ export class SearchKeyboard
     {
       case 'ArrowDown': return { kind: 'move', steps: 1 };
       case 'ArrowUp': return { kind: 'move', steps: -1 };
-      case 'Enter': return { kind: 'pick' };
+      case 'Enter':
+        // Enter before letting go of a shortcut like Ctrl+Shift+K picks the row the user moved to
+        if (event.shiftKey && !holdsShortcutModifier(event)) return text.trim() ? { kind: 'searchWeb' } : NONE;
+        return { kind: 'pick' };
       case 'Escape': return { kind: 'close' };
       case 'Tab': return { kind: 'scope', step: event.shiftKey ? -1 : 1 };
     }

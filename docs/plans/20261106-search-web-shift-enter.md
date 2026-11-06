@@ -147,11 +147,11 @@
 - Modify: `src/searchPopup/main.ts` (the `keydown` call only)
 - Modify: `tests/searchKeyboard.test.mjs`
 
-- [ ] add `{ kind: 'searchWeb' }` to `SearchKeyAction` and the required `text: string` parameter to `keydown`; pass `this.#view.input.value` at its one caller in `src/searchPopup/main.ts` (`#handleKeydown`) so the build passes
-- [ ] `Enter` with Shift and no Cmd, Ctrl or Alt → `searchWeb` when `text.trim()` is non-empty, else `none`; every other `Enter` → `pick` (unchanged); update the file's header comment if it lists the keys
-- [ ] test: Shift+Enter with text → `searchWeb`; Enter with and without text → `pick`; Enter with `{ shiftKey: true, ctrlKey: true }` (and with `metaKey`) and text → `pick`
-- [ ] test: Shift+Enter with `''` and with whitespace-only text → `none`; Shift+Enter while composing → `none`
-- [ ] run `make lint && make test && make build` - must pass before Task 2
+- [x] add `{ kind: 'searchWeb' }` to `SearchKeyAction` and the required `text: string` parameter to `keydown`; pass `this.#view.input.value` at its one caller in `src/searchPopup/main.ts` (`#handleKeydown`) so the build passes
+- [x] `Enter` with Shift and no Cmd, Ctrl or Alt → `searchWeb` when `text.trim()` is non-empty, else `none`; every other `Enter` → `pick` (unchanged); update the file's header comment if it lists the keys
+- [x] test: Shift+Enter with text → `searchWeb`; Enter with and without text → `pick`; Enter with `{ shiftKey: true, ctrlKey: true }` (and with `metaKey`) and text → `pick`
+- [x] test: Shift+Enter with `''` and with whitespace-only text → `none`; Shift+Enter while composing → `none`
+- [x] run `make lint && make test && make build` - must pass before Task 2
 
 ### Task 2: Background web search from the origin window
 
