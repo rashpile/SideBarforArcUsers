@@ -166,6 +166,10 @@
   moves the list.
 - [known-limitation] A page whose own capture listener on `window` stops the key before the overlay's
   listener still wins, as for Esc today.
+- [known-limitation] (review round 1, left by the user's choice) The overlay's Period exemption covers only
+  the "next" shortcut's key (`#repeatKeyCode`). With Tab Switcher "previous" bound to Cmd+. or Ctrl+. and
+  its press reaching the page instead of Chrome, the press closes the list instead of moving it. Nothing
+  switches and nothing is lost; it needs that exact binding plus a leaked press.
 
 ## Post-Completion
 
