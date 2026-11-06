@@ -3,7 +3,7 @@
  * and Tabs sections. Auto-archive saves closed tabs as bookmarks in the Space
  * folder's `asd_Archive` folder; this section reopens them.
  * Expanded: every item, newest first, with a search field in the header row that narrows
- * them. Clicking an item reopens it as a regular tab.
+ * them. Clicking an item reopens it as a regular tab and collapses the section.
  */
 import { useState, useCallback, useMemo, useEffect, useRef, KeyboardEvent } from 'react';
 import { Search, Trash, X } from 'lucide-react';
@@ -346,17 +346,19 @@ export const ArchiveSection = ({
 
   // Reopen as a regular tab of the active Space (background assigns new tabs to it, like
   // "+ New Tab"), then drop the item. Opening first means a failed open loses nothing.
+  // The collapse also waits for the open, so a failed open keeps the list next to its error
   const handleRestore = useCallback((page: chrome.bookmarks.BookmarkTreeNode) =>
   {
     chrome.tabs.create({ url: page.url, active: true, windowId: windowId ?? undefined }, () =>
     {
       if (handleError('reopen archived page')) return;
+      onToggleCollapsed?.();
       chrome.bookmarks.remove(page.id, () =>
       {
         handleError('remove archived page');
       });
     });
-  }, [windowId, handleError]);
+  }, [windowId, handleError, onToggleCollapsed]);
 
   // Undoable, like deleting a bookmark from the tree. Undo creates the bookmark again, so the
   // item comes back on top with a new archive time
