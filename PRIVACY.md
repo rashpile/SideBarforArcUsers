@@ -27,8 +27,9 @@ This data stays on your device and is not accessible to the developer or any thi
 
 - **Iconify API**: The extension connects to `api.iconify.design` to fetch icon images when you customize Favorite icons.
 - **Favicons**: The extension may fetch favicons directly from websites you pin to store them locally for faster loading.
+- **Web search from the search popup**: When you press `Shift+Enter` or click **Search the web** in the search popup, Chrome sends the text in its field to your browser's default search engine, as a search from the address bar does. The extension sends nothing to the search engine at any other time and doesn't read the results.
 
-No user data is sent in these requests beyond standard HTTP headers.
+The Iconify and favicon requests send no user data beyond standard HTTP headers.
 
 ## Page Agent (experimental)
 

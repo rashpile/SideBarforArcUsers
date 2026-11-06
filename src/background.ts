@@ -858,6 +858,14 @@ const searchPicker = new SearchPicker({
 const searchPopup = new SearchPopup({
   buildCandidates: buildSearchCandidates,
   picker: searchPicker,
+  searchWeb: async (windowId, text) =>
+  {
+    // NEW_TAB leaves the window to Chrome; a tab of our own keeps the search in the window the popup
+    // was opened from. onCreated puts it in that window's active Space.
+    const tab = await chrome.tabs.create({ windowId, active: true });
+    if (tab.id === undefined) return;
+    await chrome.search.query({ text, tabId: tab.id });
+  },
   newSessionId: () => crypto.randomUUID(),
   debug: import.meta.env.DEV,
 });

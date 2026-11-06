@@ -81,6 +81,33 @@ test('Enter while an input method composes text is left to the input', () =>
   assert.deepEqual(keyboard.keydown(key('Enter', 'Enter', { isComposing: true })), NONE);
 });
 
+test('Shift+Enter with text searches the web; Enter picks with or without text', () =>
+{
+  const keyboard = new SearchKeyboard('⌥E');
+
+  assert.deepEqual(keyboard.keydown(key('Enter', 'Enter', { shiftKey: true }), 'cats'), { kind: 'searchWeb' });
+  assert.deepEqual(keyboard.keydown(key('Enter', 'Enter'), 'cats'), PICK);
+  assert.deepEqual(keyboard.keydown(key('Enter', 'Enter'), ''), PICK);
+});
+
+test('Enter with the shortcut\'s modifiers still held picks the row it moved to, Shift or not', () =>
+{
+  const keyboard = new SearchKeyboard('Ctrl+Shift+K');
+
+  assert.deepEqual(keyboard.keydown(key('Enter', 'Enter', { shiftKey: true, ctrlKey: true }), 'cats'), PICK);
+  assert.deepEqual(keyboard.keydown(key('Enter', 'Enter', { shiftKey: true, metaKey: true }), 'cats'), PICK);
+  assert.deepEqual(keyboard.keydown(key('Enter', 'Enter', { shiftKey: true, altKey: true }), 'cats'), PICK);
+});
+
+test('Shift+Enter with a blank field or while composing does nothing', () =>
+{
+  const keyboard = new SearchKeyboard('⌥E');
+
+  assert.deepEqual(keyboard.keydown(key('Enter', 'Enter', { shiftKey: true }), ''), NONE);
+  assert.deepEqual(keyboard.keydown(key('Enter', 'Enter', { shiftKey: true }), '   '), NONE);
+  assert.deepEqual(keyboard.keydown(key('Enter', 'Enter', { shiftKey: true, isComposing: true }), 'cats'), NONE);
+});
+
 test('a shortcut press that reaches the page moves and arms the pick', () =>
 {
   const keyboard = new SearchKeyboard('⌥E');

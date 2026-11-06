@@ -37,7 +37,9 @@ const KIND_LABELS: Record<SearchItemKind, string> = {
 const params = new URLSearchParams(location.search);
 const inPopupWindow = params.get('host') === 'window';
 const sessionId = params.get('session') ?? '';
-const spacesHint = navigator.userAgent.includes('Mac') ? '⌥A' : 'Alt+A';
+const isMac = navigator.userAgent.includes('Mac');
+const spacesHint = isMac ? '⌥A' : 'Alt+A';
+const webSearchHint = isMac ? '⇧↵' : 'Shift+Enter';
 
 // Clicks on these keep the focus, and so the typing, in the search field
 function keepFocusOnPress(element: HTMLElement): void
@@ -96,6 +98,7 @@ interface SearchPopupViewHandlers
   onScope(scope: SearchScope): void;
   onToggleSpaces(): void;
   onPick(index: number): void;
+  onSearchWeb(): void;
 }
 
 // The DOM of the page; holds no search state of its own
@@ -107,6 +110,7 @@ class SearchPopupView
   #spacesLabel = document.querySelector<HTMLElement>('.spaces-label')!;
   #list = document.querySelector<HTMLElement>('.list')!;
   #empty = document.querySelector<HTMLElement>('.empty')!;
+  #webSearch = document.querySelector<HTMLButtonElement>('.web-search')!;
   #rows: HTMLElement[] = [];
   #handlers: SearchPopupViewHandlers;
 
@@ -131,6 +135,10 @@ class SearchPopupView
     document.querySelector<HTMLElement>('.spaces-hint')!.textContent = spacesHint;
     keepFocusOnPress(this.#spacesToggle);
     this.#spacesToggle.addEventListener('click', () => handlers.onToggleSpaces());
+
+    document.querySelector<HTMLElement>('.web-search-hint')!.textContent = webSearchHint;
+    keepFocusOnPress(this.#webSearch);
+    this.#webSearch.addEventListener('click', () => handlers.onSearchWeb());
   }
 
   renderScope(active: SearchScope): void
@@ -146,6 +154,11 @@ class SearchPopupView
     this.#spacesToggle.hidden = !hasSpaces;
     this.#spacesToggle.classList.toggle('all-spaces', allSpaces);
     this.#spacesLabel.textContent = allSpaces ? 'All Spaces' : 'This Space';
+  }
+
+  renderWebSearch(hasText: boolean): void
+  {
+    this.#webSearch.hidden = !hasText;
   }
 
   renderRows(rows: readonly SearchRow[]): void
@@ -180,8 +193,8 @@ class SearchPopupPage
   #scope: SearchScope = 'all';
   #allSpaces = false;
   #hasSpaces = false;
-  // A pick or close was sent: background is closing the host, and a second one must not follow
-  // (Enter with the modifier held, then its release)
+  // A pick, web search or close was sent: background is closing the host, and a second one must not
+  // follow (Enter with the modifier held, then its release)
   #finished = false;
   #pingTimer: ReturnType<typeof setInterval>;
 
@@ -195,16 +208,22 @@ class SearchPopupPage
         this.#selected = index;
         this.#pick();
       },
+      onSearchWeb: () => this.#searchWeb(),
     });
     this.#view.renderScope(this.#scope);
     this.#view.renderSpaces(this.#hasSpaces, this.#allSpaces);
+    this.#view.renderWebSearch(false);
 
     this.#port.onMessage.addListener((message: SearchBackgroundMessage) => this.#handleMessage(message));
     this.#port.onDisconnect.addListener(() => this.#closeSelf());
     this.#pingTimer = setInterval(() => this.#send({ type: 'ping' }), SEARCH_POPUP_PING_MS);
 
     const { input } = this.#view;
-    input.addEventListener('input', () => this.#query());
+    input.addEventListener('input', () =>
+    {
+      this.#view.renderWebSearch(input.value.trim() !== '');
+      this.#query();
+    });
     window.addEventListener('keydown', (event) => this.#handleKeydown(event));
     window.addEventListener('keyup', (event) => this.#handleKeyup(event));
     window.addEventListener('focus', () => input.focus());
@@ -236,7 +255,7 @@ class SearchPopupPage
 
   #handleKeydown(event: KeyboardEvent): void
   {
-    const action = this.#keyboard.keydown(event);
+    const action = this.#keyboard.keydown(event, this.#view.input.value);
     switch (action.kind)
     {
       case 'move':
@@ -244,6 +263,9 @@ class SearchPopupPage
         break;
       case 'pick':
         this.#pick();
+        break;
+      case 'searchWeb':
+        this.#searchWeb();
         break;
       case 'close':
         this.#close('esc');
@@ -320,6 +342,14 @@ class SearchPopupPage
     if (!row || this.#finished) return;
     this.#finished = true;
     this.#send({ type: 'pick', rowId: row.id });
+  }
+
+  #searchWeb(): void
+  {
+    const text = this.#view.input.value.trim();
+    if (!text || this.#finished) return;
+    this.#finished = true;
+    this.#send({ type: 'searchWeb', text });
   }
 
   #close(reason: 'esc' | 'blur'): void

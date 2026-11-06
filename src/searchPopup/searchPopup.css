@@ -91,7 +91,8 @@ body {
 }
 
 .scope,
-.spaces {
+.spaces,
+.web-search {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -131,7 +132,8 @@ body {
 }
 
 .scope:hover,
-.spaces:hover {
+.spaces:hover,
+.web-search:hover {
   background: var(--hover);
 }
 
@@ -153,7 +155,8 @@ body {
   border-color: var(--fg);
 }
 
-.spaces-hint {
+.spaces-hint,
+.web-search-hint {
   font: 11px ui-monospace, Menlo, monospace;
   opacity: 0.6;
 }
@@ -249,4 +252,8 @@ body {
   padding: 24px;
   text-align: center;
   color: var(--muted);
+}
+
+.web-search {
+  align-self: flex-end;
 }

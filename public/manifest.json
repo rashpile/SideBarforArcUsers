@@ -13,7 +13,8 @@
     "scripting",
     "alarms",
     "activeTab",
-    "webNavigation"
+    "webNavigation",
+    "search"
   ],
   "optional_permissions": [
     "userScripts"
