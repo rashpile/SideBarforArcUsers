@@ -207,18 +207,18 @@
 - Modify: `docs/changelog.md`
 - Modify: `src/data/changelog.ts`
 
-- [ ] `README.md` § Search popup: a bullet saying results of the same page (same title and address, ignoring
+- [x] `README.md` § Search popup: a bullet saying results of the same page (same title and address, ignoring
       what follows `?` or `#`) show once among the results listed, which row is kept, that nothing is
       removed, and that Settings turns it off; § Settings: the "Search popup: one row per page" checkbox, on by default
-- [ ] `docs/state-reference.md`: a `searchCollapseDuplicates` section next to `markUnvisitedTabs` (raw string
+- [x] `docs/state-reference.md`: a `searchCollapseDuplicates` section next to `markUnvisitedTabs` (raw string
       `'on' | 'off'`, default `'on'`; owner `src/App.tsx` via `useChromeLocalStorage` with `serialize: v => v`,
       set from `SettingsDialog.tsx` Behaviour tab; consumer background `buildSearchCandidates`, read on each
       popup open; parsing `parseSearchCollapseDuplicates`; 1 per extension), and a `searchCollapseDuplicates`
       line in the `chrome.storage.local` box of the State Architecture diagram
-- [ ] `docs/changelog.md` "Latest Version": a bullet for #83
-- [ ] `src/data/changelog.ts`: the search popup is unreleased (`'2.0.388'`), so extend its existing line with a
+- [x] `docs/changelog.md` "Latest Version": a bullet for #83
+- [x] `src/data/changelog.ts`: the search popup is unreleased (`'2.0.388'`), so extend its existing line with a
       short clause (results of the same page show once) instead of adding a line
-- [ ] move this plan to `docs/plans/completed/`
+- [x] move this plan to `docs/plans/completed/` (skipped - the orchestrator moves the plan after all phases)
 
 ## Post-Completion
 

@@ -359,6 +359,16 @@ number  // epoch millis
 - Parsing: `parseUnvisitedTabMarker` (`src/utils/unvisitedTabMarker.ts`); absent or unknown values read as `'on'`
 - Instances: 1 per extension (shared across windows)
 
+### `searchCollapseDuplicates`
+"Search popup: one row per page" setting: whether search popup results of the same page (same title, same scheme, host and path; query and hash ignored) show as one row
+```typescript
+'on' | 'off'  // raw string, not JSON; default 'on'
+```
+- Owner: `src/App.tsx` (via `useChromeLocalStorage` with `serialize: v => v`), set from `src/components/SettingsDialog.tsx` (Behaviour tab)
+- Consumers: `src/background.ts` (`buildSearchCandidates` reads it with `chrome.storage.local.get` each time the search popup opens and passes `collapseSamePage` to `SearchCandidates.build` in `src/services/searchResults.ts`; no cache, so a change applies on the next open), `src/components/SettingsDialog.tsx`
+- Parsing: `parseSearchCollapseDuplicates` (`src/utils/searchCollapseDuplicates.ts`); absent or unknown values read as `'on'`
+- Instances: 1 per extension (shared across windows)
+
 ### `attentionMarkStyle`
 "Mark for Attention colour" setting: colour and strength of the ring on rows marked for attention
 ```typescript
@@ -603,6 +613,7 @@ Lost on page reload or service worker restart.
 │  ├─ autoArchiveEnabledAt            (auto-archive switch-on)    │
 │  ├─ tabAgeHighlight                 (tab age highlight look)    │
 │  ├─ markUnvisitedTabs               (unvisited tab marker)      │
+│  ├─ searchCollapseDuplicates        (search popup one row/page) │
 │  ├─ attentionMarkStyle              (attention ring look)       │
 │  ├─ toolbarLayout                   (toolbar layout)            │
 │  ├─ tabLastUsedAt                   (tab last-use times)        │
