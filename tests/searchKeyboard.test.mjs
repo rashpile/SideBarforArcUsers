@@ -20,6 +20,9 @@ const altReleased = () => key('Alt', 'AltLeft');
 
 const NONE = { kind: 'none' };
 const PICK = { kind: 'pick' };
+const CLOSE = { kind: 'close' };
+// Every modifier let go: the keyup that would pick if the press had left the pick armed
+const allReleased = () => key('Meta', 'MetaLeft');
 
 test('letting go of the modifier right after opening keeps the popup open for typing', () =>
 {
@@ -145,6 +148,7 @@ test('only the shortcut\'s exact modifiers make its key a move', () =>
     ['MacCtrl+Shift+3', 'Digit3', { ctrlKey: true, shiftKey: true }],
     ['⌃,', 'Comma', { ctrlKey: true }],
     ['Command+Period', 'Period', { metaKey: true }],
+    ['⌃.', 'Period', { ctrlKey: true }],
     ['⌃⌥⇧⌘E', 'KeyE', { ctrlKey: true, altKey: true, shiftKey: true, metaKey: true }],
   ];
 
@@ -158,6 +162,60 @@ test('only the shortcut\'s exact modifiers make its key a move', () =>
       assert.deepEqual(new SearchKeyboard(shortcut).keydown(key('x', code, flipped)), NONE, `${shortcut} with ${flag} flipped`);
     }
   }
+});
+
+test('Cmd+. and Ctrl+. close, and letting go of the modifier afterwards does not pick', () =>
+{
+  const shortcuts = [
+    ['⌥E', { altKey: true }],
+    ['⌘E', { metaKey: true }],
+  ];
+  const cancels = [
+    ['Cmd+.', { metaKey: true }],
+    ['Ctrl+.', { ctrlKey: true }],
+  ];
+
+  for (const [shortcut, held] of shortcuts)
+  {
+    for (const [cancel, modifiers] of cancels)
+    {
+      const label = `${cancel} with ${shortcut}`;
+      const keyboard = new SearchKeyboard(shortcut);
+      keyboard.shortcutMove(1);
+
+      // The shortcut's modifier is still held while the cancel key goes down
+      assert.deepEqual(keyboard.keydown(key('.', 'Period', { ...held, ...modifiers })), CLOSE, label);
+      assert.deepEqual(keyboard.keyup(allReleased()), NONE, label);
+    }
+  }
+});
+
+test('Esc with the modifier held closes, and letting go of the modifier afterwards does not pick', () =>
+{
+  const presses = [
+    ['⌘E', 'Cmd+Esc', { metaKey: true }],
+    ['⌥E', 'Option+Esc', { altKey: true }],
+    ['⌃E', 'Ctrl+Esc', { ctrlKey: true }],
+  ];
+
+  for (const [shortcut, label, held] of presses)
+  {
+    const keyboard = new SearchKeyboard(shortcut);
+    keyboard.shortcutMove(1);
+
+    assert.deepEqual(keyboard.keydown(key('Escape', 'Escape', held)), CLOSE, label);
+    assert.deepEqual(keyboard.keyup(allReleased()), NONE, label);
+  }
+});
+
+test('Period without Cmd or Ctrl neither closes nor moves', () =>
+{
+  const keyboard = new SearchKeyboard('⌥E');
+
+  assert.deepEqual(keyboard.keydown(key('.', 'Period')), NONE);
+  assert.deepEqual(keyboard.keydown(key('>', 'Period', { shiftKey: true })), NONE);
+  // macOS Option+. types "≥"
+  assert.deepEqual(keyboard.keydown(key('≥', 'Period', ALT)), NONE);
 });
 
 test('releasing Shift while Cmd is still held does not pick', () =>

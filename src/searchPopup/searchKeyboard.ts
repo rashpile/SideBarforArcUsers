@@ -2,6 +2,8 @@
 // and pressing the shortcut again moves the selection, and letting go of the modifier opens the
 // selected row. Unlike the switcher, the popup takes typed text, so a release picks only after such
 // a press: opening the popup and letting go keeps it open for typing.
+// Esc closes the popup, and so do Cmd+. and Ctrl+.: on macOS Cmd+Esc often never reaches the page
+// (the system or another app takes it), so with Cmd held Cmd+. is the close key that works.
 
 import { ShortcutKey } from '../utils/shortcutKey.ts';
 
@@ -69,7 +71,7 @@ export class SearchKeyboard
         // Enter before letting go of a shortcut like Ctrl+Shift+K picks the row the user moved to
         if (event.shiftKey && !holdsShortcutModifier(event)) return text.trim() ? { kind: 'searchWeb' } : NONE;
         return { kind: 'pick' };
-      case 'Escape': return { kind: 'close' };
+      case 'Escape': return this.#close();
       case 'Tab': return { kind: 'scope', step: event.shiftKey ? -1 : 1 };
     }
 
@@ -84,7 +86,21 @@ export class SearchKeyboard
       return { kind: 'move', steps: 1 };
     }
 
+    // By code: with Cmd held, other keyboard layouts can report another character. A shortcut on
+    // Period keeps its key for moving. src/switcherOverlay.ts repeats this rule.
+    if (event.code === 'Period' && (event.metaKey || event.ctrlKey) && this.#shortcut?.code !== 'Period')
+    {
+      return this.#close();
+    }
+
     return NONE;
+  }
+
+  // The modifier may still be held: its release after a close must not pick
+  #close(): SearchKeyAction
+  {
+    this.#armed = false;
+    return { kind: 'close' };
   }
 
   keyup(event: SearchKeyEvent): SearchKeyAction
