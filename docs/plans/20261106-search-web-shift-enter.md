@@ -192,13 +192,13 @@
 
 ### Task 5: [Final] Update documentation
 
-- [ ] `README.md` § Search popup: Shift+Enter searches the web with the default search engine in a new tab in the current window and Space, the hint, empty field does nothing; permissions table row for `search`
-- [ ] `docs/chrome-web-store-info.md`: permission justification for `search` (search the web with the user's default search engine for the text typed in the search popup, only on Shift+Enter or a click on Search the web)
-- [ ] `PRIVACY.md` External Services: the text goes to the browser's default search engine, through Chrome, only on Shift+Enter or Search the web, as a search from the address bar does; limit the closing sentence "No user data is sent in these requests beyond standard HTTP headers." to the Iconify and favicon requests so it doesn't contradict the new bullet
-- [ ] `docs/development.md` § Search popup: the `searchWeb` message and why the tab is created first (`search.query` with `tabId`)
-- [ ] `docs/changelog.md` under `## Latest Version` and a What's New line in `src/data/changelog.ts` under `'2.0.388'`
-- [ ] `docs/state-reference.md`: no new storage keys, no change (check)
-- [ ] mark this task done; do not move the plan (the orchestrator moves it to `docs/plans/completed/`)
+- [x] `README.md` § Search popup: Shift+Enter searches the web with the default search engine in a new tab in the current window and Space, the hint, empty field does nothing; permissions table row for `search`
+- [x] `docs/chrome-web-store-info.md`: permission justification for `search` (search the web with the user's default search engine for the text typed in the search popup, only on Shift+Enter or a click on Search the web)
+- [x] `PRIVACY.md` External Services: the text goes to the browser's default search engine, through Chrome, only on Shift+Enter or Search the web, as a search from the address bar does; limit the closing sentence "No user data is sent in these requests beyond standard HTTP headers." to the Iconify and favicon requests so it doesn't contradict the new bullet
+- [x] `docs/development.md` § Search popup: the `searchWeb` message and why the tab is created first (`search.query` with `tabId`)
+- [x] `docs/changelog.md` under `## Latest Version` and a What's New line in `src/data/changelog.ts` under `'2.0.388'` (the search popup is unreleased in `'2.0.388'`, so its existing line was extended instead of adding a second one, as #83 did)
+- [x] `docs/state-reference.md`: no new storage keys, no change (checked: none added)
+- [x] mark this task done; do not move the plan (the orchestrator moves it to `docs/plans/completed/`)
 
 ## Post-Completion
 
