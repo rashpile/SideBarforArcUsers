@@ -810,6 +810,7 @@ async function buildSearchCandidates(win: chrome.windows.Window): Promise<Search
     bookmarkRoots: tree[0]?.children ?? [],
     recency,
     closedRecords: (spaceId) => recentlyClosedManager.forSpace(spaceId),
+    collapseSamePage: true,
   });
 }
 

@@ -133,32 +133,32 @@
 - Modify: `src/background.ts`
 - Modify: `tests/searchResults.test.mjs`
 
-- [ ] add `collapseSamePage: boolean` to `SearchCandidatesInput` and keep it in `SearchCandidates` (pass it
+- [x] add `collapseSamePage: boolean` to `SearchCandidatesInput` and keep it in `SearchCandidates` (pass it
       through `build` into the private constructor); in `src/background.ts` `buildSearchCandidates` pass
       `collapseSamePage: true` for now so `tsc` passes (Task 2 replaces it with the stored setting)
-- [ ] add the same-page key and the group class (Technical Details): kind rank, newest `lastAccess` within a
+- [x] add the same-page key and the group class (Technical Details): kind rank, newest `lastAccess` within a
       kind, ties by collection order, output in collection order
-- [ ] in `search()`: keep the existing filters and `withoutBookmarksOfListedTabs` as they are, then collapse
+- [x] in `search()`: keep the existing filters and `withoutBookmarksOfListedTabs` as they are, then collapse
       when `collapseSamePage` is on (every scope), then sort and cap; update the doc comment and the file's
       header comment to say results of the same page show once
-- [ ] in `tests/searchResults.test.mjs` add `collapseSamePage: true` to the `candidates()` defaults; existing
+- [x] in `tests/searchResults.test.mjs` add `collapseSamePage: true` to the `candidates()` defaults; existing
       tests must pass unchanged
-- [ ] test: an open tab plus archived copies with the same title and path, differing in query and/or hash,
+- [x] test: an open tab plus archived copies with the same title and path, differing in query and/or hash,
       give one row in the All scope, the tab; the Archive scope gives one row, the newest archived copy;
       with no open tab, a bookmark beats archived and recently closed copies of the same page, and without
       the bookmark the archived copy beats the recently closed one
-- [ ] test: same path but different titles (e.g. `watch?v=a` / `watch?v=b` with their own titles) stay
+- [x] test: same path but different titles (e.g. `watch?v=a` / `watch?v=b` with their own titles) stay
       separate rows; same title and path on another host of a non-special scheme stay separate too (two
       tabs titled "Options" at `chrome-extension://aaa/options.html` and `chrome-extension://bbb/options.html`:
       `URL.origin` is `"null"` for both under Node, so the test fails if the key uses `origin`)
-- [ ] test: a parked open tab (`chrome-extension://<id>/park.html?tabId=..&url=<original>`, title of the
+- [x] test: a parked open tab (`chrome-extension://<id>/park.html?tabId=..&url=<original>`, title of the
       original page) and an archived copy of the original URL give one row, the tab
-- [ ] test: duplicates are collapsed before the 20-result cap: 25 archived copies of one page, every one
+- [x] test: duplicates are collapsed before the 20-result cap: 25 archived copies of one page, every one
       newer (`dateAdded`) than each of a few other pages, so without the collapse they would fill all 20
       slots; with it every other page is listed
-- [ ] test: with `collapseSamePage: false` every row is listed as before, and a bookmark whose Arc tab is a
+- [x] test: with `collapseSamePage: false` every row is listed as before, and a bookmark whose Arc tab is a
       listed tab is still hidden in the All scope
-- [ ] run `make lint && make test && make build` - must pass before Task 2
+- [x] run `make lint && make test && make build` - must pass before Task 2
 
 ### Task 2: Store the setting and read it in background
 

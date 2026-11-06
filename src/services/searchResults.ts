@@ -1,7 +1,7 @@
 // What the search popup can find (see services/searchPopup.ts): the open tabs, the Space folders'
 // bookmarks, the Spaces' archives and their recently closed tabs. Background collects them once
-// when the popup opens; every query filters that snapshot and returns at most 20 items, newest
-// last access first.
+// when the popup opens; every query filters that snapshot, shows results of the same page once
+// and returns at most 20 items, newest last access first.
 
 import type { Space } from '../utils/spaceMessages.ts';
 import type { SearchItemKind, SearchQuery, SearchRow, SearchScope } from '../utils/searchPopupMessages.ts';
@@ -14,6 +14,7 @@ import { findArchiveFolder } from '../utils/archiveFolder.ts';
 import { ArchiveItems } from '../utils/archiveItems.ts';
 import { matchesSearch, parseSearchQuery, type ASTNode } from '../utils/searchParser.ts';
 import { BOOKMARK_ITEM_KEY_PREFIX } from '../utils/tabAssociations.ts';
+import { getEffectiveTabUrl } from '../utils/parkedTabAssociation.ts';
 
 type BookmarkNode = chrome.bookmarks.BookmarkTreeNode;
 
@@ -32,6 +33,7 @@ export interface SearchCandidatesInput
   bookmarkRoots: BookmarkNode[];              // getTree()[0].children
   recency: BookmarkRecency;
   closedRecords(spaceId: string): readonly ClosedTabRecord[];
+  collapseSamePage: boolean;                  // the Settings option: results of one page show once
 }
 
 interface SearchItemBase
@@ -249,6 +251,66 @@ function withoutBookmarksOfListedTabs(items: SearchItem[]): SearchItem[]
   return items.filter(item => !(item.kind === 'bookmark' && tabBookmarkIds.has(item.bookmarkId)));
 }
 
+// Lower wins: switching to the open tab opens no second tab, and opening the bookmark leaves the
+// Archive and Recently Closed as they are
+const KIND_RANK: Record<SearchItemKind, number> = {
+  tab: 0,
+  bookmark: 1,
+  archive: 2,
+  closed: 3,
+};
+
+// Scheme, host and path. Not URL.origin: it is "null" for chrome:// and chrome-extension:// pages,
+// which would merge pages of different extensions.
+function pageAddress(url: string): string
+{
+  // A parked tab is keyed on the page it stands for, as the archive and Recently Closed store it
+  const effectiveUrl = getEffectiveTabUrl(url);
+  try
+  {
+    const parsed = new URL(effectiveUrl);
+    return `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
+  }
+  catch
+  {
+    return effectiveUrl;
+  }
+}
+
+function isBetterRow(candidate: SearchItem, current: SearchItem): boolean
+{
+  const rankDifference = KIND_RANK[candidate.kind] - KIND_RANK[current.kind];
+  if (rankDifference !== 0) return rankDifference < 0;
+  // A tie keeps the row collected first
+  if (candidate.lastAccess === undefined) return false;
+  return current.lastAccess === undefined || candidate.lastAccess > current.lastAccess;
+}
+
+// Results that open the same page: same title, same scheme, host and path (query and hash ignored).
+// A Google Sheets tab and its archived copies differ only in the sheet's gid, and picking a copy would
+// open a second tab of the sheet.
+class SamePageGroups
+{
+  readonly #best = new Map<string, SearchItem>();
+
+  private constructor(items: readonly SearchItem[])
+  {
+    for (const item of items)
+    {
+      const key = JSON.stringify([item.title, pageAddress(item.url)]);
+      const current = this.#best.get(key);
+      if (!current || isBetterRow(item, current)) this.#best.set(key, item);
+    }
+  }
+
+  /** The best row of each page, in collection order so the stable sort still breaks ties by it. */
+  static collapse(items: readonly SearchItem[]): SearchItem[]
+  {
+    const kept = new Set(new SamePageGroups(items).#best.values());
+    return items.filter(item => kept.has(item));
+  }
+}
+
 /** The search popup's snapshot of candidates, taken when it opens. */
 export class SearchCandidates
 {
@@ -257,13 +319,19 @@ export class SearchCandidates
   readonly #spaces: readonly Space[];
   // Picking the current tab's own bookmark would do nothing, like picking the current tab
   readonly #currentTabBookmarkId: string | undefined;
+  readonly #collapseSamePage: boolean;
 
-  private constructor(items: SearchItem[], spaces: readonly Space[], currentTabBookmarkId: string | undefined)
+  private constructor(
+    items: SearchItem[],
+    spaces: readonly Space[],
+    currentTabBookmarkId: string | undefined,
+    collapseSamePage: boolean)
   {
     this.#items = items;
     this.#byId = new Map(items.map(item => [item.id, item]));
     this.#spaces = spaces;
     this.#currentTabBookmarkId = currentTabBookmarkId;
+    this.#collapseSamePage = collapseSamePage;
   }
 
   /** Collects the items in order: tabs, then per Space its bookmarks, archive and closed tabs. */
@@ -272,10 +340,15 @@ export class SearchCandidates
     return new SearchCandidates(
       [...collectTabs(input), ...collectSpaceItems(input)],
       input.spaces,
-      arcBookmarkId(input, input.originWindowId, input.originActiveTabId));
+      arcBookmarkId(input, input.originWindowId, input.originActiveTabId),
+      input.collapseSamePage);
   }
 
-  /** At most SEARCH_RESULT_LIMIT items, newest last access first; a blank text matches everything. */
+  /**
+   * At most SEARCH_RESULT_LIMIT items, newest last access first; a blank text matches everything.
+   * With collapseSamePage results of the same page show once, before the limit, so copies of one page
+   * don't take the slots of other pages.
+   */
   search(query: SearchQuery): SearchItem[]
   {
     const text = new TextFilter(query.text);
@@ -285,7 +358,10 @@ export class SearchCandidates
       && !this.#isCurrentTabBookmark(item)
       && text.matches(item.title, item.url));
 
-    const results = query.scope === 'all' ? withoutBookmarksOfListedTabs(kept) : kept;
+    // Runs first and with the setting off too: an Arc tab that navigated away from its bookmark's URL
+    // has another page address, which the same-page grouping would miss
+    const listed = query.scope === 'all' ? withoutBookmarksOfListedTabs(kept) : kept;
+    const results = this.#collapseSamePage ? SamePageGroups.collapse(listed) : listed;
     // Array.sort is stable: items with equal or no time keep collection order
     return results.sort(newestFirst).slice(0, SEARCH_RESULT_LIMIT);
   }
