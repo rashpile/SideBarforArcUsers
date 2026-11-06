@@ -166,12 +166,12 @@
 - Create: `src/utils/searchCollapseDuplicates.ts`
 - Modify: `src/background.ts`
 
-- [ ] create `src/utils/searchCollapseDuplicates.ts` with the type, key, default and parse function
+- [x] create `src/utils/searchCollapseDuplicates.ts` with the type, key, default and parse function
       (Technical Details), with a header comment saying it is a raw string written by the Settings dialog and
       read by background when the search popup opens
-- [ ] in `buildSearchCandidates` read `SEARCH_COLLAPSE_DUPLICATES_KEY` with `chrome.storage.local.get` in the
+- [x] in `buildSearchCandidates` read `SEARCH_COLLAPSE_DUPLICATES_KEY` with `chrome.storage.local.get` in the
       existing `Promise.all`, parse it, and pass `collapseSamePage: setting === 'on'` to `SearchCandidates.build`
-- [ ] run `make lint && make test && make build` - must pass before Task 3
+- [x] run `make lint && make test && make build` - must pass before Task 3
 
 ### Task 3: Settings checkbox
 

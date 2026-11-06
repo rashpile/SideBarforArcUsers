@@ -33,6 +33,7 @@ import { SwitcherMessageAction } from './utils/switcherMessages';
 import { SearchPopup, SEARCH_POPUP_COMMAND } from './services/searchPopup';
 import { SearchPicker } from './services/searchPick';
 import { SearchCandidates } from './services/searchResults';
+import { parseSearchCollapseDuplicates, SEARCH_COLLAPSE_DUPLICATES_KEY } from './utils/searchCollapseDuplicates';
 import { SEARCH_POPUP_PORT_PREFIX, SearchFrameAction } from './utils/searchPopupMessages';
 import { BookmarkSpaceResolver } from './utils/bookmarkSpaceResolver';
 import { tabListTopIndexForLinkTab } from './utils/linkTabPlacement';
@@ -789,11 +790,13 @@ async function buildSearchCandidates(win: chrome.windows.Window): Promise<Search
 {
   const originWindowId = win.id!;
   // Popup windows (the search popup's own, the switcher's) hold nothing to search
-  const [tabs, tree, recency] = await Promise.all([
+  const [tabs, tree, recency, stored] = await Promise.all([
     chrome.tabs.query({ windowType: 'normal' }),
     chrome.bookmarks.getTree(),
     bookmarkRecencyStore.read(),
+    chrome.storage.local.get(SEARCH_COLLAPSE_DUPLICATES_KEY),
   ]);
+  const collapseSetting = parseSearchCollapseDuplicates(stored[SEARCH_COLLAPSE_DUPLICATES_KEY]);
   const windowIds = [...new Set(tabs.map(tab => tab.windowId))];
   const associations = new Map(await Promise.all(windowIds.map(async (windowId) =>
     [windowId, await getTabAssociations(windowId)] as const)));
@@ -810,7 +813,7 @@ async function buildSearchCandidates(win: chrome.windows.Window): Promise<Search
     bookmarkRoots: tree[0]?.children ?? [],
     recency,
     closedRecords: (spaceId) => recentlyClosedManager.forSpace(spaceId),
-    collapseSamePage: true,
+    collapseSamePage: collapseSetting === 'on',
   });
 }
 
