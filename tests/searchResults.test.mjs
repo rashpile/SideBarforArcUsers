@@ -43,6 +43,7 @@ function candidates(overrides = {})
     bookmarkRoots: [],
     recency: BookmarkRecency.EMPTY,
     closedRecords: () => [],
+    collapseSamePage: true,
     ...overrides,
   });
 }
@@ -304,4 +305,116 @@ test('without Spaces This Space is every tab of the origin window, and there are
 
   assert.deepEqual(search(list), ['t:10:2', 't:10:3']);
   assert.deepEqual(search(list, { allSpaces: true }), ['t:10:2', 't:10:3', 't:20:4']);
+});
+
+// One Space whose folder holds the given bookmarks and archived pages
+function samePageSpace({ bookmarks = [], archived = [], closedRecords = [], ...overrides } = {})
+{
+  return candidates({
+    activeSpaceId: 'work',
+    spaces: [space('work', ['Bookmarks Bar', 'Work'])],
+    spaceOf: () => 'work',
+    bookmarkRoots: [folder('acct-bar', 'Bookmarks Bar', [
+      folder('work', 'Work', [...bookmarks, folder('work-archive', 'asd_Archive', archived)]),
+    ])],
+    closedRecords: () => closedRecords,
+    ...overrides,
+  });
+}
+
+const SHEET = 'Finance - Google Sheets';
+const sheetUrl = (rest) => `https://docs.google.com/spreadsheets/d/abc/edit${rest}`;
+// Archived copies of one sheet whose URLs differ only in the gid; a2 is the newest
+const sheetCopies = () => [
+  page('a1', SHEET, sheetUrl('?gid=1#gid=1'), { dateAdded: 100 }),
+  page('a2', SHEET, sheetUrl('?gid=2'), { dateAdded: 300 }),
+  page('a3', SHEET, sheetUrl('#gid=3'), { dateAdded: 200 }),
+];
+
+test('an open tab and archived copies of its page that differ in query or hash give one row: the tab', () =>
+{
+  const list = samePageSpace({
+    tabs: [tab(2, ORIGIN, 50, { title: SHEET, url: sheetUrl('?gid=0#gid=0') })],
+    archived: [...sheetCopies(), page('a9', 'Other page', 'https://other.test/', { dateAdded: 40 })],
+  });
+
+  // The tab wins although every archived copy is newer
+  assert.deepEqual(search(list), ['t:10:2', 'a:a9']);
+  assert.deepEqual(search(list, { allSpaces: true }), ['t:10:2', 'a:a9']);
+  // Within one kind the newest copy is kept
+  assert.deepEqual(search(list, { scope: 'archive' }), ['a:a2', 'a:a9']);
+});
+
+test('without an open tab the bookmark of a page beats its archived and closed copies, and an archived copy beats a closed one', () =>
+{
+  const closedSheet = { id: 'r1', title: SHEET, url: sheetUrl('?gid=5'), closedAt: 1000 };
+
+  // The bookmark has no time and still wins
+  const withBookmark = samePageSpace({
+    bookmarks: [page('b1', SHEET, sheetUrl(''))],
+    archived: sheetCopies(),
+    closedRecords: [closedSheet],
+  });
+  assert.deepEqual(search(withBookmark), ['b:b1']);
+
+  const withoutBookmark = samePageSpace({ archived: sheetCopies(), closedRecords: [closedSheet] });
+  assert.deepEqual(search(withoutBookmark), ['a:a2']);
+  assert.deepEqual(search(withoutBookmark, { scope: 'closed' }), ['c:work:r1']);
+});
+
+test('pages with one path but different titles, or one title and path on different hosts, stay separate rows', () =>
+{
+  const list = samePageSpace({
+    tabs: [
+      tab(2, ORIGIN, 500, { title: 'Video A - YouTube', url: 'https://www.youtube.com/watch?v=a' }),
+      tab(3, ORIGIN, 400, { title: 'Video B - YouTube', url: 'https://www.youtube.com/watch?v=b' }),
+      // Under Node URL.origin is "null" for both (Chrome gives chrome-extension://aaa and ://bbb)
+      tab(4, ORIGIN, 300, { title: 'Options', url: 'chrome-extension://aaa/options.html' }),
+      tab(5, ORIGIN, 200, { title: 'Options', url: 'chrome-extension://bbb/options.html' }),
+    ],
+  });
+
+  assert.deepEqual(search(list), ['t:10:2', 't:10:3', 't:10:4', 't:10:5']);
+});
+
+test('a parked tab and an archived copy of its original page give one row: the tab', () =>
+{
+  const original = sheetUrl('?gid=1#gid=1');
+  const parked = `chrome-extension://suspender/park.html?tabId=42&url=${encodeURIComponent(original)}`;
+  const list = samePageSpace({
+    tabs: [tab(2, ORIGIN, 50, { title: SHEET, url: parked })],
+    archived: [page('a1', SHEET, original, { dateAdded: 100 })],
+  });
+
+  assert.deepEqual(search(list), ['t:10:2']);
+});
+
+test('copies of one page are collapsed before the 20-result cap', () =>
+{
+  const copies = Array.from({ length: 25 }, (_, i) =>
+    page(`a${i}`, SHEET, sheetUrl(`?gid=${i}`), { dateAdded: 1000 + i }));
+  const others = [1, 2, 3].map(i => page(`b${i}`, `Page ${i}`, `https://p${i}.test/`));
+  const setup = { bookmarks: others, archived: copies, recency: new BookmarkRecency({ b1: 10, b2: 20, b3: 30 }) };
+
+  // Without the collapse the copies, all newer than the other pages, take every slot
+  const uncollapsed = search(samePageSpace({ ...setup, collapseSamePage: false }));
+  assert.equal(uncollapsed.length, SEARCH_RESULT_LIMIT);
+  assert.ok(uncollapsed.every(id => id.startsWith('a:')));
+
+  assert.deepEqual(search(samePageSpace(setup)), ['a:a24', 'b:b3', 'b:b2', 'b:b1']);
+});
+
+test('with collapseSamePage off every copy is listed, and a bookmark whose Arc tab is listed is still hidden in All', () =>
+{
+  const list = samePageSpace({
+    collapseSamePage: false,
+    tabs: [tab(2, ORIGIN, 50, { title: SHEET, url: sheetUrl('?gid=0') })],
+    associations: new Map([[ORIGIN, { 2: 'bookmark-b1' }]]),
+    bookmarks: [page('b1', SHEET, sheetUrl(''))],
+    archived: sheetCopies(),
+  });
+
+  assert.deepEqual(search(list), ['a:a2', 'a:a3', 'a:a1', 't:10:2']);
+  assert.deepEqual(search(list, { scope: 'archive' }), ['a:a2', 'a:a3', 'a:a1']);
+  assert.deepEqual(search(list, { scope: 'bookmarks' }), ['b:b1']);
 });

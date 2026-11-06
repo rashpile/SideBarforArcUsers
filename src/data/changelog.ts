@@ -3,7 +3,7 @@
 // Entries are shown in the "What's New" dialog when the user upgrades past them.
 export const CHANGELOG: Record<string, string[]> = {
   '2.0.388': [
-    'New: search popup - a shortcut opens one field over the page that finds open tabs, Space bookmarks, archived pages and recently closed tabs, in This Space or All Spaces; pick a result to switch to it or open it. Set the shortcut in chrome://extensions/shortcuts',
+    'New: search popup - a shortcut opens one field over the page that finds open tabs, Space bookmarks, archived pages and recently closed tabs, in This Space or All Spaces, and lists each page once; pick a result to switch to it or open it. Set the shortcut in chrome://extensions/shortcuts',
     'New: Toolbar setting in Settings > Appearance - Vertical puts the toolbar buttons in a column at the left edge of the panel, and their menus open to the right; the button at the top of the column widens it, with a label on each button, and the Space buttons sit at the right of the Space bar',
     'New (experimental): Page scripts for the page agent (Settings > AI, off by default) - it can add behaviour with JavaScript, such as keys that seek a YouTube video to the next subtitle line. You see the code and allow it once per request on that site; Undo removes it, and Save to bookmark keeps it with the CSS. Chrome also needs Allow User Scripts on the extension\'s Details page',
     'New (experimental): page agent code editor - Code beside Send, or Edit code next to Show code, lets you paste or edit CSS and JavaScript and Apply them to the page; Undo, Save to bookmark and the agent\'s follow-ups work on them as on the agent\'s code. Your CSS isn\'t checked for network loads, and your scripts run without the Page scripts switch',

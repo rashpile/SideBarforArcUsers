@@ -52,6 +52,7 @@ import { AutoArchivePeriod, AUTO_ARCHIVE_AFTER_KEY, DEFAULT_AUTO_ARCHIVE_PERIOD,
 import { TabAgeHighlightStyle, TAB_AGE_HIGHLIGHT_KEY, DEFAULT_TAB_AGE_HIGHLIGHT_STYLE, parseTabAgeHighlightStyle } from './utils/tabAgeHighlight';
 import { AttentionMarkStyle, ATTENTION_MARK_STYLE_KEY, DEFAULT_ATTENTION_MARK_STYLE, parseAttentionMarkStyle } from './utils/attentionMarkStyle';
 import { UnvisitedTabMarkerSetting, UNVISITED_TAB_MARKER_KEY, DEFAULT_UNVISITED_TAB_MARKER, parseUnvisitedTabMarker } from './utils/unvisitedTabMarker';
+import { SearchCollapseDuplicatesSetting, SEARCH_COLLAPSE_DUPLICATES_KEY, DEFAULT_SEARCH_COLLAPSE_DUPLICATES, parseSearchCollapseDuplicates } from './utils/searchCollapseDuplicates';
 import { ToolbarLayout, TOOLBAR_LAYOUT_KEY, DEFAULT_TOOLBAR_LAYOUT, parseToolbarLayout, isVerticalToolbar, toggleVerticalToolbar } from './utils/toolbarLayout';
 import * as DropdownMenu from './components/menu/DropdownMenu';
 import {
@@ -923,6 +924,12 @@ function Sidebar() {
   );
   // Off until the stored setting is known, so dots don't flash for a user who switched them off
   const shownUnvisitedTabMarker: UnvisitedTabMarkerSetting = markUnvisitedTabsLoaded ? markUnvisitedTabs : 'off';
+  // Raw string, not JSON: background.ts reads it each time the search popup opens
+  const [searchCollapseDuplicates, setSearchCollapseDuplicates] = useChromeLocalStorage<SearchCollapseDuplicatesSetting>(
+    SEARCH_COLLAPSE_DUPLICATES_KEY,
+    DEFAULT_SEARCH_COLLAPSE_DUPLICATES,
+    { parse: parseSearchCollapseDuplicates, serialize: (v) => v }
+  );
   const [aiSettings, setAiSettings] = useChromeLocalStorage<AiSettings>(
     AI_SETTINGS_STORAGE_KEY,
     DEFAULT_AI_SETTINGS,
@@ -1125,6 +1132,7 @@ function Sidebar() {
     setTabAgeHighlight(newSettings.tabAgeHighlight);
     setAttentionMarkStyle(newSettings.attentionMarkStyle);
     setMarkUnvisitedTabs(newSettings.markUnvisitedTabs);
+    setSearchCollapseDuplicates(newSettings.searchCollapseDuplicates);
     setAiSettings(newSettings.aiSettings);
     setShowSettings(false);
   };
@@ -1343,6 +1351,7 @@ function Sidebar() {
               tabAgeHighlight,
               attentionMarkStyle,
               markUnvisitedTabs,
+              searchCollapseDuplicates,
               aiSettings,
             }}
             onApply={handleApplySettings}

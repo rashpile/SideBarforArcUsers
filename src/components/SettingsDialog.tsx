@@ -7,6 +7,7 @@ import { TabAgeHighlightStyle } from '../utils/tabAgeHighlight';
 import { AttentionMarkStyle, ATTENTION_MARK_STYLE_OPTIONS } from '../utils/attentionMarkStyle';
 import { ToolbarLayout, toolbarLayoutChoice, toolbarLayoutForChoice } from '../utils/toolbarLayout';
 import { UnvisitedTabMarkerSetting } from '../utils/unvisitedTabMarker';
+import { SearchCollapseDuplicatesSetting } from '../utils/searchCollapseDuplicates';
 import { Eye, EyeOff } from 'lucide-react';
 import {
   AiSettings,
@@ -36,6 +37,7 @@ export interface SettingsValues {
   tabAgeHighlight: TabAgeHighlightStyle;
   attentionMarkStyle: AttentionMarkStyle;
   markUnvisitedTabs: UnvisitedTabMarkerSetting;
+  searchCollapseDuplicates: SearchCollapseDuplicatesSetting;
   aiSettings: AiSettings;
 }
 
@@ -70,6 +72,7 @@ export function SettingsDialog({
   const [tempTabAgeHighlight, setTempTabAgeHighlight] = useState(settings.tabAgeHighlight);
   const [tempAttentionMarkStyle, setTempAttentionMarkStyle] = useState(settings.attentionMarkStyle);
   const [tempMarkUnvisitedTabs, setTempMarkUnvisitedTabs] = useState(settings.markUnvisitedTabs);
+  const [tempSearchCollapseDuplicates, setTempSearchCollapseDuplicates] = useState(settings.searchCollapseDuplicates);
   const [tempAiSettings, setTempAiSettings] = useState(settings.aiSettings);
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
   const [showApiKey, setShowApiKey] = useState(false);
@@ -108,6 +111,7 @@ export function SettingsDialog({
       setTempTabAgeHighlight(settings.tabAgeHighlight);
       setTempAttentionMarkStyle(settings.attentionMarkStyle);
       setTempMarkUnvisitedTabs(settings.markUnvisitedTabs);
+      setTempSearchCollapseDuplicates(settings.searchCollapseDuplicates);
       setTempAiSettings(settings.aiSettings);
       setShowApiKey(false);
       setAiValidation({ state: 'idle', message: '' });
@@ -133,6 +137,7 @@ export function SettingsDialog({
       tabAgeHighlight: tempTabAgeHighlight,
       attentionMarkStyle: tempAttentionMarkStyle,
       markUnvisitedTabs: tempMarkUnvisitedTabs,
+      searchCollapseDuplicates: tempSearchCollapseDuplicates,
       aiSettings: tempAiSettings,
     });
   };
@@ -541,6 +546,23 @@ export function SettingsDialog({
                 {tempAutoArchiveAfter === 'never'
                   ? "Tabs and open bookmark pages stay open until you close them"
                   : "Unused tabs move to the space's Archive; unused open bookmark pages close and keep their bookmark"}
+              </p>
+            </div>
+
+            {/* Search popup: one row per page */}
+            <div>
+              <label className="flex items-center gap-2 text-gray-700 dark:text-gray-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={tempSearchCollapseDuplicates === 'on'}
+                  onChange={(e) => setTempSearchCollapseDuplicates(e.target.checked ? 'on' : 'off')}
+                  className="rounded border-gray-300 dark:border-gray-600"
+                />
+                Search popup: one row per page
+              </label>
+              <p className="mt-0.5 text-gray-500 dark:text-gray-400 ml-5">
+                Results with the same title and address, ignoring what follows ? or #, show once: the open tab
+                first, then the bookmark, the archived page, the recently closed tab
               </p>
             </div>
           </>
