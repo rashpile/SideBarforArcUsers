@@ -87,13 +87,13 @@
 **Files:**
 - Modify: `src/components/ArchiveSection.tsx`
 
-- [ ] in `handleRestore`, after the `handleError('reopen archived page')` early return and before
+- [x] in `handleRestore`, after the `handleError('reopen archived page')` early return and before
       `chrome.bookmarks.remove`, call `onToggleCollapsed?.()`; add `onToggleCollapsed` to the `useCallback` deps
-- [ ] update the comment above `handleRestore` with the reason only: the collapse waits for a successful open,
+- [x] update the comment above `handleRestore` with the reason only: the collapse waits for a successful open,
       so a failed open keeps the list next to its error (the prop comment already says the toggle is undefined
       while the text filter is active; don't repeat it)
-- [ ] update the file header comment ("Clicking an item reopens it as a regular tab.") to mention the collapse
-- [ ] run `make lint && make test && make build` - must pass before task 2
+- [x] update the file header comment ("Clicking an item reopens it as a regular tab.") to mention the collapse
+- [x] run `make lint && make test && make build` - must pass before task 2
 
 ### Task 2: Verify acceptance criteria
 
