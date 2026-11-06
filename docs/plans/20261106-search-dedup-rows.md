@@ -192,12 +192,12 @@
 
 ### Task 4: Verify acceptance criteria
 
-- [ ] verify: one row per page in every scope, preference tab → bookmark → archived → recently closed, newest
+- [x] verify: one row per page in every scope, preference tab → bookmark → archived → recently closed, newest
       within a kind, collapse before the cap, setting off lists everything as before
-- [ ] verify nothing writes to the Archive, bookmarks or Recently Closed in this change, and `SpaceArchive`
+- [x] verify nothing writes to the Archive, bookmarks or Recently Closed in this change, and `SpaceArchive`
       is unchanged
-- [ ] verify background reads the setting on each open (no caching across opens)
-- [ ] run full checks: `make lint && make test && make build`
+- [x] verify background reads the setting on each open (no caching across opens)
+- [x] run full checks: `make lint && make test && make build`
 
 ### Task 5: [Final] Update documentation
 
