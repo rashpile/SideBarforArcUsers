@@ -591,19 +591,21 @@ Flow:
 
 ### Task 10: [Final] Update documentation
 
-- [ ] `README.md`: a "Search popup" feature section (what it searches, scopes and colours, This Space / All
+- [x] `README.md`: a "Search popup" feature section (what it searches, scopes and colours, This Space / All
       Spaces, what a pick does, keys), a shortcuts table row (`not set | Search popup: …`), and the
       `activeTab` permission row (it also draws the search popup over the page)
-- [ ] `docs/changelog.md`: a `New:` bullet under `## Latest Version`; `src/data/changelog.ts`: a What's New
+- [x] `docs/changelog.md`: a `New:` bullet under `## Latest Version`; `src/data/changelog.ts`: a What's New
       line in `'2.0.388'`
-- [ ] `docs/development.md`: the search popup in the project layout / services lines and a short architecture
+- [x] `docs/development.md`: the search popup in the project layout / services lines and a short architecture
       note (iframe of `search.html` over the page via `searchPopupFrame.js`, popup window fallback, search in
       background, `web_accessible_resources`, the ping that keeps the worker alive)
-- [ ] `docs/state-reference.md`: no new keys; add the search popup as a reader where the reader lists exist
+- [x] `docs/state-reference.md`: no new keys; add the search popup as a reader where the reader lists exist
       (`sidebar-bookmark-open-mode`, `bookmarkLastActiveAt`, `recentlyClosedTabs`) and as a writer of
       `tabAssociations_${windowId}` (arc bookmark open)
-- [ ] `docs/chrome-web-store-info.md`: the activeTab justification mentions the search popup
-- [ ] move this plan to `docs/plans/completed/` (the orchestrator does it at the end; mark only)
+      ➕ `sidebar-bookmark-open-mode` had no reader list: it lives in `chrome.storage.local`, not browser
+      `localStorage` as the reference said, so it moved to the Chrome Local Storage section with its readers
+- [x] `docs/chrome-web-store-info.md`: the activeTab justification mentions the search popup
+- [x] move this plan to `docs/plans/completed/` (the orchestrator does it at the end; mark only)
 
 ## Post-Completion
 

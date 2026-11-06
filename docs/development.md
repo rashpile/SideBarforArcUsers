@@ -43,17 +43,22 @@ Tests cover decisions that are easy to get wrong: which tabs auto-archive closes
 
 ```
 note.html        note page entry, a Vite input built to dist/note.html (src/note/ has the page)
+search.html      search popup page entry, a Vite input built to dist/search.html (src/searchPopup/ has the page)
 public/          manifest.json, icons, static pages
 src/
-  background.ts  service worker: tab events, Space ownership, auto-archive, keyboard switchers
+  background.ts  service worker: tab events, Space ownership, auto-archive, keyboard switchers, search popup
   main.tsx       side panel entry; App.tsx is the root component
+  switcherOverlay.ts, searchPopupFrame.ts
+                 content scripts background injects on a shortcut, built to fixed names
+                 (switcherOverlay.js, searchPopupFrame.js)
   note/          note page: one markdown note, opened from its bookmark (NotePage.tsx, own CSS entry)
+  searchPopup/   search popup page: plain DOM, no React (main.ts, SearchKeyboard, own CSS)
   components/    React UI
   contexts/      React contexts (bookmark-tab associations, Spaces, selection, font size)
   hooks/         hooks over Chrome APIs and shared state
   managers/      background-owned state and its sidebar proxies (see below)
   stores/        storage-backed classes without React (tab activity, session marker, ...)
-  services/      longer flows: auto-archive, AI naming, keyboard switchers
+  services/      longer flows: auto-archive, AI naming, keyboard switchers, search popup
   actions/       undoable user actions (close tabs, delete bookmark, archive tabs, ...)
   utils/         pure helpers, most of them covered by tests/
   data/          What's New entries (changelog.ts)
@@ -154,6 +159,19 @@ Tab ↔ bookmark/Favorite associations (`tabAssociations_{windowId}` in session,
 4. Lazy resolve in `usePinnedSites.ts` when the list changes. A `customIconName` without `favicon` is fetched from Iconify. A pin with no icon at all retries Chrome's cache on every change until the page has been visited.
 5. A tab reports a new `favIconUrl` (`tabs.onUpdated` in `background.ts`). Favorites of every Space (all `asd_Favorites` folders) on the same hostname without `favicon`, `customIconName` or `emoji` get it. This runs in background because `tabs.onUpdated` doesn't fire reliably in the side panel.
 6. "Reset to site icon" in Edit Pin re-fetches from Chrome's cache.
+
+## Search popup
+
+The `search-popup` command shows the extension page `search.html` in one of two hosts:
+
+- Over the page. Background injects `searchPopupFrame.js` (`src/searchPopupFrame.ts`, a classic script without imports) into the active tab with `executeScript` under `activeTab`, then sends it `SHOW`. The script puts an iframe of `search.html` in a closed shadow root over the page. Keys and the typed query stay in the extension's frame, so the page can't read them and its shortcuts don't fire. A page can frame `search.html` only because the manifest lists it in `web_accessible_resources`.
+- In a popup window. Background falls back to it when the tab can't be scripted (`chrome://` pages, the New Tab page), the page has no focus, or the frame's page doesn't connect within 2 s.
+
+The search runs in background. `SearchPopup` (`src/services/searchPopup.ts`) takes one snapshot when the popup opens: tabs, associations, the bookmark tree, `bookmarkLastActiveAt` and Recently Closed (`SearchCandidates`, `src/services/searchResults.ts`). It answers each query from that snapshot with up to 20 rows. Row ids are opaque and map back to snapshot items, so the page never sends a tab id or URL that background acts on. `SearchPicker` (`src/services/searchPick.ts`) runs the sidebar's click steps for each kind of result from background, and checks the `stateReady` result before it reuses a tab found through the associations.
+
+The page connects a port named `search-popup:<session id>`. Background accepts only the current session's port, from `search.html` in the host tab or window, and disconnects any other. The session is an exception to "background state lives in `chrome.storage.session`": it stays in worker memory, and the page posts a `ping` every 20 s to keep the worker running while the popup is open, since Chrome 114 an open port alone doesn't. When the port drops (the worker stopped, or background ended the session) the page closes itself: a popup window closes, and the iframe asks the frame script to remove it.
+
+`SearchKeyboard` (`src/searchPopup/searchKeyboard.ts`) makes the key decisions in the page. Chrome turns further shortcut presses into commands, which background forwards to the page as `move`. A keyup with no Cmd, Ctrl or Alt held picks the selected row only after such a press.
 
 ## Chrome API rules
 

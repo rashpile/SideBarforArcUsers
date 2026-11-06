@@ -100,7 +100,8 @@ Active space per window
 ### `tabAssociations_${windowId}`
 Tab → bookmark/Favorite mapping (Record: tabId → itemKey, `bookmark-{id}` / `pinned-{id}`; a Favorite's id is its bookmark id in the Space's `asd_Favorites`)
 - Owner: `src/contexts/BookmarkTabsContext.tsx`. On rebuild it first re-keys `pinned-<oldPinId>` entries left from global Favorites (`favoritesMigration.rekey`), then binds tabs by URL: a Favorite URL matches only the `asd_Favorites` copy of the tab's own Space, never a `bookmark-{id}`
-- Consumers: `src/components/PinnedBar.tsx`, `src/components/TabList.tsx`, `src/services/tabAutoArchiver.ts` (tells bookmark and Favorite tabs from regular tabs), `src/actions/deletePinnedSiteAction.ts` (undo hands the context the tab and the re-created bookmark's key). A Favorite tab belongs to its registered Space like any other tab (keyboard switcher, Move to Space)
+- Also written by background's search popup (`SearchPicker`, `src/services/searchPick.ts`): an Arc-style bookmark pick that opens a new tab stores `bookmark-{id}` for it with `storeTabAssociation`, then its backup with `saveTabAssociationBackup`, as the sidebar does. A pick at the same moment as a sidebar write to the same window can lose one entry (known limitation)
+- Consumers: `src/components/PinnedBar.tsx`, `src/components/TabList.tsx`, `src/services/tabAutoArchiver.ts` (tells bookmark and Favorite tabs from regular tabs), `src/actions/deletePinnedSiteAction.ts` (undo hands the context the tab and the re-created bookmark's key), the search popup in background (`buildSearchCandidates` links tab results to their bookmark; an Arc-style bookmark pick reuses the bookmark's tab in the window, only when the startup restore succeeded). A Favorite tab belongs to its registered Space like any other tab (keyboard switcher, Move to Space)
 - Restore at worker start: `restoreTabAssociationBackup` (`src/utils/tabAssociations.ts`) rebuilds it from the local backup (`matchBackupWindows`). On a worker restart within the browser session (`tabRestoreSessionStarted` present) a backup keeps its window by window ID and each entry keeps the tab with its stored ID, whatever page it shows now; entries whose tab is gone are dropped. After a browser restart or an extension reload/update (marker absent) a backup window keeps its old window ID only when every entry's stored tab ID is still in it on the entry's site (`isSameSite`); otherwise it is matched by tab index + domain, then by domain overlap, so IDs reused after a browser restart are not taken. ID matches of a window where the other entries' tabs are gone are kept when index + domain matching finds nothing. Within the window a backup was matched to, an entry placed by reused ID, index or domain prefers the free tab showing its exact page (backup URL), and domain overlap otherwise takes the tab on the entry's domain nearest its stored index
 - Backup indices: refreshed on tab create, move, remove, attach and detach, so index + domain matching finds the tabs after a browser restart
 - Instances: 1 per window
@@ -260,6 +261,15 @@ Array<{
 - Consumers: `src/background.ts` (space switching), `src/hooks/useFollowActiveTab.ts` (scrolling), `src/components/SettingsDialog.tsx`
 - Instances: 1 per extension (shared across windows)
 
+### `sidebar-bookmark-open-mode`
+"Open bookmark" setting: how a click on a bookmark opens it
+```typescript
+'arc' | 'newTab' | 'activeTab'  // raw string, not JSON; default 'arc'. The old boolean 'true' / 'false' reads as 'arc' / 'newTab'
+```
+- Owner: `src/App.tsx` (via `useChromeLocalStorage` with `serialize: v => v`); set in `src/components/SettingsDialog.tsx`
+- Consumers: `src/components/BookmarkTree.tsx`, `src/components/PinnedBar.tsx`; the search popup in background reads it raw with `chrome.storage.local.get` on each bookmark pick (`parseBookmarkOpenMode`, `src/services/searchPick.ts`, which repeats App.tsx's migration of the old boolean)
+- Instances: 1 per extension (shared across windows)
+
 ### `favoriteIcons`
 Icon fields of each Favorite, keyed by bookmark id. A Favorite itself is a bookmark in its Space's `asd_Favorites` folder (url, title, position); what a bookmark can't hold lives here
 ```typescript
@@ -305,7 +315,7 @@ Last time each bookmark's Arc-style tab was active (folder recent popover)
 string  // JSON of Record<bookmarkId, epochMillis>
 ```
 - Owner: `src/background.ts` (via `BookmarkRecencyStore`, the only writer)
-- Consumers: `src/components/BookmarkTree.tsx` (folder rows) and `src/App.tsx` (Space header peek), both via `useChromeLocalStorage`, read-only
+- Consumers: `src/components/BookmarkTree.tsx` (folder rows) and `src/App.tsx` (Space header peek), both via `useChromeLocalStorage`, read-only; the search popup in background (`BookmarkRecencyStore.read()` when the popup opens, the last-use time that orders bookmark results)
 - Instances: 1 per extension (shared across windows)
 
 ### `autoArchiveAfter`
@@ -436,7 +446,7 @@ Recently closed tabs of each Space (Recently Closed button on the Space title)
 string  // JSON of Record<spaceId, Array<{ id: string, url: string, title: string, closedAt: number }>>, newest first
 ```
 - Owner: `src/managers/impl/recentlyClosedManager.ts` (`RecentlyClosedManager`, background, the only writer; writes serialized); the model is `RecentlyClosedTabs` in `src/stores/recentlyClosedTabs.ts`
-- Consumers: `src/App.tsx` (`SpaceTitleWrapper`, via `useChromeLocalStorage` parsed with `RecentlyClosedTabs.fromStored`, read-only) → `src/components/RecentlyClosedPopover.tsx`; reopen and Clear go through `src/managers/proxies/recentlyClosedProxy.ts`
+- Consumers: `src/App.tsx` (`SpaceTitleWrapper`, via `useChromeLocalStorage` parsed with `RecentlyClosedTabs.fromStored`, read-only) → `src/components/RecentlyClosedPopover.tsx`; reopen and Clear go through `src/managers/proxies/recentlyClosedProxy.ts`. The search popup in background reads the lists from the manager (`forSpace`) when the popup opens, and a pick reopens through `RecentlyClosedManager.reopen`, which returns the new tab's id
 - Updates: `tabs.onRemoved` (window close included) adds a record when `closedTabRecord` (`src/utils/closedTabRecording.ts`) finds the tab's Space and the tab qualifies; the same URL in the same Space replaces the older record; at most 50 per Space, the oldest dropped. Reopen removes the record after `chrome.tabs.create` succeeds and registers the new tab in the record's Space; Clear empties the Space's list; a `spaces` change and the worker start drop the lists of deleted Spaces, and a close handled after its Space was deleted is dropped. Delete Space keeps the Space's records in its Undo snapshot (`spaceRecords`), and Undo puts them back (`restoreSpace`). Undo of a tab close drops the Space's record of that URL (`forgetReopened`). Records hold no icon: the popover takes it from Chrome's favicon cache by URL
 - Not recorded: tabs closed by auto-archive or the sidebar's Archive action (`expectArchiveClose` right before closing), tabs with a bookmark or Favorite association (`openTabPages.associated`), tabs replaced by a tab suspender's park page, incognito tabs, internal URLs (`chrome:`, `chrome-extension:`, `edge:`, `about:`, `devtools:`, `view-source:`, `chrome-search:`, empty). A parked tab is recorded by the page it stands for
 - Records hold no tab IDs, so they survive a browser restart
@@ -530,7 +540,6 @@ All owned by `src/App.tsx`, hook implementation in `src/hooks/useLocalStorage.ts
 | `sidebar-hide-other-bookmarks` | false | boolean | Hide "Other Bookmarks" folder |
 | `sidebar-tab-group-display-order` | "groupsFirst" | TabGroupDisplayOrder | Tab group display order: "groupsFirst", "groupsLast", or "chromeOrder" |
 | `sidebar-pinned-icon-size-px` | 22 | number | Pinned icon size |
-| `sidebar-bookmark-open-mode` | "arc" | string | How bookmarks open ("arc" or "newTab") |
 | `sidebar-use-spaces` | true | boolean | Enable spaces feature |
 | `sidebar-show-filter-area` | false | boolean | Show search/filter area |
 | `sidebar-has-seen-welcome` | false | boolean | Welcome dialog dismissed |
@@ -606,7 +615,7 @@ Lost on page reload or service worker restart.
 │  └─ bookmarkNotes                   (note texts by noteId)      │
 ├─────────────────────────────────────────────────────────────────┤
 │  browser localStorage (survives browser restart)                │
-│  └─ sidebar-* settings (10 keys)                                │
+│  └─ sidebar-* settings (9 keys)                                 │
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
