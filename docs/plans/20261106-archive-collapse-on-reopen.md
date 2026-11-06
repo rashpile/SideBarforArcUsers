@@ -97,13 +97,13 @@
 
 ### Task 2: Verify acceptance criteria
 
-- [ ] verify a click and Enter / Space on an item both go through `handleRestore`, so both collapse
-- [ ] verify no collapse happens when `chrome.tabs.create` reports an error, and the error paragraph still
+- [x] verify a click and Enter / Space on an item both go through `handleRestore`, so both collapse
+- [x] verify no collapse happens when `chrome.tabs.create` reports an error, and the error paragraph still
       renders while collapsed
-- [ ] verify `onToggleCollapsed` is optional-called, so the text filter case (undefined) keeps the section open
+- [x] verify `onToggleCollapsed` is optional-called, so the text filter case (undefined) keeps the section open
       and writes nothing
-- [ ] verify no other file changed behaviour (the header toggle, `SectionCollapseState`, App wiring unchanged)
-- [ ] run full test suite: `make lint && make test && make build`
+- [x] verify no other file changed behaviour (the header toggle, `SectionCollapseState`, App wiring unchanged)
+- [x] run full test suite: `make lint && make test && make build`
 
 ### Task 3: [Final] Update documentation
 
