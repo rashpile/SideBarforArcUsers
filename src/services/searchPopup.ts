@@ -3,9 +3,10 @@
 // The shortcut snapshots what can be found (SearchCandidates) and shows search.html where the keys
 // go: in an iframe over the active tab's page (searchPopupFrame.js, injected with the activeTab
 // grant the shortcut gives), or in a focused popup window on pages the extension can't script or
-// that have no focus. The page connects a port; queries, picks and closes travel over it, and
-// background answers each query from the snapshot. Further presses while the popup is open arrive
-// here as commands and are forwarded as moves, as in the Tab Switcher.
+// that have no focus. The page connects a port; queries, picks, web searches and closes travel over
+// it, and background answers each query from the snapshot. A web search (Shift+Enter) closes the
+// popup like a pick and searches the typed text in a new tab of the origin window. Further presses
+// while the popup is open arrive here as commands and are forwarded as moves, as in the Tab Switcher.
 //
 // The session lives in worker memory only, so its tab and window ids never outlive the browser
 // session. The page's pings keep the worker running while the popup is open.
@@ -25,6 +26,8 @@ export interface SearchPopupDeps
   // The snapshot for the origin window (fetched with its tabs)
   buildCandidates(win: chrome.windows.Window): Promise<SearchCandidates>;
   picker: SearchPicker;
+  // Opens a new tab in that window and searches the web for the text with the default engine
+  searchWeb(windowId: number, text: string): Promise<void>;
   newSessionId(): string;
   debug: boolean;
 }
@@ -395,6 +398,9 @@ export class SearchPopup
         case 'pick':
           void this.#pick(session, message.rowId);
           break;
+        case 'searchWeb':
+          void this.#searchWeb(session, message.text);
+          break;
         case 'close':
           this.#log('close', message.reason);
           // A blur means the user went to another window or app; pulling Chrome back would undo that
@@ -424,6 +430,24 @@ export class SearchPopup
     {
       // The snapshot is older than the change: the tab or the record is gone
       console.error('[SearchPopup] failed to open the picked result:', error);
+    }
+  }
+
+  async #searchWeb(session: SearchSession, text: unknown): Promise<void>
+  {
+    // The page sends only non-blank text; a message without any keeps the popup open
+    const query = typeof text === 'string' ? text.trim() : '';
+    if (!query) return;
+    this.#log('search the web');
+    await this.#finish(session, true);
+    try
+    {
+      await this.#deps.searchWeb(session.originWindowId, query);
+    }
+    catch (error)
+    {
+      // No default search provider, or the origin window is gone
+      console.error('[SearchPopup] failed to search the web:', error);
     }
   }
 

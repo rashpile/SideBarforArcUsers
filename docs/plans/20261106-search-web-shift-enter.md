@@ -162,13 +162,13 @@
 - Modify: `public/manifest.json`
 - Modify: `tests/searchPopup.test.mjs`
 
-- [ ] add `{ type: 'searchWeb'; text: string }` to `SearchPageMessage`
-- [ ] add `searchWeb(windowId, text)` to `SearchPopupDeps` and the `'searchWeb'` case with `#searchWeb(session, text)` in `SearchPopup` (blank or non-string text ignored with the session kept; otherwise `#finish(session, true)`, then `deps.searchWeb(session.originWindowId, text.trim())`, errors logged); update the file's header comment
-- [ ] implement the `searchWeb` dependency in `background.ts` (`tabs.create` in the window, then `search.query` with its `tabId`)
-- [ ] add `"search"` to `permissions` in `public/manifest.json`
-- [ ] extend the test harness with a recording `searchWeb` dependency and record `windows.remove` calls; test: an overlay popup's `searchWeb` message removes the frame, ends the session (port disconnected) and searches once with `ORIGIN_WINDOW` and the trimmed text
-- [ ] test: a popup-window session's `searchWeb` closes `POPUP_WINDOW` and searches in `ORIGIN_WINDOW`, not the popup window
-- [ ] run `make lint && make test && make build` - must pass before Task 3
+- [x] add `{ type: 'searchWeb'; text: string }` to `SearchPageMessage`
+- [x] add `searchWeb(windowId, text)` to `SearchPopupDeps` and the `'searchWeb'` case with `#searchWeb(session, text)` in `SearchPopup` (blank or non-string text ignored with the session kept; otherwise `#finish(session, true)`, then `deps.searchWeb(session.originWindowId, text.trim())`, errors logged); update the file's header comment
+- [x] implement the `searchWeb` dependency in `background.ts` (`tabs.create` in the window, then `search.query` with its `tabId`)
+- [x] add `"search"` to `permissions` in `public/manifest.json`
+- [x] extend the test harness with a recording `searchWeb` dependency and record `windows.remove` calls; test: an overlay popup's `searchWeb` message removes the frame, ends the session (port disconnected) and searches once with `ORIGIN_WINDOW` and the trimmed text
+- [x] test: a popup-window session's `searchWeb` closes `POPUP_WINDOW` and searches in `ORIGIN_WINDOW`, not the popup window
+- [x] run `make lint && make test && make build` - must pass before Task 3
 
 ### Task 3: Page wiring and the "Search the web" hint
 

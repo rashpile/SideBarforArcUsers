@@ -38,6 +38,7 @@ export interface SearchQuery
 export type SearchPageMessage =
   | { type: 'query'; query: SearchQuery }
   | { type: 'pick'; rowId: string }
+  | { type: 'searchWeb'; text: string }
   | { type: 'close'; reason: string }   // 'esc', 'blur', ...
   | { type: 'ping' };
 

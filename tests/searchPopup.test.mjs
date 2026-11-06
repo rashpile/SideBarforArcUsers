@@ -76,6 +76,8 @@ function harness(t, { showsOverlay = true } = {})
   const pageUrls = [];
   const sent = [];
   const createdWindows = [];
+  const removedWindows = [];
+  const searches = [];
   let openGate;
   let createGate;
   let failNextOpen = false;
@@ -111,7 +113,10 @@ function harness(t, { showsOverlay = true } = {})
         return { id: POPUP_WINDOW };
       },
       update: async () => ({}),
-      remove: async () => {},
+      remove: async (windowId) =>
+      {
+        removedWindows.push(windowId);
+      },
     },
     tabs: {
       sendMessage: async (tabId, message) =>
@@ -133,6 +138,10 @@ function harness(t, { showsOverlay = true } = {})
   const popup = new SearchPopup({
     buildCandidates: async () => candidates,
     picker: { pick: async () => {} },
+    searchWeb: async (windowId, text) =>
+    {
+      searches.push({ windowId, text });
+    },
     newSessionId: () => `s${++sessions}`,
     debug: false,
   });
@@ -141,6 +150,8 @@ function harness(t, { showsOverlay = true } = {})
     popup,
     sent,
     createdWindows,
+    removedWindows,
+    searches,
     lastPageUrl: () => pageUrls.at(-1),
     // The next open waits in getLastFocused until the returned function is called
     holdOpen()
@@ -371,4 +382,32 @@ test('a frame page that connects in time keeps the overlay when the deadline pas
   assert.equal(page.disconnected, false);
   assert.equal(h.createdWindows.length, 0);
   assert.equal(h.sent.some(({ message }) => message.action === SearchFrameAction.REMOVE), false);
+});
+
+test('a web search from the overlay removes the frame, ends the session and searches the trimmed text in the origin window', async (t) =>
+{
+  const h = harness(t);
+  await h.popup.handleShortcut(true);
+  const page = h.connect(h.lastPageUrl(), OVERLAY_TAB);
+
+  page.send({ type: 'searchWeb', text: '  chrome extensions  ' });
+  await flush();
+
+  assert.equal(page.disconnected, true);
+  assert.deepEqual(h.sent.at(-1), { tabId: ACTIVE_TAB, message: { action: SearchFrameAction.REMOVE } });
+  assert.deepEqual(h.searches, [{ windowId: ORIGIN_WINDOW, text: 'chrome extensions' }]);
+});
+
+test('a web search from the popup window closes that window and searches in the origin window', async (t) =>
+{
+  const h = harness(t, { showsOverlay: false });
+  await h.popup.handleShortcut(true);
+  const page = h.connect(h.lastPageUrl(), POPUP_WINDOW_TAB);
+
+  page.send({ type: 'searchWeb', text: 'example.com' });
+  await flush();
+
+  assert.equal(page.disconnected, true);
+  assert.deepEqual(h.removedWindows, [POPUP_WINDOW]);
+  assert.deepEqual(h.searches, [{ windowId: ORIGIN_WINDOW, text: 'example.com' }]);
 });
