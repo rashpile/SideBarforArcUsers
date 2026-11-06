@@ -102,18 +102,18 @@
 - Modify: `src/searchPopup/searchKeyboard.ts`
 - Modify: `tests/searchKeyboard.test.mjs`
 
-- [ ] in `SearchKeyboard.keydown`, after the shortcut-match branch, return `{ kind: 'close' }` for
+- [x] in `SearchKeyboard.keydown`, after the shortcut-match branch, return `{ kind: 'close' }` for
       `code === 'Period'` with Cmd or Ctrl held, unless the shortcut's key code is `Period`; update the
       file's header comment to name Cmd+. as the close key that works with Cmd held
-- [ ] clear `#armed` on every `close` (Esc and Period), so a release after a close never picks
-- [ ] test: Cmd+. and Ctrl+. (with the shortcut on `⌥E` and on `⌘E`) return `close`, and after it the
+- [x] clear `#armed` on every `close` (Esc and Period), so a release after a close never picks
+- [x] test: Cmd+. and Ctrl+. (with the shortcut on `⌥E` and on `⌘E`) return `close`, and after it the
       modifier's release returns `none` even when a shortcut press had armed the pick; the same for
       Cmd+Esc / Esc after an armed press
-- [ ] test: add `['⌃.', 'Period', { ctrlKey: true }]` to the table of "only the shortcut's exact
+- [x] test: add `['⌃.', 'Period', { ctrlKey: true }]` to the table of "only the shortcut's exact
       modifiers make its key a move" (it already has `Command+Period`), so a Period shortcut moves and
       Period with any other modifiers neither closes nor moves
-- [ ] test: plain `.`, Shift+`.` and Option+`.` return `none`
-- [ ] run `make test` - must pass before Task 2
+- [x] test: plain `.`, Shift+`.` and Option+`.` return `none`
+- [x] run `make test` - must pass before Task 2
 
 ### Task 2: Cancel the Tab and Space Switcher with Cmd+. and Ctrl+.
 
