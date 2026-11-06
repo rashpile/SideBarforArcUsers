@@ -398,19 +398,19 @@ Flow:
 - Create: `src/searchPopup/main.ts` (an empty placeholder; filled in Task 6)
 - Create: `src/searchPopupFrame.ts` (a placeholder IIFE; filled in Task 5)
 
-- [ ] create `src/utils/searchPopupMessages.ts` with `SEARCH_POPUP_PORT_PREFIX`, `SEARCH_POPUP_PING_MS`,
+- [x] create `src/utils/searchPopupMessages.ts` with `SEARCH_POPUP_PORT_PREFIX`, `SEARCH_POPUP_PING_MS`,
       `SearchScope`, `SEARCH_SCOPES`, `SearchItemKind`, `SearchRow`, `SearchQuery`, the port message types
       (page → background incl. `ping`, background → page), `SearchFrameAction` and
       `SEARCH_FRAME_CLOSE_REQUEST` (see Technical Details)
-- [ ] `public/manifest.json`: add the command `"search-popup": { "description": "Search popup: open tabs,
+- [x] `public/manifest.json`: add the command `"search-popup": { "description": "Search popup: open tabs,
       bookmarks, archive and recently closed tabs" }` (no `suggested_key`) after `space-switcher-next`;
       add `"web_accessible_resources": [{ "resources": ["search.html"], "matches": ["<all_urls>"] }]`
-- [ ] `vite.config.ts`: add the `search: 'search.html'` input and the
+- [x] `vite.config.ts`: add the `search: 'search.html'` input and the
       `searchPopupFrame: resolve(__dirname, 'src/searchPopupFrame.ts')` input; give `searchPopupFrame` a
       fixed `searchPopupFrame.js` name next to `background` and `switcherOverlay`
-- [ ] create `search.html` (like `note.html`, with `<script type="module" src="/src/searchPopup/main.ts">`,
+- [x] create `search.html` (like `note.html`, with `<script type="module" src="/src/searchPopup/main.ts">`,
       title "Search") and minimal placeholder `main.ts` / `searchPopupFrame.ts` so the build passes
-- [ ] no tests (wiring); run `make lint && make test && make build` and check that `dist/` has
+- [x] no tests (wiring); run `make lint && make test && make build` and check that `dist/` has
       `search.html` and `searchPopupFrame.js` - must pass before Task 2
 
 ### Task 2: Search candidates and ranking
