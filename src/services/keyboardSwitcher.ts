@@ -12,6 +12,7 @@
 // presses arrive here as commands and are forwarded to the list.
 
 import { fetchAsBase64, getFaviconUrl } from '../utils/favicon';
+import { keyCodeOf } from '../utils/shortcutKey';
 import { SwitcherCard, SwitcherListData, SwitcherMessageAction } from '../utils/switcherMessages';
 
 export type SwitcherKind = 'tabs' | 'spaces';
@@ -55,19 +56,6 @@ export function parseSwitcherCommand(command: string): { kind: SwitcherKind; dir
   return COMMANDS[command];
 }
 
-// KeyboardEvent.code of a shortcut's key ("⌘E" -> "KeyE"), so a press that
-// reaches the page rather than Chrome still moves the selection
-function keyCodeOf(shortcut: string | undefined): string | undefined
-{
-  const key = shortcut?.slice(-1).toUpperCase();
-  if (!key) return undefined;
-  if (/[A-Z]/.test(key)) return `Key${key}`;
-  if (/[0-9]/.test(key)) return `Digit${key}`;
-  if (key === ',') return 'Comma';
-  if (key === '.') return 'Period';
-  return undefined;
-}
-
 export class KeyboardSwitcher
 {
   #deps: KeyboardSwitcherDeps;
@@ -80,6 +68,7 @@ export class KeyboardSwitcher
   #pendingSteps = 0;
   #originWindowId: number | undefined;
   #cards: SwitcherCard[] = [];
+  // The shortcut's key, so a press that reaches the page rather than Chrome still moves the selection
   #repeatKeyCode: string | undefined;
 
   constructor(deps: KeyboardSwitcherDeps)

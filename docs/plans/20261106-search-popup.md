@@ -277,8 +277,9 @@ background code that changes tabs based on associations must check it.
 - The shortcut's key code comes from `keyCodeOf`. It moves from `keyboardSwitcher.ts` to
   `src/utils/shortcutKey.ts`, and both import it from there. The move fixes its parse: strip the modifiers
   (the glyphs `⌘⌥⇧⌃` and the `Ctrl+` / `Alt+` / `Shift+` / `Command+` / `MacCtrl+` prefixes), and map only
-  a single letter, a digit, `,` or `.` to a code. Anything else (`Space`, arrows, `Home`, …) gives undefined,
-  so `"⌥Space"` no longer reads as `KeyE`.
+  a single letter, a digit, `,` or `.` (also spelled `Comma` / `Period`, as Chrome writes them on some
+  platforms) to a code. Anything else (`Space`, arrows, `Home`, …) gives undefined, so `"⌥Space"` no longer
+  reads as `KeyE`.
 
 ### Background flow (`src/services/searchPopup.ts`)
 
@@ -483,18 +484,18 @@ Flow:
 - Create: `src/searchPopup/searchKeyboard.ts`
 - Create: `tests/searchKeyboard.test.mjs`
 
-- [ ] move `keyCodeOf` from `keyboardSwitcher.ts` to `src/utils/shortcutKey.ts` with the fixed parse
+- [x] move `keyCodeOf` from `keyboardSwitcher.ts` to `src/utils/shortcutKey.ts` with the fixed parse
       (modifiers stripped; only a single letter, digit, `,` or `.` maps to a code) and import it in
       `keyboardSwitcher.ts`
-- [ ] create `SearchKeyboard` per Technical Details (`shortcutMove`, `keydown`, `keyup`), taking the shortcut
+- [x] create `SearchKeyboard` per Technical Details (`shortcutMove`, `keydown`, `keyup`), taking the shortcut
       string; a modifier-free keydown disarms
-- [ ] write tests: a keyup without modifiers after open (no shortcut press) returns none; after
+- [x] write tests: a keyup without modifiers after open (no shortcut press) returns none; after
       `shortcutMove(1)` a keyup with Alt still held returns none and the release returns pick, once; after
       `shortcutMove(1)`, a keydown `KeyG` with no modifiers then its keyup return none
-- [ ] write tests: plain letters return none (typing never picks or moves); arrows, Enter, Esc, Tab /
+- [x] write tests: plain letters return none (typing never picks or moves); arrows, Enter, Esc, Tab /
       Shift+Tab, Alt+KeyA map to their actions; the shortcut's key with its modifier held moves and arms;
       `keyCodeOf` for `"⌥E"`, `"Alt+E"`, `"⇧⌘K"`, `"Ctrl+Shift+Comma"`-style strings and `"⌥Space"` (undefined)
-- [ ] run `make lint && make test && make build` - must pass before Task 5
+- [x] run `make lint && make test && make build` - must pass before Task 5
 
 ### Task 5: Frame content script over the page
 
