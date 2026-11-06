@@ -171,16 +171,16 @@
 - Modify: `src/components/SettingsDialog.tsx`
 - Modify: `src/components/pageAgent/PageAgentDrawer.tsx`
 
-- [ ] remove the Prompt textarea and its help text
-- [ ] remove the "Read web page content" block (access status, naming help text, **Allow** button, the
+- [x] remove the Prompt textarea and its help text
+- [x] remove the "Read web page content" block (access status, naming help text, **Allow** button, the
       automatic-naming checkbox and its warning) with `hasPageAccess`, `setHasPageAccess`, the
       `chrome.permissions.contains` call on open and `handleRequestPageAccess`
-- [ ] reword the API key help text "It is never sent to the page being renamed" to describe the page agent
+- [x] reword the API key help text "It is never sent to the page being renamed" to describe the page agent
       (e.g. "Stored locally by the extension. It is never sent to the pages the page agent reads.")
-- [ ] `PageAgentDrawer.tsx`: in the `useOriginsGranted` comment, drop "such as in Settings" if Settings no
+- [x] `PageAgentDrawer.tsx`: in the `useOriginsGranted` comment, drop "such as in Settings" if Settings no
       longer grants page access (keep the rest)
-- [ ] no new tests (UI wiring)
-- [ ] run `make lint && make test && make build` - must pass before task 3
+- [x] no new tests (UI wiring)
+- [x] run `make lint && make test && make build` - must pass before task 3
 
 ### Task 3: Move the connection check out and remove the naming code
 

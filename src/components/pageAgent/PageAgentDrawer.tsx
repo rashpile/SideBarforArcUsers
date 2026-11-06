@@ -569,7 +569,7 @@ function hostAndPath(url: string): string
 
 /**
  * Whether the optional host permissions are granted (null until the first check), and a request
- * for them. Follows grants and removals made elsewhere, such as in Settings.
+ * for them. Follows grants and removals made elsewhere.
  */
 function useOriginsGranted(origins: readonly string[]): [boolean | null, () => void]
 {
