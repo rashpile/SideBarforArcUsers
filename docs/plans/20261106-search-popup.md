@@ -455,24 +455,24 @@ Flow:
 - Modify: `tests/recentlyClosedManager.test.mjs`
 - Create: `tests/searchPick.test.mjs`
 
-- [ ] change `RecentlyClosedManager.reopen` to return `Promise<number | undefined>` (the new tab's id;
+- [x] change `RecentlyClosedManager.reopen` to return `Promise<number | undefined>` (the new tab's id;
       undefined when the record is gone), and update `RecentlyClosedApi.reopen` and the proxy's type; the
       sidebar caller ignores the value
-- [ ] create `SearchPicker` with `SearchPickerDeps` and `pick(item, originWindowId, restored)` per Technical
+- [x] create `SearchPicker` with `SearchPickerDeps` and `pick(item, originWindowId, restored)` per Technical
       Details (tab, bookmark in `arc` / `newTab` / `activeTab`, archive, closed, the `restored === false`
       rules) and `parseBookmarkOpenMode(raw)`
-- [ ] write tests: a tab result activates that tab id and focuses its window only when it is another window;
+- [x] write tests: a tab result activates that tab id and focuses its window only when it is another window;
       a closed record reopens with the record's Space and id in the origin window and activates the returned
       tab
-- [ ] write tests: an `arc` bookmark with an existing associated tab in the origin window activates it and
+- [x] write tests: an `arc` bookmark with an existing associated tab in the origin window activates it and
       creates nothing; a stale association (tab gone) or none creates a tab, stores `bookmark-<id>` for it in
       the origin window and registers it in the Space `bookmarkSpaceId` returns (falling back to the item's);
       `newTab` and `activeTab` modes; `parseBookmarkOpenMode` for `'true'`, `'false'`, the three values and junk
-- [ ] write tests: an archive item opens in its Space and is removed after; a rejected `createTab` leaves the
+- [x] write tests: an archive item opens in its Space and is removed after; a rejected `createTab` leaves the
       archive bookmark in place
-- [ ] write tests: with `restored === false` a tab result is activated without a Space switch
+- [x] write tests: with `restored === false` a tab result is activated without a Space switch
       (`activateTabOnly`) and an `arc` bookmark with an associated tab gets a new tab instead of reusing it
-- [ ] update `tests/recentlyClosedManager.test.mjs` for the returned id; run
+- [x] update `tests/recentlyClosedManager.test.mjs` for the returned id; run
       `make lint && make test && make build` - must pass before Task 4
 
 ### Task 4: Keyboard decisions of the popup
