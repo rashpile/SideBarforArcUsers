@@ -58,7 +58,7 @@ src/
   hooks/         hooks over Chrome APIs and shared state
   managers/      background-owned state and its sidebar proxies (see below)
   stores/        storage-backed classes without React (tab activity, session marker, ...)
-  services/      longer flows: auto-archive, AI naming, keyboard switchers, search popup
+  services/      longer flows: auto-archive, page agent, keyboard switchers, search popup
   actions/       undoable user actions (close tabs, delete bookmark, archive tabs, ...)
   utils/         pure helpers, most of them covered by tests/
   data/          What's New entries (changelog.ts)

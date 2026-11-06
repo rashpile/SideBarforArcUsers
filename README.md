@@ -54,7 +54,7 @@ Coming from Arc? **Import from Arc Browser...** in the sidebar menu reads Arc's 
 - **Tabs** below the bookmarks are the Space's other open tabs.
 - **Archive** keeps tabs you archive by hand or stopped using, if you turn auto-archive on.
 
-Everything is stored in Chrome: bookmarks for Spaces, pinned pages, notes, the archive and Favorites, and the extension's local storage for settings, Favorite icons, marks, saved page styles and note texts. Nothing goes to a server, except what AI naming and the page agent send to the AI endpoint you set up. See [PRIVACY.md](PRIVACY.md).
+Everything is stored in Chrome: bookmarks for Spaces, pinned pages, notes, the archive and Favorites, and the extension's local storage for settings, Favorite icons, marks, saved page styles and note texts. Nothing goes to a server, except what the page agent sends to the AI endpoint you set up. See [PRIVACY.md](PRIVACY.md).
 
 ## Features
 
@@ -96,7 +96,7 @@ Everything is stored in Chrome: bookmarks for Spaces, pinned pages, notes, the a
   ```
 
   A bookmark has `url` and an optional `title` (the URL is used when it is missing); a folder has `folder` and `items`.
-- Right-click a bookmark: Copy Link, Share, AI Rename, Edit, Mute/Unmute, Duplicate, Move to..., Remove Pin, Mark for Attention, Pin to Sidebar. With several bookmarks selected, **Pin to Sidebar** pins them all. **Edit** opens a submenu: **Replace Pinned URL with Current** (when the page is open) saves the tab's current address as the bookmark's URL and keeps its title; **Edit Pinned Page** opens the dialog to change title and URL
+- Right-click a bookmark: Copy Link, Share, Edit, Mute/Unmute, Duplicate, Move to..., Remove Pin, Mark for Attention, Pin to Sidebar. With several bookmarks selected, **Pin to Sidebar** pins them all. **Edit** opens a submenu: **Replace Pinned URL with Current** (when the page is open) saves the tab's current address as the bookmark's URL and keeps its title; **Edit Pinned Page** opens the dialog to change title and URL
 - Hover a bookmark for a flag button that marks it for attention. A speaker icon shows pages playing audio, an X on hover closes the tab
 
 ### Notes
@@ -286,7 +286,7 @@ A second message in the same chat edits the current CSS, so "a bit narrower" wor
 - A script runs with your login on the site, so apply only code you trust. It runs in the extension's own world, as the agent's scripts do: it sees the page's elements but not the page's JavaScript variables, and its fetch and XHR requests reach only the page's own site. It runs as the body of an async function, so `import` and module code fail, and so do console or userscript snippets that rely on the page's globals or load a library from a CDN. **Undo** removes what it registers with `agent.on`, `agent.setInterval`, `agent.setTimeout`, `agent.observe`, `agent.add` and `agent.onUndo`; a plain `addEventListener` or `setInterval` keeps running until a reload. A script can be up to 64 KB
 - The editor keeps a draft per tab while the side panel stays open, also with the drawer closed, so you can copy code from another tab and come back to it. A draft belongs to the site it was opened for: the chat's CSS and script open for the site they were applied on, and a saved style for the site it was saved on. When the tab has moved to another site, Apply stays off until you press **Use on** that site
 
-The agent uses the AI settings of AI naming: Base URL, API key, model, API protocol and reasoning effort. It calls the model with tool calling through the protocol you chose: Responses API or Chat Completions. Auto works as for AI naming: a Base URL ending in `/responses` or `/chat/completions` decides, otherwise it tries the Responses API first and falls back to Chat Completions when the endpoint doesn't have it. The model must support function calling. It needs access to http and https pages; the drawer shows **Grant page access** until you allow it. Screenshots need **Model accepts images** in Settings and access to all pages, which **Grant screenshot access** in the drawer asks for. Without them the agent checks numbers only. If the API rejects images, the run goes on without screenshots and says so.
+The agent uses the AI settings in Settings > AI: Base URL, API key, model, API protocol and reasoning effort. It calls the model with tool calling through the protocol you chose: Responses API or Chat Completions. With Auto, a Base URL ending in `/responses` or `/chat/completions` decides, otherwise it tries the Responses API first and falls back to Chat Completions when the endpoint doesn't have it. The model must support function calling. It needs access to http and https pages; the drawer shows **Grant page access** until you allow it. Screenshots need **Model accepts images** in Settings and access to all pages, which **Grant screenshot access** in the drawer asks for. Without them the agent checks numbers only. If the API rejects images, the run goes on without screenshots and says so.
 
 The input is disabled on pages that aren't http or https, such as `chrome://` and other extensions' pages, and on the Chrome Web Store. On a PDF the run ends with Chrome's error.
 
@@ -339,7 +339,7 @@ Gear menu → Settings:
 - **Mark unvisited tabs**: a dot on tabs opened in the background that you haven't switched to yet. On by default
 - **Mark for Attention colour**: the ring around marked tabs and bookmarks - green, blue, orange, red, purple, yellow or the Space colour, each dim, normal or bright (default: Space colour - dim). Space colour follows the active Space whether or not the Space colour tints the sidebar; in the All view it is the theme violet
 - Space color tint
-- **AI naming**: rename Favorites and pinned pages with an OpenAI-compatible API you configure (endpoint, model, prompt, automatic or manual). The endpoint must use HTTPS; HTTP works only for localhost, e.g. Ollama or LM Studio. For [OpenRouter](https://openrouter.ai) use the Base URL `https://openrouter.ai/api/v1`, an OpenRouter API key and a model id with its provider prefix, such as `anthropic/claude-sonnet-4.5`; the page agent needs a model that supports tool calling (filter by Tools on openrouter.ai/models), and API protocol Auto or Responses API. A page's Markdown version and the pages listed in its site's `llms.txt` are read only from the page's own site. The page agent uses the same endpoint and model. **Model accepts images** lets the page agent send screenshots; off by default. **Page agent plugins** switch the page agent's optional tools; Video transcripts is on by default. **Page scripts**, off by default, lets the page agent run JavaScript on the page once you approve it; turning it on shows a warning about what scripts can do, then grants the `userScripts` permission (Chrome shows no prompt of its own), and a line under it says whether Chrome allows the scripts yet
+- **AI**: the page agent's OpenAI-compatible API: Base URL, API key, model, API protocol (Auto, Responses API or Chat Completions) and reasoning effort. The endpoint must use HTTPS; HTTP works only for localhost, e.g. Ollama or LM Studio. For [OpenRouter](https://openrouter.ai) use the Base URL `https://openrouter.ai/api/v1`, an OpenRouter API key and a model id with its provider prefix, such as `anthropic/claude-sonnet-4.5`; the page agent needs a model that supports tool calling (filter by Tools on openrouter.ai/models), and API protocol Auto or Responses API. **Model accepts images** lets the page agent send screenshots; off by default. **Page agent plugins** switch the page agent's optional tools; Video transcripts is on by default. **Page scripts**, off by default, lets the page agent run JavaScript on the page once you approve it; turning it on shows a warning about what scripts can do, then grants the `userScripts` permission (Chrome shows no prompt of its own), and a line under it says whether Chrome allows the scripts yet. **Validate configuration** sends a small real request and shows which protocol answered and how long it took; it doesn't save the form
 
 ### Backup
 
@@ -356,11 +356,11 @@ Light and dark mode follow your system.
 | `sidePanel`, `bookmarks`, `tabs`, `tabGroups` | Show and manage bookmarks, tabs and groups |
 | `storage` | Settings, sidebar state and note texts, stored locally |
 | `favicon` | Website icons |
-| `scripting` | Read a page's text when you ask for AI naming; read the page's text, layout and video subtitles, insert or remove CSS and show the answer popup when you use the page agent; insert CSS when a saved page style loads |
+| `scripting` | Read the page's text, layout and video subtitles, insert or remove CSS and show the answer popup when you use the page agent; insert CSS when a saved page style loads |
 | `webNavigation` | Notice when a page starts loading in a bookmark's tab, to put the bookmark's saved page style on it |
 | `activeTab` | Draw the Tab and Space Switcher and the search popup over the current page |
 | `alarms` | Check for unused tabs every few minutes while auto-archive is on |
-| Optional `http://*/*`, `https://*/*` | Asked for when you use AI naming or the page agent, to read the page, restyle it, show answers on it and call your AI endpoint |
+| Optional `http://*/*`, `https://*/*` | Asked for when you use the page agent or Validate configuration, to read the page, restyle it, show answers on it and call your AI endpoint |
 | Optional `<all_urls>` | Asked for only when you turn on page agent screenshots, to capture the visible tab |
 | Optional `userScripts` | Asked for only when you turn on Page scripts, or press **Allow scripts** in the page agent's code editor, to run the page agent's JavaScript on the page after you approve it, a script you apply from the code editor, and a saved script when its page loads in the bookmark's tab. Chrome also needs Allow User Scripts on the extension's Details page |
 

@@ -9,6 +9,7 @@ export const CHANGELOG: Record<string, string[]> = {
     'New (experimental): page agent code editor - Code beside Send, or Edit code next to Show code, lets you paste or edit CSS and JavaScript and Apply them to the page; Undo, Save to bookmark and the agent\'s follow-ups work on them as on the agent\'s code. Your CSS isn\'t checked for network loads, and your scripts run without the Page scripts switch',
     'New: Switch to Space 1–9 shortcuts - jump to the Space at that position in the Space bar. Set them in chrome://extensions/shortcuts, for example Control+1 … Control+9 on macOS',
     'Changed: closing the active tab switches to the tab you used before it in the same Space, not to its neighbour in the tab strip; a Space with no other open tab gets a new tab',
+    'Removed: AI Rename and automatic naming of new Favorites, pinned pages and bookmarks - the AI settings and your API key stay for the page agent',
   ],
   '2.0.387': [
     'New: markdown notes - New Note in a folder\'s menu puts a note next to the folder\'s bookmarks; write it in markdown in its tab, and it shows rendered when you open it again. The text stays on this computer, and Export / Import with Notes carries it to another one',

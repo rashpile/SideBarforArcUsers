@@ -261,32 +261,32 @@
 
 ### Task 6: [Final] Update documentation
 
-- [ ] `README.md`: drop AI Rename from the bookmark right-click menu list (line ~99); line ~57 "except what
+- [x] `README.md`: drop AI Rename from the bookmark right-click menu list (line ~99); line ~57 "except what
       AI naming and the page agent send" → only the page agent; the Settings AI paragraph (line ~342):
       describe the settings as the page agent's (endpoint, model, protocol, reasoning effort, OpenRouter
       hint, HTTPS rule, Model accepts images, plugins, Page scripts, Validate), no prompt, no automatic
       naming, no Markdown / `llms.txt`; "The agent uses the AI settings of AI naming" (line ~289) and
       "Auto works as for AI naming" → the AI settings in Settings > AI; permissions table rows `scripting`
       and optional `http://*/*`, `https://*/*` (lines ~359, ~363) without AI naming
-- [ ] `PRIVACY.md`: drop the "AI Naming" section and the AI naming mentions in the intro and in the
+- [x] `PRIVACY.md`: drop the "AI Naming" section and the AI naming mentions in the intro and in the
       stored-data list (the settings are the page agent's AI settings, with the API key)
-- [ ] `docs/state-reference.md` `sidebar-ai-rename-settings`: description "AI settings of the page agent",
+- [x] `docs/state-reference.md` `sidebar-ai-rename-settings`: description "AI settings of the page agent",
       drop `prompt` / `autoRename` from the shape (note that old values may still be stored and are not
       read), consumers (`SettingsDialog` connection check through `src/services/aiConnectionCheck.ts`, the
       page agent), parsing (`parseAiSettings`, no prompt replacement, no `autoRename`); the overview diagram
       label "(AI naming, page agent)" → page agent
-- [ ] `docs/development.md`: the `services/` line lists no AI naming; any other AI naming mention
-- [ ] `docs/chrome-web-store-info.md`: `scripting` and optional host permission justifications without
+- [x] `docs/development.md`: the `services/` line lists no AI naming; any other AI naming mention
+- [x] `docs/chrome-web-store-info.md`: `scripting` and optional host permission justifications without
       AI-assisted naming
-- [ ] `docs/changelog.md` Latest Version: "Removed: AI Rename and automatic naming of new Favorites, pinned
+- [x] `docs/changelog.md` Latest Version: "Removed: AI Rename and automatic naming of new Favorites, pinned
       pages and bookmarks. The AI settings stay for the page agent; the API key is kept."
-- [ ] `src/data/changelog.ts` `'2.0.388'`: one "Removed:" line saying AI Rename and automatic naming are
+- [x] `src/data/changelog.ts` `'2.0.388'`: one "Removed:" line saying AI Rename and automatic naming are
       gone and the AI settings stay for the page agent
-- [ ] `grep -rniE "ai rename|ai naming|ai-assisted naming|autoRename" README.md PRIVACY.md docs/*.md src`
+- [x] `grep -rniE "ai rename|ai naming|ai-assisted naming|autoRename" README.md PRIVACY.md docs/*.md src`
       prints only the new changelog lines, older changelog history and the `docs/state-reference.md` note
       that old `prompt` / `autoRename` values may still be stored and are not read
-- [ ] run `make lint && make test && make build` - must pass (`src/data/changelog.ts` is TypeScript)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] run `make lint && make test && make build` - must pass (`src/data/changelog.ts` is TypeScript)
+- [x] move this plan to `docs/plans/completed/` (left in place - the orchestrator moves it after all phases)
 
 ## Post-Completion
 

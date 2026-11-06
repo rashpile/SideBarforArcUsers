@@ -2,7 +2,7 @@
 
 ## Data Collection
 
-This extension does not collect personal data and has no server. The developer receives nothing. The only data that leaves your device is described under External Services below. AI naming and the page agent send data only to the endpoint you configure.
+This extension does not collect personal data and has no server. The developer receives nothing. The only data that leaves your device is described under External Services below. The page agent sends data only to the endpoint you configure.
 
 ## Local Storage
 
@@ -11,7 +11,7 @@ The extension stores the following data locally on your device using Chrome's st
 - Favorites' custom icons, emoji and icon colors (the Favorites themselves are Chrome bookmarks in each Space's `asd_Favorites` folder)
 - Favicons (stored as base64 image data)
 - User preferences (font size, icon size, display settings)
-- AI naming settings, including the API key you enter, if you configure AI naming. The page agent uses the same settings, which also hold the page agent plugin switches
+- The page agent's AI settings, including the API key you enter and the page agent plugin switches
 - The page agent drawer's height
 - Page agent chats: your requests, the conditions, the agent's steps, its answers, and the CSS and script applied to the tab, by the agent or by you from the code editor, one chat per tab; while the agent waits for your Allow or Deny, also the code of that script (stored in `chrome.storage.session`, which Chrome clears when the browser closes). Closing the tab deletes its chat; if no side panel is open at that moment, the next side panel to open deletes it, or Chrome when the browser closes. Screenshots are never stored; they stay in the open side panel's memory. The answer popup on a page stores nothing; it stays in the page until you close it, reload the page or move to another page. Code editor drafts are never stored; they stay in the open side panel's memory until you apply or cancel them, close the tab or close the side panel
 - The URL, window, position in the window, and last-use times of each open tab, and whether you have switched to it since it was opened, recorded while "Archive tabs after", "Highlight tabs by last use" or "Mark unvisited tabs" is turned on, so the extension knows how long a tab has been unused, how recently you left it and which tabs you haven't looked at yet (stored in `chrome.storage.local`; incognito tabs are never recorded). "Highlight tabs by last use" and "Mark unvisited tabs" are on by default, so the extension records them unless you turn both off. Setting "Archive tabs after" to "Never", "Highlight tabs by last use" to "Off" and turning "Mark unvisited tabs" off deletes them
@@ -30,14 +30,6 @@ This data stays on your device and is not accessible to the developer or any thi
 
 No user data is sent in these requests beyond standard HTTP headers.
 
-## AI Naming
-
-AI naming is off until you enter an API endpoint in Settings. When you rename a Favorite or pinned page with AI, or turn on automatic naming:
-
-- The extension reads the page's text, title and description from the open tab, after asking for host permission. It may also fetch the page, its Markdown version and the site's `llms.txt` without cookies; the Markdown version and pages listed in `llms.txt` only from the page's own site, without following redirects.
-- It sends the page URL, title, description, up to 12,000 characters of that text and up to 3,000 characters from `llms.txt`, together with your prompt, to the endpoint you configured, using your API key. The endpoint must use HTTPS unless it runs on this computer (localhost), so the key and the page text are not sent unencrypted over the network.
-- What that service does with the request is governed by its own privacy policy. The extension doesn't send this data anywhere else.
-
 ## Page Agent (experimental)
 
 The page agent sends nothing until you type a request in its drawer. While it works on a request in a tab:
@@ -45,7 +37,7 @@ The page agent sends nothing until you type a request in its drawer. While it wo
 - The extension reads from that tab, after asking for host permission: its URL and title, the text of the page's main content (up to 30,000 characters) when the agent asks for it, an outline of the page's visible layout (element names, ids, classes, sizes and positions, and up to 40 characters of each element's own text), and the sizes, positions and computed styles of the elements the agent asks to inspect.
 - When you ask about a video and the Video transcripts plugin is on (the default; switch it off under Page agent plugins in Settings > AI), it reads the video's subtitles, the list of subtitle languages, the video's duration and the playback position. On most pages it reads them from the video's subtitle tracks. On Prime Video the first video question adds a wrapper around the page's `fetch` function. From the request Prime's player makes when it opens, the wrapper keeps only the list of subtitle files (language, name and address), and only in the page until you reload it; the extension stores none of it. The extension then downloads the subtitle file inside the page, without cookies, and only from Prime's subtitle servers.
 - With "Model accepts images" turned on in Settings, and after you allow access to all pages, it takes screenshots of the visible part of the tab while the tab is the active one in its window.
-- It sends the page text, the outline, the inspect results, the screenshots, the subtitle text it read (up to 60,000 characters per read) with the video's languages, duration and position, your requests, a summary of the tab's earlier messages with the agent's earlier answers (up to 4,000 characters each), the CSS and scripts the agent wrote and what its scripts returned (up to 12,000 characters per script), and the CSS and script you applied from the code editor, as the tab's current code, to the endpoint you configured, using your API key and without cookies.
+- It sends the page text, the outline, the inspect results, the screenshots, the subtitle text it read (up to 60,000 characters per read) with the video's languages, duration and position, your requests, a summary of the tab's earlier messages with the agent's earlier answers (up to 4,000 characters each), the CSS and scripts the agent wrote and what its scripts returned (up to 12,000 characters per script), and the CSS and script you applied from the code editor, as the tab's current code, to the endpoint you configured, using your API key and without cookies. The endpoint must use HTTPS unless it runs on this computer (localhost), so the key and the page data are not sent unencrypted over the network.
 - It changes the page by inserting CSS into that tab, by showing the agent's answers in a popup the extension adds to the page, built from the answer's text, and on Prime Video by the subtitle `fetch` wrapper described above. It rejects the agent's CSS when it would load anything from the network, and the popup loads nothing: images in an answer stay text, and a link opens only when you click it.
 - It runs JavaScript written by the model only with the Page scripts plugin on (off by default; Settings > AI > Page agent plugins), with the `userScripts` permission granted and Allow User Scripts turned on for the extension in Chrome. Turning the plugin on first shows a warning about what scripts can do. The first script of each request shows its code and the site, and runs only after you press Allow; Allow covers the other scripts of that request on the same site only, and Deny refuses every script of that request. A script runs in that tab's top frame, in a separate world of the extension, and can read and change anything on the page, as you could with your login there. The extension blocks a script's fetch and XHR requests to other sites, but a script can still navigate the page, open a window or a frame, or submit a form, so it could still send page data elsewhere that way. What a script returns is kept, shortened, in the chat's steps.
 - What that service does with the request is governed by its own privacy policy. The extension doesn't send this data anywhere else.

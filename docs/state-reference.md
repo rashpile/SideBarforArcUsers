@@ -454,24 +454,22 @@ string  // JSON of Record<spaceId, Array<{ id: string, url: string, title: strin
 - Instances: 1 per extension (shared across windows)
 
 ### `sidebar-ai-rename-settings`
-AI settings, used by AI naming and the page agent
+AI settings of the page agent. The key keeps its old name so the stored API key survives; values saved before 2.0.388 may still hold `prompt` and `autoRename`, which are no longer read
 ```typescript
 string  // JSON of
 {
   baseUrl: string,         // default 'https://api.openai.com/v1'
   apiKey: string,
   model: string,
-  protocol: 'auto' | 'responses' | 'chat-completions',  // AI naming and the page agent; Auto tries Responses, then Chat Completions
+  protocol: 'auto' | 'responses' | 'chat-completions',  // Auto tries Responses, then Chat Completions
   reasoningEffort: 'off' | 'low' | 'medium' | 'high',   // default 'medium'
-  prompt: string,          // AI naming prompt
-  autoRename: boolean,     // name new Favorites and pinned pages automatically
   acceptsImages: boolean,  // "Model accepts images": the page agent may send screenshots; default false
   agentPlugins: Record<string, boolean>  // "Page agent plugins": on/off by plugin id, e.g. { 'video-transcripts': false, 'page-scripts': true }; default {}
 }
 ```
 - Owner: `src/App.tsx` (via `useChromeLocalStorage`, JSON), set from `src/components/SettingsDialog.tsx` (AI tab)
-- Consumers: `src/App.tsx` (AI naming through `OpenAiCompatibleClient`, `src/services/aiRenameService.ts`), `src/components/pageAgent/PageAgentDrawer.tsx` (from `App`; each page agent run gets the settings current at send time, and `PageAgentRuntime.createRun` in `src/services/pageAgent/pageAgentRuntime.ts` gives the run only the enabled plugins); not read by background
-- Parsing: `parseAiRenameSettings` (`src/utils/aiConfig.ts`); missing fields take the defaults, an unknown `protocol` reads as `'auto'`, an unknown `reasoningEffort` as `'medium'`, `autoRename` and `acceptsImages` are true only when stored as `true`, and the old Chinese default prompt is replaced by the current default. `agentPlugins` keeps only entries whose value is a boolean; a value that isn't an object reads as `{}`
+- Consumers: `src/components/SettingsDialog.tsx` (Validate configuration through `AiConnectionCheck`, `src/services/aiConnectionCheck.ts`), `src/components/pageAgent/PageAgentDrawer.tsx` (from `App`; each page agent run gets the settings current at send time, and `PageAgentRuntime.createRun` in `src/services/pageAgent/pageAgentRuntime.ts` gives the run only the enabled plugins); not read by background
+- Parsing: `parseAiSettings` (`src/utils/aiConfig.ts`); missing fields take the defaults, an unknown `protocol` reads as `'auto'`, an unknown `reasoningEffort` as `'medium'`, `acceptsImages` is true only when stored as `true`. Old `prompt` / `autoRename` fields pass through unread and may be written back on the next save. `agentPlugins` keeps only entries whose value is a boolean; a value that isn't an object reads as `{}`
 - `agentPlugins` holds an entry only for a plugin the user switched in Settings. A missing id takes the plugin's `defaultEnabled` from `PAGE_AGENT_PLUGINS` (`src/services/pageAgent/pageAgentPlugins.ts`; Video transcripts: on, Page scripts: off), so a plugin added in a later version starts with its default. `PageAgentPluginSwitches` reads and writes the field
 - `page-scripts` (Page scripts) has no tool plugin behind it: `PageAgentRuntime.createRun` gives the run `scripts: true`, which offers `apply_script` and `run_check`, only when the switch is on (`isEnabledId`) and Chrome allows user scripts. Ticking it in Settings shows a warning first; its Turn on requests the optional `userScripts` permission and leaves the switch off when that is refused. The drawer reads it to show the scripts-blocked notice. It stops only the agent writing scripts: saved scripts (`bookmarkPageStyles`) and scripts the code editor applies run without it. The code editor shows the scripts-blocked notice too, while its Script field has code, and its Allow scripts requests the `userScripts` permission
 - Instances: 1 per extension (shared across windows)
@@ -610,7 +608,7 @@ Lost on page reload or service worker restart.
 │  ├─ attentionMarkedBookmarks        (marked bookmarks)          │
 │  ├─ sectionCollapsedState           (per Space)                 │
 │  ├─ recentlyClosedTabs              (closed tabs per Space)     │
-│  ├─ sidebar-ai-rename-settings      (AI naming, page agent)     │
+│  ├─ sidebar-ai-rename-settings      (page agent AI settings)    │
 │  ├─ pageAgentDrawerHeight           (page agent drawer)         │
 │  └─ bookmarkNotes                   (note texts by noteId)      │
 ├─────────────────────────────────────────────────────────────────┤
