@@ -97,6 +97,42 @@ test('the shortcut\'s key without its modifier is typed, not a move', () =>
   assert.deepEqual(keyboard.keydown(key('K', 'KeyK', { shiftKey: true, ctrlKey: true })), { kind: 'move', steps: 1 });
 });
 
+test('a text-editing press on the shortcut\'s key neither moves nor picks', () =>
+{
+  const keyboard = new SearchKeyboard('Alt+Shift+A');
+
+  // Select All in the search field, then letting go of Ctrl
+  assert.deepEqual(keyboard.keydown(key('a', 'KeyA', { ctrlKey: true })), NONE);
+  assert.deepEqual(keyboard.keyup(key('Control', 'ControlLeft')), NONE);
+  assert.deepEqual(keyboard.keydown(key('a', 'KeyA', { metaKey: true })), NONE);
+  assert.deepEqual(keyboard.keyup(key('Meta', 'MetaLeft')), NONE);
+});
+
+test('only the shortcut\'s exact modifiers make its key a move', () =>
+{
+  const shortcuts = [
+    ['⌥E', 'KeyE', { altKey: true }],
+    ['Alt+E', 'KeyE', { altKey: true }],
+    ['⇧⌘K', 'KeyK', { shiftKey: true, metaKey: true }],
+    ['Ctrl+Shift+K', 'KeyK', { ctrlKey: true, shiftKey: true }],
+    ['MacCtrl+Shift+3', 'Digit3', { ctrlKey: true, shiftKey: true }],
+    ['⌃,', 'Comma', { ctrlKey: true }],
+    ['Command+Period', 'Period', { metaKey: true }],
+    ['⌃⌥⇧⌘E', 'KeyE', { ctrlKey: true, altKey: true, shiftKey: true, metaKey: true }],
+  ];
+
+  for (const [shortcut, code, modifiers] of shortcuts)
+  {
+    assert.deepEqual(new SearchKeyboard(shortcut).keydown(key('x', code, modifiers)), { kind: 'move', steps: 1 }, shortcut);
+
+    for (const flag of ['metaKey', 'ctrlKey', 'altKey', 'shiftKey'])
+    {
+      const flipped = { ...modifiers, [flag]: !modifiers[flag] };
+      assert.deepEqual(new SearchKeyboard(shortcut).keydown(key('x', code, flipped)), NONE, `${shortcut} with ${flag} flipped`);
+    }
+  }
+});
+
 test('releasing Shift while Cmd is still held does not pick', () =>
 {
   const keyboard = new SearchKeyboard('⇧⌘K');

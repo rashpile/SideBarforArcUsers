@@ -3,7 +3,7 @@
 // selected row. Unlike the switcher, the popup takes typed text, so a release picks only after such
 // a press: opening the popup and letting go keeps it open for typing.
 
-import { keyCodeOf } from '../utils/shortcutKey.ts';
+import { ShortcutKey } from '../utils/shortcutKey.ts';
 
 // The fields read from a KeyboardEvent, so tests can pass plain objects
 export interface SearchKeyEvent
@@ -35,14 +35,14 @@ function holdsShortcutModifier(event: SearchKeyEvent): boolean
 
 export class SearchKeyboard
 {
-  #shortcutCode: string | undefined;
+  #shortcut: ShortcutKey | undefined;
   // A shortcut press moved the selection and its modifier is still held: the release picks
   #armed = false;
 
   // The shortcut as chrome.commands gives it, e.g. "⌥E" or "Alt+E"
   constructor(shortcut: string | undefined)
   {
-    this.#shortcutCode = keyCodeOf(shortcut);
+    this.#shortcut = ShortcutKey.parse(shortcut);
   }
 
   // Shortcut presses background forwarded (or counted while the page loaded); returns the steps to move
@@ -71,8 +71,9 @@ export class SearchKeyboard
     // By code: on macOS Option+A types "å"
     if (event.altKey && !event.ctrlKey && !event.metaKey && event.code === 'KeyA') return { kind: 'toggleSpaces' };
 
-    // Chrome let a shortcut press through to the page instead of sending it as a command
-    if (this.#shortcutCode !== undefined && event.code === this.#shortcutCode && holdsShortcutModifier(event))
+    // Chrome let a shortcut press through to the page instead of sending it as a command. Only the
+    // shortcut's own modifiers count: Ctrl+A or Cmd+V with the same key edit the search text.
+    if (this.#shortcut?.matches(event) && holdsShortcutModifier(event))
     {
       this.#armed = true;
       return { kind: 'move', steps: 1 };

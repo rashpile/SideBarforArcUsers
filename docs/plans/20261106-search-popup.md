@@ -267,7 +267,8 @@ background code that changes tabs based on associations must check it.
   - Enter → pick; Esc → close
   - Tab / Shift+Tab → scope ±1
   - Alt + `KeyA` → toggleSpaces
-  - the shortcut's key code with one of Cmd/Ctrl/Alt held (Chrome let the press through) → move +1 and arm
+  - the shortcut's key code with exactly the shortcut's modifiers held (Chrome let the press through) → move
+    +1 and arm; the same key with other modifiers (Ctrl+A, Cmd+V) is left to the input
   - anything else → none (the input types it)
   - any keydown with none of Cmd/Ctrl/Alt held disarms first: it shows the modifier is already up, so a
     release the page missed (the known limitation) can never turn the next typed letter into a pick
