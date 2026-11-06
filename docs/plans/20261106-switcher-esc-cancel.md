@@ -120,15 +120,15 @@
 **Files:**
 - Modify: `src/switcherOverlay.ts`
 
-- [ ] add `SwitcherList.cancelsOnKey(event)` next to `stepForKey`: true for Esc, or Period by code with
+- [x] add `SwitcherList.cancelsOnKey(event)` next to `stepForKey`: true for Esc, or Period by code with
       Cmd or Ctrl held when Period is not `#repeatKeyCode`
-- [ ] make the window keydown listener call ``list.cancel(`keydown ${describeKey(event)}`)`` when it is
+- [x] make the window keydown listener call ``list.cancel(`keydown ${describeKey(event)}`)`` when it is
       true, before the Enter / commit / move branches; keep `preventDefault` and
       `stopImmediatePropagation`
-- [ ] add the comment on why Period (on macOS Cmd+Esc often doesn't reach the page: the system or another
+- [x] add the comment on why Period (on macOS Cmd+Esc often doesn't reach the page: the system or another
       app takes it) and that the rule repeats `SearchKeyboard`'s
-- [ ] no automated test: classic injected script, no DOM in `node --test` (see Testing Strategy)
-- [ ] run `make lint && make test` - must pass before Task 3
+- [x] no automated test (skipped - classic injected script, no DOM in `node --test`, see Testing Strategy)
+- [x] run `make lint && make test` - must pass before Task 3
 
 ### Task 3: Verify acceptance criteria
 

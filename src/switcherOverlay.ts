@@ -297,6 +297,16 @@
       return 0;
     }
 
+    // Cmd+. and Ctrl+. cancel too: on macOS Cmd+Esc often never reaches the page (the system or
+    // another app takes it), so with Cmd held Cmd+. is the cancel key that works. By code: with Cmd
+    // held, other keyboard layouts can report another character. A shortcut on Period keeps its key
+    // for moving. This script can't import, so the rule repeats src/searchPopup/searchKeyboard.ts.
+    cancelsOnKey(event: KeyboardEvent): boolean
+    {
+      if (event.key === 'Escape') return true;
+      return event.code === 'Period' && (event.metaKey || event.ctrlKey) && event.code !== this.#repeatKeyCode;
+    }
+
     // A release that came before this script loaded reached no listener at all.
     // Any later input without a modifier shows it is already up, so that input
     // picks the selection instead.
@@ -369,7 +379,7 @@
     if (!list.isOpen) return;
 
     const step = list.stepForKey(event);
-    if (event.key === 'Escape') list.cancel('Esc');
+    if (list.cancelsOnKey(event)) list.cancel(`keydown ${describeKey(event)}`);
     else if (event.key === 'Enter') list.commit('Enter');
     else if (list.commitIfModifierUp(event, `keydown ${describeKey(event)}`)) { /* picked */ }
     else if (step !== 0) list.move(step, `keydown ${describeKey(event)}`);
