@@ -542,17 +542,18 @@ Flow:
 
 **Files:**
 - Create: `src/services/searchPopup.ts`
+- ➕ Modify: `src/services/searchResults.ts` (a `hasSpaces` getter on `SearchCandidates` for `init`)
 
-- [ ] create `SearchPopup` per Technical Details: the session (random id, `restored`, `pendingSteps` from 0),
+- [x] create `SearchPopup` per Technical Details: the session (random id, `restored`, `pendingSteps` from 0),
       `handleShortcut(restored)` with pending steps and the `move` over a live port, opening via
       `executeScript` + `SHOW` (`url` with the session id) with the popup-window fallback and the 2 s connect
       deadline
-- [ ] `handleConnect(port)`: accept only the session's port (name id, sender URL, sender tab / window, no
+- [x] `handleConnect(port)`: accept only the session's port (name id, sender URL, sender tab / window, no
       port yet), handlers bound to that port; `init` / `query` / `ping` / `pick` (close host, then
       `picker.pick(item, origin, restored)`) / `close` (no origin refocus for reason `blur`) / disconnect
-- [ ] host closing, session clearing (disconnects the port, clears the deadline), `handleFrameClosed` /
+- [x] host closing, session clearing (disconnects the port, clears the deadline), `handleFrameClosed` /
       `handleTabRemoved` / `handleWindowRemoved`; debug logs behind a `debug` flag passed in
-- [ ] no new tests (session flow is wiring around tested decisions); run `make lint && make test && make build`
+- [x] no new tests (session flow is wiring around tested decisions); run `make lint && make test && make build`
       - must pass before Task 8
 
 ### Task 8: Background wiring

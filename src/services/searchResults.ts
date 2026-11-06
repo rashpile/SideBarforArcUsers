@@ -290,6 +290,12 @@ export class SearchCandidates
     return results.sort(newestFirst).slice(0, SEARCH_RESULT_LIMIT);
   }
 
+  /** False when no Spaces are set up: the page then hides the This Space / All Spaces toggle. */
+  get hasSpaces(): boolean
+  {
+    return this.#spaces.length > 0;
+  }
+
   /** The item a row id from the page stands for; undefined for an id this snapshot never gave out. */
   item(rowId: string): SearchItem | undefined
   {
