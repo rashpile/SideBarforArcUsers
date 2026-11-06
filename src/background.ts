@@ -1,6 +1,6 @@
 import { SpaceMessageAction, SPACES_STORAGE_KEY } from './utils/spaceMessages';
 import { FOLLOW_ACTIVE_TAB_KEY, parseFollowActiveTabMode } from './utils/followActiveTab';
-import { getTabAssociations, storeTabAssociation, removeTabAssociation, saveTabAssociationBackup, removeTabAssociationBackup, updateTabAssociationBackupIndices, removeWindowAssociationBackup, restoreTabAssociationBackup, WAIT_FOR_TAB_ASSOCIATIONS_READY, BOOKMARK_ITEM_KEY_PREFIX } from './utils/tabAssociations';
+import { getTabAssociations, findTabsForItemKey, storeTabAssociation, removeTabAssociation, saveTabAssociationBackup, removeTabAssociationBackup, updateTabAssociationBackupIndices, removeWindowAssociationBackup, restoreTabAssociationBackup, WAIT_FOR_TAB_ASSOCIATIONS_READY, BOOKMARK_ITEM_KEY_PREFIX } from './utils/tabAssociations';
 import { fetchFaviconAsBase64, getFaviconUrl } from './utils/favicon';
 import { parseManagerActionId, RoutedManager } from './managers/proxies/messageRouting';
 import { SpaceWindowStateManager } from './managers/impl/spaceWindowStateManager';
@@ -29,6 +29,10 @@ import { SpaceNumberCommand } from './utils/spaceNumberCommand';
 import { ActiveTabCloseFollower } from './services/activeTabCloseFollower';
 import { buildSpaceCards, buildTabCards, findLastUsedTab, WindowSpaces } from './services/switcherLists';
 import { SwitcherMessageAction } from './utils/switcherMessages';
+import { SearchPopup, SEARCH_POPUP_COMMAND } from './services/searchPopup';
+import { SearchPicker, parseBookmarkOpenMode } from './services/searchPick';
+import { SearchCandidates } from './services/searchResults';
+import { SEARCH_POPUP_PORT_PREFIX, SearchFrameAction } from './utils/searchPopupMessages';
 import { BookmarkSpaceResolver } from './utils/bookmarkSpaceResolver';
 import { tabListTopIndexForLinkTab } from './utils/linkTabPlacement';
 import { OpenTabPages } from './stores/openTabPages';
@@ -776,6 +780,95 @@ chrome.windows.onRemoved.addListener((windowId) => keyboardSwitcher.handleWindow
 chrome.tabs.onRemoved.addListener((tabId) => keyboardSwitcher.handleTabRemoved(tabId));
 
 // =============================================================================
+// Search popup - one field over the page that finds open tabs, the Space folders'
+// bookmarks, archived pages and recently closed tabs. See services/searchPopup.ts.
+// =============================================================================
+
+// A raw string, written by the sidebar's useChromeLocalStorage with serialize: v => v
+const BOOKMARK_OPEN_MODE_KEY = 'sidebar-bookmark-open-mode';
+
+async function buildSearchCandidates(win: chrome.windows.Window): Promise<SearchCandidates>
+{
+  const originWindowId = win.id!;
+  // Popup windows (the search popup's own, the switcher's) hold nothing to search
+  const [tabs, tree, recency] = await Promise.all([
+    chrome.tabs.query({ windowType: 'normal' }),
+    chrome.bookmarks.getTree(),
+    bookmarkRecencyStore.read(),
+  ]);
+  const windowIds = [...new Set(tabs.map(tab => tab.windowId))];
+  const associations = new Map(await Promise.all(windowIds.map(async (windowId) =>
+    [windowId, await getTabAssociations(windowId)] as const)));
+
+  return SearchCandidates.build({
+    originWindowId,
+    originActiveTabId: win.tabs?.find(tab => tab.active)?.id,
+    originIncognito: win.incognito,
+    activeSpaceId: readWindowSpaces(originWindowId).activeSpaceId,
+    spaces: spaceManager.getSpaces(),
+    tabs,
+    spaceOf: (windowId, tabId) => tabSpaceRegistry.getSpace(windowId, tabId),
+    associations,
+    bookmarkRoots: tree[0]?.children ?? [],
+    recency,
+    closedRecords: (spaceId) => recentlyClosedManager.forSpace(spaceId),
+  });
+}
+
+// The same steps the sidebar takes when the item is clicked there, run from background
+const searchPicker = new SearchPicker({
+  activateTab: async (tabId) =>
+  {
+    const result = await setActiveTabAndSpace(tabId);
+    if (!result.success) throw new Error(result.error ?? `tab ${tabId} was not activated`);
+  },
+  activateTabOnly: async (tabId) =>
+  {
+    await chrome.tabs.update(tabId, { active: true });
+  },
+  focusWindow: async (windowId) =>
+  {
+    await chrome.windows.update(windowId, { focused: true });
+  },
+  createTab: (windowId, url) => chrome.tabs.create({ windowId, url, active: true }),
+  updateTabUrl: async (tabId, url) =>
+  {
+    await chrome.tabs.update(tabId, { url });
+  },
+  activeTabId: async (windowId) => (await chrome.tabs.query({ active: true, windowId }))[0]?.id,
+  tabExists: (tabId) => chrome.tabs.get(tabId).then(() => true, () => false),
+  associatedTabIds: async (windowId, itemKey) =>
+    (await findTabsForItemKey(itemKey)).filter(tab => tab.windowId === windowId).map(tab => tab.tabId),
+  // As the sidebar's storeAssociation: the session record, then its backup for the next browser start
+  storeAssociation: async (windowId, tabId, itemKey, url, index) =>
+  {
+    await storeTabAssociation(windowId, tabId, itemKey);
+    await saveTabAssociationBackup(windowId, itemKey, { tabId, url, tabIndex: index });
+  },
+  registerTab: (windowId, tabId, spaceId) => tabSpaceRegistry.register(windowId, tabId, spaceId),
+  bookmarkSpaceId: (bookmarkId) => bookmarkSpaceResolver.findSpaceId(bookmarkId),
+  removeBookmark: (bookmarkId) => chrome.bookmarks.remove(bookmarkId),
+  reopenClosed: (windowId, spaceId, recordId) => recentlyClosedManager.reopen(windowId, spaceId, recordId),
+  bookmarkOpenMode: async () =>
+    parseBookmarkOpenMode((await chrome.storage.local.get(BOOKMARK_OPEN_MODE_KEY))[BOOKMARK_OPEN_MODE_KEY]),
+});
+
+const searchPopup = new SearchPopup({
+  buildCandidates: buildSearchCandidates,
+  picker: searchPicker,
+  newSessionId: () => crypto.randomUUID(),
+  debug: import.meta.env.DEV,
+});
+
+// The popup page connects as soon as it loads; SearchPopup refuses every port but its session's
+chrome.runtime.onConnect.addListener((port) =>
+{
+  if (port.name.startsWith(SEARCH_POPUP_PORT_PREFIX)) searchPopup.handleConnect(port);
+});
+chrome.windows.onRemoved.addListener((windowId) => searchPopup.handleWindowRemoved(windowId));
+chrome.tabs.onRemoved.addListener((tabId) => searchPopup.handleTabRemoved(tabId));
+
+// =============================================================================
 // Active tab close - land on the Space's previously used tab instead of the
 // neighbour Chrome activates. See services/activeTabCloseFollower.ts.
 // =============================================================================
@@ -1349,7 +1442,7 @@ registerManager(recentlyClosedManager);
 registerManager(pageStyleManager);
 registerManager(noteManager);
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) =>
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) =>
 {
   if (message?.action === WAIT_FOR_TAB_ASSOCIATIONS_READY)
   {
@@ -1396,6 +1489,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) =>
   if (message?.action === SwitcherMessageAction.CANCEL)
   {
     void keyboardSwitcher.cancel(message.reason);
+    return;
+  }
+
+  // The frame script took the popup down itself (a click outside it, the page got hidden)
+  if (message?.action === SearchFrameAction.CLOSED)
+  {
+    if (sender.tab?.id !== undefined) searchPopup.handleFrameClosed(sender.tab.id);
     return;
   }
 
@@ -1479,6 +1579,13 @@ chrome.commands.onCommand.addListener((command) =>
   {
     void stateReady.then(() =>
       keyboardSwitcher.handleShortcut(switcherCommand.kind, switcherCommand.direction));
+    return;
+  }
+
+  // The popup's pick checks what stateReady resolved to before it trusts the associations
+  if (command === SEARCH_POPUP_COMMAND)
+  {
+    void stateReady.then((restored) => searchPopup.handleShortcut(restored));
     return;
   }
 

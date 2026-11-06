@@ -561,20 +561,20 @@ Flow:
 **Files:**
 - Modify: `src/background.ts`
 
-- [ ] build candidates: `chrome.tabs.query({})` filtered to normal windows, `getTabAssociations` per window,
+- [x] build candidates: `chrome.tabs.query({})` filtered to normal windows, `getTabAssociations` per window,
       `chrome.bookmarks.getTree()`, `bookmarkRecencyStore.read()`, `recentlyClosedManager.forSpace`,
       `spaceManager.getSpaces()`, the origin window's active Space via `resolveActiveSpaceId`,
       `tabSpaceRegistry.getSpace`
-- [ ] a `SearchPicker` with the real deps: `setActiveTabAndSpace` (throws on `success: false`),
+- [x] a `SearchPicker` with the real deps: `setActiveTabAndSpace` (throws on `success: false`),
       `chrome.tabs.update` for `activateTabOnly`, `chrome.tabs.create` with `windowId`, `associatedTabIds`
       over `getTabAssociations`, `storeTabAssociation` + `saveTabAssociationBackup`, `tabSpaceRegistry.register`,
       `bookmarkSpaceResolver.findSpaceId`, `chrome.bookmarks.remove`, `recentlyClosedManager.reopen`,
       `sidebar-bookmark-open-mode` read raw
-- [ ] `onCommand` `search-popup` as `stateReady.then(restored => searchPopup.handleShortcut(restored))`
+- [x] `onCommand` `search-popup` as `stateReady.then(restored => searchPopup.handleShortcut(restored))`
       (like the switchers); `chrome.runtime.onConnect` for `SEARCH_POPUP_PORT_PREFIX` names;
       `SearchFrameAction.CLOSED` in `runtime.onMessage` (sender tab id); `tabs.onRemoved` /
       `windows.onRemoved` → the popup
-- [ ] no new tests (glue; the decisions are tested in Tasks 2-4); run `make lint && make test && make build` -
+- [x] no new tests (glue; the decisions are tested in Tasks 2-4); run `make lint && make test && make build` -
       must pass before Task 9
 
 ### Task 9: Verify acceptance criteria
