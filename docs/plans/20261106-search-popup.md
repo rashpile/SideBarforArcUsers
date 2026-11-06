@@ -87,6 +87,11 @@
   - `tests/searchKeyboard.test.mjs`: a release picks only after a shortcut press; typing never picks, also
     after a missed release; the shortcut key parse
   - the existing `tests/recentlyClosedManager.test.mjs` is updated for `reopen` returning the tab id
+  - ➕ `tests/searchPopup.test.mjs` (review leftovers; fakes `globalThis.chrome`, `t.mock.timers` drives the 2 s
+    deadline): presses made while opening reach `init` as steps and never leak into the next session; only
+    the session's own page in its host tab or window takes the port, and only once; after the deadline
+    renews the id the frame page's old id is refused
+  - ➕ `tests/bookmarkOpenMode.test.mjs`: the shared `parseBookmarkOpenMode` (moved out of `searchPick.ts`)
 - **e2e**: the project has none. Manual checks are listed in Post-Completion.
 
 ## Progress Tracking
@@ -251,7 +256,8 @@ background code that changes tabs based on associations must check it.
 - `archive`: `createTab`, `registerTab(item.spaceId)`, `activateTab`, and only then
   `removeBookmark(bookmarkId)`. A failed create rejects before the removal.
 - `closed`: `reopenClosed(origin, spaceId, recordId)`, then `activateTab(newTabId)` when an id came back.
-- `parseBookmarkOpenMode(raw: unknown)`:
+- `parseBookmarkOpenMode(raw: unknown)` (➕ in `src/utils/bookmarkOpenMode.ts` with the key, the type and the
+  `arc` default, as `followActiveTab.ts`; App.tsx parses the setting with it too):
   - `'true'` → `arc`, `'false'` → `newTab`
   - `'arc'`, `'newTab'` and `'activeTab'` map to themselves
   - anything else → `arc`

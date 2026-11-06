@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { SearchPicker, parseBookmarkOpenMode } from '../src/services/searchPick.ts';
+import { SearchPicker } from '../src/services/searchPick.ts';
 
 const ORIGIN = 10;
 const OTHER_WINDOW = 20;
@@ -200,18 +200,6 @@ test('activeTab mode loads the bookmark into the origin window\'s active tab', a
   await picker.pick(bookmarkItem('b1'), ORIGIN, true);
 
   assert.deepEqual(calls, [['updateTabUrl', 3, 'https://b1.test/']]);
-});
-
-test('parseBookmarkOpenMode migrates the old boolean and defaults to arc', () =>
-{
-  assert.equal(parseBookmarkOpenMode('true'), 'arc');
-  assert.equal(parseBookmarkOpenMode('false'), 'newTab');
-  assert.equal(parseBookmarkOpenMode('arc'), 'arc');
-  assert.equal(parseBookmarkOpenMode('newTab'), 'newTab');
-  assert.equal(parseBookmarkOpenMode('activeTab'), 'activeTab');
-  assert.equal(parseBookmarkOpenMode('"arc"'), 'arc');
-  assert.equal(parseBookmarkOpenMode(undefined), 'arc');
-  assert.equal(parseBookmarkOpenMode(true), 'arc');
 });
 
 test('an archive item opens in its Space and leaves the archive only after the tab is open', async () =>

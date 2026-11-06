@@ -267,7 +267,7 @@ Array<{
 'arc' | 'newTab' | 'activeTab'  // raw string, not JSON; default 'arc'. The old boolean 'true' / 'false' reads as 'arc' / 'newTab'
 ```
 - Owner: `src/App.tsx` (via `useChromeLocalStorage` with `serialize: v => v`); set in `src/components/SettingsDialog.tsx`
-- Consumers: `src/components/BookmarkTree.tsx`, `src/components/PinnedBar.tsx`; the search popup in background reads it raw with `chrome.storage.local.get` on each bookmark pick (`parseBookmarkOpenMode`, `src/services/searchPick.ts`, which repeats App.tsx's migration of the old boolean)
+- Consumers: `src/components/BookmarkTree.tsx`, `src/components/PinnedBar.tsx`; the search popup in background reads it raw with `chrome.storage.local.get` on each bookmark pick. Both read it through `parseBookmarkOpenMode` (`src/utils/bookmarkOpenMode.ts`, with the key, the type and the default)
 - Instances: 1 per extension (shared across windows)
 
 ### `favoriteIcons`

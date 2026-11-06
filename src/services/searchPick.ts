@@ -10,10 +10,8 @@ import type {
   SearchItem,
   TabSearchItem,
 } from './searchResults.ts';
+import type { BookmarkOpenMode } from '../utils/bookmarkOpenMode.ts';
 import { BOOKMARK_ITEM_KEY_PREFIX } from '../utils/tabAssociations.ts';
-
-// The values of `sidebar-bookmark-open-mode` (SettingsDialog's BookmarkOpenMode)
-export type BookmarkOpenMode = 'arc' | 'newTab' | 'activeTab';
 
 export interface CreatedTab
 {
@@ -44,15 +42,6 @@ export interface SearchPickerDeps
   /** The reopened tab's id; undefined when the record is gone. */
   reopenClosed(windowId: number, spaceId: string, recordId: string): Promise<number | undefined>;
   bookmarkOpenMode(): Promise<BookmarkOpenMode>;
-}
-
-/** Reads the raw `sidebar-bookmark-open-mode` value, with App.tsx's migration of the old boolean. */
-export function parseBookmarkOpenMode(raw: unknown): BookmarkOpenMode
-{
-  if (raw === 'true') return 'arc';
-  if (raw === 'false') return 'newTab';
-  if (raw === 'arc' || raw === 'newTab' || raw === 'activeTab') return raw;
-  return 'arc';
 }
 
 export class SearchPicker

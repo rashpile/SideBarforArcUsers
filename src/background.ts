@@ -1,5 +1,6 @@
 import { SpaceMessageAction, SPACES_STORAGE_KEY } from './utils/spaceMessages';
 import { FOLLOW_ACTIVE_TAB_KEY, parseFollowActiveTabMode } from './utils/followActiveTab';
+import { BOOKMARK_OPEN_MODE_KEY, parseBookmarkOpenMode } from './utils/bookmarkOpenMode';
 import { getTabAssociations, findTabsForItemKey, storeTabAssociation, removeTabAssociation, saveTabAssociationBackup, removeTabAssociationBackup, updateTabAssociationBackupIndices, removeWindowAssociationBackup, restoreTabAssociationBackup, WAIT_FOR_TAB_ASSOCIATIONS_READY, BOOKMARK_ITEM_KEY_PREFIX } from './utils/tabAssociations';
 import { fetchFaviconAsBase64, getFaviconUrl } from './utils/favicon';
 import { parseManagerActionId, RoutedManager } from './managers/proxies/messageRouting';
@@ -30,7 +31,7 @@ import { ActiveTabCloseFollower } from './services/activeTabCloseFollower';
 import { buildSpaceCards, buildTabCards, findLastUsedTab, WindowSpaces } from './services/switcherLists';
 import { SwitcherMessageAction } from './utils/switcherMessages';
 import { SearchPopup, SEARCH_POPUP_COMMAND } from './services/searchPopup';
-import { SearchPicker, parseBookmarkOpenMode } from './services/searchPick';
+import { SearchPicker } from './services/searchPick';
 import { SearchCandidates } from './services/searchResults';
 import { SEARCH_POPUP_PORT_PREFIX, SearchFrameAction } from './utils/searchPopupMessages';
 import { BookmarkSpaceResolver } from './utils/bookmarkSpaceResolver';
@@ -783,9 +784,6 @@ chrome.tabs.onRemoved.addListener((tabId) => keyboardSwitcher.handleTabRemoved(t
 // Search popup - one field over the page that finds open tabs, the Space folders'
 // bookmarks, archived pages and recently closed tabs. See services/searchPopup.ts.
 // =============================================================================
-
-// A raw string, written by the sidebar's useChromeLocalStorage with serialize: v => v
-const BOOKMARK_OPEN_MODE_KEY = 'sidebar-bookmark-open-mode';
 
 async function buildSearchCandidates(win: chrome.windows.Window): Promise<SearchCandidates>
 {

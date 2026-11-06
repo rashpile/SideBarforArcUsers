@@ -10,7 +10,7 @@ import { useSpacesContext, type Space } from '../contexts/SpacesContext';
 import { tabSpaceRegistryProxy } from '../managers/proxies/tabSpaceRegistryProxy';
 import { FAVORITE_ITEM_KEY_PREFIX, findTabsForItemKey } from '../utils/tabAssociations';
 import { useUnifiedDnd, DropHandler } from '../contexts/UnifiedDndContext';
-import { BookmarkOpenMode } from './SettingsDialog';
+import { BookmarkOpenMode } from '../utils/bookmarkOpenMode';
 import { matchesFilter } from '../utils/searchParser';
 import { DragData, DragFormat, DropData, DropPosition, acceptsFormats, getItemsByFormat, getPrimaryItem, hasFormat } from '../types/dragDrop';
 

@@ -14,7 +14,7 @@ import { regroupAssociatedTab as regroupAssociatedTabUtil } from '../utils/tabOp
 import { matchesFilter } from '../utils/searchParser';
 import { DropIndicators } from './DropIndicators';
 import { ExternalDropTarget, ResolveBookmarkDropTarget } from './TabList';
-import { BookmarkOpenMode } from './SettingsDialog';
+import { BookmarkOpenMode } from '../utils/bookmarkOpenMode';
 import { BookmarkEditModal } from './BookmarkEditModal';
 import { BookmarkCreateFolderModal } from './BookmarkCreateFolderModal';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
