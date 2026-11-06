@@ -523,20 +523,20 @@ Flow:
 - Modify: `src/searchPopup/main.ts`
 - Create: `src/searchPopup/searchPopup.css`
 
-- [ ] build the view per Technical Details: input, scope row with colours and the This Space / All Spaces
+- [x] build the view per Technical Details: input, scope row with colours and the This Space / All Spaces
       toggle (hidden without Spaces; buttons `tabindex="-1"` with `mousedown` `preventDefault`), result rows
       (stripe, `_favicon` image with letter fallback, title, subtitle, kind label), "No matches", about 10
       visible rows with scroll, light and dark via `prefers-color-scheme` only
-- [ ] connect the port (`SEARCH_POPUP_PORT_PREFIX` + the `session` URL parameter), `ping` every
+- [x] connect the port (`SEARCH_POPUP_PORT_PREFIX` + the `session` URL parameter), `ping` every
       `SEARCH_POPUP_PING_MS`; render `init` (rows, apply `steps` as shortcut moves); send `query` on input /
       scope / toggle changes and reset the selection to row 0; apply `move` through
       `SearchKeyboard.shortcutMove`, wrapping around the list
-- [ ] wire `keydown` / `keyup` through `SearchKeyboard` (preventDefault for handled keys), row click → `pick`,
+- [x] wire `keydown` / `keyup` through `SearchKeyboard` (preventDefault for handled keys), row click → `pick`,
       window `blur` → `close` (reason `blur`), Esc → `close` (reason `esc`), focus the input on load and on
       window `focus`; `?host=window` fills the window
-- [ ] port `onDisconnect` → close itself: `window.close()` in `?host=window`, the
+- [x] port `onDisconnect` → close itself: `window.close()` in `?host=window`, the
       `SEARCH_FRAME_CLOSE_REQUEST` post to the parent in the iframe
-- [ ] no tests (DOM); run `make lint && make test && make build` - must pass before Task 7
+- [x] no tests (DOM); run `make lint && make test && make build` - must pass before Task 7
 
 ### Task 7: Background session class
 
