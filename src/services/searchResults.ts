@@ -260,8 +260,9 @@ const KIND_RANK: Record<SearchItemKind, number> = {
   closed: 3,
 };
 
-// Scheme, host and path. Not URL.origin: it is "null" for chrome:// and chrome-extension:// pages,
-// which would merge pages of different extensions.
+// Scheme, host and path. Not URL.origin: Node's URL gives non-special schemes such as chrome-extension:
+// the origin "null" where Chrome gives scheme and host, so under the tests pages of different extensions
+// would share a key that Chrome keeps apart. The parts give one key in both.
 function pageAddress(url: string): string
 {
   // A parked tab is keyed on the page it stands for, as the archive and Recently Closed store it

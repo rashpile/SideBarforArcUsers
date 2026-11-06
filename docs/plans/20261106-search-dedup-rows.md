@@ -86,8 +86,8 @@
   `park.html?url=<original>` URL, and the rest of the project (archive, Recently Closed, auto-archive)
   stores and compares the original URL, so the key must too; without it a parked tab never groups with its
   own archived copies, and different parked pages with one title would merge. Not `URL.origin`:
-  it is `"null"` for non-special schemes such as `chrome://` or `chrome-extension://`, which would merge
-  unrelated pages. A URL that `new URL` rejects (or an empty one) keys on the whole URL string. Join title
+  Node's URL gives non-special schemes such as `chrome://` or `chrome-extension://` the origin `"null"`
+  (Chrome gives scheme and host), so under the tests the key would merge pages Chrome keeps apart. A URL that `new URL` rejects (or an empty one) keys on the whole URL string. Join title
   and path so that no two different pairs give the same key, e.g. `JSON.stringify([title, path])`.
 - Best item of a group:
   - kind rank: `tab` 0, `bookmark` 1, `archive` 2, `closed` 3; lower wins;

@@ -368,7 +368,7 @@ test('pages with one path but different titles, or one title and path on differe
     tabs: [
       tab(2, ORIGIN, 500, { title: 'Video A - YouTube', url: 'https://www.youtube.com/watch?v=a' }),
       tab(3, ORIGIN, 400, { title: 'Video B - YouTube', url: 'https://www.youtube.com/watch?v=b' }),
-      // URL.origin is "null" for both
+      // Under Node URL.origin is "null" for both (Chrome gives chrome-extension://aaa and ://bbb)
       tab(4, ORIGIN, 300, { title: 'Options', url: 'chrome-extension://aaa/options.html' }),
       tab(5, ORIGIN, 200, { title: 'Options', url: 'chrome-extension://bbb/options.html' }),
     ],
