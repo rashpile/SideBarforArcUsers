@@ -419,31 +419,31 @@ Flow:
 - Create: `src/services/searchResults.ts`
 - Create: `tests/searchResults.test.mjs`
 
-- [ ] create `SearchCandidates` (static `build(input)`, `search(query)`, `item(rowId)`, `toRow(item, allSpaces)`)
+- [x] create `SearchCandidates` (static `build(input)`, `search(query)`, `item(rowId)`, `toRow(item, allSpaces)`)
       and the `SearchItem` model with the collection rules in Technical Details: tabs (origin active tab and
       other-incognito tabs skipped; `inThisSpace`; `bookmarkId` from associations), bookmarks per Space folder
       via `findFolderBySegments` + `collectFolderBookmarks`, archive via `findArchiveFolder` +
       `ArchiveItems.fromFolder`, both with the first-Space-wins claimed-id check, closed records per Space;
       `lastAccess` per kind
-- [ ] implement `search`: scope filter, Space filter, the text filter (`parseSearchQuery` once per query, then
+- [x] implement `search`: scope filter, Space filter, the text filter (`parseSearchQuery` once per query, then
       `matchesSearch` per item, with `matchesFilter`'s literal fallback when parsing fails), the current Arc
       tab's bookmark dropped in every scope, the `all`-scope bookmark/tab dedupe, stable sort by `lastAccess`
       (undefined last), cap `SEARCH_RESULT_LIMIT = 20`
-- [ ] implement `toRow`: title fallback to the URL, subtitle host (with `"<Space> · "` in All Spaces mode);
+- [x] implement `toRow`: title fallback to the URL, subtitle host (with `"<Space> · "` in All Spaces mode);
       import siblings with `.ts` extensions, nothing from `chrome.*` at import time
-- [ ] write tests: This Space lists only the origin window's tabs of the active Space, the active Space's
+- [x] write tests: This Space lists only the origin window's tabs of the active Space, the active Space's
       bookmarks / archive / closed records; All Spaces adds the other Spaces and other windows' tabs; the
       origin's active tab never appears, and neither does the bookmark whose Arc tab it is
-- [ ] write tests: bookmarks inside `asd_Archive` / `asd_Favorites` at any depth are not bookmark results;
+- [x] write tests: bookmarks inside `asd_Archive` / `asd_Favorites` at any depth are not bookmark results;
       archive items come only from the Space's `asd_Archive` (subfolders included); a bookmark in a folder
       nested under two Spaces' folders belongs to the first Space in the list; an `asd_Archive` in a folder
       two Spaces share belongs to the first Space (one row, the first Space's id); fixtures use root ids other
       than '1'/'2'/'3'
-- [ ] write tests: newest `lastAccess` first across kinds, items without a time last in collection order,
+- [x] write tests: newest `lastAccess` first across kinds, items without a time last in collection order,
       at most 20 rows, the query matched against title and URL (search syntax and the literal fallback), a
       bookmark whose Arc tab is a listed tab row is dropped only in `all`, no Spaces → all origin-window tabs
       and no bookmarks
-- [ ] run `make lint && make test && make build` - must pass before Task 3
+- [x] run `make lint && make test && make build` - must pass before Task 3
 
 ### Task 3: Picking a result
 
