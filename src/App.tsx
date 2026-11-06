@@ -58,10 +58,8 @@ import {
   AI_SETTINGS_STORAGE_KEY,
   AiRenameSettings,
   DEFAULT_AI_RENAME_SETTINGS,
-  getHostPermissionPattern,
   parseAiRenameSettings,
 } from './utils/aiConfig';
-import { OpenAiCompatibleClient } from './services/aiRenameService';
 import { createPanelPageAgentChats } from './services/pageAgent/panelPageAgent';
 import { CodeDrafts } from './components/pageAgent/codeDrafts';
 import { usePageStyles } from './hooks/usePageStyles';
@@ -83,7 +81,7 @@ const PageAgentDrawer = React.lazy(() => import('./components/pageAgent/PageAgen
 // Inner component that renders content for a single space
 interface SidebarContentProps
 {
-  onPin: (url: string, title: string, faviconUrl?: string, tabId?: number) => Promise<PinnedSite | null>;
+  onPin: (url: string, title: string, faviconUrl?: string) => Promise<PinnedSite | null>;
   onPinMultiple: (pins: Array<{ url: string; title: string; faviconUrl?: string }>) => Promise<PinnedSite[]>;
   hideOtherBookmarks: boolean;
   externalDropTarget: ExternalDropTarget | null;
@@ -99,8 +97,6 @@ interface SidebarContentProps
   onShowToast?: (message: string) => void;
   onPerformAction?: (action: UndoableAction) => Promise<void>;
   onSpaceDropTargetChange?: (spaceId: string | null) => void;
-  onAiRenameBookmark?: (bookmark: chrome.bookmarks.BookmarkTreeNode, tabId?: number) => void;
-  onBookmarkCreated?: (bookmark: chrome.bookmarks.BookmarkTreeNode, tabId?: number) => void;
   // Collapse state of the Bookmarks / Archive sections as shown, owned by App
   sectionCollapseState: SectionCollapseState;
   // Toggle for section headers rendered in the scroll area (the Archive section); undefined while filtering
@@ -130,8 +126,6 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
   onShowToast,
   onPerformAction,
   onSpaceDropTargetChange,
-  onAiRenameBookmark,
-  onBookmarkCreated,
   sectionCollapseState,
   onToggleSection,
   highlightTabAge,
@@ -241,8 +235,6 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
         activeSpace={activeSpace}
         onShowToast={onShowToast}
         onPerformAction={onPerformAction}
-        onAiRename={onAiRenameBookmark}
-        onBookmarkCreated={onBookmarkCreated}
         isCollapsed={sectionCollapseState.isCollapsed(activeSpaceId, 'bookmarks')}
       />
       {/* Keyed by Space so a Space switch resets the Archive search */}
@@ -267,7 +259,6 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
         activeSpace={activeSpace}
         onSpaceDropTargetChange={onSpaceDropTargetChange}
         onPerformAction={onPerformAction}
-        onBookmarkCreated={onBookmarkCreated}
         highlightTabAge={highlightTabAge}
         markUnvisitedTabs={markUnvisitedTabs}
       />
@@ -1034,7 +1025,6 @@ function Sidebar() {
   const [spaceToDelete, setSpaceToDelete] = useState<Space | null>(null);
   const [showSpaceDeleteDialog, setShowSpaceDeleteDialog] = useState(false);
   const bookmarkDropResolverRef = useRef<ResolveBookmarkDropTarget | null>(null);
-  const aiRequestIdsRef = useRef(new Map<string, number>());
   const buttonRef = useRef<HTMLButtonElement>(null!);
   const audioButtonRef = useRef<HTMLButtonElement>(null!);
   const {
@@ -1043,7 +1033,6 @@ function Sidebar() {
     addPins,
     removePin,
     updatePin,
-    renamePinIfUnchanged,
     resetFavicon,
     movePin,
     duplicatePin,
@@ -1191,195 +1180,6 @@ function Sidebar() {
   const hideToast = useCallback(() => {
     setToastVisible(false);
   }, []);
-
-  /**
-   * Numbered per target, so a slow earlier request can't overwrite a newer rename.
-   */
-  const beginAiRequest = useCallback((targetKey: string): number =>
-  {
-    const next = (aiRequestIdsRef.current.get(targetKey) ?? 0) + 1;
-    aiRequestIdsRef.current.set(targetKey, next);
-    return next;
-  }, []);
-
-  const hasPageContentAccess = useCallback(async (): Promise<boolean> =>
-  {
-    try
-    {
-      return await chrome.permissions.contains({ origins: ['http://*/*', 'https://*/*'] });
-    }
-    catch
-    {
-      return false;
-    }
-  }, []);
-
-  /**
-   * A manual action may request the API origin; an automatic one only has what Settings granted.
-   */
-  const hasApiAccess = useCallback(async (manualRequest: boolean): Promise<boolean> =>
-  {
-    const origin = getHostPermissionPattern(aiSettings.baseUrl);
-    return manualRequest
-      ? await chrome.permissions.request({ origins: [origin] })
-      : await chrome.permissions.contains({ origins: [origin] });
-  }, [aiSettings.baseUrl]);
-
-  /**
-   * The background writes the name only if the pin is unchanged, so later user edits are kept.
-   */
-  const handleAiRenamePin = useCallback(async (
-    site: PinnedSite,
-    tabId?: number,
-    notify = true
-  ) =>
-  {
-    if (!aiSettings.baseUrl.trim() || !aiSettings.apiKey.trim() || !aiSettings.model.trim())
-    {
-      if (notify)
-      {
-        showToast('Configure and validate AI settings first');
-        setShowSettings(true);
-      }
-      return;
-    }
-
-    const targetKey = `pin:${site.id}`;
-    const requestId = beginAiRequest(targetKey);
-    try
-    {
-      if (!await hasApiAccess(notify))
-      {
-        throw new Error('Permission to access the API host was not granted');
-      }
-      const newTitle = await new OpenAiCompatibleClient().generateTitle(aiSettings, {
-        url: site.url,
-        title: site.title,
-        tabId,
-        allowPageContent: await hasPageContentAccess(),
-      });
-      if (aiRequestIdsRef.current.get(targetKey) !== requestId) return;
-
-      await renamePinIfUnchanged(site.id, site.title, site.url, newTitle);
-      if (notify) showToast(`Renamed to “${newTitle}”`);
-    }
-    catch (error)
-    {
-      if (aiRequestIdsRef.current.get(targetKey) !== requestId) return;
-      const message = error instanceof Error ? error.message : 'AI rename failed';
-      showToast(notify ? message : `Automatic AI rename failed: ${message}`);
-    }
-  }, [aiSettings, beginAiRequest, hasApiAccess, hasPageContentAccess, renamePinIfUnchanged, showToast]);
-
-  /**
-   * The bookmarks API has no atomic conditional update, so the title and URL are re-read
-   * and checked before writing.
-   */
-  const handleAiRenameBookmark = useCallback(async (
-    bookmark: chrome.bookmarks.BookmarkTreeNode,
-    tabId?: number,
-    notify = true
-  ) =>
-  {
-    if (!bookmark.url) return;
-    if (!aiSettings.baseUrl.trim() || !aiSettings.apiKey.trim() || !aiSettings.model.trim())
-    {
-      if (notify)
-      {
-        showToast('Configure and validate AI settings first');
-        setShowSettings(true);
-      }
-      return;
-    }
-
-    const targetKey = `bookmark:${bookmark.id}`;
-    const requestId = beginAiRequest(targetKey);
-    try
-    {
-      if (!await hasApiAccess(notify))
-      {
-        throw new Error('Permission to access the API host was not granted');
-      }
-      const newTitle = await new OpenAiCompatibleClient().generateTitle(aiSettings, {
-        url: bookmark.url,
-        title: bookmark.title,
-        tabId,
-        allowPageContent: await hasPageContentAccess(),
-      });
-      if (aiRequestIdsRef.current.get(targetKey) !== requestId) return;
-
-      const current = (await chrome.bookmarks.get(bookmark.id))[0];
-      if (!current || current.title !== bookmark.title || current.url !== bookmark.url) return;
-      await chrome.bookmarks.update(bookmark.id, { title: newTitle });
-      if (notify) showToast(`Renamed to “${newTitle}”`);
-    }
-    catch (error)
-    {
-      if (aiRequestIdsRef.current.get(targetKey) !== requestId) return;
-      const message = error instanceof Error ? error.message : 'AI rename failed';
-      showToast(notify ? message : `Automatic AI rename failed: ${message}`);
-    }
-  }, [aiSettings, beginAiRequest, hasApiAccess, hasPageContentAccess, showToast]);
-
-  /**
-   * Pins first and names afterwards, so an AI failure doesn't undo the pin the user just created.
-   */
-  const handleAddPin = useCallback(async (
-    url: string,
-    title: string,
-    faviconUrl?: string,
-    atIndex?: number
-  ) =>
-  {
-    const newPin = await addPin(url, title, faviconUrl, atIndex);
-    if (newPin && aiSettings.autoRename)
-    {
-      void handleAiRenamePin(newPin, undefined, false);
-    }
-    return newPin;
-  }, [addPin, aiSettings.autoRename, handleAiRenamePin]);
-
-  const handlePinFromSidebar = useCallback(async (
-    url: string,
-    title: string,
-    faviconUrl?: string,
-    tabId?: number
-  ) =>
-  {
-    const newPin = await addPin(url, title, faviconUrl);
-    if (newPin && aiSettings.autoRename)
-    {
-      void handleAiRenamePin(newPin, tabId, false);
-    }
-    return newPin;
-  }, [addPin, aiSettings.autoRename, handleAiRenamePin]);
-
-  const handleAddPins = useCallback(async (
-    pins: Array<{ url: string; title: string; faviconUrl?: string }>
-  ) =>
-  {
-    const newPins = await addPins(pins);
-    if (aiSettings.autoRename)
-    {
-      // Each pin gets its own request; a failed one leaves only that pin with its original title.
-      for (const pin of newPins)
-      {
-        void handleAiRenamePin(pin, undefined, false);
-      }
-    }
-    return newPins;
-  }, [addPins, aiSettings.autoRename, handleAiRenamePin]);
-
-  const handleBookmarkCreated = useCallback((
-    bookmark: chrome.bookmarks.BookmarkTreeNode,
-    tabId?: number
-  ) =>
-  {
-    if (aiSettings.autoRename)
-    {
-      void handleAiRenameBookmark(bookmark, tabId, false);
-    }
-  }, [aiSettings.autoRename, handleAiRenameBookmark]);
 
   // Execute an undoable action: run do(), show toast with undo button
   const performAction = useCallback(async (action: UndoableAction) => {
@@ -1774,7 +1574,7 @@ function Sidebar() {
             resetFavicon={resetFavicon}
             movePin={movePin}
             duplicatePin={duplicatePin}
-            addPin={handleAddPin}
+            addPin={addPin}
             getMoveTargets={getMoveTargets}
             movePinToSpace={movePinToSpace}
             iconSize={pinnedIconSize}
@@ -1782,7 +1582,6 @@ function Sidebar() {
             filterLiveTabs={showFilterArea && filterLiveTabs}
             filterText={filterText}
             onPerformAction={performAction}
-            onAiRename={handleAiRenamePin}
           />
 
           {/* Space Title */}
@@ -1798,8 +1597,8 @@ function Sidebar() {
 
           {/* Content with 2-finger swipe navigation */}
           <SwipeableContainer
-            onPin={handlePinFromSidebar}
-            onPinMultiple={handleAddPins}
+            onPin={addPin}
+            onPinMultiple={addPins}
             hideOtherBookmarks={hideOtherBookmarks}
             externalDropTarget={externalDropTarget}
             bookmarkOpenMode={bookmarkOpenMode}
@@ -1814,8 +1613,6 @@ function Sidebar() {
             onShowToast={showToast}
             onPerformAction={performAction}
             onSpaceDropTargetChange={setSpaceDropTargetId}
-            onAiRenameBookmark={handleAiRenameBookmark}
-            onBookmarkCreated={handleBookmarkCreated}
             sectionCollapseState={sectionCollapseState}
             onToggleSection={toggleShownSection}
             highlightTabAge={shownTabAgeHighlight !== 'off'}

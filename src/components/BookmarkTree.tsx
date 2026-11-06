@@ -47,7 +47,6 @@ import {
   ExternalLink,
   SquareStack,
   Link,
-  Sparkles,
   Search,
   Copy,
   ClipboardPaste,
@@ -145,7 +144,6 @@ interface BookmarkRowProps {
   onCreateNote: (parentId: string) => void;
   onSort: (folderId: string, sortBy: SortOption) => void;
   onDuplicate: (id: string) => void;
-  onAiRename?: (node: chrome.bookmarks.BookmarkTreeNode) => void;
   onExpandAll?: (folderId: string) => void;
   onCopyAsYaml?: (folderId: string) => void;
   onPasteFromYaml?: (folderId: string) => void;
@@ -246,7 +244,6 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
   onCreateNote,
   onSort,
   onDuplicate,
-  onAiRename,
   onExpandAll,
   onCopyAsYaml,
   onPasteFromYaml,
@@ -826,11 +823,6 @@ const BookmarkRow = forwardRef<HTMLDivElement, BookmarkRowProps>(({
               <ContextMenu.Item onSelect={() => onShareUrl?.(node.title, node.url!)}>
                 Share
               </ContextMenu.Item>
-              {onAiRename && (
-                <ContextMenu.Item onSelect={() => onAiRename(node)}>
-                  <Sparkles size={14} className="mr-2" /> AI Rename
-                </ContextMenu.Item>
-              )}
               <ContextMenu.Sub>
                 <ContextMenu.SubTrigger>
                   <Pencil size={14} className="mr-2" /> Edit
@@ -1144,12 +1136,10 @@ interface BookmarkTreeProps {
   onShowToast?: (message: string) => void;
   onPerformAction?: (action: UndoableAction) => Promise<void>;
   useSpaces?: boolean;
-  onAiRename?: (bookmark: chrome.bookmarks.BookmarkTreeNode, tabId?: number) => void;
-  onBookmarkCreated?: (bookmark: chrome.bookmarks.BookmarkTreeNode, tabId?: number) => void;
   isCollapsed?: boolean;  // Bookmarks section collapsed as shown (expanded while the text filter is active)
 }
 
-export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false, externalDropTarget, bookmarkOpenMode = 'arc', arcSingleClickOpensTab = true, onResolverReady, filterLiveTabs = false, filterText = '', activeSpace, onShowToast, onPerformAction, useSpaces = true, onAiRename, onBookmarkCreated, isCollapsed = false }: BookmarkTreeProps) => {
+export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false, externalDropTarget, bookmarkOpenMode = 'arc', arcSingleClickOpensTab = true, onResolverReady, filterLiveTabs = false, filterText = '', activeSpace, onShowToast, onPerformAction, useSpaces = true, isCollapsed = false }: BookmarkTreeProps) => {
   const { bookmarks, updateBookmark, updateBookmarkUrl, createFolder, createBookmark, sortBookmarks, moveBookmark, duplicateBookmark, findFolderBySegments, getAllBookmarksInFolder, getBookmarkSegments, getBookmarkFolderLocation, getBookmark, error } = useBookmarks();
   const { openBookmarkTab, closeBookmarkTab, isBookmarkLoaded, isBookmarkAudible, isBookmarkMuted, isBookmarkActive, getBookmarkLiveTitle, deassociateBookmarkTab, getTabIdForBookmark, getItemKeyForTab, restoreItemAssociation, associateExistingTab } = useBookmarkTabsContext();
   const { isBookmarkMarked, markBookmarks, clearBookmarks } = useAttentionMarks();
@@ -2590,10 +2580,6 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
               {
                 await associateExistingTab(item.tab.tabId, result.node.id, targetSpace?.id);
               }
-              if (result.node)
-              {
-                onBookmarkCreated?.(result.node, item.tab?.tabId);
-              }
               if (index !== undefined) index++;
             }
           }
@@ -2632,7 +2618,7 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
     }
   }, [bookmarks, spaceFolder, getSelectedItems, moveBookmark, expandedState, setExpandedState,
     clearSelection, setWasValidDrop, getBookmark, createBookmark, associateExistingTab,
-    findSpaceForFolder, onBookmarkCreated]);
+    findSpaceForFolder]);
 
   // Register drop handler
   useEffect(() =>
@@ -2799,9 +2785,6 @@ export const BookmarkTree = ({ onPin, onPinMultiple, hideOtherBookmarks = false,
               onCreateNote={handleCreateNote}
               onSort={sortBookmarks}
               onDuplicate={handleDuplicateBookmark}
-              onAiRename={onAiRename
-                ? (bookmark) => onAiRename(bookmark, getTabIdForBookmark(bookmark.id))
-                : undefined}
               onExpandAll={handleExpandAll}
               onCopyAsYaml={handleCopyFolderAsYaml}
               onPasteFromYaml={setPasteYamlFolderId}

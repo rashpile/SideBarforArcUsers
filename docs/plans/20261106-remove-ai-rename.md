@@ -137,16 +137,16 @@
 - Modify: `src/components/PinnedIcon.tsx`
 - Modify: `src/hooks/usePinnedSites.ts`
 
-- [ ] `PinnedIcon.tsx`: remove the `onAiRename` prop and the **AI Rename** menu item; drop `Sparkles` from
+- [x] `PinnedIcon.tsx`: remove the `onAiRename` prop and the **AI Rename** menu item; drop `Sparkles` from
       the import if nothing else uses it. `PinnedBar.tsx`: remove the `onAiRename` prop and what it passes
       to `PinnedIcon`
-- [ ] `BookmarkTree.tsx`: remove the row prop `onAiRename`, the **AI Rename** menu item, the tree prop
+- [x] `BookmarkTree.tsx`: remove the row prop `onAiRename`, the **AI Rename** menu item, the tree prop
       `onAiRename` and its wiring to rows, and the `onBookmarkCreated` prop and its call; drop `Sparkles`
       from the import if unused. `TabList.tsx`: remove the `onBookmarkCreated` prop and its calls (and
       from `useCallback` dependency lists); in the group loop of `handleAddSelectedToBookmarkFolder`
       (~2569) the `const { node } = await createBookmark(...)` is then unused: call `await createBookmark(...)`
       without the destructuring
-- [ ] the pin chain: `addPin` (`usePinnedSites.ts`) is `(url, title, faviconUrl?, atIndex?)`, while the outer
+- [x] the pin chain: `addPin` (`usePinnedSites.ts`) is `(url, title, faviconUrl?, atIndex?)`, while the outer
       `onPin` type passes a tab id as the 4th argument, so `onPin={addPin}` would compile and turn the tab
       id into the Favorite's grid position (Chrome reuses low tab ids after a restart). Drop `tabId?: number`
       from `SidebarContentProps.onPin` (`App.tsx` ~86) and from the outer `TabListProps.onPin`
@@ -154,16 +154,16 @@
       ~2517; keep `clickedTabId` there for `associateExistingPinnedTab`. Keep the inner TabItem `onPin`
       type (`TabList.tsx` ~103) and its callers (~351, ~399): `handlePinSelectedTabs` needs the tab id.
       With that, a 4-argument call to `onPin` is a compile error
-- [ ] `App.tsx`: remove `handleAiRenamePin`, `handleAiRenameBookmark`, `beginAiRequest`, `aiRequestIdsRef`,
+- [x] `App.tsx`: remove `handleAiRenamePin`, `handleAiRenameBookmark`, `beginAiRequest`, `aiRequestIdsRef`,
       `hasPageContentAccess`, `hasApiAccess`, `handleBookmarkCreated`; after the pin-chain change above,
       pass `addPin` / `addPins` directly in place of `handleAddPin`, `handlePinFromSidebar`, `handleAddPins`;
       remove the `onAiRenameBookmark` / `onBookmarkCreated` props of the inner component and every place
       that passes them, and `onAiRename` to `PinnedBar`; remove the `OpenAiCompatibleClient` and
       `getHostPermissionPattern` imports and `renamePinIfUnchanged` from the `usePinnedSites` destructure.
       Keep the `Sparkles` import (What's New menu item)
-- [ ] `usePinnedSites.ts`: remove `renamePinIfUnchanged` and its export
-- [ ] no new tests (UI wiring, see Development Approach)
-- [ ] run `make lint && make test && make build` - must pass before task 2
+- [x] `usePinnedSites.ts`: remove `renamePinIfUnchanged` and its export
+- [x] no new tests (UI wiring, see Development Approach)
+- [x] run `make lint && make test && make build` - must pass before task 2
 
 ### Task 2: Remove the naming fields from Settings
 

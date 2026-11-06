@@ -416,37 +416,6 @@ export const usePinnedSites = (space: FavoritesSpace) =>
       .catch(err => reportFailure('updatePin icons', err));
   }, [reportFailure]);
 
-  // Checked against the bookmark itself, so a slow AI request can't overwrite a later manual edit
-  const renamePinIfUnchanged = useCallback(async (
-    id: string,
-    expectedTitle: string,
-    expectedUrl: string,
-    newTitle: string
-  ) =>
-  {
-    let current: BookmarkNode | undefined;
-    try
-    {
-      [current] = await chrome.bookmarks.get(id);
-    }
-    catch
-    {
-      // Deleted while the request ran: nothing to rename
-      return;
-    }
-    if (!current || current.title !== expectedTitle || current.url !== expectedUrl) return;
-
-    try
-    {
-      await chrome.bookmarks.update(id, { title: newTitle });
-    }
-    catch (err)
-    {
-      reportFailure('AI rename pin', err);
-      throw err;
-    }
-  }, [reportFailure]);
-
   // Scenario 6: user explicitly resets to site favicon via "Reset to site icon".
   // Only works if Chrome has the page cached (site visited at least once).
   const resetFavicon = useCallback(async (id: string) =>
@@ -658,7 +627,6 @@ export const usePinnedSites = (space: FavoritesSpace) =>
     addPins,
     removePin,
     updatePin,
-    renamePinIfUnchanged,
     resetFavicon,
     movePin,
     duplicatePin,
