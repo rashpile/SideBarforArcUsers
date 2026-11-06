@@ -179,16 +179,16 @@
 - Modify: `src/App.tsx`
 - Modify: `src/components/SettingsDialog.tsx`
 
-- [ ] `App.tsx`: `useChromeLocalStorage<SearchCollapseDuplicatesSetting>(SEARCH_COLLAPSE_DUPLICATES_KEY,
+- [x] `App.tsx`: `useChromeLocalStorage<SearchCollapseDuplicatesSetting>(SEARCH_COLLAPSE_DUPLICATES_KEY,
       DEFAULT_SEARCH_COLLAPSE_DUPLICATES, { parse: parseSearchCollapseDuplicates, serialize: (v) => v })`, with a
       comment that it is a raw string because background reads it; add it to the settings object passed to
       the dialog and set it in `onApply`, as `markUnvisitedTabs` is
-- [ ] `SettingsDialog.tsx`: add `searchCollapseDuplicates` to `SettingsValues`, the temp state, the sync on
+- [x] `SettingsDialog.tsx`: add `searchCollapseDuplicates` to `SettingsValues`, the temp state, the sync on
       open and `handleApply`
-- [ ] Behaviour tab: a checkbox "Search popup: one row per page" with a help line along the lines of
+- [x] Behaviour tab: a checkbox "Search popup: one row per page" with a help line along the lines of
       "Results with the same title and address, ignoring what follows ? or #, show once: the open tab first,
       then the bookmark, the archived page, the recently closed tab"
-- [ ] run `make lint && make test && make build` - must pass before Task 4
+- [x] run `make lint && make test && make build` - must pass before Task 4
 
 ### Task 4: Verify acceptance criteria
 
