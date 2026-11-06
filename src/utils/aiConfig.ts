@@ -9,8 +9,6 @@ export interface AiRenameSettings
   model: string;
   protocol: AiApiProtocol;
   reasoningEffort: AiReasoningEffort;
-  prompt: string;
-  autoRename: boolean;
   acceptsImages: boolean;
   /** Holds only the plugins the user switched; read it through `PageAgentPluginSwitches`, which adds the defaults. */
   agentPlugins: Record<string, boolean>;
@@ -22,46 +20,7 @@ export interface AiEndpointCandidate
   url: string;
 }
 
-export interface PageContentCandidates
-{
-  pageMarkdown?: string;
-  matchedLlmsMarkdown?: string;
-  llmsSummary?: string;
-  cleanedPage?: string;
-}
-
-export interface SelectedPageContent
-{
-  source: 'page-markdown' | 'llms-txt' | 'cleaned-page' | 'metadata-only';
-  content: string;
-  siteContext?: string;
-}
-
 export const AI_SETTINGS_STORAGE_KEY = 'sidebar-ai-rename-settings';
-
-export const DEFAULT_AI_PROMPT = `Write a short, easy-to-scan name for this pinned tab or bookmark, based on the page content provided.
-
-Rules:
-- Use the main language of the page content.
-- A Chinese name is usually 4 to 12 characters; an English name is usually 2 to 8 words.
-- Keep the details needed to tell this page apart.
-- Remove repeated site names, marketing copy and meaningless suffixes.
-- No quotes, emoji or trailing punctuation.
-- Don't add words that carry no information, such as "web page", "page" or "website".
-- Return only the name, with no explanation.`;
-
-// The default prompt before it was translated. Saving the AI settings stores the prompt, so
-// profiles that never edited it still hold this text; it is swapped for the current default.
-const LEGACY_DEFAULT_AI_PROMPT = `根据提供的网页内容，为这个固定 Tab 或书签生成一个简短、易于扫读的名称。
-
-要求：
-- 使用网页内容的主要语言。
-- 中文名称通常为 4 到 12 个字；英文名称通常为 2 到 8 个词。
-- 保留区分这个页面所需的关键信息。
-- 删除网站名重复、营销文案和无意义后缀。
-- 不使用引号、emoji 或句末标点。
-- 不添加“网页”“页面”“网站”等无信息量词语。
-- 只返回名称，不提供解释。`;
 
 export const DEFAULT_AI_RENAME_SETTINGS: AiRenameSettings = {
   baseUrl: 'https://api.openai.com/v1',
@@ -69,8 +28,6 @@ export const DEFAULT_AI_RENAME_SETTINGS: AiRenameSettings = {
   model: '',
   protocol: 'auto',
   reasoningEffort: 'medium',
-  prompt: DEFAULT_AI_PROMPT,
-  autoRename: false,
   acceptsImages: false,
   agentPlugins: {},
 };
@@ -104,12 +61,8 @@ export function parseAiRenameSettings(value: string): AiRenameSettings
     ...parsed,
     protocol,
     reasoningEffort,
-    autoRename: parsed.autoRename === true,
     acceptsImages: parsed.acceptsImages === true,
     agentPlugins: parseAgentPluginSwitches(parsed.agentPlugins),
-    prompt: parsed.prompt === undefined || parsed.prompt === LEGACY_DEFAULT_AI_PROMPT
-      ? DEFAULT_AI_PROMPT
-      : parsed.prompt,
   };
 }
 
@@ -361,81 +314,8 @@ export function extractAiResponseText(
 }
 
 /**
- * Multi-line or too-long output counts as a protocol failure, since silent truncation could
- * change the meaning.
- */
-export function sanitizeGeneratedTitle(value: string): string
-{
-  const nonEmptyLines = value.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
-  if (nonEmptyLines.length !== 1)
-  {
-    throw new Error('The model must return exactly one line');
-  }
-
-  let title = nonEmptyLines[0].replace(/\s+/g, ' ').trim();
-  const pairs: Array<[string, string]> = [['"', '"'], ["'", "'"], ['`', '`'], ['“', '”'], ['‘', '’']];
-  for (const [start, end] of pairs)
-  {
-    if (title.startsWith(start) && title.endsWith(end) && title.length > start.length + end.length)
-    {
-      title = title.slice(start.length, -end.length).trim();
-      break;
-    }
-  }
-
-  title = title.replace(/[。.!！?？]+$/, '').trim();
-  if (!title) throw new Error('The model returned an empty title');
-  if (title.length > 100) throw new Error('The model returned a title longer than 100 characters');
-  return title;
-}
-
-/**
- * The llms.txt site summary serves only as supplementary context.
- */
-export function selectPageContent(candidates: PageContentCandidates): SelectedPageContent
-{
-  const pageMarkdown = candidates.pageMarkdown?.trim();
-  const matchedLlmsMarkdown = candidates.matchedLlmsMarkdown?.trim();
-  const cleanedPage = candidates.cleanedPage?.trim();
-  const siteContext = candidates.llmsSummary?.trim();
-
-  if (pageMarkdown)
-  {
-    return { source: 'page-markdown', content: pageMarkdown, siteContext };
-  }
-  if (matchedLlmsMarkdown)
-  {
-    return { source: 'llms-txt', content: matchedLlmsMarkdown, siteContext };
-  }
-  if (cleanedPage)
-  {
-    return { source: 'cleaned-page', content: cleanedPage, siteContext };
-  }
-  return { source: 'metadata-only', content: '', siteContext };
-}
-
-/**
- * From the current path up to the site root; more specific paths come first.
- */
-export function buildLlmsTxtCandidates(pageUrl: string, maxCandidates = 5): string[]
-{
-  const url = new URL(pageUrl);
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') return [];
-  const segments = url.pathname.split('/').filter(Boolean);
-  if (segments.length > 0 && segments[segments.length - 1].includes('.')) segments.pop();
-
-  const candidates: string[] = [];
-  for (let count = segments.length; count >= 0 && candidates.length < maxCandidates; count -= 1)
-  {
-    const prefix = segments.slice(0, count).join('/');
-    candidates.push(`${url.origin}/${prefix ? `${prefix}/` : ''}llms.txt`);
-  }
-  return [...new Set(candidates)];
-}
-
-/**
- * A page must not choose where the extension sends requests: with page access the extension's
- * fetches bypass CORS, so a link to another origin could read a router or a local server.
+ * The page agent re-applies its changes, and calls a navigation same-site, only on the origin they
+ * were made on, so a script never runs on a site the user didn't approve it for.
  * Protocols are checked explicitly because every `file:` URL has the origin "null".
  */
 export function isSameOriginHttpUrl(url: string, pageUrl: string): boolean
@@ -454,42 +334,4 @@ export function isSameOriginHttpUrl(url: string, pageUrl: string): boolean
 
   const isHttp = (value: URL) => value.protocol === 'http:' || value.protocol === 'https:';
   return isHttp(link) && isHttp(page) && link.origin === page.origin;
-}
-
-/**
- * llms.txt can list many documents; only a Markdown path on the page's own origin that clearly
- * matches the page is used.
- */
-export function findMatchingLlmsLink(
-  llmsText: string,
-  pageUrl: string,
-  llmsUrl: string
-): string | undefined
-{
-  const page = new URL(pageUrl);
-  const normalizedPath = page.pathname.replace(/\/$/, '').replace(/\.(html?|md)$/i, '');
-  const pageName = normalizedPath.split('/').filter(Boolean).pop();
-  const links = [...llmsText.matchAll(/\[[^\]]+\]\(([^)\s]+)\)/g)].map(match => match[1]);
-
-  for (const link of links)
-  {
-    try
-    {
-      const candidate = new URL(link, llmsUrl);
-      // Skipped rather than ending the search, so a cross-origin match listed first doesn't hide
-      // a later same-origin one.
-      if (!isSameOriginHttpUrl(candidate.toString(), pageUrl)) continue;
-
-      const candidatePath = candidate.pathname.replace(/\/$/, '').replace(/\.(html?|md)$/i, '');
-      if (candidatePath === normalizedPath || (pageName && candidatePath.endsWith(`/${pageName}`)))
-      {
-        return candidate.toString();
-      }
-    }
-    catch
-    {
-      // Skip an invalid link in llms.txt and keep checking the other candidates.
-    }
-  }
-  return undefined;
 }

@@ -13,7 +13,7 @@ import {
   DEFAULT_AI_RENAME_SETTINGS,
   getHostPermissionPattern,
 } from '../utils/aiConfig';
-import { OpenAiCompatibleClient } from '../services/aiRenameService';
+import { AiConnectionCheck } from '../services/aiConnectionCheck';
 import { PAGE_AGENT_PLUGINS, PAGE_SCRIPTS_PLUGIN_ID, PageAgentPluginSwitches } from '../services/pageAgent/pageAgentPlugins';
 import { PageScriptsWarning } from './pageAgent/PageScriptsWarning';
 import { UserScriptsNotice, requestUserScriptsPermission } from './pageAgent/UserScriptsNotice';
@@ -149,7 +149,7 @@ export function SettingsDialog({
         throw new Error('Permission to access the API host was not granted');
       }
 
-      const result = await new OpenAiCompatibleClient().validate(tempAiSettings);
+      const result = await new AiConnectionCheck().run(tempAiSettings);
       const protocol = result.protocol === 'responses' ? 'Responses API' : 'Chat Completions';
       setAiValidation({
         state: 'success',

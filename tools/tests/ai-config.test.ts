@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  buildLlmsTxtCandidates,
   buildAiRequestBody,
   DEFAULT_AI_RENAME_SETTINGS,
   extractAiResponseText,
@@ -9,8 +8,6 @@ import {
   normalizeAiEndpoint,
   parseAiRenameSettings,
   resolveAiEndpointCandidates,
-  sanitizeGeneratedTitle,
-  selectPageContent,
 } from '../../src/utils/aiConfig.ts';
 
 test('old AI settings without reasoning effort get medium', () =>
@@ -167,51 +164,4 @@ test('parses Chat Completions text parts', () =>
 {
   const payload = { choices: [{ message: { content: [{ type: 'text', text: '标题' }] } }] };
   assert.equal(extractAiResponseText('chat-completions', payload), '标题');
-});
-
-test('the title loses paired quotes, extra whitespace and final punctuation', () =>
-{
-  assert.equal(sanitizeGeneratedTitle('  “Arc   AI 命名。”  '), 'Arc AI 命名');
-});
-
-test('rejects multi-line model output', () =>
-{
-  assert.throws(() => sanitizeGeneratedTitle('Title\nExplanation'), /exactly one line/);
-});
-
-test('rejects too-long model output', () =>
-{
-  assert.throws(() => sanitizeGeneratedTitle('a'.repeat(101)), /longer than 100/);
-});
-
-test('content priority is page Markdown, then matching llms content, then cleaned page text', () =>
-{
-  assert.equal(selectPageContent({ pageMarkdown: 'page', matchedLlmsMarkdown: 'llms', cleanedPage: 'dom' }).source, 'page-markdown');
-  assert.equal(selectPageContent({ matchedLlmsMarkdown: 'llms', cleanedPage: 'dom' }).source, 'llms-txt');
-  assert.equal(selectPageContent({ cleanedPage: 'dom' }).source, 'cleaned-page');
-  assert.equal(selectPageContent({ llmsSummary: 'site' }).source, 'metadata-only');
-});
-
-test('llms.txt candidates go from the specific directory up to the site root', () =>
-{
-  assert.deepEqual(
-    buildLlmsTxtCandidates('https://example.com/docs/guides/page.html?x=1'),
-    [
-      'https://example.com/docs/guides/llms.txt',
-      'https://example.com/docs/llms.txt',
-      'https://example.com/llms.txt',
-    ]
-  );
-});
-
-test('a token query in the page URL does not affect llms.txt path discovery', () =>
-{
-  assert.deepEqual(
-    buildLlmsTxtCandidates('https://example.com/docs/page?access_token=page-state'),
-    [
-      'https://example.com/docs/page/llms.txt',
-      'https://example.com/docs/llms.txt',
-      'https://example.com/llms.txt',
-    ]
-  );
 });

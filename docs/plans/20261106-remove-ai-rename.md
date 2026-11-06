@@ -194,29 +194,29 @@
 - Modify: `tests/aiConfig.test.mjs`
 - Modify: `tools/tests/ai-config.test.ts`
 
-- [ ] create `src/services/aiConnectionCheck.ts` with the connection check as described in Technical
+- [x] create `src/services/aiConnectionCheck.ts` with the connection check as described in Technical
       Details (no prompt requirement, no title sanitising); switch `SettingsDialog.handleValidateAi` to it;
       delete `src/services/aiRenameService.ts`
-- [ ] `aiConfig.ts`: remove `prompt` and `autoRename` from the settings type, the defaults and the parser;
+- [x] `aiConfig.ts`: remove `prompt` and `autoRename` from the settings type, the defaults and the parser;
       remove `DEFAULT_AI_PROMPT`, `LEGACY_DEFAULT_AI_PROMPT`, `sanitizeGeneratedTitle`,
       `selectPageContent`, `PageContentCandidates`, `SelectedPageContent`, `buildLlmsTxtCandidates`,
       `findMatchingLlmsLink`. Keep `isSameOriginHttpUrl` and reword its comment for its remaining use (the
       page agent's same-site check), keeping the `file:` origin note
-- [ ] `readablePage.ts`: drop the `rootRule` parameter, the `'article-first'` branch, the exported
+- [x] `readablePage.ts`: drop the `rootRule` parameter, the `'article-first'` branch, the exported
       `ReadablePageRoot` type and its JSDoc, `description`, `language`, `markdownUrl`; keep the main-first
       behaviour byte for byte; reword the file header ("shared by AI Rename and the page agent's
       read_page_text") and the "which AI Rename still does afterwards" comment; update
       `chromePageAdapter.ts` to call `readReadablePage` with `[PAGE_TEXT_MAX_CHARS]`
-- [ ] `tests/aiConfig.test.mjs`: delete the `findMatchingLlmsLink` tests, its import and the `PAGE_URL` /
+- [x] `tests/aiConfig.test.mjs`: delete the `findMatchingLlmsLink` tests, its import and the `PAGE_URL` /
       `LLMS_URL` constants only those tests use
-- [ ] `tools/tests/ai-config.test.ts`: delete the tests of `sanitizeGeneratedTitle`, `selectPageContent`,
+- [x] `tools/tests/ai-config.test.ts`: delete the tests of `sanitizeGeneratedTitle`, `selectPageContent`,
       `buildLlmsTxtCandidates` and their imports; drop `prompt` / `autoRename` from the old-settings
       fixture only if the type requires it (a stored old value may still carry them)
-- [ ] write a test in `tests/aiConfig.test.mjs`: an old stored value with `prompt` and `autoRename` (plus
+- [x] write a test in `tests/aiConfig.test.mjs`: an old stored value with `prompt` and `autoRename` (plus
       `baseUrl`, `apiKey`, `model`, `protocol`, `reasoningEffort`, `acceptsImages`, `agentPlugins`) parses
       to the same `baseUrl`, `apiKey`, `model`, `protocol`, `reasoningEffort`, `acceptsImages` and
       `agentPlugins`
-- [ ] run `make lint && make test && make build` - must pass before task 4
+- [x] run `make lint && make test && make build` - must pass before task 4
 
 ### Task 4: Rename the settings identifiers and reword AI naming comments
 
