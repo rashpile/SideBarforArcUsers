@@ -174,7 +174,7 @@ Off by default. Turn it on with **Archive tabs after** in Settings: 12 hours, 24
 - Turning the setting on starts every tab's clock at that moment, so nothing closes right away
 - Archiving a URL again replaces the older item. Archived items are never deleted automatically
 
-The **Archive** section sits between Bookmarks and Tabs. Click the header to list everything, newest first, with the time each was archived. While it is expanded, a search field in the header row narrows the list. Click an item to reopen it in the active Space. Right-click to delete it (with Undo).
+The **Archive** section sits between Bookmarks and Tabs. Click the header to list everything, newest first, with the time each was archived. While it is expanded, a search field in the header row narrows the list. Click an item to reopen it in the active Space; the section then collapses, as if you clicked the header. It stays expanded while the toolbar search is active, and when the page can't be opened, with the error under it. Right-click to delete it (with Undo).
 
 Drag a tab or a multi-selection from the Tab list onto the Archive section, collapsed or expanded, to archive them, with Undo. Marked tabs stay open. The section shows once the Archive has an item; until then use the Archive button on a tab row.
 

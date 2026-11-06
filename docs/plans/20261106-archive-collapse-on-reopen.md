@@ -111,16 +111,16 @@
 - Modify: `README.md`
 - Modify: `docs/changelog.md`
 
-- [ ] `README.md` § Archive (~177): extend "Click an item to reopen it in the active Space." — the section then
+- [x] `README.md` § Archive (~177): extend "Click an item to reopen it in the active Space." — the section then
       collapses, as if you clicked the header; it stays expanded while the toolbar search is active, and when
       the page can't be opened (the error shows under it)
-- [ ] `docs/changelog.md`: append one "Changed:" bullet after the last `Changed:` bullet in `## Latest Version`
+- [x] `docs/changelog.md`: append one "Changed:" bullet after the last `Changed:` bullet in `## Latest Version`
       (the "closing the active tab switches…" line), with (#79): clicking an item in the expanded
       Archive section reopens it and collapses the section; it stays open while the toolbar search is active
       or when the page fails to open
-- [ ] no `src/data/changelog.ts` line (a small polish, not worth a What's New line) and no
+- [x] no `src/data/changelog.ts` line (a small polish, not worth a What's New line) and no
       `docs/state-reference.md` change (no new storage key; `sectionCollapsedState` already covers it)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] move this plan to `docs/plans/completed/` (left in place - the harness moves it after all phases)
 
 ## Known limitations
 
