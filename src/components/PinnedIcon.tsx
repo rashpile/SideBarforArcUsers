@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, useState, useRef, useCallback } from 'react';
-import { Globe, Pencil, Trash, X, RotateCcw, Copy, ExternalLink, Link, ArrowRightFromLine, Sparkles, FolderInput } from 'lucide-react';
+import { Globe, Pencil, Trash, X, RotateCcw, Copy, ExternalLink, Link, ArrowRightFromLine, FolderInput } from 'lucide-react';
 import { Dialog } from './Dialog';
 import { PinnedSite, getFaviconUrl, fetchFaviconAsBase64 } from '../hooks/usePinnedSites';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
@@ -70,7 +70,6 @@ interface PinnedIconProps
   ) => void;
   onResetFavicon: (id: string) => void;
   onDuplicate: (id: string) => void;
-  onAiRename?: () => void;
   onOpen: (site: PinnedSite) => void;
   onLoadUrl?: (site: PinnedSite) => void;  // double-click: load the site's URL in its tab (Arc mode)
   onClose?: (id: string) => void;
@@ -99,7 +98,6 @@ export const PinnedIcon = ({
   onUpdate,
   onResetFavicon: _onResetFavicon,
   onDuplicate,
-  onAiRename,
   onOpen,
   onLoadUrl,
   onClose,
@@ -392,11 +390,6 @@ export const PinnedIcon = ({
               />
             )}
             <ContextMenu.Separator />
-            {onAiRename && (
-              <ContextMenu.Item onSelect={onAiRename}>
-                <Sparkles size={14} className="mr-2" /> AI Rename
-              </ContextMenu.Item>
-            )}
             <ContextMenu.Item onSelect={handleEdit}>
               <Pencil size={14} className="mr-2" /> Edit
             </ContextMenu.Item>

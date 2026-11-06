@@ -36,7 +36,6 @@ interface PinnedBarProps
   filterLiveTabs?: boolean;
   filterText?: string;
   onPerformAction?: (action: UndoableAction) => Promise<void>;
-  onAiRename?: (site: PinnedSite, tabId?: number) => void;
 }
 
 export const PinnedBar = ({
@@ -54,7 +53,6 @@ export const PinnedBar = ({
   filterLiveTabs = false,
   filterText = '',
   onPerformAction,
-  onAiRename,
 }: PinnedBarProps) =>
 {
   const { openPinnedTab, closePinnedTab, isPinnedLoaded, isPinnedActive, isPinnedAudible, getTabIdForPinned, associateExistingPinnedTab, deassociatePinnedTab, restoreItemAssociation } = useBookmarkTabsContext();
@@ -290,9 +288,6 @@ export const PinnedBar = ({
           onUpdate={updatePin}
           onResetFavicon={resetFavicon}
           onDuplicate={handleDuplicatePin}
-          onAiRename={onAiRename
-            ? () => onAiRename(site, getTabIdForPinned(site.id))
-            : undefined}
           onOpen={
             bookmarkOpenMode === 'arc'
               ? (s) => openPinnedTab(s.id, s.url, activeSpace.id)

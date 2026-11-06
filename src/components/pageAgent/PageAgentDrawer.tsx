@@ -10,7 +10,7 @@ import type { PageAgentChats } from '../../services/pageAgent/pageAgentChats';
 import { PAGE_SCRIPTS_PLUGIN_ID, PageAgentPluginSwitches } from '../../services/pageAgent/pageAgentPlugins';
 import { siteName } from '../../stores/savedPageStyles';
 import type { SavedPageStyle } from '../../stores/savedPageStyles';
-import type { AiRenameSettings } from '../../utils/aiConfig';
+import type { AiSettings } from '../../utils/aiConfig';
 import type { CodeDrafts } from './codeDrafts';
 import { PageAgentCodeEditor } from './PageAgentCodeEditor';
 import { PageAgentMessages } from './PageAgentMessages';
@@ -27,7 +27,7 @@ const SCREENSHOT_ORIGINS: readonly string[] = ['<all_urls>'];
 
 interface PageAgentDrawerProps
 {
-  chats: PageAgentChats<AiRenameSettings>;
+  chats: PageAgentChats<AiSettings>;
   /** The code editor's drafts by tab; the panel keeps them while the drawer is closed. */
   codeDrafts: CodeDrafts;
   /** This window's active tab; the drawer shows its chat and follows tab switches. */
@@ -38,7 +38,7 @@ interface PageAgentDrawerProps
   /** The page style saved to that bookmark, or null. */
   savedStyle: SavedPageStyle | null;
   pageStyles: PageStyleActions;
-  aiSettings: AiRenameSettings;
+  aiSettings: AiSettings;
   onOpenSettings: () => void;
   onClose: () => void;
 }
@@ -475,7 +475,7 @@ const BlockNotice: React.FC<{
 function inputBlock(
   tabId: number | undefined,
   tabUrl: string | undefined,
-  settings: AiRenameSettings,
+  settings: AiSettings,
   hasPageAccess: boolean | null,
 ): InputBlock | null
 {
@@ -569,7 +569,7 @@ function hostAndPath(url: string): string
 
 /**
  * Whether the optional host permissions are granted (null until the first check), and a request
- * for them. Follows grants and removals made elsewhere, such as in Settings.
+ * for them. Follows grants and removals made elsewhere.
  */
 function useOriginsGranted(origins: readonly string[]): [boolean | null, () => void]
 {

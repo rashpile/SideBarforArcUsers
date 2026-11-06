@@ -1,21 +1,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  buildLlmsTxtCandidates,
   buildAiRequestBody,
-  DEFAULT_AI_RENAME_SETTINGS,
+  DEFAULT_AI_SETTINGS,
   extractAiResponseText,
   getHostPermissionPattern,
   normalizeAiEndpoint,
-  parseAiRenameSettings,
+  parseAiSettings,
   resolveAiEndpointCandidates,
-  sanitizeGeneratedTitle,
-  selectPageContent,
 } from '../../src/utils/aiConfig.ts';
 
 test('old AI settings without reasoning effort get medium', () =>
 {
-  const settings = parseAiRenameSettings(JSON.stringify({
+  const settings = parseAiSettings(JSON.stringify({
     baseUrl: 'https://example.com/v1',
     apiKey: 'key',
     model: 'model',
@@ -24,13 +21,13 @@ test('old AI settings without reasoning effort get medium', () =>
     autoRename: false,
   }));
   assert.equal(settings.reasoningEffort, 'medium');
-  assert.equal(DEFAULT_AI_RENAME_SETTINGS.reasoningEffort, 'medium');
+  assert.equal(DEFAULT_AI_SETTINGS.reasoningEffort, 'medium');
 });
 
 test('a Responses request uses 100 max output tokens and a reasoning object', () =>
 {
   const body = buildAiRequestBody(
-    { ...DEFAULT_AI_RENAME_SETTINGS, model: 'model', reasoningEffort: 'high' },
+    { ...DEFAULT_AI_SETTINGS, model: 'model', reasoningEffort: 'high' },
     'responses',
     'prompt'
   );
@@ -45,7 +42,7 @@ test('a Responses request uses 100 max output tokens and a reasoning object', ()
 test('a Chat Completions request uses 100 max completion tokens and reasoning_effort', () =>
 {
   const body = buildAiRequestBody(
-    { ...DEFAULT_AI_RENAME_SETTINGS, model: 'model', reasoningEffort: 'low' },
+    { ...DEFAULT_AI_SETTINGS, model: 'model', reasoningEffort: 'low' },
     'chat-completions',
     'prompt'
   );
@@ -59,7 +56,7 @@ test('a Chat Completions request uses 100 max completion tokens and reasoning_ef
 
 test('reasoning effort None sends no reasoning field', () =>
 {
-  const settings = { ...DEFAULT_AI_RENAME_SETTINGS, model: 'model', reasoningEffort: 'off' as const };
+  const settings = { ...DEFAULT_AI_SETTINGS, model: 'model', reasoningEffort: 'off' as const };
   assert.equal('reasoning' in buildAiRequestBody(settings, 'responses', 'prompt'), false);
   assert.equal('reasoning_effort' in buildAiRequestBody(settings, 'chat-completions', 'prompt'), false);
 });
@@ -167,51 +164,4 @@ test('parses Chat Completions text parts', () =>
 {
   const payload = { choices: [{ message: { content: [{ type: 'text', text: '标题' }] } }] };
   assert.equal(extractAiResponseText('chat-completions', payload), '标题');
-});
-
-test('the title loses paired quotes, extra whitespace and final punctuation', () =>
-{
-  assert.equal(sanitizeGeneratedTitle('  “Arc   AI 命名。”  '), 'Arc AI 命名');
-});
-
-test('rejects multi-line model output', () =>
-{
-  assert.throws(() => sanitizeGeneratedTitle('Title\nExplanation'), /exactly one line/);
-});
-
-test('rejects too-long model output', () =>
-{
-  assert.throws(() => sanitizeGeneratedTitle('a'.repeat(101)), /longer than 100/);
-});
-
-test('content priority is page Markdown, then matching llms content, then cleaned page text', () =>
-{
-  assert.equal(selectPageContent({ pageMarkdown: 'page', matchedLlmsMarkdown: 'llms', cleanedPage: 'dom' }).source, 'page-markdown');
-  assert.equal(selectPageContent({ matchedLlmsMarkdown: 'llms', cleanedPage: 'dom' }).source, 'llms-txt');
-  assert.equal(selectPageContent({ cleanedPage: 'dom' }).source, 'cleaned-page');
-  assert.equal(selectPageContent({ llmsSummary: 'site' }).source, 'metadata-only');
-});
-
-test('llms.txt candidates go from the specific directory up to the site root', () =>
-{
-  assert.deepEqual(
-    buildLlmsTxtCandidates('https://example.com/docs/guides/page.html?x=1'),
-    [
-      'https://example.com/docs/guides/llms.txt',
-      'https://example.com/docs/llms.txt',
-      'https://example.com/llms.txt',
-    ]
-  );
-});
-
-test('a token query in the page URL does not affect llms.txt path discovery', () =>
-{
-  assert.deepEqual(
-    buildLlmsTxtCandidates('https://example.com/docs/page?access_token=page-state'),
-    [
-      'https://example.com/docs/page/llms.txt',
-      'https://example.com/docs/llms.txt',
-      'https://example.com/llms.txt',
-    ]
-  );
 });

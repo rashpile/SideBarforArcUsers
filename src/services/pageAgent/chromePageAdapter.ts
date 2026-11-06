@@ -66,7 +66,7 @@ export class ChromePageAdapter implements PageAgentPageAdapter
   /** The page's readable text as JSON for the model: `{ url, title, text, note? }`. */
   async readText(tabId: number): Promise<string>
   {
-    const page = await runInTab(tabId, readReadablePage, [PAGE_TEXT_MAX_CHARS, 'main-first']);
+    const page = await runInTab(tabId, readReadablePage, [PAGE_TEXT_MAX_CHARS]);
     return formatPageText(page, PAGE_TEXT_MAX_CHARS);
   }
 

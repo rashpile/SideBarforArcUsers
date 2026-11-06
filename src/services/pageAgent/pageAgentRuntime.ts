@@ -1,7 +1,7 @@
 // The part of the page agent that talks to the model and the page: the run loop, the model client,
 // the page scripts. The side panel loads it on first use (see panelPageAgent.ts).
 
-import type { AiRenameSettings } from '../../utils/aiConfig.ts';
+import type { AiSettings } from '../../utils/aiConfig.ts';
 import { ChromePageAdapter } from './chromePageAdapter.ts';
 import type { PageAgentRunStart } from './pageAgentChats.ts';
 import { PageAgentApiClient } from './pageAgentModelClient.ts';
@@ -29,7 +29,7 @@ export class PageAgentRuntime
   }
 
   /** A run with the AI settings of the moment the user sent the request. */
-  createRun(start: PageAgentRunStart<AiRenameSettings>): PageAgentRun
+  createRun(start: PageAgentRunStart<AiSettings>): PageAgentRun
   {
     const switches = new PageAgentPluginSwitches(start.settings.agentPlugins);
     return new PageAgentRun({

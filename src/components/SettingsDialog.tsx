@@ -10,11 +10,11 @@ import { UnvisitedTabMarkerSetting } from '../utils/unvisitedTabMarker';
 import { SearchCollapseDuplicatesSetting } from '../utils/searchCollapseDuplicates';
 import { Eye, EyeOff } from 'lucide-react';
 import {
-  AiRenameSettings,
-  DEFAULT_AI_RENAME_SETTINGS,
+  AiSettings,
+  DEFAULT_AI_SETTINGS,
   getHostPermissionPattern,
 } from '../utils/aiConfig';
-import { OpenAiCompatibleClient } from '../services/aiRenameService';
+import { AiConnectionCheck } from '../services/aiConnectionCheck';
 import { PAGE_AGENT_PLUGINS, PAGE_SCRIPTS_PLUGIN_ID, PageAgentPluginSwitches } from '../services/pageAgent/pageAgentPlugins';
 import { PageScriptsWarning } from './pageAgent/PageScriptsWarning';
 import { UserScriptsNotice, requestUserScriptsPermission } from './pageAgent/UserScriptsNotice';
@@ -38,7 +38,7 @@ export interface SettingsValues {
   attentionMarkStyle: AttentionMarkStyle;
   markUnvisitedTabs: UnvisitedTabMarkerSetting;
   searchCollapseDuplicates: SearchCollapseDuplicatesSetting;
-  aiSettings: AiRenameSettings;
+  aiSettings: AiSettings;
 }
 
 interface SettingsDialogProps {
@@ -80,7 +80,6 @@ export function SettingsDialog({
     state: 'idle' | 'running' | 'success' | 'error';
     message: string;
   }>({ state: 'idle', message: '' });
-  const [hasPageAccess, setHasPageAccess] = useState(false);
 
   // Track previous isOpen to detect when dialog opens
   const wasOpen = useRef(false);
@@ -117,9 +116,6 @@ export function SettingsDialog({
       setShowApiKey(false);
       setAiValidation({ state: 'idle', message: '' });
       setActiveTab('appearance');
-      chrome.permissions.contains({ origins: ['http://*/*', 'https://*/*'] })
-        .then(setHasPageAccess)
-        .catch(() => setHasPageAccess(false));
     }
     wasOpen.current = isOpen;
   }, [isOpen, settings]);
@@ -158,7 +154,7 @@ export function SettingsDialog({
         throw new Error('Permission to access the API host was not granted');
       }
 
-      const result = await new OpenAiCompatibleClient().validate(tempAiSettings);
+      const result = await new AiConnectionCheck().run(tempAiSettings);
       const protocol = result.protocol === 'responses' ? 'Responses API' : 'Chat Completions';
       setAiValidation({
         state: 'success',
@@ -171,25 +167,6 @@ export function SettingsDialog({
         state: 'error',
         message: error instanceof Error ? error.message : 'Validation failed',
       });
-    }
-  };
-
-  /**
-   * Auto naming can't prompt for a permission in the background, so page read access is
-   * requested once, here in Settings.
-   */
-  const handleRequestPageAccess = async () =>
-  {
-    try
-    {
-      const granted = await chrome.permissions.request({
-        origins: ['http://*/*', 'https://*/*'],
-      });
-      setHasPageAccess(granted);
-    }
-    catch
-    {
-      setHasPageAccess(false);
     }
   };
 
@@ -632,7 +609,7 @@ export function SettingsDialog({
                 </button>
               </div>
               <p className="mt-1 text-gray-500 dark:text-gray-400">
-                Stored locally by the extension. It is never sent to the page being renamed.
+                Stored locally by the extension. It is never sent to the pages the page agent reads.
               </p>
             </div>
 
@@ -657,7 +634,7 @@ export function SettingsDialog({
                   value={tempAiSettings.protocol}
                   onChange={(event) => setTempAiSettings({
                     ...tempAiSettings,
-                    protocol: event.target.value as AiRenameSettings['protocol'],
+                    protocol: event.target.value as AiSettings['protocol'],
                   })}
                   className="w-full px-2 py-1.5 border rounded dark:bg-gray-900 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
                 >
@@ -676,7 +653,7 @@ export function SettingsDialog({
                 value={tempAiSettings.reasoningEffort}
                 onChange={(event) => setTempAiSettings({
                   ...tempAiSettings,
-                  reasoningEffort: event.target.value as AiRenameSettings['reasoningEffort'],
+                  reasoningEffort: event.target.value as AiSettings['reasoningEffort'],
                 })}
                 className="w-full px-2 py-1.5 border rounded dark:bg-gray-900 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
               >
@@ -734,61 +711,6 @@ export function SettingsDialog({
             </div>
 
             <div>
-              <label className="block font-medium mb-1 text-gray-700 dark:text-gray-300">
-                Prompt
-              </label>
-              <textarea
-                value={tempAiSettings.prompt}
-                onChange={(event) => setTempAiSettings({ ...tempAiSettings, prompt: event.target.value })}
-                rows={9}
-                className="w-full px-2 py-1.5 border rounded resize-y dark:bg-gray-900 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-              <p className="mt-1 text-gray-500 dark:text-gray-400">
-                URL, title, description and page content are appended automatically.
-              </p>
-            </div>
-
-            <div className="rounded border border-gray-200 dark:border-gray-700 p-2 space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="font-medium text-gray-700 dark:text-gray-300">Read web page content</div>
-                  <p className="text-gray-500 dark:text-gray-400">
-                    {hasPageAccess
-                      ? 'Allowed for HTTP and HTTPS pages'
-                      : 'Without access, AI naming only uses the saved title and URL'}
-                  </p>
-                  <p className="text-gray-500 dark:text-gray-400">
-                    Visible page text is sent to your configured API provider when a name is generated.
-                  </p>
-                </div>
-                {!hasPageAccess && (
-                  <button
-                    type="button"
-                    onClick={handleRequestPageAccess}
-                    className="shrink-0 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
-                  >
-                    Allow
-                  </button>
-                )}
-              </div>
-
-              <label className="flex items-center gap-2 text-gray-700 dark:text-gray-300 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={tempAiSettings.autoRename}
-                  onChange={(event) => setTempAiSettings({ ...tempAiSettings, autoRename: event.target.checked })}
-                  className="rounded border-gray-300 dark:border-gray-600"
-                />
-                Automatically rename newly pinned sites and bookmarks
-              </label>
-              {tempAiSettings.autoRename && !hasPageAccess && (
-                <p className="text-amber-600 dark:text-amber-400">
-                  Automatic naming will use only the original title and URL until page access is allowed.
-                </p>
-              )}
-            </div>
-
-            <div>
               <button
                 type="button"
                 onClick={handleValidateAi}
@@ -815,7 +737,7 @@ export function SettingsDialog({
 
             <button
               type="button"
-              onClick={() => setTempAiSettings({ ...DEFAULT_AI_RENAME_SETTINGS })}
+              onClick={() => setTempAiSettings({ ...DEFAULT_AI_SETTINGS })}
               className="text-blue-500 hover:text-blue-600"
             >
               Reset AI settings to defaults

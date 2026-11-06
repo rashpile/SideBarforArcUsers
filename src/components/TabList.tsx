@@ -959,7 +959,7 @@ type CloseAllMode = 'close' | 'archive';
 
 interface TabListProps {
   // Both resolve to the created Favorites, in the order of the request
-  onPin?: (url: string, title: string, faviconUrl?: string, tabId?: number) => Promise<PinnedSite | null>;
+  onPin?: (url: string, title: string, faviconUrl?: string) => Promise<PinnedSite | null>;
   onPinMultiple?: (pins: Array<{ url: string; title: string; faviconUrl?: string }>) => Promise<PinnedSite[]>;
   tabGroupDisplayOrder?: TabGroupDisplayOrder;
   onTabGroupDisplayOrderChange?: (order: TabGroupDisplayOrder) => void;
@@ -971,12 +971,11 @@ interface TabListProps {
   useSpaces?: boolean;  // When true, show "Add to Space" menu; when false, show "Add to Group" menu
   onSpaceDropTargetChange?: (spaceId: string | null) => void;
   onPerformAction?: (action: UndoableAction) => Promise<void>;
-  onBookmarkCreated?: (bookmark: chrome.bookmarks.BookmarkTreeNode, tabId?: number) => void;
   highlightTabAge?: boolean;  // "Highlight tabs by last use" is on; the look is set on the .arc-theme root
   markUnvisitedTabs?: boolean;  // "Mark unvisited tabs" is on
 }
 
-export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFirst', onTabGroupDisplayOrderChange, onExternalDropTargetChange: _onExternalDropTargetChange, resolveBookmarkDropTarget: _resolveBookmarkDropTarget, arcStyleEnabled = false, filterText = '', activeSpace: activeSpaceProp, useSpaces = true, onSpaceDropTargetChange: _onSpaceDropTargetChange, onPerformAction, onBookmarkCreated, highlightTabAge = false, markUnvisitedTabs = false }: TabListProps) =>
+export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFirst', onTabGroupDisplayOrderChange, onExternalDropTargetChange: _onExternalDropTargetChange, resolveBookmarkDropTarget: _resolveBookmarkDropTarget, arcStyleEnabled = false, filterText = '', activeSpace: activeSpaceProp, useSpaces = true, onSpaceDropTargetChange: _onSpaceDropTargetChange, onPerformAction, highlightTabAge = false, markUnvisitedTabs = false }: TabListProps) =>
 {
   const { spaces, activeSpace: activeSpaceFromContext, windowId } = useSpacesContext();
   const { tabs, closeTabs, activateTab, moveTab, groupTab, ungroupTab, createGroupWithTab, createTabInGroup, createTab, duplicateTab, sortTabs, sortGroupTabs, error } = useTabs(windowId ?? undefined);
@@ -1286,15 +1285,10 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
       await associateExistingTab(tab.id, newBookmark.id, targetSpace?.id);
     }
 
-    if (newBookmark)
-    {
-      onBookmarkCreated?.(newBookmark, tab.id);
-    }
-
     saveLastSelectedBookmarkFolder(folderId);
     closeAddToBookmarkDialog();
   }, [addToBookmarkDialog.tab, createBookmark, arcStyleEnabled, associateExistingTab, saveLastSelectedBookmarkFolder,
-    closeAddToBookmarkDialog, findSpaceForFolder, onBookmarkCreated]);
+    closeAddToBookmarkDialog, findSpaceForFolder]);
 
   const [exportConflictDialog, setExportConflictDialog] = useState<{
     isOpen: boolean;
@@ -2514,7 +2508,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     else
     {
       // Single tab - pin directly
-      const newPin = await onPin(clickedUrl, clickedTitle, clickedFaviconUrl, clickedTabId);
+      const newPin = await onPin(clickedUrl, clickedTitle, clickedFaviconUrl);
       if (arcStyleEnabled && newPin && clickedTabId !== undefined)
       {
         await associateExistingPinnedTab(clickedTabId, newPin.id);
@@ -2551,7 +2545,6 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
         {
           await associateExistingTab(tab.id, node.id, targetSpace?.id);
         }
-        if (node) onBookmarkCreated?.(node, tab.id);
       }
     }
 
@@ -2566,8 +2559,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
         {
           if (tab.url && tab.title)
           {
-            const { node } = await createBookmark(newFolder.id, tab.title, tab.url);
-            if (node) onBookmarkCreated?.(node, tab.id);
+            await createBookmark(newFolder.id, tab.title, tab.url);
           }
         }
       });
@@ -2577,7 +2569,7 @@ export const TabList = ({ onPin, onPinMultiple, tabGroupDisplayOrder = 'groupsFi
     clearSelection();
     setAddToBookmarkMultiDialog({ isOpen: false });
     showToast('Added to bookmarks');
-  }, [getTabSelectionInfo, visibleTabs, createBookmark, createFolder, saveLastSelectedBookmarkFolder, clearSelection, showToast, onBookmarkCreated,
+  }, [getTabSelectionInfo, visibleTabs, createBookmark, createFolder, saveLastSelectedBookmarkFolder, clearSelection, showToast,
     arcStyleEnabled, findSpaceForFolder, associateExistingTab]);
 
   // Open move to space dialog for multi-selection

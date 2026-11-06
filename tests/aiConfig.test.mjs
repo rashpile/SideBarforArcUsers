@@ -2,10 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  findMatchingLlmsLink,
   getHostPermissionPattern,
   isSameOriginHttpUrl,
-  parseAiRenameSettings,
+  parseAiSettings,
   parseSafeHttpUrl,
 } from '../src/utils/aiConfig.ts';
 
@@ -58,61 +57,6 @@ test('isSameOriginHttpUrl rejects any link when the page URL is invalid', () =>
   assert.equal(isSameOriginHttpUrl('https://a.test/page.md', 'not a url'), false);
 });
 
-const PAGE_URL = 'https://docs.a.test/guide/setup';
-const LLMS_URL = 'https://docs.a.test/guide/llms.txt';
-
-test('findMatchingLlmsLink resolves a relative matching link against the llms.txt URL', () =>
-{
-  const llmsText = '# Docs\n- [Setup](setup.md): how to set up';
-
-  assert.equal(findMatchingLlmsLink(llmsText, PAGE_URL, LLMS_URL), 'https://docs.a.test/guide/setup.md');
-});
-
-test('findMatchingLlmsLink returns an absolute same-origin matching link', () =>
-{
-  const llmsText = '- [Setup](https://docs.a.test/raw/guide/setup.md)';
-
-  assert.equal(findMatchingLlmsLink(llmsText, PAGE_URL, LLMS_URL), 'https://docs.a.test/raw/guide/setup.md');
-});
-
-test('findMatchingLlmsLink skips a matching link on another host', () =>
-{
-  const llmsText = '- [Setup](https://evil.test/guide/setup.md)';
-
-  assert.equal(findMatchingLlmsLink(llmsText, PAGE_URL, LLMS_URL), undefined);
-});
-
-test('findMatchingLlmsLink skips a matching link on localhost', () =>
-{
-  const llmsText = '- [Setup](http://localhost:8080/guide/setup.md)';
-
-  assert.equal(findMatchingLlmsLink(llmsText, PAGE_URL, LLMS_URL), undefined);
-});
-
-test('findMatchingLlmsLink skips a matching link on another port', () =>
-{
-  const llmsText = '- [Setup](https://docs.a.test:8443/guide/setup.md)';
-
-  assert.equal(findMatchingLlmsLink(llmsText, PAGE_URL, LLMS_URL), undefined);
-});
-
-test('findMatchingLlmsLink returns the same-origin match after a cross-origin match listed first', () =>
-{
-  const llmsText = [
-    '- [Setup](http://192.168.1.1/guide/setup.md)',
-    '- [Setup](/guide/setup.md)',
-  ].join('\n');
-
-  assert.equal(findMatchingLlmsLink(llmsText, PAGE_URL, LLMS_URL), 'https://docs.a.test/guide/setup.md');
-});
-
-test('findMatchingLlmsLink returns undefined for a same-origin link to another page', () =>
-{
-  const llmsText = '- [Install](/guide/install.md)';
-
-  assert.equal(findMatchingLlmsLink(llmsText, PAGE_URL, LLMS_URL), undefined);
-});
-
 const HTTPS_REQUIRED = { message: 'Base URL must use HTTPS (HTTP is allowed only for localhost)' };
 
 test('parseSafeHttpUrl accepts HTTPS for a public host and a LAN address', () =>
@@ -156,33 +100,71 @@ test('parseSafeHttpUrl still rejects schemes other than HTTP and HTTPS', () =>
   assert.throws(() => parseSafeHttpUrl('ftp://localhost/v1'), { message: 'Base URL must use HTTP or HTTPS' });
 });
 
-test('getHostPermissionPattern applies the HTTPS rule that Validate and every rename run first', () =>
+test('getHostPermissionPattern applies the HTTPS rule that Validate and the page agent run first', () =>
 {
   assert.throws(() => getHostPermissionPattern('http://192.168.1.1:8080/v1'), HTTPS_REQUIRED);
   assert.equal(getHostPermissionPattern('http://localhost:11434/v1'), 'http://localhost:11434/*');
 });
 
-test('parseAiRenameSettings gives settings saved before plugins existed no plugin switches', () =>
+test('parseAiSettings gives settings saved before plugins existed no plugin switches', () =>
 {
-  const settings = parseAiRenameSettings(JSON.stringify({ baseUrl: 'https://a.test/v1', model: 'm', acceptsImages: true }));
+  const settings = parseAiSettings(JSON.stringify({ baseUrl: 'https://a.test/v1', model: 'm', acceptsImages: true }));
 
   assert.deepEqual(settings.agentPlugins, {});
   assert.equal(settings.acceptsImages, true);
 });
 
-test('parseAiRenameSettings keeps boolean plugin switches and drops other values', () =>
+test('parseAiSettings keeps boolean plugin switches and drops other values', () =>
 {
-  const settings = parseAiRenameSettings(JSON.stringify({
+  const settings = parseAiSettings(JSON.stringify({
     agentPlugins: { 'video-transcripts': false, other: true, text: 'false', number: 0, none: null, nested: {} },
   }));
 
   assert.deepEqual(settings.agentPlugins, { 'video-transcripts': false, other: true });
 });
 
-test('parseAiRenameSettings replaces plugin switches that are not an object', () =>
+test('parseAiSettings replaces plugin switches that are not an object', () =>
 {
   for (const agentPlugins of [null, 'video-transcripts', true, 1, [true, false]])
   {
-    assert.deepEqual(parseAiRenameSettings(JSON.stringify({ agentPlugins })).agentPlugins, {}, JSON.stringify(agentPlugins));
+    assert.deepEqual(parseAiSettings(JSON.stringify({ agentPlugins })).agentPlugins, {}, JSON.stringify(agentPlugins));
   }
+});
+
+test('parseAiSettings keeps the API settings of a value stored with the old prompt and autoRename', () =>
+{
+  const stored = {
+    baseUrl: 'https://a.test/v1',
+    apiKey: 'sk-saved-key',
+    model: 'saved-model',
+    protocol: 'chat-completions',
+    reasoningEffort: 'high',
+    prompt: 'Name this page',
+    autoRename: true,
+    acceptsImages: true,
+    agentPlugins: { 'video-transcripts': false },
+  };
+
+  const settings = parseAiSettings(JSON.stringify(stored));
+
+  assert.deepEqual(
+    {
+      baseUrl: settings.baseUrl,
+      apiKey: settings.apiKey,
+      model: settings.model,
+      protocol: settings.protocol,
+      reasoningEffort: settings.reasoningEffort,
+      acceptsImages: settings.acceptsImages,
+      agentPlugins: settings.agentPlugins,
+    },
+    {
+      baseUrl: 'https://a.test/v1',
+      apiKey: 'sk-saved-key',
+      model: 'saved-model',
+      protocol: 'chat-completions',
+      reasoningEffort: 'high',
+      acceptsImages: true,
+      agentPlugins: { 'video-transcripts': false },
+    }
+  );
 });
