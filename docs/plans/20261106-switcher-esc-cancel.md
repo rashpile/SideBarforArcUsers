@@ -144,16 +144,16 @@
 - Modify: `docs/changelog.md`
 - Modify: `src/data/changelog.ts`
 
-- [ ] README Keyboard table: the Tab Switcher row says `Esc` or `Cmd+.` closes the list without
+- [x] README Keyboard table: the Tab Switcher row says `Esc` or `Cmd+.` closes the list without
       switching; the Space Switcher row says "the same"; add one sentence under the table that on macOS
       Cmd+Esc often doesn't reach Chrome (the system or another app takes it), so with Cmd held use
       `Cmd+.` (`Ctrl+.` with Ctrl)
-- [ ] README Search popup "Keys" line: `Esc`, `Cmd+.` / `Ctrl+.`, a click outside or switching to another
+- [x] README Search popup "Keys" line: `Esc`, `Cmd+.` / `Ctrl+.`, a click outside or switching to another
       app closes it
-- [ ] `docs/changelog.md` Latest Version: a "Changed" entry for #87 with the repro finding and the new key
-- [ ] `src/data/changelog.ts` `2.0.388`: one What's New line
-- [ ] `docs/state-reference.md`: no new storage keys, leave it unchanged
-- [ ] move this plan to `docs/plans/completed/`
+- [x] `docs/changelog.md` Latest Version: a "Changed" entry for #87 with the repro finding and the new key
+- [x] `src/data/changelog.ts` `2.0.388`: one What's New line
+- [x] `docs/state-reference.md`: no new storage keys, leave it unchanged
+- [x] move this plan to `docs/plans/completed/` (skipped - the harness moves the plan after all phases finish)
 
 ## Known limitations
 

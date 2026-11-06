@@ -201,7 +201,7 @@ One search field over the page that finds open tabs, bookmarks, archived pages a
 - A page shows once. Results with the same title and the same address, ignoring what follows `?` or `#`, are one row, such as an open Google Sheets tab and archived copies of it with another `gid`. The row kept is the open tab, else the bookmark, else the archived page, else the recently closed tab; of two of one kind, the more recently used. Only the results listed count, so in This Space an open tab of another window or Space doesn't hide the page's archived copy. Nothing is removed from the Archive, bookmarks or Recently Closed. Turn it off with **Search popup: one row per page** in Settings
 - Picking a result does what a click on it in the sidebar does. An open tab comes forward, also in another window. A bookmark opens as your **Open bookmark** setting says: in Arc style it switches to the bookmark's tab, or opens one. An archived page opens in a new tab and leaves the Archive. A recently closed tab reopens in the current window, in its Space. A result of another Space switches to that Space
 - When no result fits, press `Shift+Enter` to search the web for the text in the field with your default search engine. The search opens in a new tab of the window the popup was opened from, in that window's active Space, and the popup closes. While the field has text, **Search the web ⇧↵** shows under the results, `Shift+Enter` on Windows and Linux; a click on it does the same. Text that looks like an address is searched too, not opened. With an empty field `Shift+Enter` does nothing
-- Keys: hold the modifier and press the shortcut again to move down a row, then release the modifier to open it. Released without a second press, the popup stays open for typing. Arrow keys and `Enter`, or a click, open a row too. `Esc`, a click outside the popup or switching to another app closes it
+- Keys: hold the modifier and press the shortcut again to move down a row, then release the modifier to open it. Released without a second press, the popup stays open for typing. Arrow keys and `Enter`, or a click, open a row too. `Esc`, `Cmd+.` / `Ctrl+.`, a click outside the popup or switching to another app closes it
 - The results are those of the moment the popup opened. A tab opened or closed while it is open shows the next time
 
 ### Keyboard
@@ -211,12 +211,14 @@ One search field over the page that finds open tabs, bookmarks, archived pages a
 | `Cmd+Shift+E` / `Ctrl+Shift+E` | Open the sidebar |
 | `Cmd+Shift+<` / `Ctrl+Shift+<` | Previous tab in this window's history |
 | `Cmd+Shift+>` / `Ctrl+Shift+>` | Next tab in history |
-| not set | Tab Switcher: hold the modifier, press to list the Space's tabs (its Favorite tabs included) by last use, press again to move, release to switch |
+| not set | Tab Switcher: hold the modifier, press to list the Space's tabs (its Favorite tabs included) by last use, press again to move, release to switch; `Esc` or `Cmd+.` closes the list without switching |
 | not set | Space Switcher: the same for Spaces |
 | not set | Search popup: one field over the page that finds open tabs, bookmarks, archived pages and recently closed tabs; press again to move down, release to open (see Search popup) |
 | not set | Switch to Space 1 … 9: the Space at that position in the Space bar, opened as by a click on it |
 
 Set or change shortcuts in `chrome://extensions/shortcuts`.
+
+On macOS `Cmd+Esc` often doesn't reach Chrome, because the system or another app takes it. While you hold `Cmd`, close a switcher or the search popup with `Cmd+.` instead; `Ctrl+.` does the same while you hold `Ctrl`.
 
 `Cmd+1` … `Cmd+9` on macOS and `Ctrl+1` … `Ctrl+9` on Windows and Linux are Chrome's own shortcuts for its tabs, so on macOS use `Control+1` … `Control+9` for Switch to Space. macOS takes `Control+1` … `Control+9` for "Switch to Desktop N" when those shortcuts are on in System Settings > Keyboard > Keyboard Shortcuts > Mission Control, so turn them off first.
 
