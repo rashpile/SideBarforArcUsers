@@ -177,11 +177,11 @@
 - Modify: `search.html`
 - Modify: `src/searchPopup/searchPopup.css`
 
-- [ ] handle the `searchWeb` action in `#handleKeydown` with `#searchWeb()` (trimmed text, once, sets `#finished`, sends the message)
-- [ ] add the `.web-search` footer button with its key hint (`⇧↵` on Mac, `Shift+Enter` elsewhere) to `search.html`, wire it in `SearchPopupView` (`keepFocusOnPress`, click → `onSearchWeb`, `renderWebSearch(hasText)`)
-- [ ] show the button only while the trimmed field is non-empty (on `input`, and hidden at start)
-- [ ] style it in `searchPopup.css` like the Spaces pill, right-aligned, light and dark
-- [ ] run `make lint && make test && make build` - must pass before Task 4
+- [x] handle the `searchWeb` action in `#handleKeydown` with `#searchWeb()` (trimmed text, once, sets `#finished`, sends the message)
+- [x] add the `.web-search` footer button with its key hint (`⇧↵` on Mac, `Shift+Enter` elsewhere) to `search.html`, wire it in `SearchPopupView` (`keepFocusOnPress`, click → `onSearchWeb`, `renderWebSearch(hasText)`)
+- [x] show the button only while the trimmed field is non-empty (on `input`, and hidden at start)
+- [x] style it in `searchPopup.css` like the Spaces pill, right-aligned, light and dark
+- [x] run `make lint && make test && make build` - must pass before Task 4
 
 ### Task 4: Verify acceptance criteria
 
