@@ -114,6 +114,21 @@ test('with no window at start it waits for the first window event', async () =>
   assert.equal(state.resolved, true);
 });
 
+test('a window created while the count is pending is still seen', async () =>
+{
+  let resolveCount;
+  const windowCount = new Promise((resolve) => { resolveCount = resolve; });
+  const { clock, windowCreated, state } = setup({ windowCount });
+
+  windowCreated.fire();
+  resolveCount(0);
+  await settle();
+
+  clock.advance(QUIET_MS);
+  await settle();
+  assert.equal(state.resolved, true);
+});
+
 test('resolves quietMs after the last creation', async () =>
 {
   const { clock, windowCreated, tabCreated, state } = setup();

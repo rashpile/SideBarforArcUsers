@@ -5,7 +5,8 @@
 // Window and tab creations this close together are the browser still restoring its session
 export const RESTORE_QUIET_MS = 500;
 
-// Counted from the first window, so a user who opens tabs right away doesn't hold the startup
+// Counted from the first window (or from a failed window count), so a user who opens tabs right
+// away doesn't hold the startup
 export const RESTORE_MAX_WAIT_MS = 5000;
 
 export interface RestoredWindowsWaitDeps
@@ -33,7 +34,9 @@ export class RestoredWindowsWait
 
   /**
    * Resolves once a normal window exists and no window or tab has been created for `quietMs`,
-   * or `maxWaitMs` after the first window. Without a window it waits for one. Never rejects.
+   * or `maxWaitMs` after the first window. Without a window it waits for one. If counting the
+   * windows fails, it acts as if a window existed: it ends `quietMs` after the last creation, at the
+   * latest `maxWaitMs` after the failure. Never rejects.
    */
   wait(): Promise<void>
   {

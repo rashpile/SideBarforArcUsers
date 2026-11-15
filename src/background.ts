@@ -437,7 +437,8 @@ const restoredWindowsWait = new RestoredWindowsWait({
 
 // sameBrowserSession, once the tabs the startup restore matches stored records against exist. At
 // browser start the worker can run before Chrome has restored any window; a worker restart within
-// the browser session finds its windows in place and doesn't wait.
+// the browser session finds its windows in place and doesn't wait. A failed window count also ends
+// the wait, possibly before any tab exists.
 const startupTabsReady: Promise<boolean> = sameBrowserSession.then(async (same) =>
 {
   if (!same) await restoredWindowsWait.wait();
