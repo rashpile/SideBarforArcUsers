@@ -8,6 +8,12 @@ import { ManagerId, RoutedManager } from '../proxies/messageRouting';
 import { SpaceWindowStateApi, SPACE_WINDOW_STATE_CHANGED } from '../shared/spaceWindowStateApi';
 import { SpaceWindowState, DEFAULT_WINDOW_STATE } from '../../utils/spaceMessages';
 
+export interface SpaceWindowStateDeps
+{
+  /** A window's active Space changed; not called when the same Space is set again. */
+  onActiveSpaceChanged?(windowId: number, previousSpaceId: string, nextSpaceId: string): void;
+}
+
 export class SpaceWindowStateManager implements RoutedManager, SpaceWindowStateApi
 {
   static STORAGE_KEY_PREFIX = 'spaceWindowState_';
@@ -15,6 +21,12 @@ export class SpaceWindowStateManager implements RoutedManager, SpaceWindowStateA
   readonly managerId = ManagerId.SPACE_WINDOW_STATE;
 
   #states = new Map<number, SpaceWindowState>();  // windowId -> state
+  #deps: SpaceWindowStateDeps;
+
+  constructor(deps: SpaceWindowStateDeps = {})
+  {
+    this.#deps = deps;
+  }
 
   private getStorageKey(windowId: number): string
   {
@@ -67,6 +79,10 @@ export class SpaceWindowStateManager implements RoutedManager, SpaceWindowStateA
     const state = this.getState(windowId);
     const newState = { ...state, activeSpaceId: spaceId };
     this.saveState(windowId, newState, originId);
+    if (state.activeSpaceId !== spaceId)
+    {
+      this.#deps.onActiveSpaceChanged?.(windowId, state.activeSpaceId, spaceId);
+    }
     return newState;
   }
 

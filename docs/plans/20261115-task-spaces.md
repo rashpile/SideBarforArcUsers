@@ -224,13 +224,14 @@ One Space failing (any thrown error) is logged and the run goes on with the next
 - Create: `src/stores/taskSpaceLastUse.ts`
 - Modify: `src/managers/impl/spaceWindowStateManager.ts`
 - Modify: `src/background.ts`
+- ➕ Modify: `src/managers/impl/spaceManager.ts` (`getTaskSpaceIds()` for `retain`)
 - Create: `tests/taskSpaceLastUse.test.mjs`
 
-- [ ] create `src/stores/taskSpaceLastUse.ts` modelled on `bookmarkRecencyStore.ts`: `TASK_SPACE_LAST_USE_KEY = 'taskSpaceLastUsedAt'`; read-only view class `TaskSpaceLastUse` (`lastUsedAt(id)`, `EMPTY`) for the sidebar and the archiver; background writer `TaskSpaceLastUseStore` (storage and clock injected, serialized read-modify-write) with `read()`, `touch(spaceId)` (skipped when the stored value is less than 60 s older than now), `retain(taskSpaceIds)`; junk values in storage read as absent
-- [ ] `SpaceWindowStateManager`: optional constructor callback `onActiveSpaceChanged(windowId, previousSpaceId, nextSpaceId)`, called from `setActiveSpace` only when the id changes
-- [ ] `background.ts`: create the store; touch both Spaces from `onActiveSpaceChanged` when they are Task Spaces (live list); touch the window's active Space in `handleTabActivation` when it is a Task Space; pass `onRestored` → `touch` to `SpaceManager`; `retain` with the task ids of both lists on a `spaces` / `archivedTaskSpaces` change, chained on `managerLoadPromise` and skipped when the Space list is empty
-- [ ] write tests for `TaskSpaceLastUseStore`: first touch writes; touch within 60 s doesn't write; touch after 60 s updates; two concurrent touches of different ids both land; `retain` drops other ids; junk stored value reads as empty
-- [ ] run `make lint && make test` - must pass before task 4
+- [x] create `src/stores/taskSpaceLastUse.ts` modelled on `bookmarkRecencyStore.ts`: `TASK_SPACE_LAST_USE_KEY = 'taskSpaceLastUsedAt'`; read-only view class `TaskSpaceLastUse` (`lastUsedAt(id)`, `EMPTY`) for the sidebar and the archiver; background writer `TaskSpaceLastUseStore` (storage and clock injected, serialized read-modify-write) with `read()`, `touch(spaceId)` (skipped when the stored value is less than 60 s older than now), `retain(taskSpaceIds)`; junk values in storage read as absent
+- [x] `SpaceWindowStateManager`: optional constructor callback `onActiveSpaceChanged(windowId, previousSpaceId, nextSpaceId)`, called from `setActiveSpace` only when the id changes
+- [x] `background.ts`: create the store; touch both Spaces from `onActiveSpaceChanged` when they are Task Spaces (live list); touch the window's active Space in `handleTabActivation` when it is a Task Space; pass `onRestored` → `touch` to `SpaceManager`; `retain` with the task ids of both lists on a `spaces` / `archivedTaskSpaces` change, chained on `managerLoadPromise` and skipped when the Space list is empty
+- [x] write tests for `TaskSpaceLastUseStore`: first touch writes; touch within 60 s doesn't write; touch after 60 s updates; two concurrent touches of different ids both land; `retain` drops other ids; junk stored value reads as empty
+- [x] run `make lint && make test` - must pass before task 4
 
 ### Task 4: New Task Space in the (+) menu
 
@@ -260,7 +261,7 @@ One Space failing (any thrown error) is logged and the run goes on with the next
 - Modify: `tests/spaceNumberCommand.test.mjs`
 
 - [ ] create `spaceBarItems(spaces, activeSpaceId, lastUse, now)` in `src/utils/spaceBarItems.ts` (10-minute window constant) returning `{ regular, temporary, nextExpiryAt }` per Technical Details
-- [ ] create `useSpaceBarItems()`: reads Spaces and the active Space from `SpacesContext`, last use with `useChromeLocalStorage(TASK_SPACE_LAST_USE_KEY, {})` wrapped in `TaskSpaceLastUse`, owns `now` and a `setTimeout` to `nextExpiryAt` that re-renders, returns the helper's result
+- [ ] create `useSpaceBarItems()`: reads Spaces and the active Space from `SpacesContext`, last use with `useChromeLocalStorage(TASK_SPACE_LAST_USE_KEY, {})` wrapped with `TaskSpaceLastUse.fromStored` (drops junk entries), owns `now` and a `setTimeout` to `nextExpiryAt` that re-renders, returns the helper's result
 - [ ] `SpaceIcon`: optional prop that limits its drop target to TAB and URL (no SPACE), so dropping a regular Space on a temporary icon can't reorder the list around a hidden Task Space
 - [ ] `SpaceBar`: sortable strip from `regular` only (sortable ids from `regular`); when `temporary` is non-empty, a thin vertical divider then non-draggable `SpaceIcon`s with the TAB/URL-only drop target, same context menu, `canDelete` from all live Spaces; auto-scroll to the active icon keeps working
 - [ ] `SwipeableContainer` in `App.tsx`: swipe over `[...regular, ...temporary]` from `useSpaceBarItems()`

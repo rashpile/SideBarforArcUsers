@@ -171,6 +171,12 @@ export class SpaceManager implements RoutedManager, SpaceManagerApi
     return this.lists.archived;
   }
 
+  /** Background-internal: ids of every Task Space, live and archived. */
+  getTaskSpaceIds(): string[]
+  {
+    return this.lists.taskSpaceIds();
+  }
+
   /**
    * originId identifies the context that asked for this change, so the
    * broadcast below can be recognised as an echo by whoever sent it. Absent

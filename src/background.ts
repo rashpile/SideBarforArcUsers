@@ -17,6 +17,8 @@ import { TabAssociationReadiness } from './utils/tabAssociationReadiness';
 import { resolveActiveSpaceId } from './utils/spaceSelection';
 import { findParkedReplacementTab, getEffectiveTabUrl, parseParkedTabUrl } from './utils/parkedTabAssociation';
 import { BookmarkRecencyStore } from './stores/bookmarkRecencyStore';
+import { TaskSpaceLastUseStore } from './stores/taskSpaceLastUse';
+import { isTaskSpace } from './utils/taskSpaces';
 import { BrowserSessionMarker } from './stores/browserSessionMarker';
 import { TabActivityTracker } from './stores/tabActivityTracker';
 import { queryOpenTabs, readTabActivityRecording, TabAutoArchiver } from './services/tabAutoArchiver';
@@ -178,8 +180,36 @@ async function setActiveTabAndSpace(
 // Initialize trackers
 // =============================================================================
 
-const spaceStateManager = new SpaceWindowStateManager();
-const spaceManager = new SpaceManager();
+// Last use of each Task Space, for its temporary Space bar icon and auto-archive. Background is
+// the only writer; the sidebar reads the key directly.
+const taskSpaceLastUseStore = new TaskSpaceLastUseStore({
+  get: (key) => chrome.storage.local.get(key),
+  set: (values) => chrome.storage.local.set(values),
+});
+
+// Records only Task Spaces of the live list. Waits for the load: before it the list is empty and
+// a Task Space would read as unknown.
+function recordTaskSpaceUse(spaceId: string): void
+{
+  void managerLoadPromise
+    .then(() =>
+    {
+      const space = spaceManager.getSpaces().find(candidate => candidate.id === spaceId);
+      if (space && isTaskSpace(space)) return taskSpaceLastUseStore.touch(spaceId);
+    })
+    .catch((error) => console.error('[TaskSpaceLastUse] failed to record use:', error));
+}
+
+const spaceStateManager = new SpaceWindowStateManager({
+  // Leaving a Task Space counts as use too: its temporary icon stays for a while after the switch
+  onActiveSpaceChanged: (_windowId, previousSpaceId, nextSpaceId) =>
+  {
+    recordTaskSpaceUse(previousSpaceId);
+    recordTaskSpaceUse(nextSpaceId);
+  },
+});
+// A restored Task Space starts a fresh period, or the next archive run would take it again
+const spaceManager = new SpaceManager({ onRestored: recordTaskSpaceUse });
 // setActiveTabAndSpace and getSpaceForTab are orchestration living here, so
 // the manager takes them rather than importing them back out of this file -
 // see TabHistoryDeps in managers/impl/tabHistoryManager.ts.
@@ -625,6 +655,21 @@ chrome.storage.onChanged.addListener((changes, areaName) =>
     .catch((error) => console.error('[RecentlyClosedManager] failed to drop deleted Spaces\' records:', error));
 });
 
+// A deleted Task Space, live or archived, takes its last-use entry with it
+chrome.storage.onChanged.addListener((changes, areaName) =>
+{
+  if (areaName !== 'local') return;
+  if (!(SPACES_STORAGE_KEY in changes) && !(ARCHIVED_TASK_SPACES_STORAGE_KEY in changes)) return;
+  void managerLoadPromise
+    .then(() =>
+    {
+      // No Spaces means they aren't known, not that every Task Space is gone
+      if (spaceManager.getSpaces().length === 0) return;
+      return taskSpaceLastUseStore.retain(spaceManager.getTaskSpaceIds());
+    })
+    .catch((error) => console.error('[TaskSpaceLastUse] failed to drop deleted Task Spaces:', error));
+});
+
 // =============================================================================
 // Tab auto-archive - closes tabs unused for the "Archive tabs
 // after" period, saving regular tabs to their Space's asd_Archive folder first.
@@ -981,6 +1026,9 @@ async function handleTabActivation(windowId: number, tabId: number): Promise<voi
       spaceSwitched = true;
     }
   }
+
+  // A tab switch inside a Task Space is use of it, though the window's Space stays the same
+  recordTaskSpaceUse(spaceStateManager.getActiveSpace(windowId));
 
   // Announce the activation so the sidebar can scroll the tab into view.
   // The sidebar decides whether to scroll based on the follow mode and spaceSwitched.
