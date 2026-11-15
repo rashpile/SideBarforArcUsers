@@ -1,4 +1,5 @@
-// SpaceManager - owns Space definitions (load, migrate, save).
+// SpaceManager - owns Space definitions (load, migrate, save): the live list
+// (`spaces`) and archived Task Spaces (`archivedTaskSpaces`).
 //
 // Background-side implementation of shared/spaceManagerApi.ts. The sidebar
 // reaches it through proxies/spaceManagerProxy.ts; the routing vocabulary is
@@ -6,7 +7,8 @@
 
 import { ManagerId, RoutedManager } from '../proxies/messageRouting';
 import { SpaceManagerApi, SPACES_CHANGED } from '../shared/spaceManagerApi';
-import { SPACES_STORAGE_KEY, Space } from '../../utils/spaceMessages';
+import { ARCHIVED_TASK_SPACES_STORAGE_KEY, SPACES_STORAGE_KEY, Space } from '../../utils/spaceMessages';
+import { SpaceLists } from '../../utils/spaceLists';
 
 // Walk bookmark tree matching path string as a prefix chain to build segment array.
 // Returns the title segments (one per folder level) or null if not found.
@@ -39,11 +41,23 @@ function findFolderSegmentsByPath(
   return null;
 }
 
+export interface SpaceManagerDeps
+{
+  /** A Task Space came back from the archived list. */
+  onRestored?(spaceId: string): void;
+}
+
 export class SpaceManager implements RoutedManager, SpaceManagerApi
 {
   readonly managerId = ManagerId.SPACES;
 
-  private spaces: Space[] = [];
+  private lists = SpaceLists.empty();
+  private readonly deps: SpaceManagerDeps;
+
+  constructor(deps: SpaceManagerDeps = {})
+  {
+    this.deps = deps;
+  }
 
   /** See RoutedManager.dispatch. */
   async dispatch(method: string, message: Record<string, unknown>): Promise<unknown>
@@ -53,8 +67,17 @@ export class SpaceManager implements RoutedManager, SpaceManagerApi
       case 'getSpaces':
         return this.getSpaces();
 
+      case 'getArchivedTaskSpaces':
+        return this.getArchivedTaskSpaces();
+
       case 'updateSpaces':
         return this.updateSpaces(message.spaces as Space[], message.senderId as string | undefined);
+
+      case 'restoreTaskSpace':
+        return this.restoreTaskSpace(message.spaceId as string, message.senderId as string | undefined);
+
+      case 'deleteArchivedTaskSpace':
+        return this.deleteArchivedTaskSpace(message.spaceId as string, message.senderId as string | undefined);
 
       default:
         throw new Error(`${this.managerId}: unknown method "${method}"`);
@@ -63,10 +86,11 @@ export class SpaceManager implements RoutedManager, SpaceManagerApi
 
   async load(): Promise<void>
   {
-    const result = await chrome.storage.local.get([SPACES_STORAGE_KEY]);
+    const result = await chrome.storage.local.get([SPACES_STORAGE_KEY, ARCHIVED_TASK_SPACES_STORAGE_KEY]);
     let spaces: Space[] = result[SPACES_STORAGE_KEY] || [];
     spaces = await this.migrate(spaces);
-    this.spaces = spaces;
+    const archived = result[ARCHIVED_TASK_SPACES_STORAGE_KEY];
+    this.lists = new SpaceLists(spaces, Array.isArray(archived) ? archived : []);
   }
 
   /**
@@ -137,9 +161,14 @@ export class SpaceManager implements RoutedManager, SpaceManagerApi
     return resolved;
   }
 
-  getSpaces(): Space[]
+  getSpaces(): readonly Space[]
   {
-    return this.spaces;
+    return this.lists.live;
+  }
+
+  getArchivedTaskSpaces(): readonly Space[]
+  {
+    return this.lists.archived;
   }
 
   /**
@@ -156,13 +185,22 @@ export class SpaceManager implements RoutedManager, SpaceManagerApi
    * the UI allows another space edit in the same window, so there is no
    * newer optimistic write here for this to clobber. See the shared-storage
    * decision doc, section 4, for the general hazard this sidesteps.
+   *
+   * It is also set when the list still held an archived Task Space, which a
+   * mirror that missed the archive broadcast sends back; the Space is dropped
+   * and the sender's mirror needs correcting the same way.
    */
-  async updateSpaces(spaces: Space[], originId?: string): Promise<Space[]>
+  async updateSpaces(spaces: Space[], originId?: string): Promise<readonly Space[]>
   {
-    const { spaces: resolved, changed: migrated } = await this.resolveMissingSegments(spaces);
+    const { spaces: resolved, changed: segmentsResolved } = await this.resolveMissingSegments(spaces);
 
-    this.spaces = resolved;
-    chrome.storage.local.set({ [SPACES_STORAGE_KEY]: resolved });
+    // After the await: an archive that landed while the bookmark tree was read must
+    // still keep its Space out of the live list
+    this.lists = this.lists.withLive(resolved);
+    const live = this.lists.live;
+    const migrated = segmentsResolved || live.length !== resolved.length;
+
+    chrome.storage.local.set({ [SPACES_STORAGE_KEY]: live });
 
     // DEV-only: confirms background actually applied this update to its own
     // in-memory list, at the moment it happens - for manually verifying the
@@ -171,23 +209,78 @@ export class SpaceManager implements RoutedManager, SpaceManagerApi
     // console (a context's runtime.sendMessage doesn't loop back to itself).
     if (import.meta.env.DEV)
     {
-      console.log('[SpaceManager] updateSpaces applied:', resolved.map(s => `${s.name} (${s.id})`));
+      console.log('[SpaceManager] updateSpaces applied:', live.map(s => `${s.name} (${s.id})`));
     }
 
-    // Notify sidebar of the change. senderId is echoed back so the context
-    // that requested the change can ignore its own echo - see CONTEXT_ID in
-    // proxies/messageRouting.ts. migrated overrides that: it tells the
-    // originating proxy this is NOT a plain echo of what it sent, apply it.
+    // migrated tells the originating proxy this is NOT a plain echo of what
+    // it sent, apply it - see broadcast().
+    this.broadcast(originId, migrated);
+
+    return live;
+  }
+
+  /**
+   * Background-internal: moves live Task Spaces to the archived list, stamped
+   * with `now`. Regular Spaces and unknown ids are ignored. Resolves once both
+   * lists are stored, so the caller can close the Space's tabs afterwards.
+   */
+  async archiveTaskSpaces(ids: Iterable<string>, now: number): Promise<void>
+  {
+    const next = this.lists.archive(ids, now);
+    if (next === this.lists) return;
+
+    this.lists = next;
+    await this.storeBothLists();
+    this.broadcast(undefined, false);
+  }
+
+  async restoreTaskSpace(spaceId: string, originId?: string): Promise<void>
+  {
+    const next = this.lists.restore(spaceId);
+    if (next === this.lists) return;
+
+    this.lists = next;
+    await this.storeBothLists();
+    this.broadcast(originId, false);
+    this.deps.onRestored?.(spaceId);
+  }
+
+  async deleteArchivedTaskSpace(spaceId: string, originId?: string): Promise<void>
+  {
+    const next = this.lists.forgetArchived(spaceId);
+    if (next === this.lists) return;
+
+    this.lists = next;
+    await chrome.storage.local.set({ [ARCHIVED_TASK_SPACES_STORAGE_KEY]: next.archived });
+    this.broadcast(originId, false);
+  }
+
+  // One set() call, so a Space moving between the lists is never stored in both or neither
+  private async storeBothLists(): Promise<void>
+  {
+    await chrome.storage.local.set({
+      [SPACES_STORAGE_KEY]: this.lists.live,
+      [ARCHIVED_TASK_SPACES_STORAGE_KEY]: this.lists.archived,
+    });
+  }
+
+  /**
+   * Tells every sidebar both lists changed. senderId is echoed back so the
+   * context that requested the change can ignore its own echo - see
+   * CONTEXT_ID in proxies/messageRouting.ts. Absent for background-internal
+   * changes, whose broadcasts are news to everyone.
+   */
+  private broadcast(originId: string | undefined, migrated: boolean): void
+  {
     chrome.runtime.sendMessage({
       action: SPACES_CHANGED,
-      spaces: resolved,
+      spaces: this.lists.live,
+      archived: this.lists.archived,
       senderId: originId,
       migrated,
     }).catch(() =>
     {
       // Sidepanel may not be open - ignore error
     });
-
-    return resolved;
   }
 }

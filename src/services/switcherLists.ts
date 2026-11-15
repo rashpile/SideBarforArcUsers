@@ -103,7 +103,7 @@ export function buildTabCards(tabs: TabWithLastAccess[], spaces: WindowSpaces): 
 // The current Space first, then the others by their most recently used tab in
 // this window; Spaces without tabs keep their sidebar order (sort is stable)
 export function buildSpaceCards(
-  spaceList: Space[],
+  spaceList: readonly Space[],
   tabs: TabWithLastAccess[],
   spaces: WindowSpaces
 ): SwitcherCard[]

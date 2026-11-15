@@ -1,4 +1,4 @@
-import { SpaceMessageAction, SPACES_STORAGE_KEY } from './utils/spaceMessages';
+import { ARCHIVED_TASK_SPACES_STORAGE_KEY, SpaceMessageAction, SPACES_STORAGE_KEY } from './utils/spaceMessages';
 import { FOLLOW_ACTIVE_TAB_KEY, parseFollowActiveTabMode } from './utils/followActiveTab';
 import { BOOKMARK_OPEN_MODE_KEY, parseBookmarkOpenMode } from './utils/bookmarkOpenMode';
 import { getTabAssociations, findTabsForItemKey, storeTabAssociation, removeTabAssociation, saveTabAssociationBackup, removeTabAssociationBackup, updateTabAssociationBackupIndices, removeWindowAssociationBackup, restoreTabAssociationBackup, WAIT_FOR_TAB_ASSOCIATIONS_READY, BOOKMARK_ITEM_KEY_PREFIX } from './utils/tabAssociations';
@@ -195,9 +195,17 @@ const favoriteIconsManager = new FavoriteIconsManager({
   },
   broadcast: (message) => chrome.runtime.sendMessage(message),
 });
+// Live and archived Spaces, so a restored Task Space gets its Recently Closed list back. Empty
+// while the live list is: no Spaces means they aren't known, not that every Space is gone
+function knownSpaceIds(): string[]
+{
+  const live = spaceManager.getSpaces();
+  if (live.length === 0) return [];
+  return [...live, ...spaceManager.getArchivedTaskSpaces()].map(space => space.id);
+}
 // Per-Space Recently Closed lists; the sidebar reopens and clears through its proxy
 const recentlyClosedManager = new RecentlyClosedManager({
-  getSpaceIds: () => spaceManager.getSpaces().map(space => space.id),
+  getSpaceIds: knownSpaceIds,
   registerTab: (windowId, tabId, spaceId) => tabSpaceRegistry.register(windowId, tabId, spaceId),
 });
 // Mark for Attention on tabs and bookmarks; auto-archive keeps marked tabs open
@@ -602,15 +610,16 @@ chrome.storage.onChanged.addListener((changes, areaName) =>
   if (areaName === 'local' && SPACES_STORAGE_KEY in changes) runFavoritesMigration();
 });
 
-// A deleted Space's Recently Closed list goes with it
+// A deleted Space's Recently Closed list goes with it; an archived Task Space keeps its list
+// until it is deleted from the archive
 chrome.storage.onChanged.addListener((changes, areaName) =>
 {
-  if (areaName !== 'local' || !(SPACES_STORAGE_KEY in changes)) return;
+  if (areaName !== 'local') return;
+  if (!(SPACES_STORAGE_KEY in changes) && !(ARCHIVED_TASK_SPACES_STORAGE_KEY in changes)) return;
   void managerLoadPromise
     .then(() =>
     {
-      const spaceIds = spaceManager.getSpaces().map(space => space.id);
-      // No Spaces means they aren't known, not that every Space is gone
+      const spaceIds = knownSpaceIds();
       if (spaceIds.length > 0) return recentlyClosedManager.retainSpaces(spaceIds);
     })
     .catch((error) => console.error('[RecentlyClosedManager] failed to drop deleted Spaces\' records:', error));

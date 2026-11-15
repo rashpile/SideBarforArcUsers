@@ -5,6 +5,10 @@
 // chrome.storage.local key for the array of Space definitions
 export const SPACES_STORAGE_KEY = 'spaces';
 
+// chrome.storage.local key for archived Task Spaces, kept out of `spaces` so nothing that
+// lists Spaces (switcher, search, number shortcuts) can reach them
+export const ARCHIVED_TASK_SPACES_STORAGE_KEY = 'archivedTaskSpaces';
+
 // =============================================================================
 // Space Definition (source of truth - shared between background and sidebar)
 // =============================================================================

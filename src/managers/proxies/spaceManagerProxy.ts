@@ -1,13 +1,14 @@
 // Sidebar-side client for background.ts's SpaceManager.
 //
 // Same shape as spaceWindowStateProxy (step 2), minus the per-window
-// filtering: the Space list is not scoped to a window, so there is exactly
-// one mirror per context instead of one per mirrored window.
+// filtering: the Space lists are not scoped to a window, so there is exactly
+// one mirror of each per context - live Spaces and archived Task Spaces.
 
 import { ManagerId, callManager, CONTEXT_ID, Remote } from './messageRouting';
 import { SpaceManagerApi, SPACES_CHANGED } from '../shared/spaceManagerApi';
 import { ExternalStore, ReadableStore } from '../../stores/externalStore';
 import { Space } from '../../utils/spaceMessages';
+import { SpaceLists } from '../../utils/spaceLists';
 
 /**
  * Extends the plain Remote<Api> shape with the pieces this manager has no
@@ -19,6 +20,10 @@ class SpaceManagerProxy implements Remote<SpaceManagerApi>
   // through #applySpaces; consumers read it via the store or snapshot getter.
   #store = new ExternalStore<readonly Space[]>([]);
 
+  // This context's mirror of the archived Task Spaces, written only through
+  // #applyArchived.
+  #archivedStore = new ExternalStore<readonly Space[]>([]);
+
   // Whether the broadcast listener is already registered - see
   // #subscribeToBroadcasts.
   #subscribed = false;
@@ -27,6 +32,12 @@ class SpaceManagerProxy implements Remote<SpaceManagerApi>
   get store(): ReadableStore<readonly Space[]>
   {
     return this.#store;
+  }
+
+  /** Read-only handle on the archived Task Spaces mirror, for useSyncExternalStore. */
+  get archivedStore(): ReadableStore<readonly Space[]>
+  {
+    return this.#archivedStore;
   }
 
   /**
@@ -59,8 +70,9 @@ class SpaceManagerProxy implements Remote<SpaceManagerApi>
   async load(): Promise<Space[]>
   {
     this.#subscribeToBroadcasts();
-    const spaces = await this.getSpaces();
+    const [spaces, archived] = await Promise.all([this.getSpaces(), this.getArchivedTaskSpaces()]);
     this.#applySpaces(spaces);
+    this.#applyArchived(archived);
     return spaces;
   }
 
@@ -97,6 +109,7 @@ class SpaceManagerProxy implements Remote<SpaceManagerApi>
       if (message?.action === SPACES_CHANGED && (message.senderId !== CONTEXT_ID || message.migrated === true))
       {
         this.#applySpaces(message.spaces);
+        if (Array.isArray(message.archived)) this.#applyArchived(message.archived);
       }
     });
   }
@@ -109,11 +122,39 @@ class SpaceManagerProxy implements Remote<SpaceManagerApi>
    * short, flat, JSON-derived objects that just came off the message
    * channel. It is not a general deep-equality utility.
    */
-  #applySpaces(spaces: Space[]): void
+  #applySpaces(spaces: readonly Space[]): void
   {
     if (JSON.stringify(spaces) === JSON.stringify(this.#store.getSnapshot())) return;
 
     this.#store.set(spaces);
+  }
+
+  /** The single writer of the archived mirror, with the same no-op skip. */
+  #applyArchived(archived: readonly Space[]): void
+  {
+    if (JSON.stringify(archived) === JSON.stringify(this.#archivedStore.getSnapshot())) return;
+
+    this.#archivedStore.set(archived);
+  }
+
+  #applyLists(lists: SpaceLists): void
+  {
+    this.#applySpaces(lists.live);
+    this.#applyArchived(lists.archived);
+  }
+
+  /**
+   * After a failed call the optimistic write is showing a change that never
+   * happened. Ask background what the truth is rather than rolling back to a
+   * remembered list, which could undo a LATER write that did succeed. A
+   * failed resync means the worker is gone and this page is about to be torn
+   * down anyway, so there is nothing further to do.
+   */
+  #resync(): void
+  {
+    Promise.all([this.getSpaces(), this.getArchivedTaskSpaces()])
+      .then(([spaces, archived]) => this.#applyLists(new SpaceLists(spaces, archived)))
+      .catch(() => {});
   }
 
   /**
@@ -123,6 +164,12 @@ class SpaceManagerProxy implements Remote<SpaceManagerApi>
   async getSpaces(): Promise<Space[]>
   {
     return await callManager<Space[]>(ManagerId.SPACES, 'getSpaces');
+  }
+
+  /** Plain read of the archived Task Spaces - does NOT touch the mirror. */
+  async getArchivedTaskSpaces(): Promise<Space[]>
+  {
+    return await callManager<Space[]>(ManagerId.SPACES, 'getArchivedTaskSpaces');
   }
 
   /**
@@ -153,15 +200,42 @@ class SpaceManagerProxy implements Remote<SpaceManagerApi>
     }
     catch (error)
     {
-      // The optimistic write above is now showing a change that never
-      // happened. Ask background what the truth is rather than rolling back
-      // to a remembered list, which could undo a LATER write that did
-      // succeed. A failed resync means the worker is gone and this page is
-      // about to be torn down anyway, so there is nothing further to do.
       console.error('[spaceManagerProxy] updateSpaces failed, resyncing:', error);
-      this.getSpaces()
-        .then((current) => this.#applySpaces(current))
-        .catch(() => {});
+      this.#resync();
+      throw error;
+    }
+  }
+
+  /**
+   * Moves an archived Task Space back to the end of the live list. Applied to
+   * both mirrors before the message goes out, so a caller that switches to
+   * the Space right afterwards finds it in the live list.
+   */
+  async restoreTaskSpace(spaceId: string): Promise<void>
+  {
+    await this.#changeLists('restoreTaskSpace', spaceId, lists => lists.restore(spaceId));
+  }
+
+  /** Removes an archived Task Space for good; its bookmark folder stays. */
+  async deleteArchivedTaskSpace(spaceId: string): Promise<void>
+  {
+    await this.#changeLists('deleteArchivedTaskSpace', spaceId, lists => lists.forgetArchived(spaceId));
+  }
+
+  // Optimistic like updateSpaces: the manager makes the same move on its own lists, and
+  // our echo is skipped
+  async #changeLists(method: string, spaceId: string, change: (lists: SpaceLists) => SpaceLists): Promise<void>
+  {
+    this.#applyLists(change(new SpaceLists(this.#store.getSnapshot(), this.#archivedStore.getSnapshot())));
+
+    try
+    {
+      await callManager<void>(ManagerId.SPACES, method, { spaceId });
+    }
+    catch (error)
+    {
+      console.error(`[spaceManagerProxy] ${method} failed, resyncing:`, error);
+      this.#resync();
       throw error;
     }
   }
