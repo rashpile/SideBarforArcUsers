@@ -1535,7 +1535,8 @@ chrome.windows.onCreated.addListener((createdWindow) =>
   if (createdWindow.id !== undefined) recentWindows.markCreated(createdWindow.id, Date.now());
 });
 
-// A new tab joins the current Space; Chrome's native groupId plays no part in the Space lifecycle.
+// A new tab joins the current Space. A tab that already has a Space keeps it: Chrome reports the
+// tabs it restores at browser start as created too, after the startup restore gave them their Spaces.
 chrome.tabs.onCreated.addListener(async (tab) =>
 {
   if (!tab.id || !tab.windowId) return;
@@ -1554,14 +1555,11 @@ chrome.tabs.onCreated.addListener(async (tab) =>
     spaceManager.getSpaces(),
     spaceStateManager.getActiveSpace(tab.windowId)
   );
-  if (targetSpaceId)
-  {
-    await tabSpaceRegistry.register(tab.windowId, tab.id, targetSpaceId);
-  }
+  const tabSpaceId = await tabSpaceRegistry.registerNewTab(tab.windowId, tab.id, targetSpaceId);
 
   if (tab.openerTabId !== undefined)
   {
-    await moveLinkTabToTabListTop(tab.id, tab.windowId, tab.openerTabId, targetSpaceId)
+    await moveLinkTabToTabListTop(tab.id, tab.windowId, tab.openerTabId, tabSpaceId)
       .catch((error) => console.error('[LinkTabPlacement] failed to move a link tab to the Tab list top:', error));
   }
 

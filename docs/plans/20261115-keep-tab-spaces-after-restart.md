@@ -89,19 +89,19 @@ async registerNewTab(windowId: number, tabId: number, activeSpaceId: string | nu
 - Modify: `src/background.ts`
 - Modify: `tests/tabSpaceRegistry.test.mjs`
 
-- [ ] add `registerNewTab(windowId, tabId, activeSpaceId)` to `TabSpaceRegistry` as in Technical Details, with the doc comment saying why (Chrome reports restored tabs as created after `load`)
-- [ ] in the `chrome.tabs.onCreated` handler of `src/background.ts`, replace the `if (targetSpaceId) await tabSpaceRegistry.register(...)` block with `const tabSpaceId = await tabSpaceRegistry.registerNewTab(tab.windowId, tab.id, targetSpaceId)` and pass `tabSpaceId` to `moveLinkTabToTabListTop`; update the handler's leading comment ("A new tab joins the current Space ...") to say a tab that already has a Space (restored at browser start) keeps it; make no claim there about native groups
-- [ ] extend `installChrome` in `tests/tabSpaceRegistry.test.mjs` with `tabs.get` (returns the live tab by id, rejects for an unknown id) so `register` stores url/index as in Chrome
-- [ ] write test: browser restart (`load(false)`), stored records put `https://code.test/agterm` in `task` and `https://swarm.test/` in `space2` under old tab ids and window 1; live tabs show those URLs under new ids in window 5 (window ids change at a restart too); `registerNewTab(5, id, 'home')` returns and keeps `task` and `space2`, and the stored `tabSpaceAssignments` still say so
-- [ ] write test: `registerNewTab` for a tab with no Space registers `activeSpaceId` and returns it; with `activeSpaceId` null it returns null and registers nothing
-- [ ] run `make lint && make test && make build` - must pass before task 2
+- [x] add `registerNewTab(windowId, tabId, activeSpaceId)` to `TabSpaceRegistry` as in Technical Details, with the doc comment saying why (Chrome reports restored tabs as created after `load`)
+- [x] in the `chrome.tabs.onCreated` handler of `src/background.ts`, replace the `if (targetSpaceId) await tabSpaceRegistry.register(...)` block with `const tabSpaceId = await tabSpaceRegistry.registerNewTab(tab.windowId, tab.id, targetSpaceId)` and pass `tabSpaceId` to `moveLinkTabToTabListTop`; update the handler's leading comment ("A new tab joins the current Space ...") to say a tab that already has a Space (restored at browser start) keeps it; make no claim there about native groups
+- [x] extend `installChrome` in `tests/tabSpaceRegistry.test.mjs` with `tabs.get` (returns the live tab by id, rejects for an unknown id) so `register` stores url/index as in Chrome
+- [x] write test: browser restart (`load(false)`), stored records put `https://code.test/agterm` in `task` and `https://swarm.test/` in `space2` under old tab ids and window 1; live tabs show those URLs under new ids in window 5 (window ids change at a restart too); `registerNewTab(5, id, 'home')` returns and keeps `task` and `space2`, and the stored `tabSpaceAssignments` still say so
+- [x] write test: `registerNewTab` for a tab with no Space registers `activeSpaceId` and returns it; with `activeSpaceId` null it returns null and registers nothing
+- [x] run `make lint && make test && make build` - must pass before task 2
 
 ### Task 2: Verify acceptance criteria
 
-- [ ] verify a tab created during a session still joins the window's active Space (handler reads only `registerNewTab`'s result)
-- [ ] verify `tests/spaceAssignmentBoundary.test.mjs` still passes
-- [ ] run full test suite: `make test`
-- [ ] run the build: `make build`
+- [x] verify a tab created during a session still joins the window's active Space (handler reads only `registerNewTab`'s result)
+- [x] verify `tests/spaceAssignmentBoundary.test.mjs` still passes
+- [x] run full test suite: `make test`
+- [x] run the build: `make build`
 
 ### Task 3: [Final] Update documentation
 
