@@ -334,11 +334,11 @@ One Space failing (any thrown error) is logged and the run goes on with the next
 
 ### Task 10: Verify acceptance criteria
 
-- [ ] (+) → New Task Space creates `YYYYMMDD-01`, green, `list-todo`, folder `Tasks Spaces/YYYYMMDD-01`, active, no dialog; a second the same day is `-02` (code review against Tasks 1 and 4)
-- [ ] Task Spaces absent from the sortable strip, temporary icon rule as designed; list oldest → newest, faded, 10 rows, scrolled to bottom
-- [ ] Convert to Regular Space: leaves the list, shows in the strip, folder unchanged
-- [ ] auto-archive: overdue Task Space archived (tabs saved/closed, record in Archived, folder kept), restorable; `stateReady` checked
-- [ ] run `make lint && make test && make build`
+- [x] (+) → New Task Space creates `YYYYMMDD-01`, green, `list-todo`, folder `Tasks Spaces/YYYYMMDD-01`, active, no dialog; a second the same day is `-02` (code review against Tasks 1 and 4: `SpaceBar.handleCreateTaskSpace` → `createTaskSpace` → `createTaskSpaceFolder` / `nextTaskSpaceName` with live + archived names and folder titles, then `switchToSpace`; in-browser check stays in Post-Completion)
+- [x] Task Spaces absent from the sortable strip, temporary icon rule as designed; list oldest → newest, faded, 10 rows, scrolled to bottom (code review: `SortableContext` ids from `spaceBarItems().regular`, temporary icons after a divider with TAB/URL-only drops, swipe over `[...regular, ...temporary]`, `moveSpace` is id-based so hidden Task Spaces don't skew reordering; `TaskSpacesPopover` sorts by `createdAt`, `ageOpacity`, 10-row max height, scrolls to bottom in `useLayoutEffect`)
+- [x] Convert to Regular Space: leaves the list, shows in the strip, folder unchanged (code review: `convertToRegularSpace` writes `withoutTaskMarker(space)`, all folder fields kept; item in the title `...` menu, temporary icons and popover rows)
+- [x] auto-archive: overdue Task Space archived (tabs saved/closed, record in Archived, folder kept), restorable; `stateReady` checked (code review: `startupRestoreSucceeded` is `tabAssociationReadiness.wait()`, which also waits for `managerLoadPromise`; saves before `archiveTaskSpaces`, then `expectArchiveClose` and `tabs.remove`; no folder removal; Archived row → `restoreTaskSpace` + `switchToSpace`, `onRestored` touches last use; one race logged under Known limitations)
+- [x] run `make lint && make test && make build` (lint clean, 789 tests pass, build ok)
 
 ### Task 11: [Final] Update documentation
 
@@ -359,6 +359,9 @@ One Space failing (any thrown error) is logged and the run goes on with the next
   restored record from the live list (the existing whole-list write gap of `spaceManagerProxy`).
 - [known-limitation] The last regular Space can be deleted while Task Spaces exist (`canDelete` counts all
   live Spaces); the strip then shows only the temporary icons.
+- [known-limitation] A Task Space converted to a regular Space or deleted in the moment between an archive
+  run's saves and its close still has its tabs closed (`archiveTaskSpaces` ignores it, the archiver doesn't
+  re-read the Space list). No page is lost: every closed tab is in the Archive, a bookmark, a Favorite or empty.
 
 ## Post-Completion
 
