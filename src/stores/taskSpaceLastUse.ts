@@ -1,5 +1,5 @@
-// Last use of each Task Space: the Space bar shows a temporary icon for a while after it, and
-// auto-archive counts its period from it. background.ts is the only writer
+// Last use of each Task Space: the recent Task Spaces list above the Space buttons keeps a
+// Space for 24 hours after it, and auto-archive counts its period from it. background.ts is the only writer
 // (TaskSpaceLastUseStore); the sidebar reads the same key through useChromeLocalStorage and
 // wraps it in TaskSpaceLastUse.
 

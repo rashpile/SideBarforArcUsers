@@ -1,7 +1,8 @@
 /**
  * TaskSpacesPopover - the list of Task Spaces, opened from the list button left of
- * (+) in the Space bar. Task Spaces have no place in the strip, so once their
- * temporary icon is gone this list is how they are reached, archived ones included.
+ * (+) in the Space bar. Task Spaces have no place in the strip and the recent list
+ * above it holds only the last few, so this list is how the rest are reached,
+ * archived ones included.
  */
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';

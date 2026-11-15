@@ -272,13 +272,13 @@ interface RecentTaskSpacesInput<T> {
 
 ### Task 7: [Final] Update documentation
 
-- [ ] `README.md` Task Spaces section: replace the temporary-icon bullet with the recent list (3 rows, 24 h, oldest at top, time label, (−) hides until you switch to it again, drops), keep "Task Spaces aren't in the Space bar's row of icons"; fix the Convert bullet ("row or temporary icon" → rows of either list)
-- [ ] `docs/changelog.md` "Latest Version": Task Spaces are unreleased (2.0.404), so edit the existing Task Spaces entry in place instead of adding a new one: the recent list replaces the temporary icon and 10-minute rule, swipe order, new key `hiddenRecentTaskSpaces`
-- [ ] `src/data/changelog.ts` `2.0.404` Task Spaces line: replace "a temporary icon shows while you use one" with the recent list above the Space buttons
-- [ ] `docs/state-reference.md`: new `hiddenRecentTaskSpaces` section (owner, writes: `hide` from the sidebar, `unhide` on entering the Space, `retain` on Space list changes; consumers; unreadable value reads as empty; lifespan; instances) and in the storage tree; update `taskSpaceLastUsedAt` (feeds the recent list, not a temporary icon); update the `spaces` record's `task` bullet (it points at the deleted `spaceBarItems`, `src/utils/spaceBarItems.ts`)
-- [ ] `docs/development.md`: add `HiddenTaskSpacesManager` | `hiddenRecentTaskSpaces` (local) to the manager table; fix any mention of the temporary icon
-- [ ] comments that still describe the temporary icon: `src/components/TaskSpacesPopover.tsx` header, `src/stores/taskSpaceLastUse.ts` header
-- [ ] move this plan to `docs/plans/completed/`
+- [x] `README.md` Task Spaces section: replace the temporary-icon bullet with the recent list (3 rows, 24 h, oldest at top, time label, (−) hides until you switch to it again, drops), keep "Task Spaces aren't in the Space bar's row of icons"; fix the Convert bullet ("row or temporary icon" → rows of either list)
+- [x] `docs/changelog.md` "Latest Version": Task Spaces are unreleased (2.0.404), so edit the existing Task Spaces entry in place instead of adding a new one: the recent list replaces the temporary icon and 10-minute rule, swipe order, new key `hiddenRecentTaskSpaces`
+- [x] `src/data/changelog.ts` `2.0.404` Task Spaces line: replace "a temporary icon shows while you use one" with the recent list above the Space buttons
+- [x] `docs/state-reference.md`: new `hiddenRecentTaskSpaces` section (owner, writes: `hide` from the sidebar, `unhide` on entering the Space, `retain` on Space list changes; consumers; unreadable value reads as empty; lifespan; instances) and in the storage tree; update `taskSpaceLastUsedAt` (feeds the recent list, not a temporary icon); update the `spaces` record's `task` bullet (it points at the deleted `spaceBarItems`, `src/utils/spaceBarItems.ts`)
+- [x] `docs/development.md`: add `HiddenTaskSpacesManager` | `hiddenRecentTaskSpaces` (local) to the manager table; fix any mention of the temporary icon
+- [x] comments that still describe the temporary icon: `src/components/TaskSpacesPopover.tsx` header, `src/stores/taskSpaceLastUse.ts` header
+- [x] move this plan to `docs/plans/completed/` (skipped - the harness moves the plan after all phases finish)
 
 ## Post-Completion
 
