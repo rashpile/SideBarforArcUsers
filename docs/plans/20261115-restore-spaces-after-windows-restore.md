@@ -146,16 +146,16 @@ interface RestoredWindowsWaitDeps
 - Modify: `src/background.ts`
 - Modify: `tests/tabSpaceRegistry.test.mjs`
 
-- [ ] call `tabSpaceRegistry.refreshWindowMetadata(windowId)` next to `refreshBackupIndices` in `tabs.onCreated`, in the non-closing branch of `tabs.onRemoved`, in `tabs.onDetached` (old window) and `tabs.onAttached` (new window), with one why-comment (a restart matches tabs on the same URL by stored position)
-- [ ] write test: two records on one URL in different Spaces whose tabs moved positions without a move event (a tab before them closed); after `refreshWindowMetadata` a browser-restart `load(false)` against the restored tabs gives each tab its own Space. Setup: the restored tabs get new tab and window IDs (so the `sameWindowAndSite` ID pass doesn't pair them), the record order puts the earlier tab first, and `installChrome` is installed a second time with the first fake's stored records (its `liveTabs` are fixed at install time). Assert the stale indexes as a precondition with a comment, not as a behaviour of their own
-- [ ] run `make lint && make test && make build` - must pass before task 4
+- [x] call `tabSpaceRegistry.refreshWindowMetadata(windowId)` next to `refreshBackupIndices` in `tabs.onCreated`, in the non-closing branch of `tabs.onRemoved`, in `tabs.onDetached` (old window) and `tabs.onAttached` (new window), with one why-comment (a restart matches tabs on the same URL by stored position)
+- [x] write test: two records on one URL in different Spaces whose tabs moved positions without a move event (a tab before them closed); after `refreshWindowMetadata` a browser-restart `load(false)` against the restored tabs gives each tab its own Space. Setup: the restored tabs get new tab and window IDs (so the `sameWindowAndSite` ID pass doesn't pair them), the record order puts the earlier tab first, and `installChrome` is installed a second time with the first fake's stored records (its `liveTabs` are fixed at install time). Assert the stale indexes as a precondition with a comment, not as a behaviour of their own
+- [x] run `make lint && make test && make build` - must pass before task 4
 
 ### Task 4: Verify acceptance criteria
 
-- [ ] verify a worker restart within the browser session (`sameBrowserSession` true) does not wait
-- [ ] verify `git diff` against the branch head before this plan has no `closeWindow`, `closed`, `TabSpaceLoadSummary`, `#closedWindowRecords`, `#metadataOf`, `debugTabSpaceTrace` or `traceTabSpaces`
-- [ ] run full test suite: `make test`
-- [ ] run `make lint` and `make build`
+- [x] verify a worker restart within the browser session (`sameBrowserSession` true) does not wait (`startupTabsReady` calls `restoredWindowsWait.wait()` only when `same` is false; the constructor adds no listener or timer)
+- [x] verify `git diff` against the branch head before this plan has no `closeWindow`, `closed`, `TabSpaceLoadSummary`, `#closedWindowRecords`, `#metadataOf`, `debugTabSpaceTrace` or `traceTabSpaces` (checked `git diff 388daa3 HEAD` outside `docs/plans`: the only hit is the word "closed" in a test title)
+- [x] run full test suite: `make test` (805 pass)
+- [x] run `make lint` and `make build`
 
 ### Task 5: [Final] Update documentation
 

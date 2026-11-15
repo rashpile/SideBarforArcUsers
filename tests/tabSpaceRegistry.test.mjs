@@ -117,6 +117,36 @@ test('browser start before Chrome restored a window: a load that sees no tab kee
   assert.equal(nextRegistry.getSpace(5, 4), 'space2');
 });
 
+test('browser restart: two tabs on one URL in different Spaces keep their own Space after a tab before them closed', async () =>
+{
+  const docs = 'https://docs.test/';
+  installChrome([], [tab(10, 1, 'https://news.test/', 0), tab(11, 1, docs, 1), tab(12, 1, docs, 2)]);
+  const registry = new TabSpaceRegistry();
+  await registry.load(true);
+  await registry.register(1, 10, 'home');
+  await registry.register(1, 11, 'work');
+  await registry.register(1, 12, 'play');
+
+  // Tab 10 closes: the tabs right of it move left without a move event
+  const afterClose = installChrome([], [tab(11, 1, docs, 0), tab(12, 1, docs, 1)]);
+  await registry.unregister(1, 10);
+  // Precondition: the stored indexes are stale until the refresh
+  assert.deepEqual(afterClose[TabSpaceRegistry.STORAGE_KEY].map(record => record.index), [1, 2]);
+
+  await registry.refreshWindowMetadata(1);
+
+  // Chrome restores the window with new window and tab ids, so only the URL and position pair them
+  installChrome(
+    afterClose[TabSpaceRegistry.STORAGE_KEY],
+    [tab(3, 5, docs, 0), tab(4, 5, docs, 1)]
+  );
+  const restarted = new TabSpaceRegistry();
+  await restarted.load(false);
+
+  assert.equal(restarted.getSpace(5, 3), 'work');
+  assert.equal(restarted.getSpace(5, 4), 'play');
+});
+
 test('a tab without a Space joins the active Space; without an active Space it stays unassigned', async () =>
 {
   const local = installChrome([], [tab(8, 2, 'https://news.test/', 0), tab(9, 2, 'https://docs.test/', 1)]);

@@ -1181,6 +1181,8 @@ chrome.tabs.onActivated.addListener(async (activeInfo) =>
 // Refresh tab indices in local backup for all managed tabs in a window.
 // Called after any tab creation, move, removal, attach or detach that may shift indices,
 // so a browser restart can place the entries by index (index+domain restore pass).
+// tabSpaceRegistry.refreshWindowMetadata runs next to each call for the same reason: a browser
+// restart matches the registry's tabs on the same URL by their stored position.
 async function refreshBackupIndices(windowId: number): Promise<void>
 {
   const associations = await getTabAssociations(windowId);
@@ -1329,7 +1331,10 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) =>
     }
 
     // Any tab removal shifts indices of tabs after it
-    await refreshBackupIndices(removeInfo.windowId);
+    await Promise.all([
+      refreshBackupIndices(removeInfo.windowId),
+      tabSpaceRegistry.refreshWindowMetadata(removeInfo.windowId),
+    ]);
   }
 });
 
@@ -1384,6 +1389,7 @@ chrome.tabs.onDetached.addListener(async (tabId, detachInfo) =>
     spaceId ? tabSpaceRegistry.unregister(detachInfo.oldWindowId, tabId) : Promise.resolve(),
     // The tabs right of the detached one move left
     refreshBackupIndices(detachInfo.oldWindowId),
+    tabSpaceRegistry.refreshWindowMetadata(detachInfo.oldWindowId),
   ]);
 });
 
@@ -1402,7 +1408,10 @@ chrome.tabs.onAttached.addListener(async (tabId, attachInfo) =>
   }
 
   // The tabs right of the attached one move right
-  await refreshBackupIndices(attachInfo.newWindowId);
+  await Promise.all([
+    refreshBackupIndices(attachInfo.newWindowId),
+    tabSpaceRegistry.refreshWindowMetadata(attachInfo.newWindowId),
+  ]);
 });
 
 // Favicon loading scenario 5 - see "Favicon loading" in docs/development.md
@@ -1587,8 +1596,11 @@ chrome.tabs.onCreated.addListener(async (tab) =>
       .catch((error) => console.error('[LinkTabPlacement] failed to move a link tab to the Tab list top:', error));
   }
 
-  // A tab opened left of a bookmark or Favorite tab (a link opened next to its tab) moves it right
-  await refreshBackupIndices(tab.windowId);
+  // A tab opened left of other tabs (a link opened next to its tab) moves them right
+  await Promise.all([
+    refreshBackupIndices(tab.windowId),
+    tabSpaceRegistry.refreshWindowMetadata(tab.windowId),
+  ]);
 });
 
 // =============================================================================
