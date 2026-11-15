@@ -157,6 +157,9 @@ export class TabSpaceRegistry implements RoutedManager, TabSpaceRegistryApi
       }>
       : [];
     const tabs = await chrome.tabs.query({});
+    // Chrome may not have restored any window yet, and a save now would wipe every stored Space.
+    // The records stay for the next worker start; any registration in this worker rewrites the key.
+    if (tabs.length === 0) return;
     const liveTabs = new Map<number, chrome.tabs.Tab>(
       tabs.flatMap(tab => tab.id === undefined ? [] : [[tab.id, tab] as const])
     );

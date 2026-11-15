@@ -88,6 +88,35 @@ test('browser restart: a restored tab Chrome reports as created keeps the Space 
   ]);
 });
 
+test('browser start before Chrome restored a window: a load that sees no tab keeps the stored Spaces', async () =>
+{
+  const stored = [
+    assignment(12, 1, 'task', 'https://code.test/agterm', 0),
+    assignment(15, 1, 'space2', 'https://swarm.test/', 1),
+  ];
+  const local = installChrome(stored, []);
+  const registry = new TabSpaceRegistry();
+
+  await registry.load(false);
+
+  assert.deepEqual(registry.getWindowAssignments(1), {});
+  assert.deepEqual(local[TabSpaceRegistry.STORAGE_KEY], [
+    assignment(12, 1, 'task', 'https://code.test/agterm', 0),
+    assignment(15, 1, 'space2', 'https://swarm.test/', 1),
+  ]);
+
+  // The next worker start, after Chrome restored the window with new window and tab ids
+  installChrome(
+    local[TabSpaceRegistry.STORAGE_KEY],
+    [tab(3, 5, 'https://code.test/agterm', 0), tab(4, 5, 'https://swarm.test/', 1)]
+  );
+  const nextRegistry = new TabSpaceRegistry();
+  await nextRegistry.load(false);
+
+  assert.equal(nextRegistry.getSpace(5, 3), 'task');
+  assert.equal(nextRegistry.getSpace(5, 4), 'space2');
+});
+
 test('a tab without a Space joins the active Space; without an active Space it stays unassigned', async () =>
 {
   const local = installChrome([], [tab(8, 2, 'https://news.test/', 0), tab(9, 2, 'https://docs.test/', 1)]);

@@ -136,9 +136,9 @@ interface RestoredWindowsWaitDeps
 - Modify: `src/managers/impl/tabSpaceRegistry.ts`
 - Modify: `tests/tabSpaceRegistry.test.mjs`
 
-- [ ] in `TabSpaceRegistry.load`, when the tabs query returns no tab, return before matching and saving, with a why-comment (Chrome may have restored no window yet; a save now would wipe every stored Space; the records stay for the next worker start, and any registration in this worker rewrites the key)
-- [ ] write test: `load(false)` with stored records and zero live tabs leaves `tabSpaceAssignments` unchanged and registers nothing; a later `load(false)` with the restored tabs matches them
-- [ ] run `make lint && make test && make build` - must pass before task 3
+- [x] in `TabSpaceRegistry.load`, when the tabs query returns no tab, return before matching and saving, with a why-comment (Chrome may have restored no window yet; a save now would wipe every stored Space; the records stay for the next worker start, and any registration in this worker rewrites the key)
+- [x] write test: `load(false)` with stored records and zero live tabs leaves `tabSpaceAssignments` unchanged and registers nothing; a later `load(false)` with the restored tabs matches them
+- [x] run `make lint && make test && make build` - must pass before task 3
 
 ### Task 3: Keep the registry's stored tab indexes current
 
