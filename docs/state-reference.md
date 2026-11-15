@@ -242,6 +242,7 @@ Array<{ windowId, tabId, spaceId, url, index }>
 - Owner: `src/managers/impl/tabSpaceRegistry.ts`
 - Consumers: background tab activation/new-tab handling, `useTabSpaceAssignments`, Space move/delete actions, `src/services/tabAutoArchiver.ts` (the Space whose `asd_Archive` a tab is saved to)
 - Recovery: `matchStoredTabs` (`src/utils/storedTabMatcher.ts`): every record first tries its stored tab ID in the same window. On a worker restart within the browser session (`tabRestoreSessionStarted` present) that tab is the record's tab whatever page it shows now; after a browser restart or an extension reload/update the ID's tab is kept first only on the stored URL, then the remaining records take the tab on the same URL with the nearest index, and only then an ID tab on another page of the record's site (Chrome may reuse the ID for another page while the record's page reopened under a new ID; an ID on another site is never taken). On a worker restart the remaining records then take the tab on the same URL with the nearest index
+- New tabs: `tabs.onCreated` goes through `TabSpaceRegistry.registerNewTab`. A tab that already has a Space keeps it: Chrome reports the tabs it restores at browser start as created, after the startup restore gave them their stored Spaces. Only a tab without a Space is registered to the window's active Space
 - Migration: legacy session registry and existing Space-named native groups are read once to seed internal assignments
 - Invariant: Chrome native groups are user-owned presentation and never determine or mutate Space identity
 

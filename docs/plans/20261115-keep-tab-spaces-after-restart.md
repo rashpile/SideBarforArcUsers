@@ -105,10 +105,10 @@ async registerNewTab(windowId: number, tabId: number, activeSpaceId: string | nu
 
 ### Task 3: [Final] Update documentation
 
-- [ ] `docs/changelog.md`: add under `## Latest Version` a line `- Fixed: after a browser restart, tabs keep their Space. Chrome reports the tabs it restores as new, and the sidebar put each of them into the window's active Space, which after a restart is the first Space, so every Space's tabs showed in that one`
-- [ ] `docs/state-reference.md`, `tabSpaceAssignments`: add that `tabs.onCreated` keeps a Space the startup restore gave a restored tab and registers only tabs without one to the window's active Space
-- [ ] no `src/data/changelog.ts` entry (it omits bug-fix-only changes); README unchanged (no user-facing feature change)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] `docs/changelog.md`: add under `## Latest Version` a line `- Fixed: after a browser restart, tabs keep their Space. Chrome reports the tabs it restores as new, and the sidebar put each of them into the window's active Space, which after a restart is the first Space, so every Space's tabs showed in that one`
+- [x] `docs/state-reference.md`, `tabSpaceAssignments`: add that `tabs.onCreated` keeps a Space the startup restore gave a restored tab and registers only tabs without one to the window's active Space
+- [x] no `src/data/changelog.ts` entry (it omits bug-fix-only changes); README unchanged (no user-facing feature change)
+- [x] move this plan to `docs/plans/completed/` (left in place - the harness moves it after all phases finish)
 
 ## Post-Completion
 
