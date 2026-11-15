@@ -257,18 +257,18 @@ interface RecentTaskSpacesInput<T> {
 - Create: `src/components/RecentTaskSpacesList.tsx`
 - Modify: `src/components/SpaceBar.tsx`
 
-- [ ] create `src/components/RecentTaskSpacesList.tsx` per Technical Details (rows, icon, name, `recentAgeLabel`, active highlight, hover/focus (−), right-click `SpaceContextMenuContent`, `useDroppable` per row with `data-dnd-id="space-<id>"` on the row element and the TAB/URL drop highlight)
-- [ ] render it in `SpaceBar` above the bar `div`, fed by `useRecentTaskSpaces()`, with `SpaceBar`'s handlers (`switchToSpace`, `onEditSpace`, `handleDelete`, `handleCloseAllTabsInSpace`, `handleConvertToRegular`, `canDelete`) and a `hide` handler that calls `hiddenTaskSpacesProxy.hide` and toasts "Could not hide the Task Space" on failure
-- [ ] check the `spaceBar` drop handler resolves a row's `targetId` to the Task Space (it already takes `dropData.targetId`), so a tab dropped on a row moves into that Task Space and a link opens there
-- [ ] check the Arc styling selectors in `src/index.css` (`.arc-space-bar > div:nth-child(2)`) still target the strip, and give the list a background that matches the Space bar in light and dark mode
-- [ ] no tests (UI); run `make lint && make test` - must pass before task 6
+- [x] create `src/components/RecentTaskSpacesList.tsx` per Technical Details (rows, icon, name, `recentAgeLabel`, active highlight, hover/focus (−), right-click `SpaceContextMenuContent`, `useDroppable` per row with `data-dnd-id="space-<id>"` on the row element and the TAB/URL drop highlight)
+- [x] render it in `SpaceBar` above the bar `div`, fed by `useRecentTaskSpaces()`, with `SpaceBar`'s handlers (`switchToSpace`, `onEditSpace`, `handleDelete`, `handleCloseAllTabsInSpace`, `handleConvertToRegular`, `canDelete`) and a `hide` handler that calls `hiddenTaskSpacesProxy.hide` and toasts "Could not hide the Task Space" on failure
+- [x] check the `spaceBar` drop handler resolves a row's `targetId` to the Task Space (it already takes `dropData.targetId`), so a tab dropped on a row moves into that Task Space and a link opens there
+- [x] check the Arc styling selectors in `src/index.css` (`.arc-space-bar > div:nth-child(2)`) still target the strip, and give the list a background that matches the Space bar in light and dark mode
+- [x] no tests (UI); run `make lint && make test` - must pass before task 6
 
 ### Task 6: Verify acceptance criteria
 
-- [ ] verify all requirements from Overview are implemented (≤3 rows, 24 h, order, (−) hides until entered, strip regular-only, sandwich list unchanged, swipe, drops)
-- [ ] verify edge cases: no Task Spaces / none recent → no list; hidden active Task Space → not listed, swipe does nothing; a just-created Task Space shows at once; a deleted / archived / converted Task Space leaves the list and loses its mark
-- [ ] run full test suite: `make lint && make test`
-- [ ] run `make build`
+- [x] verify all requirements from Overview are implemented (≤3 rows, 24 h, order, (−) hides until entered, strip regular-only, sandwich list unchanged, swipe, drops)
+- [x] verify edge cases: no Task Spaces / none recent → no list; hidden active Task Space → not listed, swipe does nothing; a just-created Task Space shows at once; a deleted / archived / converted Task Space leaves the list and loses its mark
+- [x] run full test suite: `make lint && make test`
+- [x] run `make build`
 
 ### Task 7: [Final] Update documentation
 

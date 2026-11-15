@@ -4,6 +4,7 @@ import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortabl
 import { FolderPlus, LayoutGrid, ListTodo, Menu, Plus } from 'lucide-react';
 import { SpaceIcon } from './SpaceIcon';
 import { TaskSpacesPopover } from './TaskSpacesPopover';
+import { RecentTaskSpacesList } from './RecentTaskSpacesList';
 import { useSpacesContext, Space } from '../contexts/SpacesContext';
 import { useBookmarkTabsContext } from '../contexts/BookmarkTabsContext';
 import { useUnifiedDnd, DropHandler } from '../contexts/UnifiedDndContext';
@@ -14,8 +15,10 @@ import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import { BookmarkCreateFolderModal } from './BookmarkCreateFolderModal';
 import { useBookmarks } from '../hooks/useBookmarks';
 import { useAttentionMarks } from '../hooks/useAttentionMarks';
+import { useRecentTaskSpaces } from '../hooks/useRecentTaskSpaces';
 import { regularSpaces } from '../utils/taskSpaces';
 import { spaceManagerProxy } from '../managers/proxies/spaceManagerProxy';
+import { hiddenTaskSpacesProxy } from '../managers/proxies/hiddenTaskSpacesProxy';
 import * as DropdownMenu from './menu/DropdownMenu';
 import type { UndoableAction } from '../actions/types';
 
@@ -44,6 +47,7 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
   const { spaces, activeSpace, activeSpaceId, switchToSpace, moveSpace, createTaskSpace, convertToRegularSpace, getTabIdsInSpace, windowId } = useSpacesContext();
   // Task Spaces stay out of the strip; the recent list above it holds the last few
   const regular = useMemo(() => regularSpaces(spaces), [spaces]);
+  const { recent, now } = useRecentTaskSpaces();
   const { findFolderBySegments, createFolder } = useBookmarks();
   const { getItemKeyForTab, restoreItemAssociation } = useBookmarkTabsContext();
   const { isTabMarked } = useAttentionMarks();
@@ -145,6 +149,19 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
   {
     convertToRegularSpace(space.id);
   }, [convertToRegularSpace]);
+
+  const handleHideRecentTaskSpace = useCallback(async (space: Space) =>
+  {
+    try
+    {
+      await hiddenTaskSpacesProxy.hide(space.id);
+    }
+    catch (error)
+    {
+      console.error('[SpaceBar] Failed to hide Task Space:', error);
+      onShowToast('Could not hide the Task Space');
+    }
+  }, [onShowToast]);
 
   const handleCreateTab = useCallback(() =>
   {
@@ -322,6 +339,18 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
   // the row no free space. Not an auto margin on the label either: the Arc styling hides it (index.css).
   return (
     <>
+      <RecentTaskSpacesList
+        recent={recent}
+        now={now}
+        canDelete={spaces.length > 1}
+        onSelect={(space) => handleSpaceClick(space.id)}
+        onHide={handleHideRecentTaskSpace}
+        onEdit={onEditSpace}
+        onDelete={handleDelete}
+        onCloseAllTabs={handleCloseAllTabsInSpace}
+        onConvertToRegular={handleConvertToRegular}
+      />
+
       <div
         className={clsx(
           'arc-space-bar flex items-stretch border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50',

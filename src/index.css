@@ -449,6 +449,11 @@ html, body, #root {
 
 .arc-space-bar {
   min-height: 48px;
+}
+
+/* The recent Task Spaces rows sit right above the Space bar and share its surface */
+.arc-space-bar,
+.arc-recent-task-spaces {
   border-top-color: var(--arc-hairline);
   background: rgba(255, 255, 255, 0.24);
   backdrop-filter: blur(18px);
@@ -502,7 +507,8 @@ html, body, #root {
   }
 
   .arc-toolbar,
-  .arc-space-bar {
+  .arc-space-bar,
+  .arc-recent-task-spaces {
     background: rgba(0, 0, 0, 0.10);
   }
 
