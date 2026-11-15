@@ -190,12 +190,12 @@ One Space failing (any thrown error) is logged and the run goes on with the next
 - Create: `tests/taskSpaces.test.mjs`
 - Modify: `tests/spaceSelection.test.mjs`
 
-- [ ] add `TaskSpaceInfo` and `task?: TaskSpaceInfo` to `Space` in `src/utils/spaceMessages.ts`, with a comment that `archivedAt` is set only on records in `archivedTaskSpaces`
-- [ ] create `src/utils/taskSpaces.ts` (`.ts` imports, no chrome, no `import.meta.env`): constants `TASK_SPACES_FOLDER_TITLE = 'Tasks Spaces'`, `TASK_SPACE_ICON = 'list-todo'`, `TASK_SPACE_COLOR = 'green'`; `isTaskSpace(space)`; `regularSpaces(spaces)`; `withoutTaskMarker(space)` (a copy without the `task` key); `taskSpaceDatePrefix(date: Date)` → local `YYYYMMDD`; `nextTaskSpaceName(date, takenNames: Iterable<string>)` → `YYYYMMDD-NN` per Technical Details
-- [ ] change `resolveActiveSpaceId` fallback to the first regular Space, else the first Space (`SpaceIdentity` gains optional `task?: unknown`); `resolveSpaceIdAfterDeletion` picks the neighbour within the deleted Space's group (regular among regular, Task among Task) and falls back to the first regular Space, else any Space
-- [ ] write tests for `nextTaskSpaceName`: first of the day is `-01`; next after `-01`,`-02` is `-03`; a gap (`-01`,`-03`) gives `-04`; names of another day and non-matching names ignored; a folder-only name counts; `-99` → `-100`; local date used (construct `new Date(y, m, d, 23, 59)`)
-- [ ] write tests for `withoutTaskMarker` (no `task` key left, other fields kept) and for `resolveActiveSpaceId` / `resolveSpaceIdAfterDeletion`: unknown id with a Task Space first in the list falls back to the first regular Space; only Task Spaces → first Space; deleting the active regular Space in `[R1, R2, T1]` lands on `R1`
-- [ ] run `make lint && make test` - must pass before task 2
+- [x] add `TaskSpaceInfo` and `task?: TaskSpaceInfo` to `Space` in `src/utils/spaceMessages.ts`, with a comment that `archivedAt` is set only on records in `archivedTaskSpaces`
+- [x] create `src/utils/taskSpaces.ts` (`.ts` imports, no chrome, no `import.meta.env`): constants `TASK_SPACES_FOLDER_TITLE = 'Tasks Spaces'`, `TASK_SPACE_ICON = 'list-todo'`, `TASK_SPACE_COLOR = 'green'`; `isTaskSpace(space)`; `regularSpaces(spaces)`; `withoutTaskMarker(space)` (a copy without the `task` key); `taskSpaceDatePrefix(date: Date)` → local `YYYYMMDD`; `nextTaskSpaceName(date, takenNames: Iterable<string>)` → `YYYYMMDD-NN` per Technical Details
+- [x] change `resolveActiveSpaceId` fallback to the first regular Space, else the first Space (`SpaceIdentity` gains optional `task?: unknown`); `resolveSpaceIdAfterDeletion` picks the neighbour within the deleted Space's group (regular among regular, Task among Task) and falls back to the first regular Space, else any Space
+- [x] write tests for `nextTaskSpaceName`: first of the day is `-01`; next after `-01`,`-02` is `-03`; a gap (`-01`,`-03`) gives `-04`; names of another day and non-matching names ignored; a folder-only name counts; `-99` → `-100`; local date used (construct `new Date(y, m, d, 23, 59)`)
+- [x] write tests for `withoutTaskMarker` (no `task` key left, other fields kept) and for `resolveActiveSpaceId` / `resolveSpaceIdAfterDeletion`: unknown id with a Task Space first in the list falls back to the first regular Space; only Task Spaces → first Space; deleting the active regular Space in `[R1, R2, T1]` lands on `R1`
+- [x] run `make lint && make test` - must pass before task 2
 
 ### Task 2: Archived list in SpaceManager and its proxy
 

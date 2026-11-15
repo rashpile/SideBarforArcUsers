@@ -9,6 +9,15 @@ export const SPACES_STORAGE_KEY = 'spaces';
 // Space Definition (source of truth - shared between background and sidebar)
 // =============================================================================
 
+// Marks a Space as a Task Space: a temporary Space kept out of the Space bar strip.
+export interface TaskSpaceInfo
+{
+  createdAt: number;                      // epoch ms
+  // Set only on records in the `archivedTaskSpaces` list; a live Task Space in `spaces` never
+  // has it, and restoring drops it.
+  archivedAt?: number;                    // epoch ms
+}
+
 export interface Space
 {
   id: string;
@@ -18,6 +27,7 @@ export interface Space
   bookmarkFolderPath: string;             // e.g. "Bookmarks Bar/Work" (legacy, may contain '/')
   bookmarkFolderSegments?: string[];      // structured path e.g. ["Bookmarks Bar", "A/B"] - unambiguous
   bookmarkFolderInAccount?: boolean;      // folder is in Google account storage, not device-only (undefined = unknown, first match wins)
+  task?: TaskSpaceInfo;                   // present only on Task Spaces
 }
 
 // Only for old sessions and the internal "no Space yet" empty state; no longer shown as a Space.
