@@ -162,6 +162,16 @@ number  // epoch millis
 - Consumers: `TabAutoArchiver.start` skips the worker-start run when a run started less than one alarm period ago (tab events wake the worker often); `TabAutoArchiver.run` skips an alarm run within half a period (the worker-start run of the worker that alarm woke)
 - Instances: 1 per extension
 
+### `taskSpaceArchiveLastRunAt`
+Moment the last Task Space archive run started
+```typescript
+number  // epoch millis
+```
+- Owner: `src/services/taskSpaceArchiver.ts` (`TaskSpaceArchiver.LAST_RUN_KEY`, written at the start of each run that gets past the startup-restore, tab-mark and setting checks)
+- Consumers: `TaskSpaceArchiver.start` skips the worker-start run when a run started less than one alarm period ago (30 minutes, 1 in DEV builds); `TaskSpaceArchiver.run` skips an alarm run within half a period. A setting change runs regardless
+- Why session storage: it only throttles runs within one browser session; after a browser restart the first worker start runs at once
+- Instances: 1 per extension
+
 ### `openTabPages`
 Page of each open tab, so a close can be recorded in Recently Closed (`tabs.onRemoved` gives no URL or title)
 ```typescript
@@ -245,11 +255,26 @@ Array<{
   color: string,
   bookmarkFolderPath: string,          // legacy, may contain '/'
   bookmarkFolderSegments?: string[],   // structured folder path
-  bookmarkFolderInAccount?: boolean    // folder in account storage, not device-only
+  bookmarkFolderInAccount?: boolean,   // folder in account storage, not device-only
+  task?: { createdAt: number }         // present only on Task Spaces (epoch millis of creation)
 }>
 ```
-- Owner: `src/hooks/useSpaces.ts`
-- Consumers: `src/contexts/SpacesContext.tsx`, `src/background.ts` (debug), `src/services/tabAutoArchiver.ts` (finds the Space folder that holds `asd_Archive` from `bookmarkFolderSegments` / `bookmarkFolderInAccount`)
+- Owner: `src/managers/impl/spaceManager.ts` (`SpaceManager`, background, the only writer). The sidebar writes the whole list through `spaceManagerProxy.updateSpaces`; `useSpaces` (`src/hooks/useSpaces.ts`) reads the proxy's mirror
+- Live Spaces only: an archived Task Space is in `archivedTaskSpaces`, never in both. `updateSpaces` drops ids that are in the archived list, so a sidebar whose mirror missed the archive broadcast can't add the Space back
+- `task`: set by **New Task Space** (`SpacesContext.createTaskSpace`), removed by **Convert to Regular Space** (`withoutTaskMarker`, `src/utils/taskSpaces.ts`). Task Spaces stay out of the Space bar strip except as temporary icons (`spaceBarItems`, `src/utils/spaceBarItems.ts`), and Switch to Space 1…9 skips them. `archivedAt` never appears here
+- Consumers: `src/contexts/SpacesContext.tsx`, `src/background.ts` (debug), `src/services/tabAutoArchiver.ts` (finds the Space folder that holds `asd_Archive` from `bookmarkFolderSegments` / `bookmarkFolderInAccount`), `src/services/taskSpaceArchiver.ts` (the live Task Spaces to archive)
+- Instances: 1 per extension (shared across windows)
+
+### `archivedTaskSpaces`
+Task Spaces archived by "Archive Task Spaces after", listed under Archived in the Task Spaces list
+```typescript
+Array<Space & { task: { createdAt: number, archivedAt: number } }>  // same record as in `spaces`, oldest archive first
+```
+- Owner: `src/managers/impl/spaceManager.ts` (`SpaceManager`, background, the only writer), state kept in `SpaceLists` (`src/utils/spaceLists.ts`) together with `spaces`
+- Writes: `archiveTaskSpaces(ids, now)` (background-internal, called by `TaskSpaceArchiver`) moves live Task Spaces here stamped with `archivedAt`; `restoreTaskSpace(id)` moves one back to the end of `spaces` without `archivedAt`; `deleteArchivedTaskSpace(id)` removes one. A move writes both keys in one `chrome.storage.local.set`, so a Space is never stored in both lists or in neither. Each change broadcasts `SPACES_CHANGED` with both lists
+- Consumers: `spaceManagerProxy.archivedStore` (mirror, read by `useArchivedTaskSpaces`, `src/hooks/useArchivedTaskSpaces.ts`) for the Task Spaces list; `src/background.ts` keeps the Recently Closed lists and the `taskSpaceLastUsedAt` entries of archived Task Spaces, and drops them once the record is deleted. Nothing that lists Spaces for navigation (switchers, search popup, number shortcuts, bookmark → Space resolver) reads it
+- The bookmark folder stays when a Task Space is archived or deleted from this list
+- Unreadable value (not an array): loads as empty
 - Instances: 1 per extension (shared across windows)
 
 ### `sidebar-follow-active-tab`
@@ -318,6 +343,17 @@ string  // JSON of Record<bookmarkId, epochMillis>
 - Consumers: `src/components/BookmarkTree.tsx` (folder rows) and `src/App.tsx` (Space header peek), both via `useChromeLocalStorage`, read-only; the search popup in background (`BookmarkRecencyStore.read()` when the popup opens, the last-use time that orders bookmark results)
 - Instances: 1 per extension (shared across windows)
 
+### `taskSpaceLastUsedAt`
+Last use of each Task Space: the Space bar's temporary icon and "Archive Task Spaces after" count from it
+```typescript
+string  // JSON of Record<spaceId, epochMillis>
+```
+- Owner: `src/background.ts` through `TaskSpaceLastUseStore` (`src/stores/taskSpaceLastUse.ts`, the only writer; serialized read-modify-write, every write reads storage first)
+- Writes: `touch(spaceId)` for live Task Spaces only, when a window's active Space changes (the Space left and the Space entered, `SpaceWindowStateManager` `onActiveSpaceChanged`), on a tab activation in a window whose active Space is a Task Space (`handleTabActivation`) and on a restore from the archive (`SpaceManager` `onRestored`). A touch is skipped while the stored time is less than 60 s old; a stored time ahead of the clock is overwritten. `retain(taskSpaceIds)` drops entries of Spaces that are no longer live or archived Task Spaces, on a `spaces` / `archivedTaskSpaces` change after the manager load, skipped while the live list is empty
+- Consumers: `useSpaceBarItems` (`src/hooks/useSpaceBarItems.ts`, via `useChromeLocalStorage`, read-only, wrapped in `TaskSpaceLastUse.fromStored`) for the 10-minute temporary icon; `TaskSpaceArchiver` (`read()`), which takes `max(task.createdAt, lastUsedAt)` as the last use
+- Unreadable value or entry (not a JSON object, a time that isn't a finite number): reads as no entry, so the Task Space counts from its `createdAt`
+- Instances: 1 per extension (shared across windows)
+
 ### `autoArchiveAfter`
 "Archive tabs after" setting: how long a tab may stay unused before the background closes it
 ```typescript
@@ -327,6 +363,17 @@ string  // JSON of Record<bookmarkId, epochMillis>
 - Consumers: `src/services/tabAutoArchiver.ts` (reads it on every run and in `readTabActivityRecording`, the tracker's recording condition together with `tabAgeHighlight` and `markUnvisitedTabs`; `chrome.storage.onChanged` → `handleSettingChange`), `src/components/SettingsDialog.tsx`
 - Parsing: `parseAutoArchivePeriod` (`src/utils/autoArchive.ts`); absent or unknown values read as `'never'`, and `'1m'` reads as `'never'` in release builds
 - Alarm: while the value is not `'never'`, the background keeps a `chrome.alarms` alarm named `auto-archive` (every 5 minutes, 1 minute in DEV builds)
+- Instances: 1 per extension (shared across windows)
+
+### `taskSpaceArchiveAfter`
+"Archive Task Spaces after" setting: how long a Task Space may stay unused before the background saves its tabs to its Archive, closes them and moves it to `archivedTaskSpaces`
+```typescript
+'never' | '1d' | '3d' | '7d' | '14d' | '30d'  // raw string, not JSON; default 'never'. DEV builds also accept '1m'
+```
+- Owner: `src/App.tsx` (via `useChromeLocalStorage` with `serialize: v => v`), set from `src/components/SettingsDialog.tsx`
+- Consumers: `src/services/taskSpaceArchiver.ts` (reads it on every run; `chrome.storage.onChanged` → `handleSettingChange`, which also runs at once when the new value is a period)
+- Parsing: `parseTaskSpaceArchivePeriod` (`src/utils/taskSpaceArchive.ts`); absent or unknown values read as `'never'`, and `'1m'` reads as `'never'` in release builds
+- Alarm: while the value is not `'never'`, the background keeps a `chrome.alarms` alarm named `task-space-archive` (every 30 minutes, 1 minute in DEV builds)
 - Instances: 1 per extension (shared across windows)
 
 ### `autoArchiveEnabledAt`
@@ -603,6 +650,9 @@ Lost on page reload or service worker restart.
 ├─────────────────────────────────────────────────────────────────┤
 │  chrome.storage.local (survives browser restart)                │
 │  ├─ spaces                                                      │
+│  ├─ archivedTaskSpaces              (archived Task Spaces)      │
+│  ├─ taskSpaceLastUsedAt             (Task Space last use)       │
+│  ├─ taskSpaceArchiveAfter           (Task Space archive setting)│
 │  ├─ favoriteIcons                   (Favorite icons by bookmark)│
 │  ├─ favoritesMigration              (one-time Favorites copy)   │
 │  ├─ pinnedSites                     (legacy, read once)         │
@@ -640,6 +690,7 @@ Lost on page reload or service worker restart.
 │  ├─ tabActivitySessionStarted       (browser session marker)    │
 │  ├─ tabRestoreSessionStarted        (browser session marker)    │
 │  ├─ autoArchiveLastRunAt            (last auto-archive run)     │
+│  ├─ taskSpaceArchiveLastRunAt       (last Task Space archive)   │
 │  ├─ openTabPages                    (open tab pages)            │
 │  └─ pageAgentChat:{tabId}           (page agent chat per tab)   │
 └─────────────────────────────────────────────────────────────────┘

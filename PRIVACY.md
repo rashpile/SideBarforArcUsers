@@ -51,7 +51,7 @@ When you save a page style to a bookmark and leave Auto-apply on, the extension 
 
 The extension reads your Chrome bookmarks and tabs to display them in the sidebar.
 
-When "Archive tabs after" is turned on in Settings, the extension also creates bookmarks: before it closes an unused tab, it saves the tab's title and URL as a bookmark in an `asd_Archive` folder inside the Space's bookmark folder. These are ordinary Chrome bookmarks. The extension does not send them anywhere; if Chrome Sync is on, Chrome syncs them like your other bookmarks.
+When "Archive tabs after" is turned on in Settings, the extension also creates bookmarks: before it closes an unused tab, it saves the tab's title and URL as a bookmark in an `asd_Archive` folder inside the Space's bookmark folder. "Archive Task Spaces after" does the same for the tabs of an unused Task Space before it closes them. New Task Space creates a bookmark folder for the Task Space under Other Bookmarks, in a `Tasks Spaces` folder. These are ordinary Chrome bookmarks. The extension does not send them anywhere; if Chrome Sync is on, Chrome syncs them like your other bookmarks.
 
 Bookmark and tab data is not transmitted to the developer or any third party.
 

@@ -89,7 +89,7 @@ sidebar                                  background.ts
 | Manager | Storage key |
 | --- | --- |
 | `SpaceWindowStateManager` | `spaceWindowState_{windowId}` (session) |
-| `SpaceManager` | `spaces` (local) |
+| `SpaceManager` | `spaces`, `archivedTaskSpaces` (local) |
 | `TabHistoryManager` | `bg_windowTabHistory` (session) |
 | `TabSpaceRegistry` | `bg_tabSpaces` (session) |
 | `LastAudibleTracker` | `bg_lastAudibleTabIds` (session) |
@@ -129,7 +129,11 @@ A failed write re-reads the state from background instead of rolling back, since
 
 ### Per-operation writes
 
-Spaces are written as a whole list (`updateSpaces(spaces)`). That is safe only because the sidebars are the only writers.
+Spaces are written as a whole list (`updateSpaces(spaces)`). That is safe only because the sidebars are the only ones that write the list itself.
+
+Moving a Task Space between the live list and `archivedTaskSpaces` is a manager operation instead: background's `TaskSpaceArchiver` calls `archiveTaskSpaces(ids, now)`, and the Task Spaces list calls `restoreTaskSpace(id)` and `deleteArchivedTaskSpace(id)` through the proxy, which applies the move to both mirrors first. The lists are one immutable `SpaceLists` (`src/utils/spaceLists.ts`), used by the manager and by the proxy's optimistic write. A sidebar whose mirror missed the archive broadcast still sends the Space in its next whole-list write, so `updateSpaces` drops ids that are in the archived list and sets `migrated` in the broadcast to correct the sender's mirror.
+
+Tab auto-archive (`TabAutoArchiver`) and Task Space auto-archive (`TaskSpaceArchiver`) write the same `asd_Archive` folders. Background gives both one `SerialQueue` (`src/utils/serialQueue.ts`), so their runs never overlap and the two never create an `asd_Archive` folder in the same Space at once.
 
 Favorite icons also have a background writer that nobody asked for, the favicon patcher. A whole-store write built from a mirror that hasn't received the favicon yet would drop it. So `FavoriteIconsApi` names the change: `setIcons(id, fields)`, `setFavicons(patches)`, `removeIcons(ids)` and so on. The manager applies it to its own store, and two writers collide only when they touch the same Favorite. Each operation is a method of the immutable `FavoriteIcons` class in `managers/shared/favoriteIconsApi.ts`, used by the manager for the real store and by the proxy for the optimistic write.
 

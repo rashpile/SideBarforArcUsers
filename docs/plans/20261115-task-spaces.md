@@ -342,12 +342,13 @@ One Space failing (any thrown error) is logged and the run goes on with the next
 
 ### Task 11: [Final] Update documentation
 
-- [ ] README.md: Spaces section — Task Spaces (create, name, folder, list button, temporary icon, convert, Archived section and restore), Settings list (**Archive Task Spaces after**), Keyboard note that Switch to Space 1…9 counts regular Spaces only
-- [ ] docs/changelog.md: new `## Latest Version` section at the top with the feature entry (#91)
-- [ ] docs/state-reference.md: `task` field in `spaces`; new `archivedTaskSpaces`, `taskSpaceLastUsedAt`, `taskSpaceArchiveAfter` (local) and `taskSpaceArchiveLastRunAt` (session) with owners and lifespans
-- [ ] docs/development.md: manager table (`SpaceManager` owns `spaces` and `archivedTaskSpaces`); note under "Per-operation writes" that archive and restore are manager operations and `updateSpaces` drops archived ids; mention that both archivers share one queue
-- [ ] src/data/changelog.ts: `'2.0.404'` entry for Task Spaces
-- [ ] move this plan to `docs/plans/completed/`
+- [x] README.md: Spaces section — Task Spaces (create, name, folder, list button, temporary icon, convert, Archived section and restore), Settings list (**Archive Task Spaces after**), Keyboard note that Switch to Space 1…9 counts regular Spaces only
+- [x] docs/changelog.md: new `## Latest Version` section at the top with the feature entry (#91)
+- [x] docs/state-reference.md: `task` field in `spaces`; new `archivedTaskSpaces`, `taskSpaceLastUsedAt`, `taskSpaceArchiveAfter` (local) and `taskSpaceArchiveLastRunAt` (session) with owners and lifespans
+- [x] docs/development.md: manager table (`SpaceManager` owns `spaces` and `archivedTaskSpaces`); note under "Per-operation writes" that archive and restore are manager operations and `updateSpaces` drops archived ids; mention that both archivers share one queue
+- [x] src/data/changelog.ts: `'2.0.404'` entry for Task Spaces
+- [x] ➕ README `alarms` permission row, `docs/chrome-web-store-info.md` `alarms` justification and `PRIVACY.md` "Bookmarks and Tabs": the Task Space archiver uses its own alarm, and Task Spaces create bookmark folders and archive bookmarks
+- [x] move this plan to `docs/plans/completed/` (left in place: the harness moves it after all phases finish)
 
 ## Known limitations
 

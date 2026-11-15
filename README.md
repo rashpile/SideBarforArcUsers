@@ -156,11 +156,30 @@ Hover a tab or a bookmark and click the flag button, or right-click it and pick 
 - New tabs (`Cmd+T`) belong to the active Space
 - Closing the active tab (X, `Cmd+W`, the tab strip, a page that closes itself) switches to the tab you used before it in the same Space, not to its neighbour in the tab strip, which may belong to another Space. A Space with no other open tab gets a new tab. Commands that close many tabs at once (Close Other Tabs, Clear, Archive, Close All Tabs In Space) land on one tab
 - Space membership doesn't depend on Chrome tab groups. Your own groups work normally inside a Space, and moving a tab between windows keeps its Space
-- Create with "+" in the bar: name, icon, color and bookmark folder (created if missing)
+- Create with "+" in the bar: name, icon, color and bookmark folder (created if missing). **New Task Space** in the same menu makes a Space for one task in one click (see Task Spaces)
 - Right-click a Space icon to edit or delete it. The last Space can't be deleted
 - The Space title's `...` menu has **Copy Space as YAML** (the Space folder's bookmarks and folders, without `asd_Archive` and `asd_Favorites`) and **Paste from YAML...** (adds to the end of the Space folder). Both work as for a folder and are hidden when the Space has no bookmark folder
 - Optionally tint the sidebar with the Space's color
 - Use a bookmark folder for one Space only. Two Spaces on one folder aren't blocked, but bookmarks then resolve to whichever Space comes first
+
+### Task Spaces
+
+A Task Space is a Space for one task, a piece of research or a one-off errand, made with one click and kept out of the Space bar. It works like any other Space, with its own tabs, bookmark folder, Favorites, Archive, search and filters.
+
+- **New Task Space** in the Space bar's "+" menu makes one without a dialog and switches to it. Its name is today's date and a number, `20261115-01`, then `20261115-02` and so on through the day, with a green list icon. Its bookmark folder is `Other Bookmarks/Tasks Spaces/20261115-01`; the `Tasks Spaces` folder is created when missing. With bookmarks in your Google account, it goes under the account's Other Bookmarks. A number whose folder is already there is skipped, so a new Task Space never takes the folder of a deleted one
+- Task Spaces aren't in the Space bar's row of icons. While a Task Space is the window's active Space, and for 10 minutes after you last used it, a temporary icon shows after a thin divider at the end of the row. Click it, swipe to it or drop tabs and links on it like any Space icon; it can't be dragged to reorder. Switching to a Task Space, switching away from it and switching tabs in it count as use
+- The list button left of "+" opens the Task Spaces list, oldest at the top. It opens scrolled to the bottom, at the newest. Older rows fade, and a row under the pointer shows at full strength. Ten rows show at a time; scroll for the rest. Click a row to switch to that Task Space. Right-click it for Edit, Convert to Regular Space, Close All Tabs In Space and Delete
+- **Convert to Regular Space**, in the right-click menu of a Task Space's row or temporary icon and in the Space title's `...` menu, makes it a regular Space: it joins the row of Space icons and leaves the Task Spaces list. Name, tabs and folder stay. A regular Space can't be turned into a Task Space
+- Switch to Space 1 … 9 counts regular Spaces only. The Space Switcher and the search popup list Task Spaces like other Spaces
+- The Spaces part of a Backup includes Task Spaces, but not the Archived list
+
+**Archive Task Spaces after** in Settings puts away Task Spaces you stopped using: Never (the default), 1 day, 3 days, 7 days, 14 days or 30 days.
+
+- A Task Space unused for that long is archived. Each tab whose page would otherwise be lost is saved to the Space's Archive (`asd_Archive`), all its tabs close, and the Space moves to **Archived** in the Task Spaces list. Its bookmark folder stays, with its bookmarks, Favorites and Archive. The closed tabs don't go to Recently Closed
+- Closed without saving: a tab on its bookmark's page or a Favorite's page, and empty pages. A bookmark or Favorite tab that moved on to another page has that page saved first
+- The time counts from the last use, or from creation for a Task Space you never used, also while Chrome is closed. Turning the setting on or changing the period archives the Task Spaces already past it right away
+- A Task Space stays while it is the active Space of any window, and while one of its tabs is marked for attention, plays audio, is pinned in Chrome, is a window's active tab or is next to it in split view. The extension checks again every 30 minutes
+- **Archived (N)** at the top of the list, collapsed at first, lists the archived Task Spaces with the date each was archived. Click one, or **Restore** in its right-click menu, to bring it back and switch to it. It comes back without its tabs; its bookmarks, Favorites, Archive and Recently Closed list are still there, and its time starts again. **Delete** in that menu removes it from the list for good and leaves its bookmark folder
 
 ### Archive
 
@@ -214,7 +233,7 @@ One search field over the page that finds open tabs, bookmarks, archived pages a
 | not set | Tab Switcher: hold the modifier, press to list the Space's tabs (its Favorite tabs included) by last use, press again to move, release to switch; `Esc` or `Cmd+.` closes the list without switching |
 | not set | Space Switcher: the same for Spaces |
 | not set | Search popup: one field over the page that finds open tabs, bookmarks, archived pages and recently closed tabs; press again to move down, release to open (see Search popup) |
-| not set | Switch to Space 1 … 9: the Space at that position in the Space bar, opened as by a click on it |
+| not set | Switch to Space 1 … 9: the Space at that position in the Space bar, opened as by a click on it. Only regular Spaces count, not Task Spaces |
 
 Set or change shortcuts in `chrome://extensions/shortcuts`.
 
@@ -339,6 +358,7 @@ Gear menu → Settings:
 - **Open bookmark**: Arc style (pinned pages act as tabs and are hidden from the Tab list), in a new tab, or in the active tab
 - **Follow active tab**: switch Space, switch and scroll, or keep the sidebar where it is
 - **Archive tabs after**: Never, or 12 hours to 30 days
+- **Archive Task Spaces after**: Never (default), or 1 to 30 days (see Task Spaces)
 - **Search popup: one row per page**: the search popup lists each page once (see Search popup). On by default
 - **Highlight tabs by last use**: Off, White (default), Accent, Cooling or Trail
 - **Mark unvisited tabs**: a dot on tabs opened in the background that you haven't switched to yet. On by default
@@ -365,7 +385,7 @@ Light and dark mode follow your system.
 | `webNavigation` | Notice when a page starts loading in a bookmark's tab, to put the bookmark's saved page style on it |
 | `activeTab` | Draw the Tab and Space Switcher and the search popup over the current page |
 | `search` | Search the web with your default search engine for the text in the search popup, when you press `Shift+Enter` or click Search the web |
-| `alarms` | Check for unused tabs every few minutes while auto-archive is on |
+| `alarms` | Check for unused tabs every few minutes while auto-archive is on, and for unused Task Spaces every 30 minutes while Archive Task Spaces after is on |
 | Optional `http://*/*`, `https://*/*` | Asked for when you use the page agent or Validate configuration, to read the page, restyle it, show answers on it and call your AI endpoint |
 | Optional `<all_urls>` | Asked for only when you turn on page agent screenshots, to capture the visible tab |
 | Optional `userScripts` | Asked for only when you turn on Page scripts, or press **Allow scripts** in the page agent's code editor, to run the page agent's JavaScript on the page after you approve it, a script you apply from the code editor, and a saved script when its page loads in the bookmark's tab. Chrome also needs Allow User Scripts on the extension's Details page |
