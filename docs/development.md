@@ -91,7 +91,7 @@ sidebar                                  background.ts
 | `SpaceWindowStateManager` | `spaceWindowState_{windowId}` (session) |
 | `SpaceManager` | `spaces`, `archivedTaskSpaces` (local) |
 | `TabHistoryManager` | `bg_windowTabHistory` (session) |
-| `TabSpaceRegistry` | `bg_tabSpaces` (session) |
+| `TabSpaceRegistry` | `tabSpaceAssignments` (local); reads the legacy `bg_tabSpaces` (session) at load to migrate it |
 | `LastAudibleTracker` | `bg_lastAudibleTabIds` (session) |
 | `FavoriteIconsManager` | `favoriteIcons` (local) |
 | `AttentionMarkManager` | `attentionMarkedTabs`, `attentionMarkedBookmarks` (local) |
