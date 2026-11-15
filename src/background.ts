@@ -20,6 +20,7 @@ import { BookmarkRecencyStore } from './stores/bookmarkRecencyStore';
 import { TaskSpaceLastUseStore } from './stores/taskSpaceLastUse';
 import { isTaskSpace } from './utils/taskSpaces';
 import { BrowserSessionMarker } from './stores/browserSessionMarker';
+import { RESTORE_MAX_WAIT_MS, RESTORE_QUIET_MS, RestoredWindowsWait } from './utils/restoredWindowsWait';
 import { TabActivityTracker } from './stores/tabActivityTracker';
 import { queryOpenTabs, readTabActivityRecording, TabAutoArchiver } from './services/tabAutoArchiver';
 import { TaskSpaceArchiver } from './services/taskSpaceArchiver';
@@ -325,7 +326,9 @@ async function assignUntrackedTabsToSpaces(): Promise<void>
     nameCounts.set(space.name, (nameCounts.get(space.name) ?? 0) + 1);
   }
 
-  const groups = await chrome.tabGroups.query({});
+  // Rejects with "No current window" while Chrome has no window, and a rejection here would reject
+  // managerLoadPromise and leave stateReady false. Without a window there are no groups to read.
+  const groups = await chrome.tabGroups.query({}).catch((): chrome.tabGroups.TabGroup[] => []);
   const groupSpaceIds = new Map<number, string>();
   for (const group of groups)
   {
@@ -420,6 +423,27 @@ const sameBrowserSession = browserSessionMarker.isSameBrowserSession().then((sam
   return same;
 });
 
+const restoredWindowsWait = new RestoredWindowsWait({
+  countNormalWindows: async () => (await chrome.windows.getAll({ windowTypes: ['normal'] })).length,
+  addWindowCreatedListener: (listener) => chrome.windows.onCreated.addListener(listener, { windowTypes: ['normal'] }),
+  removeWindowCreatedListener: (listener) => chrome.windows.onCreated.removeListener(listener),
+  addTabCreatedListener: (listener) => chrome.tabs.onCreated.addListener(listener),
+  removeTabCreatedListener: (listener) => chrome.tabs.onCreated.removeListener(listener),
+  setTimeout: (callback, ms) => setTimeout(callback, ms),
+  clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+  quietMs: RESTORE_QUIET_MS,
+  maxWaitMs: RESTORE_MAX_WAIT_MS,
+});
+
+// sameBrowserSession, once the tabs the startup restore matches stored records against exist. At
+// browser start the worker can run before Chrome has restored any window; a worker restart within
+// the browser session finds its windows in place and doesn't wait.
+const startupTabsReady: Promise<boolean> = sameBrowserSession.then(async (same) =>
+{
+  if (!same) await restoredWindowsWait.wait();
+  return same;
+});
+
 /**
  * Brings the page cache up to date with the live tabs once the registry knows their Spaces.
  * Runs before assignUntrackedTabsToSpaces, whose registrations reach the cache through onAssigned.
@@ -467,9 +491,9 @@ const managerLoadPromise = Promise.all([
   pageStyleManager.load(),
   // Never rejects: an unreadable key keeps the notes unwritten, it doesn't hold back the tabs
   noteManager.load(),
-  sameBrowserSession.then((same) => tabSpaceRegistry.load(same)).then(seedOpenTabPages),
-  sameBrowserSession.then((same) => attentionMarkManager.load(same)),
-  loadTabActivity()
+  startupTabsReady.then((same) => tabSpaceRegistry.load(same)).then(seedOpenTabPages),
+  startupTabsReady.then((same) => attentionMarkManager.load(same)),
+  startupTabsReady.then(() => loadTabActivity())
 ])
   .then(normalizeLoadedWindowSpaces)
   .then(assignUntrackedTabsToSpaces)
