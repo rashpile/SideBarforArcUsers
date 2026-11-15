@@ -213,11 +213,11 @@ interface RecentTaskSpacesInput<T> {
 - Create: `src/managers/impl/hiddenTaskSpacesManager.ts`
 - Create: `tests/hiddenTaskSpacesManager.test.mjs`
 
-- [ ] add `HIDDEN_TASK_SPACES: 'HiddenTaskSpacesManager'` to `ManagerId`
-- [ ] create `src/managers/shared/hiddenTaskSpacesApi.ts` with the key, the CHANGED action id, the `HiddenTaskSpaces` value class and `HiddenTaskSpacesApi` per Technical Details (imports with `.ts` extensions so tests can load it)
-- [ ] create `src/managers/impl/hiddenTaskSpacesManager.ts` (`RoutedManager`, `HiddenTaskSpacesApi`) with injected storage and broadcast, `load`, `dispatch` (`getHidden`, `hide`, unknown method throws), `unhide`, `retain`, `#commit` (unchanged value: no write, no broadcast), serialized writes and `flushWrites`
-- [ ] write tests: `hide` stores and broadcasts the id once and a second `hide` of the same id neither writes nor broadcasts; `unhide` removes only that id and does nothing for an id that isn't hidden; `retain` drops ids not in the given list and keeps the rest; `load` of a corrupt value (object, string, array with non-strings) reads as empty or drops the non-strings; the broadcast carries the caller's `senderId`
-- [ ] run `make lint && make test` - must pass before task 3
+- [x] add `HIDDEN_TASK_SPACES: 'HiddenTaskSpacesManager'` to `ManagerId`
+- [x] create `src/managers/shared/hiddenTaskSpacesApi.ts` with the key, the CHANGED action id, the `HiddenTaskSpaces` value class and `HiddenTaskSpacesApi` per Technical Details (imports with `.ts` extensions so tests can load it)
+- [x] create `src/managers/impl/hiddenTaskSpacesManager.ts` (`RoutedManager`, `HiddenTaskSpacesApi`) with injected storage and broadcast, `load`, `dispatch` (`getHidden`, `hide`, unknown method throws), `unhide`, `retain`, `#commit` (unchanged value: no write, no broadcast), serialized writes and `flushWrites`
+- [x] write tests: `hide` stores and broadcasts the id once and a second `hide` of the same id neither writes nor broadcasts; `unhide` removes only that id and does nothing for an id that isn't hidden; `retain` drops ids not in the given list and keeps the rest; `load` of a corrupt value (object, string, array with non-strings) reads as empty or drops the non-strings; the broadcast carries the caller's `senderId`
+- [x] run `make lint && make test` - must pass before task 3
 
 ### Task 3: Background wiring, proxy and hook for the hidden marks
 
