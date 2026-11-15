@@ -2,6 +2,7 @@
 // the archiver gathers tabs, associations, bookmarks, Favorites and last-use
 // times, and this module decides. A tab is closed only when it is overdue and
 // none of the exemptions hold; when anything about it is unknown, it stays open.
+// Task Space auto-archive reuses the tab rules (closingTabAction, isAlwaysKept).
 
 import { getEffectiveTabUrl, normalizeComparableUrl } from './parkedTabAssociation.ts';
 import { BOOKMARK_ITEM_KEY_PREFIX } from './tabAssociations.ts';
@@ -172,13 +173,19 @@ export function isEmptyPage(url: string): boolean
   return EMPTY_PAGE_URLS.has(url);
 }
 
-/** How the sidebar shows a tab, judged by its association. */
-type TabKind = 'regular' | 'bookmark' | 'kept';
+/**
+ * How the sidebar shows a tab, judged by its association and page:
+ * - 'favorite': on a Favorite's page
+ * - 'bookmark': a bookmark tab on its bookmark's exact page
+ * - 'favorite-tab': a Favorite's tab (or one with an association of unknown kind) on another page
+ * - 'regular': any other tab
+ */
+type TabKind = 'regular' | 'bookmark' | 'favorite' | 'favorite-tab';
 
 function tabKind(itemKey: string | undefined, pageUrl: string, savedPages: SavedPages): TabKind
 {
   // A tab on a Favorite's page counts as that Favorite, associated or not: the sidebar claims such tabs by URL
-  if (savedPages.isFavoritePage(pageUrl)) return 'kept';
+  if (savedPages.isFavoritePage(pageUrl)) return 'favorite';
   if (itemKey === undefined) return 'regular';
 
   // A bookmark tab on its bookmark's page closes without archiving. On any other page, another hash
@@ -188,9 +195,22 @@ function tabKind(itemKey: string | undefined, pageUrl: string, savedPages: Saved
   {
     return savedPages.isBookmarkPage(itemKey.slice(BOOKMARK_ITEM_KEY_PREFIX.length), pageUrl) ? 'bookmark' : 'regular';
   }
+  return 'favorite-tab';
+}
 
-  // Favorites (`pinned-…`) never auto-close, nor does a tab with an association of unknown kind
-  return 'kept';
+/** What happens to a tab that closes with its whole Space. */
+export type ClosingTabAction = 'save' | 'close-only';
+
+/**
+ * Whether a tab closing with its whole Space (Task Space auto-archive) is saved to the Space's
+ * archive first. Unlike tab auto-archive, nothing stays open: only a tab on its bookmark's exact
+ * page, on a Favorite's page or on an empty page closes without saving. Every other tab, a
+ * Favorite or bookmark tab that navigated elsewhere included, is saved, so its page is not lost.
+ */
+export function closingTabAction(itemKey: string | undefined, pageUrl: string, savedPages: SavedPages): ClosingTabAction
+{
+  const kind = tabKind(itemKey, pageUrl, savedPages);
+  return kind === 'favorite' || kind === 'bookmark' || isEmptyPage(pageUrl) ? 'close-only' : 'save';
 }
 
 /** The fields of a tab that place it in a split view. */
@@ -232,8 +252,8 @@ export class SplitViewsOnScreen
   }
 }
 
-// Tabs the user is on, listening to or pinned in Chrome; incognito tabs are never touched
-function isAlwaysKept(tab: AutoArchiveTabLike, splitViewsOnScreen: SplitViewsOnScreen): boolean
+/** Tabs the user is on, listening to or pinned in Chrome; incognito tabs are never touched. */
+export function isAlwaysKept(tab: AutoArchiveTabLike, splitViewsOnScreen: SplitViewsOnScreen): boolean
 {
   return tab.active
     || tab.audible === true
@@ -264,7 +284,10 @@ export function selectTabsToClose<T extends AutoArchiveTabLike>(query: TabsToClo
 
     const pageUrl = tabPageUrl(tab);
     const kind = tabKind(associationsByWindow.itemKey(tab.windowId, tab.id), pageUrl, savedPages);
-    if (kind === 'kept' || !isOverdue(activity.lastUsedAt(tab.id), enabledAt, now, periodMs)) continue;
+
+    // Favorites never auto-close, nor does a tab with an association of unknown kind
+    if (kind === 'favorite' || kind === 'favorite-tab') continue;
+    if (!isOverdue(activity.lastUsedAt(tab.id), enabledAt, now, periodMs)) continue;
 
     if (kind === 'bookmark' || isEmptyPage(pageUrl))
     {

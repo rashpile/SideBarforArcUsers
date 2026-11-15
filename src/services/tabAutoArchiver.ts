@@ -4,8 +4,8 @@
 //
 // Runs in the background, so it works with the sidebar closed: at worker start
 // (unless a run happened recently) and on a chrome.alarms alarm while the
-// setting is on. Runs, setting changes and the alarm schedule go through one
-// queue, so runs never overlap. Which tabs close is decided by selectTabsToClose
+// setting is on. Runs, setting changes and the alarm schedule go through the
+// queue it shares with Task Space auto-archive, so runs never overlap. Which tabs close is decided by selectTabsToClose
 // (utils/autoArchivePolicy.ts); this class gathers its inputs and carries the
 // result out against chrome.*.
 
@@ -35,6 +35,7 @@ import { allFavoriteUrls } from '../utils/spaceFavorites';
 import { getEffectiveTabUrl } from '../utils/parkedTabAssociation';
 import { getTabAssociations } from '../utils/tabAssociations';
 import type { TabActivityTracker } from '../stores/tabActivityTracker';
+import type { SerialQueue } from '../utils/serialQueue';
 
 type BookmarkNode = chrome.bookmarks.BookmarkTreeNode;
 type OpenTab = chrome.tabs.Tab & { id: number };
@@ -42,6 +43,8 @@ type OpenTab = chrome.tabs.Tab & { id: number };
 /** What the archiver needs from the rest of the background. */
 export interface TabAutoArchiverDeps
 {
+  /** Shared with TaskSpaceArchiver, so the two never save into one Space's archive at once. */
+  queue: SerialQueue;
   /** Resolves once the startup restore ended: true when it succeeded (TabAssociationReadiness.wait). */
   startupRestoreSucceeded: () => Promise<boolean>;
   tracker: TabActivityTracker;
@@ -138,7 +141,6 @@ export class TabAutoArchiver
     create: (bookmark) => chrome.bookmarks.create(bookmark),
     remove: (id) => chrome.bookmarks.remove(id),
   });
-  #tail: Promise<void> = Promise.resolve();
 
   constructor(deps: TabAutoArchiverDeps)
   {
@@ -203,15 +205,9 @@ export class TabAutoArchiver
     });
   }
 
-  // Every task logs its own failure, so the queue never rejects and one failure doesn't stop the next task
   #enqueue(label: string, task: () => Promise<void>): Promise<void>
   {
-    const result = this.#tail.then(task).catch((error) =>
-    {
-      console.error(`[TabAutoArchiver] ${label} failed:`, error);
-    });
-    this.#tail = result;
-    return result;
+    return this.#deps.queue.run(`[TabAutoArchiver] ${label}`, task);
   }
 
   async #readSettings(): Promise<AutoArchiveSettings>

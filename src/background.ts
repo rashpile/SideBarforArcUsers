@@ -22,6 +22,10 @@ import { isTaskSpace } from './utils/taskSpaces';
 import { BrowserSessionMarker } from './stores/browserSessionMarker';
 import { TabActivityTracker } from './stores/tabActivityTracker';
 import { queryOpenTabs, readTabActivityRecording, TabAutoArchiver } from './services/tabAutoArchiver';
+import { TaskSpaceArchiver } from './services/taskSpaceArchiver';
+import { SerialQueue } from './utils/serialQueue';
+import { SpaceArchive } from './utils/archiveFolder';
+import { parseTaskSpaceArchivePeriod, TASK_SPACE_ARCHIVE_AFTER_KEY } from './utils/taskSpaceArchive';
 import { FavoritesMigration } from './services/favoritesMigration';
 import { AUTO_ARCHIVE_AFTER_KEY } from './utils/autoArchive';
 import { TAB_AGE_HIGHLIGHT_KEY } from './utils/tabAgeHighlight';
@@ -676,7 +680,12 @@ chrome.storage.onChanged.addListener((changes, areaName) =>
 // Works with the sidebar closed: once at worker start and on an alarm.
 // =============================================================================
 
+// Tab and Task Space auto-archive run one task at a time, so they never both create an
+// asd_Archive folder in the same Space
+const autoArchiveQueue = new SerialQueue();
+
 const tabAutoArchiver = new TabAutoArchiver({
+  queue: autoArchiveQueue,
   startupRestoreSucceeded: () => tabAssociationReadiness.wait(),
   tracker: tabActivityTracker,
   spaceRegistry: tabSpaceRegistry,
@@ -702,6 +711,81 @@ chrome.storage.onChanged.addListener((changes, areaName) =>
 });
 
 void tabAutoArchiver.start();
+
+// =============================================================================
+// Task Space auto-archive - archives Task Spaces unused for the "Archive Task
+// Spaces after" period: their tabs are saved to the Space's asd_Archive and
+// closed, the Space moves to the archived list. Once at worker start and on an alarm.
+// =============================================================================
+
+// The Space each open window shows, resolved as the sidebar resolves it
+async function activeSpaceIdsOfOpenWindows(): Promise<string[]>
+{
+  const windows = await chrome.windows.getAll({ windowTypes: ['normal'] });
+  const spaces = spaceManager.getSpaces();
+  return windows.flatMap(({ id }) =>
+  {
+    const spaceId = id === undefined ? null : resolveActiveSpaceId(spaces, spaceStateManager.getActiveSpace(id));
+    return spaceId ? [spaceId] : [];
+  });
+}
+
+const taskSpaceArchive = new SpaceArchive({
+  getChildren: (id) => chrome.bookmarks.getChildren(id),
+  create: (bookmark) => chrome.bookmarks.create(bookmark),
+  remove: (id) => chrome.bookmarks.remove(id),
+});
+
+const taskSpaceArchiver = new TaskSpaceArchiver({
+  queue: autoArchiveQueue,
+  startupRestoreSucceeded: () => tabAssociationReadiness.wait(),
+  tabMarksLoaded: () => attentionMarkManager.tabMarksLoaded,
+  isTabMarked: (tabId) => attentionMarkManager.isTabMarked(tabId),
+  readPeriod: async () =>
+  {
+    const result = await chrome.storage.local.get(TASK_SPACE_ARCHIVE_AFTER_KEY);
+    return parseTaskSpaceArchivePeriod(result[TASK_SPACE_ARCHIVE_AFTER_KEY], import.meta.env.DEV);
+  },
+  getSpaces: () => spaceManager.getSpaces(),
+  readLastUse: () => taskSpaceLastUseStore.read(),
+  activeSpaceIds: activeSpaceIdsOfOpenWindows,
+  queryTabs: queryOpenTabs,
+  getTab: (tabId) => chrome.tabs.get(tabId).catch(() => undefined),
+  spaceOf: (windowId, tabId) => tabSpaceRegistry.getSpace(windowId, tabId),
+  associationsOf: (windowId) => getTabAssociations(windowId),
+  getTree: () => chrome.bookmarks.getTree(),
+  archivePage: (folderId, page) => taskSpaceArchive.archive(folderId, page),
+  archiveSpaces: (ids, now) => spaceManager.archiveTaskSpaces(ids, now),
+  // Each tab's page is in the Archive, a bookmark, a Favorite or empty, so it isn't Recently Closed
+  beforeClose: (tabIds) => recentlyClosedManager.expectArchiveClose(tabIds),
+  removeTabs: (tabIds) => chrome.tabs.remove(tabIds),
+  alarms: {
+    get: (name) => chrome.alarms.get(name),
+    create: (name, info) => chrome.alarms.create(name, info),
+    clear: (name) => chrome.alarms.clear(name),
+  },
+  session: {
+    get: (key) => chrome.storage.session.get(key),
+    set: (values) => chrome.storage.session.set(values),
+  },
+  now: () => Date.now(),
+  debug: import.meta.env.DEV,
+});
+
+// Registered at top level so the alarm wakes the worker
+chrome.alarms.onAlarm.addListener((alarm) =>
+{
+  if (alarm.name === TaskSpaceArchiver.ALARM_NAME) void taskSpaceArchiver.run();
+});
+
+// The alarm follows the setting; a change to a period archives the overdue Task Spaces at once
+chrome.storage.onChanged.addListener((changes, areaName) =>
+{
+  const change = changes[TASK_SPACE_ARCHIVE_AFTER_KEY];
+  if (areaName === 'local' && change) void taskSpaceArchiver.handleSettingChange(change);
+});
+
+void taskSpaceArchiver.start();
 
 // =============================================================================
 // Saved page styles - puts a bookmark's saved page style back on the page when a
