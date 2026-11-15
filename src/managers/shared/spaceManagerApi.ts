@@ -13,19 +13,27 @@ import { Space } from '../../utils/spaceMessages';
  */
 export interface SpaceManagerApi
 {
-  getSpaces(): Space[];
+  getSpaces(): readonly Space[];
+  /** Archived Task Spaces, oldest archive first. */
+  getArchivedTaskSpaces(): readonly Space[];
   /**
    * Returns the resulting list, which becomes the ack payload. Async because
    * the manager may need to resolve missing bookmarkFolderSegments (a fresh
    * chrome.bookmarks.getTree() walk) before it can say what the result is -
-   * see impl/spaceManager.ts's resolveMissingSegments.
+   * see impl/spaceManager.ts's resolveMissingSegments. Ids of archived Task
+   * Spaces are dropped from the list.
    */
-  updateSpaces(spaces: Space[]): Promise<Space[]>;
+  updateSpaces(spaces: Space[]): Promise<readonly Space[]>;
+  /** Moves an archived Task Space back to the end of the live list. */
+  restoreTaskSpace(spaceId: string): Promise<void>;
+  /** Removes an archived Task Space for good; its bookmark folder stays. */
+  deleteArchivedTaskSpace(spaceId: string): Promise<void>;
 }
 
 /**
- * Broadcast to every listening context when the Space list changes - a
- * manager -> everyone message, rather than a reply to one caller.
+ * Broadcast to every listening context when either Space list changes - a
+ * manager -> everyone message, rather than a reply to one caller. Carries
+ * both lists: `spaces` (live) and `archived` (archived Task Spaces).
  *
  * It lives here with the rest of this manager's contract so the 'changed'
  * method name is spelled exactly once. A typo in a second hand-written copy

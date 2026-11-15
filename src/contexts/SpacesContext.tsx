@@ -8,6 +8,8 @@ import { spaceManagerProxy } from '../managers/proxies/spaceManagerProxy';
 import { tabSpaceRegistryProxy } from '../managers/proxies/tabSpaceRegistryProxy';
 import { useSpaces } from '../hooks/useSpaces';
 import { resolveActiveSpaceId } from '../utils/spaceSelection';
+import { createTaskSpaceFolder } from '../utils/taskSpaceFolder';
+import { TASK_SPACE_COLOR, TASK_SPACE_ICON, isTaskSpace, withoutTaskMarker } from '../utils/taskSpaces';
 
 // Re-export Space and ALL_SPACE so all existing imports from SpacesContext continue to work
 export type { Space } from '../utils/spaceMessages';
@@ -81,6 +83,10 @@ interface SpacesContextValue
     bookmarkFolderSegments: string[],
     bookmarkFolderInAccount?: boolean
   ) => Space;
+  // Creates the Task Space's bookmark folder, then the Space; rejects, adding no Space, when the folder can't be made
+  createTaskSpace: () => Promise<Space>;
+  // Drops the task marker: the Space joins the strip and leaves the Task Spaces list, folder unchanged
+  convertToRegularSpace: (id: string) => void;
   updateSpace: (id: string, updates: Partial<Omit<Space, 'id'>>) => void;
   updateSpaceFolderPaths: (updates: { id: string; bookmarkFolderPath: string; bookmarkFolderSegments: string[] }[]) => void;
   deleteSpace: (id: string) => Promise<void>;
@@ -140,7 +146,7 @@ export const SpacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Dependencies for closeAllTabsInSpace
   // ---------------------------------------------------------------------------
   const { getTabIdForBookmark } = useBookmarkTabsContext();
-  const { findFolderBySegments, getAllBookmarksInFolder } = useBookmarks();
+  const { findFolderBySegments, getAllBookmarksInFolder, getBookmarkFolderLocation } = useBookmarks();
 
   // ---------------------------------------------------------------------------
   // Space definitions - read-only mirror of spaceManagerProxy's store, kept
@@ -231,6 +237,46 @@ export const SpacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const updatedSpaces = [...spaceManagerProxy.snapshot, newSpace];
     writeSpaces(updatedSpaces);
     return newSpace;
+  }, []);
+
+  const createTaskSpace = useCallback(async (): Promise<Space> =>
+  {
+    // Live roots rather than useBookmarks' state, which can lag behind a bookmark change
+    const [tree] = await chrome.bookmarks.getTree();
+    const takenNames = [...spaceManagerProxy.snapshot, ...spaceManagerProxy.archivedStore.getSnapshot()]
+      .map(space => space.name);
+    const { name, folderId } = await createTaskSpaceFolder(
+      {
+        getChildren: (id) => chrome.bookmarks.getChildren(id),
+        create: (bookmark) => chrome.bookmarks.create(bookmark),
+      },
+      tree?.children ?? [],
+      new Date(),
+      takenNames
+    );
+    const { segments, inAccount } = await getBookmarkFolderLocation(folderId);
+
+    const newSpace: Space = {
+      id: generateId(),
+      name,
+      icon: TASK_SPACE_ICON,
+      color: TASK_SPACE_COLOR,
+      bookmarkFolderPath: segments.join('/'),
+      bookmarkFolderSegments: segments,
+      bookmarkFolderInAccount: inAccount,
+      task: { createdAt: Date.now() },
+    };
+
+    // Read at call time, like createSpace: the awaits above may have let another write land
+    writeSpaces([...spaceManagerProxy.snapshot, newSpace]);
+    return newSpace;
+  }, [getBookmarkFolderLocation]);
+
+  const convertToRegularSpace = useCallback((id: string) =>
+  {
+    const current = spaceManagerProxy.snapshot;
+    if (!current.some(s => s.id === id && isTaskSpace(s))) return;
+    writeSpaces(current.map(s => s.id === id ? withoutTaskMarker(s) : s));
   }, []);
 
   const getSpaceById = useCallback((id: string): Space | undefined =>
@@ -526,7 +572,7 @@ export const SpacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return (resolvedActiveSpaceId && getSpaceById(resolvedActiveSpaceId)) || ALL_SPACE;
   }, [resolvedActiveSpaceId, getSpaceById]);
 
-  // A legacy `all` or deleted ID moves to the first real Space.
+  // A legacy `all` or deleted ID moves to the first regular Space (a Task Space only when there is none).
   useEffect(() =>
   {
     if (resolvedActiveSpaceId && resolvedActiveSpaceId !== windowState.activeSpaceId)
@@ -546,6 +592,8 @@ export const SpacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     isInitialized,
     windowId,
     createSpace,
+    createTaskSpace,
+    convertToRegularSpace,
     updateSpace,
     updateSpaceFolderPaths,
     deleteSpace,
@@ -567,6 +615,8 @@ export const SpacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     isInitialized,
     windowId,
     createSpace,
+    createTaskSpace,
+    convertToRegularSpace,
     updateSpace,
     updateSpaceFolderPaths,
     deleteSpace,

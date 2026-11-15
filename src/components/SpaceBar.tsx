@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import clsx from 'clsx';
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
-import { FolderPlus, LayoutGrid, Plus } from 'lucide-react';
+import { FolderPlus, LayoutGrid, ListTodo, Menu, Plus } from 'lucide-react';
 import { SpaceIcon } from './SpaceIcon';
+import { TaskSpacesPopover } from './TaskSpacesPopover';
 import { useSpacesContext, Space } from '../contexts/SpacesContext';
 import { useBookmarkTabsContext } from '../contexts/BookmarkTabsContext';
 import { useUnifiedDnd, DropHandler } from '../contexts/UnifiedDndContext';
@@ -13,6 +14,9 @@ import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import { BookmarkCreateFolderModal } from './BookmarkCreateFolderModal';
 import { useBookmarks } from '../hooks/useBookmarks';
 import { useAttentionMarks } from '../hooks/useAttentionMarks';
+import { useSpaceBarItems } from '../hooks/useSpaceBarItems';
+import { isTaskSpace } from '../utils/taskSpaces';
+import { spaceManagerProxy } from '../managers/proxies/spaceManagerProxy';
 import * as DropdownMenu from './menu/DropdownMenu';
 import type { UndoableAction } from '../actions/types';
 
@@ -23,6 +27,7 @@ interface SpaceBarProps
   onDeleteSpace: (space: Space) => void;
   dropTargetSpaceId?: string | null;
   onPerformAction?: (action: UndoableAction) => Promise<void>;
+  onShowToast: (message: string) => void;
   // Puts the label and the Space buttons at the right end of the bar, next to "+" (vertical toolbar)
   alignEnd?: boolean;
 }
@@ -33,10 +38,12 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
   onDeleteSpace,
   dropTargetSpaceId,
   onPerformAction,
+  onShowToast,
   alignEnd,
 }) =>
 {
-  const { spaces, activeSpace, activeSpaceId, switchToSpace, moveSpace, getTabIdsInSpace, windowId } = useSpacesContext();
+  const { spaces, activeSpace, activeSpaceId, switchToSpace, moveSpace, createTaskSpace, convertToRegularSpace, getTabIdsInSpace, windowId } = useSpacesContext();
+  const { regular, temporary } = useSpaceBarItems();
   const { findFolderBySegments, createFolder } = useBookmarks();
   const { getItemKeyForTab, restoreItemAssociation } = useBookmarkTabsContext();
   const { isTabMarked } = useAttentionMarks();
@@ -47,6 +54,7 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
     tabIds: number[];
   }>({ isOpen: false, tabIds: [] });
   const [creatingFolderParentId, setCreatingFolderParentId] = useState<string | null>(null);
+  const [taskListAnchor, setTaskListAnchor] = useState<DOMRect | null>(null);
 
   // Auto-scroll to make active space visible
   useEffect(() =>
@@ -81,6 +89,62 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
   {
     createFolder(parentId, title);
   }, [createFolder]);
+
+  const handleCreateTaskSpace = useCallback(async () =>
+  {
+    try
+    {
+      const space = await createTaskSpace();
+      switchToSpace(space.id);
+    }
+    catch (error)
+    {
+      console.error('[SpaceBar] Failed to create Task Space:', error);
+      onShowToast('Could not create a Task Space');
+    }
+  }, [createTaskSpace, switchToSpace, onShowToast]);
+
+  const closeTaskList = useCallback(() => setTaskListAnchor(null), []);
+
+  const handleSelectTaskSpace = useCallback((space: Space) =>
+  {
+    closeTaskList();
+    switchToSpace(space.id);
+  }, [closeTaskList, switchToSpace]);
+
+  const handleRestoreTaskSpace = useCallback(async (space: Space) =>
+  {
+    closeTaskList();
+    try
+    {
+      // Awaited so background has the Space in its live list before the switch reaches it
+      await spaceManagerProxy.restoreTaskSpace(space.id);
+      switchToSpace(space.id);
+    }
+    catch (error)
+    {
+      console.error('[SpaceBar] Failed to restore Task Space:', error);
+      onShowToast('Could not restore the Task Space');
+    }
+  }, [closeTaskList, switchToSpace, onShowToast]);
+
+  const handleDeleteArchivedTaskSpace = useCallback(async (space: Space) =>
+  {
+    try
+    {
+      await spaceManagerProxy.deleteArchivedTaskSpace(space.id);
+    }
+    catch (error)
+    {
+      console.error('[SpaceBar] Failed to delete archived Task Space:', error);
+      onShowToast('Could not delete the Task Space');
+    }
+  }, [onShowToast]);
+
+  const handleConvertToRegular = useCallback((space: Space) =>
+  {
+    convertToRegularSpace(space.id);
+  }, [convertToRegularSpace]);
 
   const handleCreateTab = useCallback(() =>
   {
@@ -223,10 +287,37 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
     hasFormat(activeDragData, DragFormat.TAB) || hasFormat(activeDragData, DragFormat.URL)
   ));
 
-  // Create sortable IDs for SortableContext
+  // Only the regular Spaces sort: a temporary Task Space icon is not a place in the strip's order
   const sortableSpaceIds = useMemo(
-    () => spaces.map(space => `space-${space.id}`),
-    [spaces]
+    () => regular.map(space => `space-${space.id}`),
+    [regular]
+  );
+
+  const renderSpaceIcon = (space: Space, index: number, isTemporary: boolean) => (
+    <SpaceIcon
+      key={space.id}
+      space={space}
+      index={index}
+      isActive={space.id === activeSpaceId}
+      onClick={() => handleSpaceClick(space.id)}
+      onEdit={() => onEditSpace(space)}
+      onDelete={() => handleDelete(space)}
+      onCloseAllTabs={() => handleCloseAllTabsInSpace(space)}
+      onConvertToRegular={isTaskSpace(space) ? () => convertToRegularSpace(space.id) : undefined}
+      canDelete={spaces.length > 1}
+      isDraggable={!isTemporary}
+      acceptsSpaceDrops={!isTemporary}
+      isDropTarget={
+        dropTargetSpaceId === space.id ||
+        (isSpaceDrag && overId === `space-${space.id}`) ||
+        (isTabOrUrlDrag && overId === `space-${space.id}`)
+      }
+      dropPosition={
+        (isSpaceDrag && overId === `space-${space.id}`) ? dropPosition :
+        (isTabOrUrlDrag && overId === `space-${space.id}`) ? 'into' :
+        null
+      }
+    />
   );
 
   // alignEnd packs the row, not the scroll container: justify-end inside an overflow-x container makes the
@@ -264,35 +355,41 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
           data-dnd-zone="spaceBar"
         >
           <SortableContext items={sortableSpaceIds} strategy={horizontalListSortingStrategy}>
-            {spaces.map((space, index) => (
-              <SpaceIcon
-                key={space.id}
-                space={space}
-                index={index}
-                isActive={space.id === activeSpaceId}
-                onClick={() => handleSpaceClick(space.id)}
-                onEdit={() => onEditSpace(space)}
-                onDelete={() => handleDelete(space)}
-                onCloseAllTabs={() => handleCloseAllTabsInSpace(space)}
-                canDelete={spaces.length > 1}
-                isDraggable
-                isDropTarget={
-                  dropTargetSpaceId === space.id ||
-                  (isSpaceDrag && overId === `space-${space.id}`) ||
-                  (isTabOrUrlDrag && overId === `space-${space.id}`)
-                }
-                dropPosition={
-                  (isSpaceDrag && overId === `space-${space.id}`) ? dropPosition :
-                  (isTabOrUrlDrag && overId === `space-${space.id}`) ? 'into' :
-                  null
-                }
-              />
-            ))}
+            {regular.map((space, index) => renderSpaceIcon(space, index, false))}
           </SortableContext>
+          {temporary.length > 0 && (
+            <>
+              <div
+                className="w-px h-5 flex-shrink-0 bg-gray-300 dark:bg-gray-600"
+                aria-hidden="true"
+              />
+              {temporary.map((space, index) => renderSpaceIcon(space, regular.length + index, true))}
+            </>
+          )}
         </div>
 
-        {/* Arc-style create menu */}
-        <div className="arc-create-space flex items-center px-1">
+        {/* Task Spaces list and Arc-style create menu */}
+        <div className="arc-create-space flex items-center gap-0.5 px-1">
+          <button
+            title="Task Spaces"
+            aria-label="Task Spaces"
+            aria-expanded={taskListAnchor !== null}
+            onClick={(e) => setTaskListAnchor(e.currentTarget.getBoundingClientRect())}
+            className={clsx(
+              "p-1.5 rounded",
+              "transition-all duration-150",
+              "focus:outline-none",
+              taskListAnchor
+                ? "text-gray-900 dark:text-gray-100 bg-gray-200 dark:bg-gray-700"
+                : clsx(
+                  "text-gray-500 dark:text-gray-400",
+                  "hover:text-gray-900 dark:hover:text-gray-100",
+                  "hover:bg-gray-200 dark:hover:bg-gray-700"
+                )
+            )}
+          >
+            <Menu size={18} />
+          </button>
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
               <button
@@ -314,6 +411,9 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
               <DropdownMenu.Item onSelect={onCreateSpace}>
                 <LayoutGrid size={14} className="mr-2" /> New Space
               </DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={handleCreateTaskSpace}>
+                <ListTodo size={14} className="mr-2" /> New Task Space
+              </DropdownMenu.Item>
               <DropdownMenu.Item onSelect={handleCreateFolder}>
                 <FolderPlus size={14} className="mr-2" /> New Folder
               </DropdownMenu.Item>
@@ -324,6 +424,21 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
           </DropdownMenu.Root>
         </div>
       </div>
+
+      {taskListAnchor && (
+        <TaskSpacesPopover
+          anchorRect={taskListAnchor}
+          canDelete={spaces.length > 1}
+          onSelect={handleSelectTaskSpace}
+          onEdit={onEditSpace}
+          onDelete={handleDelete}
+          onCloseAllTabs={handleCloseAllTabsInSpace}
+          onConvertToRegular={handleConvertToRegular}
+          onRestore={handleRestoreTaskSpace}
+          onDeleteArchived={handleDeleteArchivedTaskSpace}
+          onClose={closeTaskList}
+        />
+      )}
 
       <ConfirmDeleteDialog
         isOpen={confirmCloseAllDialog.isOpen}

@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   SavedPages,
   TabAssociationsByWindow,
+  closingTabAction,
   selectTabsToClose,
   tabChangedDuringRun,
 } from '../src/utils/autoArchivePolicy.ts';
@@ -127,6 +128,38 @@ test('a bookmark tab on another hash route of its bookmark\'s URL is archived; o
   });
 
   assert.deepEqual(result, { archive: [1, 3], closeOnly: [2] });
+});
+
+test('a tab closing with its Space is saved unless it is on a Favorite\'s or its bookmark\'s exact page, hash included, or empty', () =>
+{
+  const savedPages = SavedPages.fromTree(
+    [{ id: 'folder', children: [{ id: 'b1', url: 'https://docs.test/guide#setup' }] }],
+    [{ url: 'https://mail.test/mail/u/0/#inbox' }, { url: 'https://fav.test/' }]
+  );
+  const cases = [
+    // A Favorite's own route, associated or not; a trailing slash doesn't count
+    [undefined, 'https://mail.test/mail/u/0/#inbox', 'close-only'],
+    ['pinned-f1', 'https://mail.test/mail/u/0#inbox', 'close-only'],
+    ['pinned-f2', 'https://fav.test', 'close-only'],
+    // Another hash route of a Favorite's URL, or none, is another page
+    ['pinned-f1', 'https://mail.test/mail/u/0/#drafts/123', 'save'],
+    [undefined, 'https://mail.test/mail/u/0/', 'save'],
+    ['pinned-f2', 'https://fav.test/#section', 'save'],
+    // A bookmark tab on its bookmark's route, on another route, of a deleted bookmark, on a Favorite's page
+    ['bookmark-b1', 'https://docs.test/guide#setup', 'close-only'],
+    ['bookmark-b1', 'https://docs.test/guide', 'save'],
+    ['bookmark-gone', 'https://docs.test/guide#setup', 'save'],
+    ['bookmark-b1', 'https://mail.test/mail/u/0/#inbox', 'close-only'],
+    // An unassociated tab on a bookmarked page, an empty page, any other page
+    [undefined, 'https://docs.test/guide#setup', 'save'],
+    [undefined, 'chrome://newtab/', 'close-only'],
+    [undefined, 'https://other.test/', 'save'],
+  ];
+
+  for (const [itemKey, pageUrl, expected] of cases)
+  {
+    assert.equal(closingTabAction(itemKey, pageUrl, savedPages), expected, `${itemKey} on ${pageUrl}`);
+  }
 });
 
 test('a tab on a Favorite\'s page stays open, associated or not; an unassociated tab on a bookmarked page is archived', () =>

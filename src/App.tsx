@@ -18,6 +18,7 @@ import { useBookmarks, refreshAllBookmarks } from './hooks/useBookmarks';
 import { useAttentionMarks } from './hooks/useAttentionMarks';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useChromeLocalStorage } from './hooks/useChromeLocalStorage';
+import { useSpaceBarItems } from './hooks/useSpaceBarItems';
 import { useSectionCollapseState } from './hooks/useSectionCollapseState';
 import { SectionCollapseState, ToggleSection } from './utils/sectionCollapseState';
 import { useSwipeNavigation } from './hooks/useSwipeNavigation';
@@ -28,6 +29,7 @@ import { ConfirmDeleteDialog } from './components/ConfirmDeleteDialog';
 import { BookmarkCreateFolderModal } from './components/BookmarkCreateFolderModal';
 import { PasteYamlDialog } from './components/PasteYamlDialog';
 import { copyBookmarksAsYaml } from './utils/bookmarkYamlCopy';
+import { isTaskSpace } from './utils/taskSpaces';
 import { SpacesProvider, Space, useSpacesContext } from './contexts/SpacesContext';
 import { SelectionProvider } from './contexts/SelectionContext';
 import { UnifiedDndProvider, useUnifiedDndOptional } from './contexts/UnifiedDndContext';
@@ -49,6 +51,7 @@ import { useFollowActiveTab } from './hooks/useFollowActiveTab';
 import { FollowActiveTabMode, FOLLOW_ACTIVE_TAB_KEY, DEFAULT_FOLLOW_ACTIVE_TAB_MODE, parseFollowActiveTabMode } from './utils/followActiveTab';
 import { BookmarkOpenMode, BOOKMARK_OPEN_MODE_KEY, DEFAULT_BOOKMARK_OPEN_MODE, parseBookmarkOpenMode } from './utils/bookmarkOpenMode';
 import { AutoArchivePeriod, AUTO_ARCHIVE_AFTER_KEY, DEFAULT_AUTO_ARCHIVE_PERIOD, parseAutoArchivePeriod } from './utils/autoArchive';
+import { TaskSpaceArchivePeriod, TASK_SPACE_ARCHIVE_AFTER_KEY, DEFAULT_TASK_SPACE_ARCHIVE_PERIOD, parseTaskSpaceArchivePeriod } from './utils/taskSpaceArchive';
 import { TabAgeHighlightStyle, TAB_AGE_HIGHLIGHT_KEY, DEFAULT_TAB_AGE_HIGHLIGHT_STYLE, parseTabAgeHighlightStyle } from './utils/tabAgeHighlight';
 import { AttentionMarkStyle, ATTENTION_MARK_STYLE_KEY, DEFAULT_ATTENTION_MARK_STYLE, parseAttentionMarkStyle } from './utils/attentionMarkStyle';
 import { UnvisitedTabMarkerSetting, UNVISITED_TAB_MARKER_KEY, DEFAULT_UNVISITED_TAB_MARKER, parseUnvisitedTabMarker } from './utils/unvisitedTabMarker';
@@ -283,7 +286,7 @@ interface SpaceTitleProps
 
 const SpaceTitle: React.FC<SpaceTitleProps> = ({ onEditSpace, onDeleteSpace, onCloseAllTabs, onCreateFolder, onCopyAsYaml, onPasteFromYaml, bookmarksCollapsed, onToggleBookmarks, headerActions }) =>
 {
-  const { spaces, activeSpace } = useSpacesContext();
+  const { spaces, activeSpace, convertToRegularSpace } = useSpacesContext();
   const fontSize = useFontSize();
   const titleFontSize = fontSize;
 
@@ -306,6 +309,7 @@ const SpaceTitle: React.FC<SpaceTitleProps> = ({ onEditSpace, onDeleteSpace, onC
       onEdit={() => onEditSpace(activeSpace)}
       onDelete={() => onDeleteSpace(activeSpace)}
       onCloseAllTabs={() => onCloseAllTabs(activeSpace)}
+      onConvertToRegular={isTaskSpace(activeSpace) ? () => convertToRegularSpace(activeSpace.id) : undefined}
       onCreateFolder={onCreateFolder}
       onCopyAsYaml={onCopyAsYaml}
       onPasteFromYaml={onPasteFromYaml}
@@ -618,13 +622,16 @@ interface SwipeableContainerProps extends SidebarContentProps
 
 const SwipeableContainer: React.FC<SwipeableContainerProps> = (props) =>
 {
-  const { allSpaces, activeSpaceId, switchToSpace } = useSpacesContext();
+  const { activeSpaceId, switchToSpace } = useSpacesContext();
+  // The Space bar's order, temporary Task Space icons included: swipe goes only where the strip shows
+  const { regular, temporary } = useSpaceBarItems();
+  const stripSpaces = useMemo(() => [...regular, ...temporary], [regular, temporary]);
   const containerRef = useRef<HTMLDivElement>(null);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
   const prevSpaceIdRef = useRef(activeSpaceId);
 
-  const currentIndex = allSpaces.findIndex(s => s.id === activeSpaceId);
-  const canSwipeLeft = currentIndex < allSpaces.length - 1;
+  const currentIndex = stripSpaces.findIndex(s => s.id === activeSpaceId);
+  const canSwipeLeft = currentIndex < stripSpaces.length - 1;
   const canSwipeRight = currentIndex > 0;
 
   // Detect space change and set slide direction
@@ -632,12 +639,12 @@ const SwipeableContainer: React.FC<SwipeableContainerProps> = (props) =>
   {
     if (activeSpaceId !== prevSpaceIdRef.current)
     {
-      const prevIndex = allSpaces.findIndex(s => s.id === prevSpaceIdRef.current);
-      const newIndex = allSpaces.findIndex(s => s.id === activeSpaceId);
+      const prevIndex = stripSpaces.findIndex(s => s.id === prevSpaceIdRef.current);
+      const newIndex = stripSpaces.findIndex(s => s.id === activeSpaceId);
       setSlideDirection(newIndex > prevIndex ? 'left' : 'right');
       prevSpaceIdRef.current = activeSpaceId;
     }
-  }, [activeSpaceId, allSpaces]);
+  }, [activeSpaceId, stripSpaces]);
 
   // Clear animation after it completes
   useEffect(() =>
@@ -653,13 +660,13 @@ const SwipeableContainer: React.FC<SwipeableContainerProps> = (props) =>
   {
     if (direction === 'left' && canSwipeLeft)
     {
-      switchToSpace(allSpaces[currentIndex + 1].id);
+      switchToSpace(stripSpaces[currentIndex + 1].id);
     }
     else if (direction === 'right' && canSwipeRight)
     {
-      switchToSpace(allSpaces[currentIndex - 1].id);
+      switchToSpace(stripSpaces[currentIndex - 1].id);
     }
-  }, [allSpaces, currentIndex, canSwipeLeft, canSwipeRight, switchToSpace]);
+  }, [stripSpaces, currentIndex, canSwipeLeft, canSwipeRight, switchToSpace]);
 
   useSwipeNavigation(containerRef, { onSwipe: handleSwipe });
 
@@ -893,6 +900,12 @@ function Sidebar() {
     AUTO_ARCHIVE_AFTER_KEY,
     DEFAULT_AUTO_ARCHIVE_PERIOD,
     { parse: (v) => parseAutoArchivePeriod(v, import.meta.env.DEV), serialize: (v) => v }
+  );
+  // Raw string, not JSON: background.ts reads it to run the Task Space archiver
+  const [taskSpaceArchiveAfter, setTaskSpaceArchiveAfter] = useChromeLocalStorage<TaskSpaceArchivePeriod>(
+    TASK_SPACE_ARCHIVE_AFTER_KEY,
+    DEFAULT_TASK_SPACE_ARCHIVE_PERIOD,
+    { parse: (v) => parseTaskSpaceArchivePeriod(v, import.meta.env.DEV), serialize: (v) => v }
   );
   // Raw string, not JSON: background.ts reads it to decide whether to record tab last-use times
   const [tabAgeHighlight, setTabAgeHighlight, tabAgeHighlightLoaded] = useChromeLocalStorage<TabAgeHighlightStyle>(
@@ -1129,6 +1142,7 @@ function Sidebar() {
     setSpaceColorAlpha(newSettings.spaceColorAlpha);
     setFollowActiveTab(newSettings.followActiveTab);
     setAutoArchiveAfter(newSettings.autoArchiveAfter);
+    setTaskSpaceArchiveAfter(newSettings.taskSpaceArchiveAfter);
     setTabAgeHighlight(newSettings.tabAgeHighlight);
     setAttentionMarkStyle(newSettings.attentionMarkStyle);
     setMarkUnvisitedTabs(newSettings.markUnvisitedTabs);
@@ -1348,6 +1362,7 @@ function Sidebar() {
               spaceColorAlpha,
               followActiveTab,
               autoArchiveAfter,
+              taskSpaceArchiveAfter,
               tabAgeHighlight,
               attentionMarkStyle,
               markUnvisitedTabs,
@@ -1664,6 +1679,7 @@ function Sidebar() {
         onDeleteSpace={handleDeleteSpace}
         dropTargetSpaceId={spaceDropTargetId}
         onPerformAction={performAction}
+        onShowToast={showToast}
         alignEnd={isVerticalToolbar(toolbarLayout)}
       />
 

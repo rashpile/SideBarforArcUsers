@@ -1,4 +1,4 @@
-import { SpaceMessageAction, SPACES_STORAGE_KEY } from './utils/spaceMessages';
+import { ARCHIVED_TASK_SPACES_STORAGE_KEY, SpaceMessageAction, SPACES_STORAGE_KEY } from './utils/spaceMessages';
 import { FOLLOW_ACTIVE_TAB_KEY, parseFollowActiveTabMode } from './utils/followActiveTab';
 import { BOOKMARK_OPEN_MODE_KEY, parseBookmarkOpenMode } from './utils/bookmarkOpenMode';
 import { getTabAssociations, findTabsForItemKey, storeTabAssociation, removeTabAssociation, saveTabAssociationBackup, removeTabAssociationBackup, updateTabAssociationBackupIndices, removeWindowAssociationBackup, restoreTabAssociationBackup, WAIT_FOR_TAB_ASSOCIATIONS_READY, BOOKMARK_ITEM_KEY_PREFIX } from './utils/tabAssociations';
@@ -17,9 +17,15 @@ import { TabAssociationReadiness } from './utils/tabAssociationReadiness';
 import { resolveActiveSpaceId } from './utils/spaceSelection';
 import { findParkedReplacementTab, getEffectiveTabUrl, parseParkedTabUrl } from './utils/parkedTabAssociation';
 import { BookmarkRecencyStore } from './stores/bookmarkRecencyStore';
+import { TaskSpaceLastUseStore } from './stores/taskSpaceLastUse';
+import { isTaskSpace } from './utils/taskSpaces';
 import { BrowserSessionMarker } from './stores/browserSessionMarker';
 import { TabActivityTracker } from './stores/tabActivityTracker';
 import { queryOpenTabs, readTabActivityRecording, TabAutoArchiver } from './services/tabAutoArchiver';
+import { TaskSpaceArchiver } from './services/taskSpaceArchiver';
+import { SerialQueue } from './utils/serialQueue';
+import { SpaceArchive } from './utils/archiveFolder';
+import { parseTaskSpaceArchivePeriod, TASK_SPACE_ARCHIVE_AFTER_KEY } from './utils/taskSpaceArchive';
 import { FavoritesMigration } from './services/favoritesMigration';
 import { AUTO_ARCHIVE_AFTER_KEY } from './utils/autoArchive';
 import { TAB_AGE_HIGHLIGHT_KEY } from './utils/tabAgeHighlight';
@@ -178,8 +184,36 @@ async function setActiveTabAndSpace(
 // Initialize trackers
 // =============================================================================
 
-const spaceStateManager = new SpaceWindowStateManager();
-const spaceManager = new SpaceManager();
+// Last use of each Task Space, for its temporary Space bar icon and auto-archive. Background is
+// the only writer; the sidebar reads the key directly.
+const taskSpaceLastUseStore = new TaskSpaceLastUseStore({
+  get: (key) => chrome.storage.local.get(key),
+  set: (values) => chrome.storage.local.set(values),
+});
+
+// Records only Task Spaces of the live list. Waits for the load: before it the list is empty and
+// a Task Space would read as unknown.
+function recordTaskSpaceUse(spaceId: string): void
+{
+  void managerLoadPromise
+    .then(() =>
+    {
+      const space = spaceManager.getSpaces().find(candidate => candidate.id === spaceId);
+      if (space && isTaskSpace(space)) return taskSpaceLastUseStore.touch(spaceId);
+    })
+    .catch((error) => console.error('[TaskSpaceLastUse] failed to record use:', error));
+}
+
+const spaceStateManager = new SpaceWindowStateManager({
+  // Leaving a Task Space counts as use too: its temporary icon stays for a while after the switch
+  onActiveSpaceChanged: (_windowId, previousSpaceId, nextSpaceId) =>
+  {
+    recordTaskSpaceUse(previousSpaceId);
+    recordTaskSpaceUse(nextSpaceId);
+  },
+});
+// A restored Task Space starts a fresh period, or the next archive run would take it again
+const spaceManager = new SpaceManager({ onRestored: recordTaskSpaceUse });
 // setActiveTabAndSpace and getSpaceForTab are orchestration living here, so
 // the manager takes them rather than importing them back out of this file -
 // see TabHistoryDeps in managers/impl/tabHistoryManager.ts.
@@ -195,9 +229,17 @@ const favoriteIconsManager = new FavoriteIconsManager({
   },
   broadcast: (message) => chrome.runtime.sendMessage(message),
 });
+// Live and archived Spaces, so a restored Task Space gets its Recently Closed list back. Empty
+// while the live list is: no Spaces means they aren't known, not that every Space is gone
+function knownSpaceIds(): string[]
+{
+  const live = spaceManager.getSpaces();
+  if (live.length === 0) return [];
+  return [...live, ...spaceManager.getArchivedTaskSpaces()].map(space => space.id);
+}
 // Per-Space Recently Closed lists; the sidebar reopens and clears through its proxy
 const recentlyClosedManager = new RecentlyClosedManager({
-  getSpaceIds: () => spaceManager.getSpaces().map(space => space.id),
+  getSpaceIds: knownSpaceIds,
   registerTab: (windowId, tabId, spaceId) => tabSpaceRegistry.register(windowId, tabId, spaceId),
 });
 // Mark for Attention on tabs and bookmarks; auto-archive keeps marked tabs open
@@ -602,18 +644,34 @@ chrome.storage.onChanged.addListener((changes, areaName) =>
   if (areaName === 'local' && SPACES_STORAGE_KEY in changes) runFavoritesMigration();
 });
 
-// A deleted Space's Recently Closed list goes with it
+// A deleted Space's Recently Closed list goes with it; an archived Task Space keeps its list
+// until it is deleted from the archive
 chrome.storage.onChanged.addListener((changes, areaName) =>
 {
-  if (areaName !== 'local' || !(SPACES_STORAGE_KEY in changes)) return;
+  if (areaName !== 'local') return;
+  if (!(SPACES_STORAGE_KEY in changes) && !(ARCHIVED_TASK_SPACES_STORAGE_KEY in changes)) return;
   void managerLoadPromise
     .then(() =>
     {
-      const spaceIds = spaceManager.getSpaces().map(space => space.id);
-      // No Spaces means they aren't known, not that every Space is gone
+      const spaceIds = knownSpaceIds();
       if (spaceIds.length > 0) return recentlyClosedManager.retainSpaces(spaceIds);
     })
     .catch((error) => console.error('[RecentlyClosedManager] failed to drop deleted Spaces\' records:', error));
+});
+
+// A deleted Task Space, live or archived, takes its last-use entry with it
+chrome.storage.onChanged.addListener((changes, areaName) =>
+{
+  if (areaName !== 'local') return;
+  if (!(SPACES_STORAGE_KEY in changes) && !(ARCHIVED_TASK_SPACES_STORAGE_KEY in changes)) return;
+  void managerLoadPromise
+    .then(() =>
+    {
+      // No Spaces means they aren't known, not that every Task Space is gone
+      if (spaceManager.getSpaces().length === 0) return;
+      return taskSpaceLastUseStore.retain(spaceManager.getTaskSpaceIds());
+    })
+    .catch((error) => console.error('[TaskSpaceLastUse] failed to drop deleted Task Spaces:', error));
 });
 
 // =============================================================================
@@ -622,7 +680,12 @@ chrome.storage.onChanged.addListener((changes, areaName) =>
 // Works with the sidebar closed: once at worker start and on an alarm.
 // =============================================================================
 
+// Tab and Task Space auto-archive run one task at a time, so they never both create an
+// asd_Archive folder in the same Space
+const autoArchiveQueue = new SerialQueue();
+
 const tabAutoArchiver = new TabAutoArchiver({
+  queue: autoArchiveQueue,
   startupRestoreSucceeded: () => tabAssociationReadiness.wait(),
   tracker: tabActivityTracker,
   spaceRegistry: tabSpaceRegistry,
@@ -648,6 +711,81 @@ chrome.storage.onChanged.addListener((changes, areaName) =>
 });
 
 void tabAutoArchiver.start();
+
+// =============================================================================
+// Task Space auto-archive - archives Task Spaces unused for the "Archive Task
+// Spaces after" period: their tabs are saved to the Space's asd_Archive and
+// closed, the Space moves to the archived list. Once at worker start and on an alarm.
+// =============================================================================
+
+// The Space each open window shows, resolved as the sidebar resolves it
+async function activeSpaceIdsOfOpenWindows(): Promise<string[]>
+{
+  const windows = await chrome.windows.getAll({ windowTypes: ['normal'] });
+  const spaces = spaceManager.getSpaces();
+  return windows.flatMap(({ id }) =>
+  {
+    const spaceId = id === undefined ? null : resolveActiveSpaceId(spaces, spaceStateManager.getActiveSpace(id));
+    return spaceId ? [spaceId] : [];
+  });
+}
+
+const taskSpaceArchive = new SpaceArchive({
+  getChildren: (id) => chrome.bookmarks.getChildren(id),
+  create: (bookmark) => chrome.bookmarks.create(bookmark),
+  remove: (id) => chrome.bookmarks.remove(id),
+});
+
+const taskSpaceArchiver = new TaskSpaceArchiver({
+  queue: autoArchiveQueue,
+  startupRestoreSucceeded: () => tabAssociationReadiness.wait(),
+  tabMarksLoaded: () => attentionMarkManager.tabMarksLoaded,
+  isTabMarked: (tabId) => attentionMarkManager.isTabMarked(tabId),
+  readPeriod: async () =>
+  {
+    const result = await chrome.storage.local.get(TASK_SPACE_ARCHIVE_AFTER_KEY);
+    return parseTaskSpaceArchivePeriod(result[TASK_SPACE_ARCHIVE_AFTER_KEY], import.meta.env.DEV);
+  },
+  getSpaces: () => spaceManager.getSpaces(),
+  readLastUse: () => taskSpaceLastUseStore.read(),
+  activeSpaceIds: activeSpaceIdsOfOpenWindows,
+  queryTabs: queryOpenTabs,
+  getTab: (tabId) => chrome.tabs.get(tabId).catch(() => undefined),
+  spaceOf: (windowId, tabId) => tabSpaceRegistry.getSpace(windowId, tabId),
+  associationsOf: (windowId) => getTabAssociations(windowId),
+  getTree: () => chrome.bookmarks.getTree(),
+  archivePage: (folderId, page) => taskSpaceArchive.archive(folderId, page),
+  archiveSpaces: (ids, now) => spaceManager.archiveTaskSpaces(ids, now),
+  // Each tab's page is in the Archive, a bookmark, a Favorite or empty, so it isn't Recently Closed
+  beforeClose: (tabIds) => recentlyClosedManager.expectArchiveClose(tabIds),
+  removeTabs: (tabIds) => chrome.tabs.remove(tabIds),
+  alarms: {
+    get: (name) => chrome.alarms.get(name),
+    create: (name, info) => chrome.alarms.create(name, info),
+    clear: (name) => chrome.alarms.clear(name),
+  },
+  session: {
+    get: (key) => chrome.storage.session.get(key),
+    set: (values) => chrome.storage.session.set(values),
+  },
+  now: () => Date.now(),
+  debug: import.meta.env.DEV,
+});
+
+// Registered at top level so the alarm wakes the worker
+chrome.alarms.onAlarm.addListener((alarm) =>
+{
+  if (alarm.name === TaskSpaceArchiver.ALARM_NAME) void taskSpaceArchiver.run();
+});
+
+// The alarm follows the setting; a change to a period archives the overdue Task Spaces at once
+chrome.storage.onChanged.addListener((changes, areaName) =>
+{
+  const change = changes[TASK_SPACE_ARCHIVE_AFTER_KEY];
+  if (areaName === 'local' && change) void taskSpaceArchiver.handleSettingChange(change);
+});
+
+void taskSpaceArchiver.start();
 
 // =============================================================================
 // Saved page styles - puts a bookmark's saved page style back on the page when a
@@ -971,6 +1109,16 @@ async function handleTabActivation(windowId: number, tabId: number): Promise<voi
       spaceStateManager.setActiveSpace(windowId, destinationSpaceId);
       spaceSwitched = true;
     }
+  }
+
+  // A tab switch inside a Task Space is use of it, though the window's Space stays the same
+  const activeSpaceId = spaceStateManager.getActiveSpace(windowId);
+  recordTaskSpaceUse(activeSpaceId);
+  // With Follow active tab off the window stays on its Space, while the tab just activated may
+  // be a Task Space's; without this, that Task Space would archive as unused
+  if (destinationSpaceId && destinationSpaceId !== activeSpaceId)
+  {
+    recordTaskSpaceUse(destinationSpaceId);
   }
 
   // Announce the activation so the sidebar can scroll the tab into view.
