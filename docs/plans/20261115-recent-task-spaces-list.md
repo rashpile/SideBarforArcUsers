@@ -226,12 +226,12 @@ interface RecentTaskSpacesInput<T> {
 - Create: `src/managers/proxies/hiddenTaskSpacesProxy.ts`
 - Create: `src/hooks/useHiddenTaskSpaces.ts`
 
-- [ ] in `src/background.ts` construct `HiddenTaskSpacesManager` (chrome storage local + `chrome.runtime.sendMessage`), add its `load()` to `managerLoadPromise` and `registerManager` it
-- [ ] in `onActiveSpaceChanged` unhide the Space entered (`next`) after `managerLoadPromise`, with a logged `catch`; keep both last-use touches; leaving does not unhide
-- [ ] in the `spaces` / `archivedTaskSpaces` `storage.onChanged` listener also `retain(spaceManager.getSpaces().filter(isTaskSpace).map(space => space.id))` — live Task Spaces only, not `getTaskSpaceIds()` — with the same load wait and `getSpaces().length === 0` guard as the last-use retain
-- [ ] update the background comments that say last use feeds "the temporary Space bar icon" / "its temporary icon stays for a while after the switch": it now feeds the recent Task Spaces list (a Space just left stays at the bottom of it) and auto-archive
-- [ ] create `src/managers/proxies/hiddenTaskSpacesProxy.ts` (mirror, `load`, optimistic `hide` with resync on failure, broadcast listener skipping its own echo) following `favoriteIconsManagerProxy.ts`, and `src/hooks/useHiddenTaskSpaces.ts` returning the `HiddenTaskSpaces` mirror value
-- [ ] no new tests (wiring; the manager logic is tested in task 2); run `make lint && make test` - must pass before task 4
+- [x] in `src/background.ts` construct `HiddenTaskSpacesManager` (chrome storage local + `chrome.runtime.sendMessage`), add its `load()` to `managerLoadPromise` and `registerManager` it
+- [x] in `onActiveSpaceChanged` unhide the Space entered (`next`) after `managerLoadPromise`, with a logged `catch`; keep both last-use touches; leaving does not unhide
+- [x] in the `spaces` / `archivedTaskSpaces` `storage.onChanged` listener also `retain(spaceManager.getSpaces().filter(isTaskSpace).map(space => space.id))` — live Task Spaces only, not `getTaskSpaceIds()` — with the same load wait and `getSpaces().length === 0` guard as the last-use retain
+- [x] update the background comments that say last use feeds "the temporary Space bar icon" / "its temporary icon stays for a while after the switch": it now feeds the recent Task Spaces list (a Space just left stays at the bottom of it) and auto-archive
+- [x] create `src/managers/proxies/hiddenTaskSpacesProxy.ts` (mirror, `load`, optimistic `hide` with resync on failure, broadcast listener skipping its own echo) following `favoriteIconsManagerProxy.ts`, and `src/hooks/useHiddenTaskSpaces.ts` returning the `HiddenTaskSpaces` mirror value
+- [x] no new tests (wiring; the manager logic is tested in task 2); run `make lint && make test` - must pass before task 4
 
 ### Task 4: Drop the temporary icons from the strip; new hook for the list and swipe
 

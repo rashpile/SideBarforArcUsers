@@ -69,6 +69,13 @@ export class HiddenTaskSpaces
   {
     return [...this.#ids];
   }
+
+  /** Same marks, in any order. */
+  equals(other: HiddenTaskSpaces): boolean
+  {
+    if (this.#ids.size !== other.#ids.size) return false;
+    return [...this.#ids].every(id => other.#ids.has(id));
+  }
 }
 
 /**

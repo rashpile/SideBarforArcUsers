@@ -10,6 +10,7 @@ import { SpaceManager } from './managers/impl/spaceManager';
 import { TabHistoryManager } from './managers/impl/tabHistoryManager';
 import { LastAudibleTracker } from './managers/impl/lastAudibleTracker';
 import { FavoriteIconsManager } from './managers/impl/favoriteIconsManager';
+import { HiddenTaskSpacesManager } from './managers/impl/hiddenTaskSpacesManager';
 import { allFavoriteBookmarks } from './utils/spaceFavorites';
 import { collectBookmarkIds } from './utils/bookmarkFolderLookup';
 import { AttentionMarkManager } from './managers/impl/attentionMarkManager';
@@ -185,7 +186,7 @@ async function setActiveTabAndSpace(
 // Initialize trackers
 // =============================================================================
 
-// Last use of each Task Space, for its temporary Space bar icon and auto-archive. Background is
+// Last use of each Task Space, for the recent Task Spaces list and auto-archive. Background is
 // the only writer; the sidebar reads the key directly.
 const taskSpaceLastUseStore = new TaskSpaceLastUseStore({
   get: (key) => chrome.storage.local.get(key),
@@ -205,12 +206,27 @@ function recordTaskSpaceUse(spaceId: string): void
     .catch((error) => console.error('[TaskSpaceLastUse] failed to record use:', error));
 }
 
+// Task Spaces hidden from the recent list with a row's (−); the sidebar hides through its proxy
+const hiddenTaskSpacesManager = new HiddenTaskSpacesManager({
+  storage: {
+    get: (key) => chrome.storage.local.get(key),
+    set: (values) => chrome.storage.local.set(values),
+  },
+  broadcast: (message) => chrome.runtime.sendMessage(message),
+});
+
 const spaceStateManager = new SpaceWindowStateManager({
-  // Leaving a Task Space counts as use too: its temporary icon stays for a while after the switch
   onActiveSpaceChanged: (_windowId, previousSpaceId, nextSpaceId) =>
   {
+    // Leaving a Task Space counts as use too: the Space just left stays at the bottom of the
+    // recent Task Spaces list
     recordTaskSpaceUse(previousSpaceId);
     recordTaskSpaceUse(nextSpaceId);
+    // Entering a Space by any route brings it back to the recent list. Leaving doesn't: a Space
+    // hidden while it was active stays hidden after the switch away
+    void managerLoadPromise
+      .then(() => hiddenTaskSpacesManager.unhide(nextSpaceId))
+      .catch((error) => console.error('[HiddenTaskSpacesManager] failed to unhide the entered Space:', error));
   },
 });
 // A restored Task Space starts a fresh period, or the next archive run would take it again
@@ -487,6 +503,8 @@ const managerLoadPromise = Promise.all([
   historyManager.load(),
   lastAudibleTracker.load(),
   favoriteIconsManager.load(),
+  // Never rejects: an unreadable key only shows every recent Task Space
+  hiddenTaskSpacesManager.load(),
   // Never rejects. Loaded before stateReady, because a page commit often wakes the worker and
   // the applier reads the styles as soon as stateReady resolves
   pageStyleManager.load(),
@@ -684,7 +702,9 @@ chrome.storage.onChanged.addListener((changes, areaName) =>
     .catch((error) => console.error('[RecentlyClosedManager] failed to drop deleted Spaces\' records:', error));
 });
 
-// A deleted Task Space, live or archived, takes its last-use entry with it
+// A deleted Task Space, live or archived, takes its last-use entry with it. A Space that is no
+// longer a live Task Space (archived, deleted, converted) loses its hidden mark, so a restored
+// Task Space shows in the recent list again
 chrome.storage.onChanged.addListener((changes, areaName) =>
 {
   if (areaName !== 'local') return;
@@ -693,7 +713,9 @@ chrome.storage.onChanged.addListener((changes, areaName) =>
     .then(() =>
     {
       // No Spaces means they aren't known, not that every Task Space is gone
-      if (spaceManager.getSpaces().length === 0) return;
+      const liveSpaces = spaceManager.getSpaces();
+      if (liveSpaces.length === 0) return;
+      hiddenTaskSpacesManager.retain(liveSpaces.filter(isTaskSpace).map(space => space.id));
       return taskSpaceLastUseStore.retain(spaceManager.getTaskSpaceIds());
     })
     .catch((error) => console.error('[TaskSpaceLastUse] failed to drop deleted Task Spaces:', error));
@@ -1630,6 +1652,7 @@ registerManager(spaceManager);
 registerManager(historyManager);
 registerManager(lastAudibleTracker);
 registerManager(favoriteIconsManager);
+registerManager(hiddenTaskSpacesManager);
 registerManager(attentionMarkManager);
 registerManager(recentlyClosedManager);
 registerManager(pageStyleManager);
