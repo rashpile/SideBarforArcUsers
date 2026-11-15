@@ -9,7 +9,7 @@ import { tabSpaceRegistryProxy } from '../managers/proxies/tabSpaceRegistryProxy
 import { useSpaces } from '../hooks/useSpaces';
 import { resolveActiveSpaceId } from '../utils/spaceSelection';
 import { createTaskSpaceFolder } from '../utils/taskSpaceFolder';
-import { TASK_SPACE_COLOR, TASK_SPACE_ICON } from '../utils/taskSpaces';
+import { TASK_SPACE_COLOR, TASK_SPACE_ICON, isTaskSpace, withoutTaskMarker } from '../utils/taskSpaces';
 
 // Re-export Space and ALL_SPACE so all existing imports from SpacesContext continue to work
 export type { Space } from '../utils/spaceMessages';
@@ -85,6 +85,8 @@ interface SpacesContextValue
   ) => Space;
   // Creates the Task Space's bookmark folder, then the Space; rejects, adding no Space, when the folder can't be made
   createTaskSpace: () => Promise<Space>;
+  // Drops the task marker: the Space joins the strip and leaves the Task Spaces list, folder unchanged
+  convertToRegularSpace: (id: string) => void;
   updateSpace: (id: string, updates: Partial<Omit<Space, 'id'>>) => void;
   updateSpaceFolderPaths: (updates: { id: string; bookmarkFolderPath: string; bookmarkFolderSegments: string[] }[]) => void;
   deleteSpace: (id: string) => Promise<void>;
@@ -269,6 +271,13 @@ export const SpacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     writeSpaces([...spaceManagerProxy.snapshot, newSpace]);
     return newSpace;
   }, [getBookmarkFolderLocation]);
+
+  const convertToRegularSpace = useCallback((id: string) =>
+  {
+    const current = spaceManagerProxy.snapshot;
+    if (!current.some(s => s.id === id && isTaskSpace(s))) return;
+    writeSpaces(current.map(s => s.id === id ? withoutTaskMarker(s) : s));
+  }, []);
 
   const getSpaceById = useCallback((id: string): Space | undefined =>
   {
@@ -584,6 +593,7 @@ export const SpacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     windowId,
     createSpace,
     createTaskSpace,
+    convertToRegularSpace,
     updateSpace,
     updateSpaceFolderPaths,
     deleteSpace,
@@ -606,6 +616,7 @@ export const SpacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     windowId,
     createSpace,
     createTaskSpace,
+    convertToRegularSpace,
     updateSpace,
     updateSpaceFolderPaths,
     deleteSpace,

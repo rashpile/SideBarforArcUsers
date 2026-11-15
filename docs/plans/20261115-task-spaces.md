@@ -293,11 +293,11 @@ One Space failing (any thrown error) is logged and the run goes on with the next
 - Modify: `src/components/TaskSpacesPopover.tsx`
 - Modify: `src/App.tsx`
 
-- [ ] `SpacesContext.convertToRegularSpace(id)`: snapshot write replacing the Space with `withoutTaskMarker(space)` (Task 1); expose it in the context value
-- [ ] `SpaceContextMenuContent`: optional `onConvertToRegular` → item **Convert to Regular Space** (Lucide `LayoutGrid`), shown only when provided
-- [ ] pass it for Task Spaces in the Space title `...` menu (`SpaceTitle` in `App.tsx`), the temporary strip icons (thread the prop through `SpaceIcon`) and the popover rows
-- [ ] no new tests (the marker drop is covered by the `withoutTaskMarker` test in Task 1; the rest is wiring)
-- [ ] run `make lint && make test` - must pass before task 8
+- [x] `SpacesContext.convertToRegularSpace(id)`: snapshot write replacing the Space with `withoutTaskMarker(space)` (Task 1); expose it in the context value
+- [x] `SpaceContextMenuContent`: optional `onConvertToRegular` → item **Convert to Regular Space** (Lucide `LayoutGrid`), shown only when provided
+- [x] pass it for Task Spaces in the Space title `...` menu (`SpaceTitle` in `App.tsx`), the temporary strip icons (thread the prop through `SpaceIcon`) and the popover rows
+- [x] no new tests (the marker drop is covered by the `withoutTaskMarker` test in Task 1; the rest is wiring)
+- [x] run `make lint && make test` - must pass before task 8
 
 ### Task 8: "Archive Task Spaces after" setting and selection policy
 

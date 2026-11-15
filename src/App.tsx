@@ -29,6 +29,7 @@ import { ConfirmDeleteDialog } from './components/ConfirmDeleteDialog';
 import { BookmarkCreateFolderModal } from './components/BookmarkCreateFolderModal';
 import { PasteYamlDialog } from './components/PasteYamlDialog';
 import { copyBookmarksAsYaml } from './utils/bookmarkYamlCopy';
+import { isTaskSpace } from './utils/taskSpaces';
 import { SpacesProvider, Space, useSpacesContext } from './contexts/SpacesContext';
 import { SelectionProvider } from './contexts/SelectionContext';
 import { UnifiedDndProvider, useUnifiedDndOptional } from './contexts/UnifiedDndContext';
@@ -284,7 +285,7 @@ interface SpaceTitleProps
 
 const SpaceTitle: React.FC<SpaceTitleProps> = ({ onEditSpace, onDeleteSpace, onCloseAllTabs, onCreateFolder, onCopyAsYaml, onPasteFromYaml, bookmarksCollapsed, onToggleBookmarks, headerActions }) =>
 {
-  const { spaces, activeSpace } = useSpacesContext();
+  const { spaces, activeSpace, convertToRegularSpace } = useSpacesContext();
   const fontSize = useFontSize();
   const titleFontSize = fontSize;
 
@@ -307,6 +308,7 @@ const SpaceTitle: React.FC<SpaceTitleProps> = ({ onEditSpace, onDeleteSpace, onC
       onEdit={() => onEditSpace(activeSpace)}
       onDelete={() => onDeleteSpace(activeSpace)}
       onCloseAllTabs={() => onCloseAllTabs(activeSpace)}
+      onConvertToRegular={isTaskSpace(activeSpace) ? () => convertToRegularSpace(activeSpace.id) : undefined}
       onCreateFolder={onCreateFolder}
       onCopyAsYaml={onCopyAsYaml}
       onPasteFromYaml={onPasteFromYaml}

@@ -15,6 +15,7 @@ import { BookmarkCreateFolderModal } from './BookmarkCreateFolderModal';
 import { useBookmarks } from '../hooks/useBookmarks';
 import { useAttentionMarks } from '../hooks/useAttentionMarks';
 import { useSpaceBarItems } from '../hooks/useSpaceBarItems';
+import { isTaskSpace } from '../utils/taskSpaces';
 import { spaceManagerProxy } from '../managers/proxies/spaceManagerProxy';
 import * as DropdownMenu from './menu/DropdownMenu';
 import type { UndoableAction } from '../actions/types';
@@ -41,7 +42,7 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
   alignEnd,
 }) =>
 {
-  const { spaces, activeSpace, activeSpaceId, switchToSpace, moveSpace, createTaskSpace, getTabIdsInSpace, windowId } = useSpacesContext();
+  const { spaces, activeSpace, activeSpaceId, switchToSpace, moveSpace, createTaskSpace, convertToRegularSpace, getTabIdsInSpace, windowId } = useSpacesContext();
   const { regular, temporary } = useSpaceBarItems();
   const { findFolderBySegments, createFolder } = useBookmarks();
   const { getItemKeyForTab, restoreItemAssociation } = useBookmarkTabsContext();
@@ -139,6 +140,11 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
       onShowToast('Could not delete the Task Space');
     }
   }, [onShowToast]);
+
+  const handleConvertToRegular = useCallback((space: Space) =>
+  {
+    convertToRegularSpace(space.id);
+  }, [convertToRegularSpace]);
 
   const handleCreateTab = useCallback(() =>
   {
@@ -297,6 +303,7 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
       onEdit={() => onEditSpace(space)}
       onDelete={() => handleDelete(space)}
       onCloseAllTabs={() => handleCloseAllTabsInSpace(space)}
+      onConvertToRegular={isTaskSpace(space) ? () => convertToRegularSpace(space.id) : undefined}
       canDelete={spaces.length > 1}
       isDraggable={!isTemporary}
       acceptsSpaceDrops={!isTemporary}
@@ -426,6 +433,7 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
           onEdit={onEditSpace}
           onDelete={handleDelete}
           onCloseAllTabs={handleCloseAllTabsInSpace}
+          onConvertToRegular={handleConvertToRegular}
           onRestore={handleRestoreTaskSpace}
           onDeleteArchived={handleDeleteArchivedTaskSpace}
           onClose={closeTaskList}

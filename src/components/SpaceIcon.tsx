@@ -85,6 +85,7 @@ interface SpaceIconProps
   onEdit?: () => void;
   onDelete?: () => void;
   onCloseAllTabs?: () => void;
+  onConvertToRegular?: () => void;
   canDelete?: boolean;
   isDraggable?: boolean;
   isDropTarget?: boolean;
@@ -102,6 +103,7 @@ export const SpaceIcon: React.FC<SpaceIconProps> = ({
   onEdit,
   onDelete,
   onCloseAllTabs,
+  onConvertToRegular,
   canDelete = true,
   isDraggable = false,
   isDropTarget = false,
@@ -183,6 +185,7 @@ export const SpaceIcon: React.FC<SpaceIconProps> = ({
             onEdit={onEdit}
             onDelete={onDelete}
             onCloseAllTabs={onCloseAllTabs}
+            onConvertToRegular={onConvertToRegular}
             canDelete={canDelete}
           />
         </ContextMenu.Content>

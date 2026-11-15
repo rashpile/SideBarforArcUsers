@@ -1,12 +1,13 @@
 import React from 'react';
 import * as ContextMenu from './menu/ContextMenu';
-import { Pencil, X, Trash2, FolderPlus, Copy, ClipboardPaste } from 'lucide-react';
+import { Pencil, X, Trash2, FolderPlus, Copy, ClipboardPaste, LayoutGrid } from 'lucide-react';
 
 interface SpaceContextMenuContentProps
 {
   onEdit?: () => void;
   onDelete?: () => void;
   onCloseAllTabs?: () => void;
+  onConvertToRegular?: () => void;  // shown only when provided (Task Spaces)
   onCreateFolder?: () => void;  // shown only when provided (space has a resolvable root folder)
   onCopyAsYaml?: () => void;  // same condition as onCreateFolder
   onPasteFromYaml?: () => void;  // same condition as onCreateFolder
@@ -17,6 +18,7 @@ export const SpaceContextMenuContent: React.FC<SpaceContextMenuContentProps> = (
   onEdit,
   onDelete,
   onCloseAllTabs,
+  onConvertToRegular,
   onCreateFolder,
   onCopyAsYaml,
   onPasteFromYaml,
@@ -28,6 +30,12 @@ export const SpaceContextMenuContent: React.FC<SpaceContextMenuContentProps> = (
       <ContextMenu.Item onSelect={onEdit}>
         <Pencil size={14} className="mr-2 flex-shrink-0" /> Edit
       </ContextMenu.Item>
+
+      {onConvertToRegular && (
+        <ContextMenu.Item onSelect={onConvertToRegular}>
+          <LayoutGrid size={14} className="mr-2 flex-shrink-0" /> Convert to Regular Space
+        </ContextMenu.Item>
+      )}
 
       {onCreateFolder && (
         <ContextMenu.Item onSelect={onCreateFolder}>

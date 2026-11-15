@@ -45,6 +45,7 @@ interface TaskSpacesPopoverProps
   onEdit: (space: Space) => void;
   onDelete: (space: Space) => void;
   onCloseAllTabs: (space: Space) => void;
+  onConvertToRegular: (space: Space) => void;
   onRestore: (space: Space) => void;
   onDeleteArchived: (space: Space) => void;
   onClose: () => void;
@@ -57,6 +58,7 @@ export const TaskSpacesPopover = ({
   onEdit,
   onDelete,
   onCloseAllTabs,
+  onConvertToRegular,
   onRestore,
   onDeleteArchived,
   onClose,
@@ -194,6 +196,7 @@ export const TaskSpacesPopover = ({
                       onEdit={thenClose(onEdit, space)}
                       onDelete={thenClose(onDelete, space)}
                       onCloseAllTabs={thenClose(onCloseAllTabs, space)}
+                      onConvertToRegular={thenClose(onConvertToRegular, space)}
                       canDelete={canDelete}
                     />
                   </ContextMenu.Content>
