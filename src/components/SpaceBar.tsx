@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import clsx from 'clsx';
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
-import { FolderPlus, LayoutGrid, Plus } from 'lucide-react';
+import { FolderPlus, LayoutGrid, ListTodo, Plus } from 'lucide-react';
 import { SpaceIcon } from './SpaceIcon';
 import { useSpacesContext, Space } from '../contexts/SpacesContext';
 import { useBookmarkTabsContext } from '../contexts/BookmarkTabsContext';
@@ -23,6 +23,7 @@ interface SpaceBarProps
   onDeleteSpace: (space: Space) => void;
   dropTargetSpaceId?: string | null;
   onPerformAction?: (action: UndoableAction) => Promise<void>;
+  onShowToast: (message: string) => void;
   // Puts the label and the Space buttons at the right end of the bar, next to "+" (vertical toolbar)
   alignEnd?: boolean;
 }
@@ -33,10 +34,11 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
   onDeleteSpace,
   dropTargetSpaceId,
   onPerformAction,
+  onShowToast,
   alignEnd,
 }) =>
 {
-  const { spaces, activeSpace, activeSpaceId, switchToSpace, moveSpace, getTabIdsInSpace, windowId } = useSpacesContext();
+  const { spaces, activeSpace, activeSpaceId, switchToSpace, moveSpace, createTaskSpace, getTabIdsInSpace, windowId } = useSpacesContext();
   const { findFolderBySegments, createFolder } = useBookmarks();
   const { getItemKeyForTab, restoreItemAssociation } = useBookmarkTabsContext();
   const { isTabMarked } = useAttentionMarks();
@@ -81,6 +83,20 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
   {
     createFolder(parentId, title);
   }, [createFolder]);
+
+  const handleCreateTaskSpace = useCallback(async () =>
+  {
+    try
+    {
+      const space = await createTaskSpace();
+      switchToSpace(space.id);
+    }
+    catch (error)
+    {
+      console.error('[SpaceBar] Failed to create Task Space:', error);
+      onShowToast('Could not create a Task Space');
+    }
+  }, [createTaskSpace, switchToSpace, onShowToast]);
 
   const handleCreateTab = useCallback(() =>
   {
@@ -313,6 +329,9 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
             <DropdownMenu.Content align="end">
               <DropdownMenu.Item onSelect={onCreateSpace}>
                 <LayoutGrid size={14} className="mr-2" /> New Space
+              </DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={handleCreateTaskSpace}>
+                <ListTodo size={14} className="mr-2" /> New Task Space
               </DropdownMenu.Item>
               <DropdownMenu.Item onSelect={handleCreateFolder}>
                 <FolderPlus size={14} className="mr-2" /> New Folder
