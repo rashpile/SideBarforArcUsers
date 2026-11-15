@@ -51,6 +51,7 @@ import { useFollowActiveTab } from './hooks/useFollowActiveTab';
 import { FollowActiveTabMode, FOLLOW_ACTIVE_TAB_KEY, DEFAULT_FOLLOW_ACTIVE_TAB_MODE, parseFollowActiveTabMode } from './utils/followActiveTab';
 import { BookmarkOpenMode, BOOKMARK_OPEN_MODE_KEY, DEFAULT_BOOKMARK_OPEN_MODE, parseBookmarkOpenMode } from './utils/bookmarkOpenMode';
 import { AutoArchivePeriod, AUTO_ARCHIVE_AFTER_KEY, DEFAULT_AUTO_ARCHIVE_PERIOD, parseAutoArchivePeriod } from './utils/autoArchive';
+import { TaskSpaceArchivePeriod, TASK_SPACE_ARCHIVE_AFTER_KEY, DEFAULT_TASK_SPACE_ARCHIVE_PERIOD, parseTaskSpaceArchivePeriod } from './utils/taskSpaceArchive';
 import { TabAgeHighlightStyle, TAB_AGE_HIGHLIGHT_KEY, DEFAULT_TAB_AGE_HIGHLIGHT_STYLE, parseTabAgeHighlightStyle } from './utils/tabAgeHighlight';
 import { AttentionMarkStyle, ATTENTION_MARK_STYLE_KEY, DEFAULT_ATTENTION_MARK_STYLE, parseAttentionMarkStyle } from './utils/attentionMarkStyle';
 import { UnvisitedTabMarkerSetting, UNVISITED_TAB_MARKER_KEY, DEFAULT_UNVISITED_TAB_MARKER, parseUnvisitedTabMarker } from './utils/unvisitedTabMarker';
@@ -900,6 +901,12 @@ function Sidebar() {
     DEFAULT_AUTO_ARCHIVE_PERIOD,
     { parse: (v) => parseAutoArchivePeriod(v, import.meta.env.DEV), serialize: (v) => v }
   );
+  // Raw string, not JSON: background.ts reads it to run the Task Space archiver
+  const [taskSpaceArchiveAfter, setTaskSpaceArchiveAfter] = useChromeLocalStorage<TaskSpaceArchivePeriod>(
+    TASK_SPACE_ARCHIVE_AFTER_KEY,
+    DEFAULT_TASK_SPACE_ARCHIVE_PERIOD,
+    { parse: (v) => parseTaskSpaceArchivePeriod(v, import.meta.env.DEV), serialize: (v) => v }
+  );
   // Raw string, not JSON: background.ts reads it to decide whether to record tab last-use times
   const [tabAgeHighlight, setTabAgeHighlight, tabAgeHighlightLoaded] = useChromeLocalStorage<TabAgeHighlightStyle>(
     TAB_AGE_HIGHLIGHT_KEY,
@@ -1135,6 +1142,7 @@ function Sidebar() {
     setSpaceColorAlpha(newSettings.spaceColorAlpha);
     setFollowActiveTab(newSettings.followActiveTab);
     setAutoArchiveAfter(newSettings.autoArchiveAfter);
+    setTaskSpaceArchiveAfter(newSettings.taskSpaceArchiveAfter);
     setTabAgeHighlight(newSettings.tabAgeHighlight);
     setAttentionMarkStyle(newSettings.attentionMarkStyle);
     setMarkUnvisitedTabs(newSettings.markUnvisitedTabs);
@@ -1354,6 +1362,7 @@ function Sidebar() {
               spaceColorAlpha,
               followActiveTab,
               autoArchiveAfter,
+              taskSpaceArchiveAfter,
               tabAgeHighlight,
               attentionMarkStyle,
               markUnvisitedTabs,

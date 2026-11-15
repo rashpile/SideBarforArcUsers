@@ -307,11 +307,11 @@ One Space failing (any thrown error) is logged and the run goes on with the next
 - Modify: `src/App.tsx`
 - Create: `tests/taskSpaceArchive.test.mjs`
 
-- [ ] create `src/utils/taskSpaceArchive.ts`: type `TaskSpaceArchivePeriod`, `TASK_SPACE_ARCHIVE_AFTER_KEY = 'taskSpaceArchiveAfter'`, default `'never'`, `parseTaskSpaceArchivePeriod(value, allowDevPeriod)` (DEV-only `'1m'` as in `autoArchive.ts`), `taskSpaceArchivePeriodMs(period)`, and `selectTaskSpacesToArchive({ spaces, lastUse, activeSpaceIds, now, periodMs })` → ids per Technical Details
-- [ ] Settings dialog: **Archive Task Spaces after** select next to "Archive tabs after" (Never, 1 minute in DEV, 1 day, 3 days, 7 days, 14 days, 30 days) with a hint ("Task Spaces stay until you delete them" / "Unused Task Spaces save their tabs to the Space's Archive, close them and move to Archived in the Task Spaces list"); `App.tsx` stores it with `useChromeLocalStorage(TASK_SPACE_ARCHIVE_AFTER_KEY, …, { parse, serialize: v => v })`
-- [ ] write tests for `parseTaskSpaceArchivePeriod`: unknown → never; `'1m'` → never without the DEV flag, `'1m'` with it
-- [ ] write tests for `selectTaskSpacesToArchive`: overdue Task Space selected; one used within the period kept; regular Space never selected; Task Space active in any window kept; no stored last use falls back to `createdAt`; a recent touch after an old `createdAt` keeps it
-- [ ] run `make lint && make test` - must pass before task 9
+- [x] create `src/utils/taskSpaceArchive.ts`: type `TaskSpaceArchivePeriod`, `TASK_SPACE_ARCHIVE_AFTER_KEY = 'taskSpaceArchiveAfter'`, default `'never'`, `parseTaskSpaceArchivePeriod(value, allowDevPeriod)` (DEV-only `'1m'` as in `autoArchive.ts`), `taskSpaceArchivePeriodMs(period)`, and `selectTaskSpacesToArchive({ spaces, lastUse, activeSpaceIds, now, periodMs })` → ids per Technical Details
+- [x] Settings dialog: **Archive Task Spaces after** select next to "Archive tabs after" (Never, 1 minute in DEV, 1 day, 3 days, 7 days, 14 days, 30 days) with a hint ("Task Spaces stay until you delete them" / "Unused Task Spaces save their tabs to the Space's Archive, close them and move to Archived in the Task Spaces list"); `App.tsx` stores it with `useChromeLocalStorage(TASK_SPACE_ARCHIVE_AFTER_KEY, …, { parse, serialize: v => v })`
+- [x] write tests for `parseTaskSpaceArchivePeriod`: unknown → never; `'1m'` → never without the DEV flag, `'1m'` with it
+- [x] write tests for `selectTaskSpacesToArchive`: overdue Task Space selected; one used within the period kept; regular Space never selected; Task Space active in any window kept; no stored last use falls back to `createdAt`; a recent touch after an old `createdAt` keeps it
+- [x] run `make lint && make test` - must pass before task 9
 
 ### Task 9: TaskSpaceArchiver background service
 

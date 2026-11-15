@@ -3,6 +3,7 @@ import { Dialog } from './Dialog';
 import { FollowActiveTabMode } from '../utils/followActiveTab';
 import { BookmarkOpenMode } from '../utils/bookmarkOpenMode';
 import { AutoArchivePeriod } from '../utils/autoArchive';
+import { TaskSpaceArchivePeriod } from '../utils/taskSpaceArchive';
 import { TabAgeHighlightStyle } from '../utils/tabAgeHighlight';
 import { AttentionMarkStyle, ATTENTION_MARK_STYLE_OPTIONS } from '../utils/attentionMarkStyle';
 import { ToolbarLayout, toolbarLayoutChoice, toolbarLayoutForChoice } from '../utils/toolbarLayout';
@@ -34,6 +35,7 @@ export interface SettingsValues {
   spaceColorAlpha: number;  // 1-100 percent
   followActiveTab: FollowActiveTabMode;
   autoArchiveAfter: AutoArchivePeriod;
+  taskSpaceArchiveAfter: TaskSpaceArchivePeriod;
   tabAgeHighlight: TabAgeHighlightStyle;
   attentionMarkStyle: AttentionMarkStyle;
   markUnvisitedTabs: UnvisitedTabMarkerSetting;
@@ -69,6 +71,7 @@ export function SettingsDialog({
   const [tempSpaceColorAlpha, setTempSpaceColorAlpha] = useState(settings.spaceColorAlpha);
   const [tempFollowActiveTab, setTempFollowActiveTab] = useState(settings.followActiveTab);
   const [tempAutoArchiveAfter, setTempAutoArchiveAfter] = useState(settings.autoArchiveAfter);
+  const [tempTaskSpaceArchiveAfter, setTempTaskSpaceArchiveAfter] = useState(settings.taskSpaceArchiveAfter);
   const [tempTabAgeHighlight, setTempTabAgeHighlight] = useState(settings.tabAgeHighlight);
   const [tempAttentionMarkStyle, setTempAttentionMarkStyle] = useState(settings.attentionMarkStyle);
   const [tempMarkUnvisitedTabs, setTempMarkUnvisitedTabs] = useState(settings.markUnvisitedTabs);
@@ -108,6 +111,7 @@ export function SettingsDialog({
       setTempSpaceColorAlpha(settings.spaceColorAlpha);
       setTempFollowActiveTab(settings.followActiveTab);
       setTempAutoArchiveAfter(settings.autoArchiveAfter);
+      setTempTaskSpaceArchiveAfter(settings.taskSpaceArchiveAfter);
       setTempTabAgeHighlight(settings.tabAgeHighlight);
       setTempAttentionMarkStyle(settings.attentionMarkStyle);
       setTempMarkUnvisitedTabs(settings.markUnvisitedTabs);
@@ -134,6 +138,7 @@ export function SettingsDialog({
       spaceColorAlpha: tempSpaceColorAlpha,
       followActiveTab: tempFollowActiveTab,
       autoArchiveAfter: tempAutoArchiveAfter,
+      taskSpaceArchiveAfter: tempTaskSpaceArchiveAfter,
       tabAgeHighlight: tempTabAgeHighlight,
       attentionMarkStyle: tempAttentionMarkStyle,
       markUnvisitedTabs: tempMarkUnvisitedTabs,
@@ -546,6 +551,33 @@ export function SettingsDialog({
                 {tempAutoArchiveAfter === 'never'
                   ? "Tabs and open bookmark pages stay open until you close them"
                   : "Unused tabs move to the space's Archive; unused open bookmark pages close and keep their bookmark"}
+              </p>
+            </div>
+
+            {/* Archive Task Spaces after */}
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 mb-1">
+                Archive Task Spaces after
+              </label>
+              <select
+                value={tempTaskSpaceArchiveAfter}
+                onChange={(e) => setTempTaskSpaceArchiveAfter(e.target.value as TaskSpaceArchivePeriod)}
+                className="w-full px-2 py-1 border rounded dark:bg-gray-900 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+              >
+                <option value="never">Never</option>
+                {import.meta.env.DEV && (
+                  <option value="1m">1 minute</option>
+                )}
+                <option value="1d">1 day</option>
+                <option value="3d">3 days</option>
+                <option value="7d">7 days</option>
+                <option value="14d">14 days</option>
+                <option value="30d">30 days</option>
+              </select>
+              <p className="mt-0.5 text-gray-500 dark:text-gray-400 ml-5">
+                {tempTaskSpaceArchiveAfter === 'never'
+                  ? "Task Spaces stay until you delete them"
+                  : "Unused Task Spaces save their tabs to the Space's Archive, close them and move to Archived in the Task Spaces list"}
               </p>
             </div>
 
