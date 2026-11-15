@@ -260,15 +260,15 @@ One Space failing (any thrown error) is logged and the run goes on with the next
 - Create: `tests/spaceBarItems.test.mjs`
 - Modify: `tests/spaceNumberCommand.test.mjs`
 
-- [ ] create `spaceBarItems(spaces, activeSpaceId, lastUse, now)` in `src/utils/spaceBarItems.ts` (10-minute window constant) returning `{ regular, temporary, nextExpiryAt }` per Technical Details
-- [ ] create `useSpaceBarItems()`: reads Spaces and the active Space from `SpacesContext`, last use with `useChromeLocalStorage(TASK_SPACE_LAST_USE_KEY, {})` wrapped with `TaskSpaceLastUse.fromStored` (drops junk entries), owns `now` and a `setTimeout` to `nextExpiryAt` that re-renders, returns the helper's result
-- [ ] `SpaceIcon`: optional prop that limits its drop target to TAB and URL (no SPACE), so dropping a regular Space on a temporary icon can't reorder the list around a hidden Task Space
-- [ ] `SpaceBar`: sortable strip from `regular` only (sortable ids from `regular`); when `temporary` is non-empty, a thin vertical divider then non-draggable `SpaceIcon`s with the TAB/URL-only drop target, same context menu, `canDelete` from all live Spaces; auto-scroll to the active icon keeps working
-- [ ] `SwipeableContainer` in `App.tsx`: swipe over `[...regular, ...temporary]` from `useSpaceBarItems()`
-- [ ] `SpaceNumberCommand.spaceToOpen` counts regular Spaces only (constraint `T extends SpaceIdentity & { task?: unknown }`)
-- [ ] write tests for `spaceBarItems`: Task Space active in this window shows; used 9 min ago shows, 11 min ago doesn't; regular Spaces keep array order; temporary sorted by `createdAt`; `nextExpiryAt` is the earliest expiry, undefined when only the active one shows
-- [ ] write tests for `spaceToOpen`: a Task Space before position 2 in the list doesn't shift position 2
-- [ ] run `make lint && make test` - must pass before task 6
+- [x] create `spaceBarItems(spaces, activeSpaceId, lastUse, now)` in `src/utils/spaceBarItems.ts` (10-minute window constant) returning `{ regular, temporary, nextExpiryAt }` per Technical Details
+- [x] create `useSpaceBarItems()`: reads Spaces and the active Space from `SpacesContext`, last use with `useChromeLocalStorage(TASK_SPACE_LAST_USE_KEY, {})` wrapped with `TaskSpaceLastUse.fromStored` (drops junk entries), owns `now` and a `setTimeout` to `nextExpiryAt` that re-renders, returns the helper's result
+- [x] `SpaceIcon`: optional prop that limits its drop target to TAB and URL (no SPACE), so dropping a regular Space on a temporary icon can't reorder the list around a hidden Task Space
+- [x] `SpaceBar`: sortable strip from `regular` only (sortable ids from `regular`); when `temporary` is non-empty, a thin vertical divider then non-draggable `SpaceIcon`s with the TAB/URL-only drop target, same context menu, `canDelete` from all live Spaces; auto-scroll to the active icon keeps working
+- [x] `SwipeableContainer` in `App.tsx`: swipe over `[...regular, ...temporary]` from `useSpaceBarItems()`
+- [x] `SpaceNumberCommand.spaceToOpen` counts regular Spaces only (constraint `T extends SpaceIdentity & { task?: unknown }`)
+- [x] write tests for `spaceBarItems`: Task Space active in this window shows; used 9 min ago shows, 11 min ago doesn't; regular Spaces keep array order; temporary sorted by `createdAt`; `nextExpiryAt` is the earliest expiry, undefined when only the active one shows
+- [x] write tests for `spaceToOpen`: a Task Space before position 2 in the list doesn't shift position 2
+- [x] run `make lint && make test` - must pass before task 6
 
 ### Task 6: Task Spaces list popover
 

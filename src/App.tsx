@@ -18,6 +18,7 @@ import { useBookmarks, refreshAllBookmarks } from './hooks/useBookmarks';
 import { useAttentionMarks } from './hooks/useAttentionMarks';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useChromeLocalStorage } from './hooks/useChromeLocalStorage';
+import { useSpaceBarItems } from './hooks/useSpaceBarItems';
 import { useSectionCollapseState } from './hooks/useSectionCollapseState';
 import { SectionCollapseState, ToggleSection } from './utils/sectionCollapseState';
 import { useSwipeNavigation } from './hooks/useSwipeNavigation';
@@ -618,13 +619,16 @@ interface SwipeableContainerProps extends SidebarContentProps
 
 const SwipeableContainer: React.FC<SwipeableContainerProps> = (props) =>
 {
-  const { allSpaces, activeSpaceId, switchToSpace } = useSpacesContext();
+  const { activeSpaceId, switchToSpace } = useSpacesContext();
+  // The Space bar's order, temporary Task Space icons included: swipe goes only where the strip shows
+  const { regular, temporary } = useSpaceBarItems();
+  const stripSpaces = useMemo(() => [...regular, ...temporary], [regular, temporary]);
   const containerRef = useRef<HTMLDivElement>(null);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
   const prevSpaceIdRef = useRef(activeSpaceId);
 
-  const currentIndex = allSpaces.findIndex(s => s.id === activeSpaceId);
-  const canSwipeLeft = currentIndex < allSpaces.length - 1;
+  const currentIndex = stripSpaces.findIndex(s => s.id === activeSpaceId);
+  const canSwipeLeft = currentIndex < stripSpaces.length - 1;
   const canSwipeRight = currentIndex > 0;
 
   // Detect space change and set slide direction
@@ -632,12 +636,12 @@ const SwipeableContainer: React.FC<SwipeableContainerProps> = (props) =>
   {
     if (activeSpaceId !== prevSpaceIdRef.current)
     {
-      const prevIndex = allSpaces.findIndex(s => s.id === prevSpaceIdRef.current);
-      const newIndex = allSpaces.findIndex(s => s.id === activeSpaceId);
+      const prevIndex = stripSpaces.findIndex(s => s.id === prevSpaceIdRef.current);
+      const newIndex = stripSpaces.findIndex(s => s.id === activeSpaceId);
       setSlideDirection(newIndex > prevIndex ? 'left' : 'right');
       prevSpaceIdRef.current = activeSpaceId;
     }
-  }, [activeSpaceId, allSpaces]);
+  }, [activeSpaceId, stripSpaces]);
 
   // Clear animation after it completes
   useEffect(() =>
@@ -653,13 +657,13 @@ const SwipeableContainer: React.FC<SwipeableContainerProps> = (props) =>
   {
     if (direction === 'left' && canSwipeLeft)
     {
-      switchToSpace(allSpaces[currentIndex + 1].id);
+      switchToSpace(stripSpaces[currentIndex + 1].id);
     }
     else if (direction === 'right' && canSwipeRight)
     {
-      switchToSpace(allSpaces[currentIndex - 1].id);
+      switchToSpace(stripSpaces[currentIndex - 1].id);
     }
-  }, [allSpaces, currentIndex, canSwipeLeft, canSwipeRight, switchToSpace]);
+  }, [stripSpaces, currentIndex, canSwipeLeft, canSwipeRight, switchToSpace]);
 
   useSwipeNavigation(containerRef, { onSwipe: handleSwipe });
 

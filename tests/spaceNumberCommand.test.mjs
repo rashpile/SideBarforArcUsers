@@ -51,3 +51,14 @@ test('only space-1 to space-9 parse as a Switch to Space command', () =>
     assert.equal(SpaceNumberCommand.parse(command), undefined, command);
   }
 });
+
+test('a Task Space before position 2 in the list does not shift position 2', () =>
+{
+  const withTaskSpace = [
+    { id: 'space-a' },
+    { id: 'task', task: { createdAt: 1 } },
+    { id: 'space-b' },
+  ];
+
+  assert.equal(SpaceNumberCommand.parse('space-2').spaceToOpen(withTaskSpace, null)?.id, 'space-b');
+});

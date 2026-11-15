@@ -13,6 +13,7 @@ import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import { BookmarkCreateFolderModal } from './BookmarkCreateFolderModal';
 import { useBookmarks } from '../hooks/useBookmarks';
 import { useAttentionMarks } from '../hooks/useAttentionMarks';
+import { useSpaceBarItems } from '../hooks/useSpaceBarItems';
 import * as DropdownMenu from './menu/DropdownMenu';
 import type { UndoableAction } from '../actions/types';
 
@@ -39,6 +40,7 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
 }) =>
 {
   const { spaces, activeSpace, activeSpaceId, switchToSpace, moveSpace, createTaskSpace, getTabIdsInSpace, windowId } = useSpacesContext();
+  const { regular, temporary } = useSpaceBarItems();
   const { findFolderBySegments, createFolder } = useBookmarks();
   const { getItemKeyForTab, restoreItemAssociation } = useBookmarkTabsContext();
   const { isTabMarked } = useAttentionMarks();
@@ -239,10 +241,36 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
     hasFormat(activeDragData, DragFormat.TAB) || hasFormat(activeDragData, DragFormat.URL)
   ));
 
-  // Create sortable IDs for SortableContext
+  // Only the regular Spaces sort: a temporary Task Space icon is not a place in the strip's order
   const sortableSpaceIds = useMemo(
-    () => spaces.map(space => `space-${space.id}`),
-    [spaces]
+    () => regular.map(space => `space-${space.id}`),
+    [regular]
+  );
+
+  const renderSpaceIcon = (space: Space, index: number, isTemporary: boolean) => (
+    <SpaceIcon
+      key={space.id}
+      space={space}
+      index={index}
+      isActive={space.id === activeSpaceId}
+      onClick={() => handleSpaceClick(space.id)}
+      onEdit={() => onEditSpace(space)}
+      onDelete={() => handleDelete(space)}
+      onCloseAllTabs={() => handleCloseAllTabsInSpace(space)}
+      canDelete={spaces.length > 1}
+      isDraggable={!isTemporary}
+      acceptsSpaceDrops={!isTemporary}
+      isDropTarget={
+        dropTargetSpaceId === space.id ||
+        (isSpaceDrag && overId === `space-${space.id}`) ||
+        (isTabOrUrlDrag && overId === `space-${space.id}`)
+      }
+      dropPosition={
+        (isSpaceDrag && overId === `space-${space.id}`) ? dropPosition :
+        (isTabOrUrlDrag && overId === `space-${space.id}`) ? 'into' :
+        null
+      }
+    />
   );
 
   // alignEnd packs the row, not the scroll container: justify-end inside an overflow-x container makes the
@@ -280,31 +308,17 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
           data-dnd-zone="spaceBar"
         >
           <SortableContext items={sortableSpaceIds} strategy={horizontalListSortingStrategy}>
-            {spaces.map((space, index) => (
-              <SpaceIcon
-                key={space.id}
-                space={space}
-                index={index}
-                isActive={space.id === activeSpaceId}
-                onClick={() => handleSpaceClick(space.id)}
-                onEdit={() => onEditSpace(space)}
-                onDelete={() => handleDelete(space)}
-                onCloseAllTabs={() => handleCloseAllTabsInSpace(space)}
-                canDelete={spaces.length > 1}
-                isDraggable
-                isDropTarget={
-                  dropTargetSpaceId === space.id ||
-                  (isSpaceDrag && overId === `space-${space.id}`) ||
-                  (isTabOrUrlDrag && overId === `space-${space.id}`)
-                }
-                dropPosition={
-                  (isSpaceDrag && overId === `space-${space.id}`) ? dropPosition :
-                  (isTabOrUrlDrag && overId === `space-${space.id}`) ? 'into' :
-                  null
-                }
-              />
-            ))}
+            {regular.map((space, index) => renderSpaceIcon(space, index, false))}
           </SortableContext>
+          {temporary.length > 0 && (
+            <>
+              <div
+                className="w-px h-5 flex-shrink-0 bg-gray-300 dark:bg-gray-600"
+                aria-hidden="true"
+              />
+              {temporary.map((space, index) => renderSpaceIcon(space, regular.length + index, true))}
+            </>
+          )}
         </div>
 
         {/* Arc-style create menu */}
