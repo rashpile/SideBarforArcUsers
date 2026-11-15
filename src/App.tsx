@@ -18,7 +18,7 @@ import { useBookmarks, refreshAllBookmarks } from './hooks/useBookmarks';
 import { useAttentionMarks } from './hooks/useAttentionMarks';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useChromeLocalStorage } from './hooks/useChromeLocalStorage';
-import { useSpaceBarItems } from './hooks/useSpaceBarItems';
+import { useRecentTaskSpaces } from './hooks/useRecentTaskSpaces';
 import { useSectionCollapseState } from './hooks/useSectionCollapseState';
 import { SectionCollapseState, ToggleSection } from './utils/sectionCollapseState';
 import { useSwipeNavigation } from './hooks/useSwipeNavigation';
@@ -29,7 +29,8 @@ import { ConfirmDeleteDialog } from './components/ConfirmDeleteDialog';
 import { BookmarkCreateFolderModal } from './components/BookmarkCreateFolderModal';
 import { PasteYamlDialog } from './components/PasteYamlDialog';
 import { copyBookmarksAsYaml } from './utils/bookmarkYamlCopy';
-import { isTaskSpace } from './utils/taskSpaces';
+import { isTaskSpace, regularSpaces } from './utils/taskSpaces';
+import { swipeTarget } from './utils/recentTaskSpaces';
 import { SpacesProvider, Space, useSpacesContext } from './contexts/SpacesContext';
 import { SelectionProvider } from './contexts/SelectionContext';
 import { UnifiedDndProvider, useUnifiedDndOptional } from './contexts/UnifiedDndContext';
@@ -622,29 +623,26 @@ interface SwipeableContainerProps extends SidebarContentProps
 
 const SwipeableContainer: React.FC<SwipeableContainerProps> = (props) =>
 {
-  const { activeSpaceId, switchToSpace } = useSpacesContext();
-  // The Space bar's order, temporary Task Space icons included: swipe goes only where the strip shows
-  const { regular, temporary } = useSpaceBarItems();
-  const stripSpaces = useMemo(() => [...regular, ...temporary], [regular, temporary]);
+  const { spaces, activeSpaceId, switchToSpace } = useSpacesContext();
+  // The strip's Spaces, then the recent list's Task Spaces by creation: the rows reorder on every
+  // switch, so swiping in their order would bounce between two of them
+  const { recent } = useRecentTaskSpaces();
+  const swipeOrder = useMemo(() => [...regularSpaces(spaces), ...recent.byCreation()], [spaces, recent]);
   const containerRef = useRef<HTMLDivElement>(null);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
   const prevSpaceIdRef = useRef(activeSpaceId);
-
-  const currentIndex = stripSpaces.findIndex(s => s.id === activeSpaceId);
-  const canSwipeLeft = currentIndex < stripSpaces.length - 1;
-  const canSwipeRight = currentIndex > 0;
 
   // Detect space change and set slide direction
   useEffect(() =>
   {
     if (activeSpaceId !== prevSpaceIdRef.current)
     {
-      const prevIndex = stripSpaces.findIndex(s => s.id === prevSpaceIdRef.current);
-      const newIndex = stripSpaces.findIndex(s => s.id === activeSpaceId);
+      const prevIndex = swipeOrder.findIndex(s => s.id === prevSpaceIdRef.current);
+      const newIndex = swipeOrder.findIndex(s => s.id === activeSpaceId);
       setSlideDirection(newIndex > prevIndex ? 'left' : 'right');
       prevSpaceIdRef.current = activeSpaceId;
     }
-  }, [activeSpaceId, stripSpaces]);
+  }, [activeSpaceId, swipeOrder]);
 
   // Clear animation after it completes
   useEffect(() =>
@@ -656,17 +654,15 @@ const SwipeableContainer: React.FC<SwipeableContainerProps> = (props) =>
     }
   }, [slideDirection]);
 
+  // A swipe from a Space outside the order (a hidden or old Task Space) does nothing
   const handleSwipe = useCallback((direction: 'left' | 'right') =>
   {
-    if (direction === 'left' && canSwipeLeft)
+    const target = swipeTarget(swipeOrder, activeSpaceId, direction);
+    if (target)
     {
-      switchToSpace(stripSpaces[currentIndex + 1].id);
+      switchToSpace(target.id);
     }
-    else if (direction === 'right' && canSwipeRight)
-    {
-      switchToSpace(stripSpaces[currentIndex - 1].id);
-    }
-  }, [stripSpaces, currentIndex, canSwipeLeft, canSwipeRight, switchToSpace]);
+  }, [swipeOrder, activeSpaceId, switchToSpace]);
 
   useSwipeNavigation(containerRef, { onSwipe: handleSwipe });
 

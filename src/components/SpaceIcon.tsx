@@ -85,14 +85,10 @@ interface SpaceIconProps
   onEdit?: () => void;
   onDelete?: () => void;
   onCloseAllTabs?: () => void;
-  onConvertToRegular?: () => void;
   canDelete?: boolean;
   isDraggable?: boolean;
   isDropTarget?: boolean;
   dropPosition?: DropPosition;
-  // False for an icon outside the sortable strip: a Space dropped on it would be reordered
-  // next to a Space the strip doesn't show
-  acceptsSpaceDrops?: boolean;
 }
 
 export const SpaceIcon: React.FC<SpaceIconProps> = ({
@@ -103,12 +99,10 @@ export const SpaceIcon: React.FC<SpaceIconProps> = ({
   onEdit,
   onDelete,
   onCloseAllTabs,
-  onConvertToRegular,
   canDelete = true,
   isDraggable = false,
   isDropTarget = false,
   dropPosition,
-  acceptsSpaceDrops = true,
 }) =>
 {
   const spaceId = `space-${space.id}`;
@@ -129,9 +123,7 @@ export const SpaceIcon: React.FC<SpaceIconProps> = ({
       // Drop data (for when items are dropped onto this)
       zone: 'spaceBar',
       targetId: space.id,
-      canAccept: acceptsSpaceDrops
-        ? acceptsFormats(DragFormat.SPACE, DragFormat.TAB, DragFormat.URL)
-        : acceptsFormats(DragFormat.TAB, DragFormat.URL),
+      canAccept: acceptsFormats(DragFormat.SPACE, DragFormat.TAB, DragFormat.URL),
       isHorizontal: true,
       // TAB/URL drops go "into" the space; SPACE drops are before/after for reordering
       isContainerForFormat: (format: DragFormat) =>
@@ -185,7 +177,6 @@ export const SpaceIcon: React.FC<SpaceIconProps> = ({
             onEdit={onEdit}
             onDelete={onDelete}
             onCloseAllTabs={onCloseAllTabs}
-            onConvertToRegular={onConvertToRegular}
             canDelete={canDelete}
           />
         </ContextMenu.Content>

@@ -14,8 +14,7 @@ import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import { BookmarkCreateFolderModal } from './BookmarkCreateFolderModal';
 import { useBookmarks } from '../hooks/useBookmarks';
 import { useAttentionMarks } from '../hooks/useAttentionMarks';
-import { useSpaceBarItems } from '../hooks/useSpaceBarItems';
-import { isTaskSpace } from '../utils/taskSpaces';
+import { regularSpaces } from '../utils/taskSpaces';
 import { spaceManagerProxy } from '../managers/proxies/spaceManagerProxy';
 import * as DropdownMenu from './menu/DropdownMenu';
 import type { UndoableAction } from '../actions/types';
@@ -43,7 +42,8 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
 }) =>
 {
   const { spaces, activeSpace, activeSpaceId, switchToSpace, moveSpace, createTaskSpace, convertToRegularSpace, getTabIdsInSpace, windowId } = useSpacesContext();
-  const { regular, temporary } = useSpaceBarItems();
+  // Task Spaces stay out of the strip; the recent list above it holds the last few
+  const regular = useMemo(() => regularSpaces(spaces), [spaces]);
   const { findFolderBySegments, createFolder } = useBookmarks();
   const { getItemKeyForTab, restoreItemAssociation } = useBookmarkTabsContext();
   const { isTabMarked } = useAttentionMarks();
@@ -287,13 +287,12 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
     hasFormat(activeDragData, DragFormat.TAB) || hasFormat(activeDragData, DragFormat.URL)
   ));
 
-  // Only the regular Spaces sort: a temporary Task Space icon is not a place in the strip's order
   const sortableSpaceIds = useMemo(
     () => regular.map(space => `space-${space.id}`),
     [regular]
   );
 
-  const renderSpaceIcon = (space: Space, index: number, isTemporary: boolean) => (
+  const renderSpaceIcon = (space: Space, index: number) => (
     <SpaceIcon
       key={space.id}
       space={space}
@@ -303,10 +302,8 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
       onEdit={() => onEditSpace(space)}
       onDelete={() => handleDelete(space)}
       onCloseAllTabs={() => handleCloseAllTabsInSpace(space)}
-      onConvertToRegular={isTaskSpace(space) ? () => convertToRegularSpace(space.id) : undefined}
       canDelete={spaces.length > 1}
-      isDraggable={!isTemporary}
-      acceptsSpaceDrops={!isTemporary}
+      isDraggable
       isDropTarget={
         dropTargetSpaceId === space.id ||
         (isSpaceDrag && overId === `space-${space.id}`) ||
@@ -355,17 +352,8 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
           data-dnd-zone="spaceBar"
         >
           <SortableContext items={sortableSpaceIds} strategy={horizontalListSortingStrategy}>
-            {regular.map((space, index) => renderSpaceIcon(space, index, false))}
+            {regular.map((space, index) => renderSpaceIcon(space, index))}
           </SortableContext>
-          {temporary.length > 0 && (
-            <>
-              <div
-                className="w-px h-5 flex-shrink-0 bg-gray-300 dark:bg-gray-600"
-                aria-hidden="true"
-              />
-              {temporary.map((space, index) => renderSpaceIcon(space, regular.length + index, true))}
-            </>
-          )}
         </div>
 
         {/* Task Spaces list and Arc-style create menu */}

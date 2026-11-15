@@ -241,13 +241,15 @@ interface RecentTaskSpacesInput<T> {
 - Delete: `src/utils/spaceBarItems.ts`
 - Delete: `tests/spaceBarItems.test.mjs`
 - Modify: `src/components/SpaceBar.tsx`
+- Modify: `src/components/SpaceIcon.tsx`
 - Modify: `src/App.tsx`
 
-- [ ] create `src/hooks/useRecentTaskSpaces.ts`: reads `useSpacesContext()` (`spaces`, `activeSpaceId`), `taskSpaceLastUsedAt` via `useChromeLocalStorage` + `TaskSpaceLastUse.fromStored` (as `useSpaceBarItems` did), `useHiddenTaskSpaces()`, and `useClock(true, 60_000)` (`src/hooks/useClock.ts`); returns `recentTaskSpaces(...)` and `now` (for the labels)
-- [ ] remove `useSpaceBarItems` and `spaceBarItems` (and their test): `SpaceBar`'s strip renders `regularSpaces(spaces)` (memoized) only — no divider, no temporary icons; `SpaceIcon` stays sortable for every strip icon
-- [ ] `SwipeableContainer` in `src/App.tsx`: order `[...regularSpaces(spaces), ...recent.byCreation()]` and `swipeTarget` for both directions, so a swipe from a Space not in the order does nothing; update the comment about the strip order
-- [ ] `SpaceIcon` (used only by `SpaceBar`): remove the `acceptsSpaceDrops` prop and its comment (every strip icon now takes SPACE, TAB and URL drops); keep passing `isDraggable` from `SpaceBar` (it defaults to `false`, so dropping it would make the strip unsortable)
-- [ ] tests: `tests/spaceBarItems.test.mjs` removed with its module; `swipeTarget` is covered in task 1; run `make lint && make test` - must pass before task 5
+- [x] create `src/hooks/useRecentTaskSpaces.ts`: reads `useSpacesContext()` (`spaces`, `activeSpaceId`), `taskSpaceLastUsedAt` via `useChromeLocalStorage` + `TaskSpaceLastUse.fromStored` (as `useSpaceBarItems` did), `useHiddenTaskSpaces()`, and `useClock(true, 60_000)` (`src/hooks/useClock.ts`); returns `recentTaskSpaces(...)` and `now` (for the labels)
+- [x] remove `useSpaceBarItems` and `spaceBarItems` (and their test): `SpaceBar`'s strip renders `regularSpaces(spaces)` (memoized) only — no divider, no temporary icons; `SpaceIcon` stays sortable for every strip icon
+- [x] `SwipeableContainer` in `src/App.tsx`: order `[...regularSpaces(spaces), ...recent.byCreation()]` and `swipeTarget` for both directions, so a swipe from a Space not in the order does nothing; update the comment about the strip order
+- [x] `SpaceIcon` (used only by `SpaceBar`): remove the `acceptsSpaceDrops` prop and its comment (every strip icon now takes SPACE, TAB and URL drops); keep passing `isDraggable` from `SpaceBar` (it defaults to `false`, so dropping it would make the strip unsortable)
+- [x] tests: `tests/spaceBarItems.test.mjs` removed with its module; `swipeTarget` is covered in task 1; run `make lint && make test` - must pass before task 5
+- ➕ also removed `SpaceIcon`'s `onConvertToRegular` prop and `SpaceBar`'s strip passing it: the strip holds regular Spaces only, so it was always undefined (the recent list and the sandwich list keep Convert)
 
 ### Task 5: Recent Task Spaces list component
 
