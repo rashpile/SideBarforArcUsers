@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import clsx from 'clsx';
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
-import { FolderPlus, LayoutGrid, ListTodo, Plus } from 'lucide-react';
+import { FolderPlus, LayoutGrid, ListTodo, Menu, Plus } from 'lucide-react';
 import { SpaceIcon } from './SpaceIcon';
+import { TaskSpacesPopover } from './TaskSpacesPopover';
 import { useSpacesContext, Space } from '../contexts/SpacesContext';
 import { useBookmarkTabsContext } from '../contexts/BookmarkTabsContext';
 import { useUnifiedDnd, DropHandler } from '../contexts/UnifiedDndContext';
@@ -14,6 +15,7 @@ import { BookmarkCreateFolderModal } from './BookmarkCreateFolderModal';
 import { useBookmarks } from '../hooks/useBookmarks';
 import { useAttentionMarks } from '../hooks/useAttentionMarks';
 import { useSpaceBarItems } from '../hooks/useSpaceBarItems';
+import { spaceManagerProxy } from '../managers/proxies/spaceManagerProxy';
 import * as DropdownMenu from './menu/DropdownMenu';
 import type { UndoableAction } from '../actions/types';
 
@@ -51,6 +53,7 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
     tabIds: number[];
   }>({ isOpen: false, tabIds: [] });
   const [creatingFolderParentId, setCreatingFolderParentId] = useState<string | null>(null);
+  const [taskListAnchor, setTaskListAnchor] = useState<DOMRect | null>(null);
 
   // Auto-scroll to make active space visible
   useEffect(() =>
@@ -99,6 +102,43 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
       onShowToast('Could not create a Task Space');
     }
   }, [createTaskSpace, switchToSpace, onShowToast]);
+
+  const closeTaskList = useCallback(() => setTaskListAnchor(null), []);
+
+  const handleSelectTaskSpace = useCallback((space: Space) =>
+  {
+    closeTaskList();
+    switchToSpace(space.id);
+  }, [closeTaskList, switchToSpace]);
+
+  const handleRestoreTaskSpace = useCallback(async (space: Space) =>
+  {
+    closeTaskList();
+    try
+    {
+      // Awaited so background has the Space in its live list before the switch reaches it
+      await spaceManagerProxy.restoreTaskSpace(space.id);
+      switchToSpace(space.id);
+    }
+    catch (error)
+    {
+      console.error('[SpaceBar] Failed to restore Task Space:', error);
+      onShowToast('Could not restore the Task Space');
+    }
+  }, [closeTaskList, switchToSpace, onShowToast]);
+
+  const handleDeleteArchivedTaskSpace = useCallback(async (space: Space) =>
+  {
+    try
+    {
+      await spaceManagerProxy.deleteArchivedTaskSpace(space.id);
+    }
+    catch (error)
+    {
+      console.error('[SpaceBar] Failed to delete archived Task Space:', error);
+      onShowToast('Could not delete the Task Space');
+    }
+  }, [onShowToast]);
 
   const handleCreateTab = useCallback(() =>
   {
@@ -321,8 +361,28 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
           )}
         </div>
 
-        {/* Arc-style create menu */}
-        <div className="arc-create-space flex items-center px-1">
+        {/* Task Spaces list and Arc-style create menu */}
+        <div className="arc-create-space flex items-center gap-0.5 px-1">
+          <button
+            title="Task Spaces"
+            aria-label="Task Spaces"
+            aria-expanded={taskListAnchor !== null}
+            onClick={(e) => setTaskListAnchor(e.currentTarget.getBoundingClientRect())}
+            className={clsx(
+              "p-1.5 rounded",
+              "transition-all duration-150",
+              "focus:outline-none",
+              taskListAnchor
+                ? "text-gray-900 dark:text-gray-100 bg-gray-200 dark:bg-gray-700"
+                : clsx(
+                  "text-gray-500 dark:text-gray-400",
+                  "hover:text-gray-900 dark:hover:text-gray-100",
+                  "hover:bg-gray-200 dark:hover:bg-gray-700"
+                )
+            )}
+          >
+            <Menu size={18} />
+          </button>
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
               <button
@@ -357,6 +417,20 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
           </DropdownMenu.Root>
         </div>
       </div>
+
+      {taskListAnchor && (
+        <TaskSpacesPopover
+          anchorRect={taskListAnchor}
+          canDelete={spaces.length > 1}
+          onSelect={handleSelectTaskSpace}
+          onEdit={onEditSpace}
+          onDelete={handleDelete}
+          onCloseAllTabs={handleCloseAllTabsInSpace}
+          onRestore={handleRestoreTaskSpace}
+          onDeleteArchived={handleDeleteArchivedTaskSpace}
+          onClose={closeTaskList}
+        />
+      )}
 
       <ConfirmDeleteDialog
         isOpen={confirmCloseAllDialog.isOpen}

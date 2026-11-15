@@ -276,12 +276,12 @@ One Space failing (any thrown error) is logged and the run goes on with the next
 - Create: `src/components/TaskSpacesPopover.tsx`
 - Modify: `src/components/SpaceBar.tsx`
 
-- [ ] `SpaceBar`: button with the Lucide `Menu` icon left of (+), title "Task Spaces"; highlighted while the popover is open
-- [ ] `TaskSpacesPopover` (portal, above the bar, transparent overlay under it that closes on click, Escape closes; follow `RecentlyClosedPopover` / `MenuBase` patterns): live Task Spaces sorted by `createdAt` ascending; each row icon (`getIcon`) + name; active row highlighted; opacity by age rank (newest 1.0, −0.07 per older row, floor 0.35, full on hover); max height of 10 rows with scroll; scrolled to the bottom on open; click → `switchToSpace` and close; right-click → `SpaceContextMenuContent` (Edit, Close All Tabs In Space, Delete, Convert — Task 7) through the same handlers `SpaceBar` uses for icons
-- [ ] **Archived (N)** header at the top, shown when N > 0, collapsed by default; expanded rows dimmed with the archive date (`toLocaleDateString`); click → `spaceManagerProxy.restoreTaskSpace(id)` then `switchToSpace(id)` and close; right-click menu with Restore and Delete (`deleteArchivedTaskSpace`)
-- [ ] empty state when there are no live and no archived Task Spaces: "No Task Spaces yet. Create one with + → New Task Space"
-- [ ] no tests (UI wiring, per CLAUDE.md)
-- [ ] run `make lint && make test` - must pass before task 7
+- [x] `SpaceBar`: button with the Lucide `Menu` icon left of (+), title "Task Spaces"; highlighted while the popover is open
+- [x] `TaskSpacesPopover` (portal, above the bar, transparent overlay under it that closes on click, Escape closes; follow `RecentlyClosedPopover` / `MenuBase` patterns): live Task Spaces sorted by `createdAt` ascending; each row icon (`getIcon`) + name; active row highlighted; opacity by age rank (newest 1.0, −0.07 per older row, floor 0.35, full on hover); max height of 10 rows with scroll; scrolled to the bottom on open; click → `switchToSpace` and close; right-click → `SpaceContextMenuContent` (Edit, Close All Tabs In Space, Delete, Convert — Task 7) through the same handlers `SpaceBar` uses for icons
+- [x] **Archived (N)** header at the top, shown when N > 0, collapsed by default; expanded rows dimmed with the archive date (`toLocaleDateString`); click → `spaceManagerProxy.restoreTaskSpace(id)` then `switchToSpace(id)` and close; right-click menu with Restore and Delete (`deleteArchivedTaskSpace`)
+- [x] empty state when there are no live and no archived Task Spaces: "No Task Spaces yet. Create one with + → New Task Space"
+- [x] no tests (UI wiring, per CLAUDE.md)
+- [x] run `make lint && make test` - must pass before task 7
 
 ### Task 7: Convert to Regular Space
 
