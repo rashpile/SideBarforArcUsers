@@ -110,8 +110,9 @@ interface RecentTaskSpacesInput<T> {
 - **This window's active Task Space (when not hidden) always ranks newest**, whatever the stored times: it
   takes one of the `RECENT_TASK_SPACES_LIMIT` slots, sits at the bottom of the rows, and its label is `now`.
   Why: `now` comes from a once-a-minute clock and is up to 60 s old, while background stamps the Space just
-  left (leave touch) and a new Task Space's `createdAt` with the real time, which is after that `now`;
-  ranking the active Space by `now` would put it above the Space just left, or push it out of the top 3.
+  left (leave touch), and the sidebar's `createTaskSpace` stamps a new Task Space's `createdAt`, with the real
+  time, which is after that `now`; ranking the active Space by `now` would put it above the Space just left,
+  or push it out of the top 3.
 - Other candidates: recent time `max(task.createdAt, lastUse ?? 0)`; keep `now - recentTime <
   RECENT_TASK_SPACES_WINDOW_MS` (exactly 24 h old is out; a time after `now` counts as in); sort by recent
   time descending, ties by `task.createdAt` descending (newer first) so the result is deterministic; fill the

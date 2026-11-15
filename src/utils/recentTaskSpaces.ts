@@ -76,9 +76,9 @@ export function recentTaskSpaces<T extends RecentSpace>(input: RecentTaskSpacesI
   const candidates = spaces.filter(space => isTaskSpace(space) && !hidden.isHidden(space.id));
 
   // The active Space ranks newest whatever the stored times say: `now` comes from a once-a-minute
-  // clock, while background stamps the Space just left (and a new Task Space's createdAt) with
-  // the real time, so ranking by time would put the active Space above the one just left or
-  // push it out of the list.
+  // clock, while background stamps the Space just left, and createTaskSpace stamps a new Task
+  // Space's createdAt, with the real time, so ranking by time would put the active Space above
+  // the one just left or push it out of the list.
   const active = candidates.find(space => space.id === activeSpaceId);
   const slots = RECENT_TASK_SPACES_LIMIT - (active ? 1 : 0);
 
