@@ -17,6 +17,9 @@
 - Evidence: the unvisited-marker spike confirmed `onCreated` for restored tabs only for Cmd+Shift+T, not
   for a browser restart. The restart behaviour is inferred; Post-Completion has the check that tells this
   cause apart from the others.
+- Later finding: the main cause was the startup order. The worker ran before Chrome had restored any
+  window, so the startup load matched no tab and saved an empty list. Fixed by the plan
+  `20261115-restore-spaces-after-windows-restore.md`.
 
 ## Context (from discovery)
 

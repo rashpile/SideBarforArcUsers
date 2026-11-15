@@ -159,13 +159,13 @@ interface RestoredWindowsWaitDeps
 
 ### Task 5: [Final] Update documentation
 
-- [ ] `docs/changelog.md`: rewrite this branch's `Fixed:` line under `## Latest Version` with the real cause: after a browser restart the extension could start before Chrome restored its windows, lost the stored Spaces and put every tab in the first Space; it now waits for the restored windows, and tabs on the same page in different Spaces keep their own Space
-- [ ] `docs/state-reference.md`, `tabSpaceAssignments`: the startup restore waits for the restored windows in a new browser session; a load with no tab keeps the records; indexes are refreshed on tab create/close/detach/attach/move
-- [ ] `docs/plans/completed/20261115-keep-tab-spaces-after-restart.md`: add a line under Overview that the startup order was the main cause, fixed by this plan
-- [ ] `CLAUDE.md`, invariant "Tab ids don't survive a browser restart": add a sub-bullet that startup code re-attaching stored per-tab records starts from `startupTabsReady` (`src/background.ts`), which in a new browser session waits for Chrome's restored windows (`RestoredWindowsWait`), not from `sameBrowserSession`
-- [ ] `docs/development.md` > Chrome API rules: add a bullet that at browser start the worker can run before Chrome has restored any window (`tabs.query` returns nothing; `chrome.tabGroups.query` rejects with "No current window")
-- [ ] no README change and no `src/data/changelog.ts` entry (bug fix only)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] `docs/changelog.md`: rewrite this branch's `Fixed:` line under `## Latest Version` with the real cause: after a browser restart the extension could start before Chrome restored its windows, lost the stored Spaces and put every tab in the first Space; it now waits for the restored windows, and tabs on the same page in different Spaces keep their own Space
+- [x] `docs/state-reference.md`, `tabSpaceAssignments`: the startup restore waits for the restored windows in a new browser session; a load with no tab keeps the records; indexes are refreshed on tab create/close/detach/attach/move
+- [x] `docs/plans/completed/20261115-keep-tab-spaces-after-restart.md`: add a line under Overview that the startup order was the main cause, fixed by this plan
+- [x] `CLAUDE.md`, invariant "Tab ids don't survive a browser restart": add a sub-bullet that startup code re-attaching stored per-tab records starts from `startupTabsReady` (`src/background.ts`), which in a new browser session waits for Chrome's restored windows (`RestoredWindowsWait`), not from `sameBrowserSession`
+- [x] `docs/development.md` > Chrome API rules: add a bullet that at browser start the worker can run before Chrome has restored any window (`tabs.query` returns nothing; `chrome.tabGroups.query` rejects with "No current window")
+- [x] no README change and no `src/data/changelog.ts` entry (bug fix only)
+- [x] move this plan to `docs/plans/completed/` (skipped - the harness moves the plan after all phases finish)
 
 ## Post-Completion
 

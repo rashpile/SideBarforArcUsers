@@ -23,6 +23,7 @@ Code that breaks one of these breaks user data or acts on the wrong items.
 - **No hard-coded bookmark roots.** Don't assume root ids `'1'`, `'2'`, `'3'` or unique root titles. Profiles with account bookmarks have other roots. Use `findRootFolder` / `getRootFolderType` (`src/utils/bookmarkFolderLookup.ts`) and the Space's `bookmarkFolderInAccount` flag.
 - **Tab ids don't survive a browser restart.** Tab and window ids are exact only within one browser session; after a restart Chrome reuses low ids. `chrome.storage.session` survives service-worker restarts but is cleared on browser restart and on extension reload or update.
   - `BrowserSessionMarker` (`src/stores/browserSessionMarker.ts`) tells a worker restart (marker present) from a new session (marker absent).
+  - Startup code that re-attaches stored per-tab records starts from `startupTabsReady` (`src/background.ts`), not from `sameBrowserSession`. In a new browser session it waits for Chrome's restored windows (`RestoredWindowsWait`).
   - Re-attach stored per-tab records with `matchStoredTabs` / `isSameSite` (`src/utils/storedTabMatcher.ts`) instead of writing another matcher.
   - `stateReady` / `TabAssociationReadiness.wait()` resolve to `false` when the startup restore failed. Background code that closes or changes tabs based on associations must check that result.
 - **One writer per storage key.** State shared by background and sidebar goes through a manager in `background.ts` and its proxy (`src/managers/`). See "Shared state" in `docs/development.md`.
