@@ -1112,7 +1112,14 @@ async function handleTabActivation(windowId: number, tabId: number): Promise<voi
   }
 
   // A tab switch inside a Task Space is use of it, though the window's Space stays the same
-  recordTaskSpaceUse(spaceStateManager.getActiveSpace(windowId));
+  const activeSpaceId = spaceStateManager.getActiveSpace(windowId);
+  recordTaskSpaceUse(activeSpaceId);
+  // With Follow active tab off the window stays on its Space, while the tab just activated may
+  // be a Task Space's; without this, that Task Space would archive as unused
+  if (destinationSpaceId && destinationSpaceId !== activeSpaceId)
+  {
+    recordTaskSpaceUse(destinationSpaceId);
+  }
 
   // Announce the activation so the sidebar can scroll the tab into view.
   // The sidebar decides whether to scroll based on the follow mode and spaceSwitched.

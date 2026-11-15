@@ -572,7 +572,7 @@ export const SpacesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return (resolvedActiveSpaceId && getSpaceById(resolvedActiveSpaceId)) || ALL_SPACE;
   }, [resolvedActiveSpaceId, getSpaceById]);
 
-  // A legacy `all` or deleted ID moves to the first real Space.
+  // A legacy `all` or deleted ID moves to the first regular Space (a Task Space only when there is none).
   useEffect(() =>
   {
     if (resolvedActiveSpaceId && resolvedActiveSpaceId !== windowState.activeSpaceId)

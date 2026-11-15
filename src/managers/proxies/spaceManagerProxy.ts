@@ -52,7 +52,9 @@ class SpaceManagerProxy implements Remote<SpaceManagerApi>
    * not a copy, so pushing or splicing it would change what every subscriber
    * sees WITHOUT notifying any of them - the store only fires listeners from
    * set(). Callers build a new list (spread, map, filter) and hand it to
-   * updateSpaces, which is the only supported way to change this state.
+   * updateSpaces, or call restoreTaskSpace / deleteArchivedTaskSpace, which
+   * apply their move to both mirrors through #changeLists. Those three are
+   * the only supported ways to change this state.
    */
   get snapshot(): readonly Space[]
   {
@@ -96,14 +98,24 @@ class SpaceManagerProxy implements Remote<SpaceManagerApi>
     // example.
     //
     // `migrated` is the one deliberate exception: SpaceManager.updateSpaces()
-    // sets it when it resolved missing bookmarkFolderSegments before storing,
-    // meaning what got stored differs from what THIS context optimistically
-    // wrote (see #applySpaces call in updateSpaces() below). Applying it
-    // despite the matching senderId is safe only because the sole caller
-    // that can hit this - spaces import - awaits the write before the UI
-    // allows another space edit in this window, so there is no newer
-    // optimistic write here for it to clobber. See the shared-storage
-    // decision doc, section 4.
+    // sets it when what got stored differs from what THIS context
+    // optimistically wrote (see #applySpaces call in updateSpaces() below).
+    // Applying it despite the matching senderId is safe in both cases that
+    // set it:
+    // - Background resolved missing bookmarkFolderSegments. The one caller
+    //   that can hit this - spaces import - awaits the write before the UI
+    //   allows another space edit in this window, so there is no newer
+    //   optimistic write here for it to clobber. See the shared-storage
+    //   decision doc, section 4.
+    // - Background dropped an archived Task Space. Any whole-list write - a
+    //   reorder, an edit, createSpace - sends one back when it was built before
+    //   the archive broadcast reached this mirror. Newer writes may follow, but
+    //   each one built from the same stale mirror still holds the archived
+    //   Space, so it gets its own migrated broadcast, which corrects the mirror
+    //   again. Only a write made in the milliseconds between the archive
+    //   broadcast and this one arriving gets no migrated broadcast of its own,
+    //   so this one overwrites it in the mirror; a race next to an archive
+    //   run, left as is.
     chrome.runtime.onMessage.addListener((message) =>
     {
       if (message?.action === SPACES_CHANGED && (message.senderId !== CONTEXT_ID || message.migrated === true))
@@ -181,9 +193,11 @@ class SpaceManagerProxy implements Remote<SpaceManagerApi>
    * NOT applied to the mirror: we already know the resulting list because we
    * chose it, and applying a reply that a newer write may have superseded
    * would only move the mirror backwards. The one exception is when
-   * background resolved missing bookmarkFolderSegments we didn't send - the
-   * mirror gets corrected for that via the broadcast's `migrated` flag (see
-   * #subscribeToBroadcasts), not via this method applying its own ack.
+   * background stored something other than what we sent - it resolved
+   * missing bookmarkFolderSegments, or dropped a Task Space archived since
+   * our mirror last heard - and the mirror gets corrected for that via the
+   * broadcast's `migrated` flag (see #subscribeToBroadcasts), not via this
+   * method applying its own ack.
    *
    * The promise still resolves with the manager's reply, for callers that
    * need the write to have actually landed - DeleteSpaceAction waits on it,

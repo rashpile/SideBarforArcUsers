@@ -142,7 +142,8 @@ never reaches an icon the strip has already hidden. Swipe uses `[...regular, ...
 
 - `SpaceWindowStateManager.setActiveSpace(windowId, spaceId)`: when the window's Space changes, touch the
   Space left and the Space entered (Task Spaces only, via an injected `onActiveSpaceChanged` callback).
-- `handleTabActivation`: touch the window's active Space when it is a Task Space.
+- `handleTabActivation`: touch the window's active Space when it is a Task Space, and the activated tab's
+  Space when it differs (with Follow active tab off the window's Space doesn't change).
 - `SpaceManager.restoreTaskSpace`: touch the restored Space (injected `onRestored` callback).
 - `touch` is skipped when the stored value is less than 60 s older than now, so tab switching doesn't
   flood storage. Every touch reads storage first (no in-memory cache), so no load ordering matters.
@@ -156,7 +157,8 @@ never reaches an icon the strip has already hidden. Swipe uses `[...regular, ...
 1. `startupRestoreSucceeded()` false or `tabMarksLoaded()` false → nothing.
 2. Setting `'never'` → nothing. Else `selectTaskSpacesToArchive({ spaces, lastUse, activeSpaceIds, now, periodMs })`:
    live Task Spaces with `now - lastUse >= periodMs` that are not the active Space of any window.
-3. Per selected Space, its tabs in all normal windows: registry-assigned to it, plus tabs associated with a
+3. Per selected Space, its tabs in all normal windows: registry-assigned to it (unless the tab's bookmark now
+   sits in another live Space's folder, moved in Chrome's Bookmark Manager), plus tabs associated with a
    bookmark (`bookmark-<id>` key) inside its folder subtree, skipping `asd_Archive` and `asd_Favorites`
    with `isSystemFolder` at any depth. Skip the Space this run when one of them is marked for attention or
    always kept by tab auto-archive's rule (`isAlwaysKept`: active, audible, Chrome-pinned, incognito, or
@@ -364,6 +366,12 @@ One Space failing (any thrown error) is logged and the run goes on with the next
 - [known-limitation] A Task Space converted to a regular Space or deleted in the moment between an archive
   run's saves and its close still has its tabs closed (`archiveTaskSpaces` ignores it, the archiver doesn't
   re-read the Space list). No page is lost: every closed tab is in the Archive, a bookmark, a Favorite or empty.
+- [known-limitation] A whole-list Space write sent in the milliseconds between an archive broadcast reaching a
+  sidebar and the `migrated` broadcast of that sidebar's earlier stale write is overwritten in its mirror (it
+  holds no archived id, so it gets no `migrated` broadcast of its own).
+- [known-limitation] With Follow active tab off, leaving a Task Space's tab for a tab of the displayed Space
+  isn't recorded as use (the window's Space doesn't change). A Task Space whose tab stayed active longer than
+  the archive period can archive right after; its tabs are saved to its Archive first.
 
 ## Post-Completion
 

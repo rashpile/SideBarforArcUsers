@@ -182,19 +182,23 @@ export class SpaceManager implements RoutedManager, SpaceManagerApi
    * broadcast below can be recognised as an echo by whoever sent it. Absent
    * for background-internal callers, whose broadcasts are news to everyone.
    *
-   * Resolves any missing bookmarkFolderSegments before storing (see
-   * resolveMissingSegments above), so the value actually stored/broadcast can
-   * differ from what the caller sent. The broadcast's `migrated` flag tells
-   * the ORIGINATING proxy to apply it despite the matching senderId (which
-   * would normally mean "my own echo, skip it") - safe only because the one
-   * caller that can actually hit this (spaces import) awaits the write before
-   * the UI allows another space edit in the same window, so there is no
-   * newer optimistic write here for this to clobber. See the shared-storage
-   * decision doc, section 4, for the general hazard this sidesteps.
+   * The value actually stored/broadcast can differ from what the caller sent.
+   * The broadcast's `migrated` flag then tells the ORIGINATING proxy to apply
+   * it despite the matching senderId (which would normally mean "my own echo,
+   * skip it"). Two things set it, and applying it is safe for both:
    *
-   * It is also set when the list still held an archived Task Space, which a
-   * mirror that missed the archive broadcast sends back; the Space is dropped
-   * and the sender's mirror needs correcting the same way.
+   * - Missing bookmarkFolderSegments get resolved (see resolveMissingSegments
+   *   above). The one caller that can actually hit this (spaces import)
+   *   awaits the write before the UI allows another space edit in the same
+   *   window, so there is no newer optimistic write there for this to
+   *   clobber. See the shared-storage decision doc, section 4, for the
+   *   general hazard this sidesteps.
+   * - An archived Task Space gets dropped. Any caller's whole-list write - a
+   *   reorder, an edit, createSpace - sends one back when its mirror built the
+   *   list before the archive broadcast arrived. Newer writes may follow from
+   *   that window, but each one built from the same stale mirror holds the
+   *   archived Space too, so it gets its own migrated broadcast, which
+   *   corrects the mirror again.
    */
   async updateSpaces(spaces: Space[], originId?: string): Promise<readonly Space[]>
   {

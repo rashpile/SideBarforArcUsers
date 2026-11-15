@@ -111,6 +111,7 @@ interface RunSnapshot
   roots: BookmarkNode[];
   tabs: readonly ArchiverTab[];
   associations: TabAssociationsByWindow;
+  bookmarkOwners: BookmarkOwners;
   savedPages: SavedPages;
   splitViewsOnScreen: SplitViewsOnScreen;
 }
@@ -136,6 +137,36 @@ function ownedBookmarkIds(folder: BookmarkNode, space: Space, spaces: readonly S
 
   walk(folder, space.bookmarkFolderSegments ?? []);
   return ids;
+}
+
+// The live Space that owns each bookmark now, by the folder it sits in, as BookmarkSpaceResolver
+// decides when the tab is activated. The registry hears of a bookmark moved to another Space
+// (Chrome's Bookmark Manager) only on its tab's next activation; until then the tab stays
+// registered to the old Space.
+class BookmarkOwners
+{
+  #spaceIds = new Map<string, string | undefined>();
+
+  constructor(roots: readonly BookmarkNode[], spaces: readonly Space[])
+  {
+    const walk = (folder: BookmarkNode, segments: string[]): void =>
+    {
+      const ownerId = findSpaceForFolderSegments(segments, spaces, isInAccountStorage(folder))?.id;
+      for (const child of folder.children ?? [])
+      {
+        if (child.url) this.#spaceIds.set(child.id, ownerId);
+        else walk(child, [...segments, child.title]);
+      }
+    };
+
+    for (const root of roots) walk(root, [root.title]);
+  }
+
+  /** Undefined for a bookmark outside every live Space folder, or one no longer in the tree. */
+  spaceIdOf(bookmarkId: string): string | undefined
+  {
+    return this.#spaceIds.get(bookmarkId);
+  }
 }
 
 export class TaskSpaceArchiver
@@ -295,6 +326,7 @@ export class TaskSpaceArchiver
       roots,
       tabs,
       associations,
+      bookmarkOwners: new BookmarkOwners(roots, spaces),
       savedPages: SavedPages.fromTree(roots, favorites),
       splitViewsOnScreen: SplitViewsOnScreen.of(tabs),
     };
@@ -354,17 +386,23 @@ export class TaskSpaceArchiver
     await this.#deps.removeTabs(openTabIds);
   }
 
-  // The Space's tabs in every window: those the registry assigns to it, and the tabs of the
-  // bookmarks it owns, which belong to the Space whatever the registry says
+  // The Space's tabs in every window: the tabs of the bookmarks it owns, which belong to the
+  // Space whatever the registry says, and those the registry assigns to it - unless the tab's
+  // bookmark now sits in another live Space's folder, which the tab then belongs to
   #tabsOf(space: Space, folder: BookmarkNode, run: RunSnapshot): ArchiverTab[]
   {
     const bookmarkIds = ownedBookmarkIds(folder, space, run.spaces);
     return run.tabs.filter((tab) =>
     {
-      if (this.#deps.spaceOf(tab.windowId, tab.id) === space.id) return true;
       const itemKey = run.associations.itemKey(tab.windowId, tab.id);
-      return itemKey?.startsWith(BOOKMARK_ITEM_KEY_PREFIX) === true
-        && bookmarkIds.has(itemKey.slice(BOOKMARK_ITEM_KEY_PREFIX.length));
+      const bookmarkId = itemKey?.startsWith(BOOKMARK_ITEM_KEY_PREFIX) === true
+        ? itemKey.slice(BOOKMARK_ITEM_KEY_PREFIX.length)
+        : undefined;
+      if (bookmarkId !== undefined && bookmarkIds.has(bookmarkId)) return true;
+      if (this.#deps.spaceOf(tab.windowId, tab.id) !== space.id) return false;
+
+      const ownerId = bookmarkId === undefined ? undefined : run.bookmarkOwners.spaceIdOf(bookmarkId);
+      return ownerId === undefined || ownerId === space.id;
     });
   }
 

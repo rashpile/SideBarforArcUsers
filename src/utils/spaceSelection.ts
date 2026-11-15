@@ -14,7 +14,8 @@ function fallbackSpaceId(spaces: readonly SpaceIdentity[]): string | null
 }
 
 /**
- * The `all` saved by older versions and deleted IDs both fall back to the first real Space.
+ * The `all` saved by older versions and deleted IDs both fall back to the first regular Space
+ * (a Task Space only when there is none).
  */
 export function resolveActiveSpaceId(
   spaces: readonly SpaceIdentity[],

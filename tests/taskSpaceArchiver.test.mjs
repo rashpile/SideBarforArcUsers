@@ -310,6 +310,24 @@ test('the tab of a bookmark in a folder an earlier Space shares is left to that 
   assert.deepEqual(result, { saved: ['https://site1.test/'], archived: ['t1'], closed: [1] });
 });
 
+test('a registered tab whose bookmark moved to another Space\'s folder is left to that Space', async () =>
+{
+  // Tab 1's bookmark now sits in r1, tab 2's is gone, tab 3's is in the Task Space's own
+  // asd_Archive, tab 4 is a regular tab: only tab 1 leaves the registry's word
+  const result = await outcome({
+    spaces: [regularSpace('r1'), taskSpace('t1')],
+    tabs: [tab(1), tab(2), tab(3), tab(4)],
+    registry: { 1: 't1', 2: 't1', 3: 't1', 4: 't1' },
+    associations: { 1: 'bookmark-b1', 2: 'bookmark-gone', 3: 'bookmark-a3' },
+    folderChildren: {
+      r1: [{ id: 'b1', url: 'https://site1.test/' }],
+      t1: [{ id: 'archive', title: ARCHIVE_FOLDER_TITLE, children: [{ id: 'a3', url: 'https://site3.test/' }] }],
+    },
+  });
+
+  assert.deepEqual(result, { saved: ['https://site2.test/', 'https://site4.test/'], archived: ['t1'], closed: [2, 3, 4] });
+});
+
 test('a Task Space that fails to archive doesn\'t stop the next one', async (t) =>
 {
   t.mock.method(console, 'error', () => {});
