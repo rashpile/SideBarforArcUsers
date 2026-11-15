@@ -199,11 +199,11 @@ interface RecentTaskSpacesInput<T> {
 - Create: `src/utils/recentTaskSpaces.ts`
 - Create: `tests/recentTaskSpaces.test.mjs`
 
-- [ ] create `src/utils/recentTaskSpaces.ts` (`.ts` imports, no chrome, no `import.meta.env`) with `RECENT_TASK_SPACES_WINDOW_MS`, `RECENT_TASK_SPACES_LIMIT`, the `LastUseLookup` / `HiddenLookup` interfaces, `recentTaskSpaces(input)` returning the `RecentTaskSpaces` class (`rows`, `byCreation()`, `isEmpty`) and `recentAgeLabel(recentAt, now)` per Technical Details
-- [ ] add `swipeTarget(order, activeSpaceId, direction)` to the same module per Technical Details
-- [ ] write tests for `recentTaskSpaces`: regular Spaces never listed; 24 h cut-off (23h59m in, exactly 24 h out); only the 3 most recent of 5; rows oldest → newest; a hidden Task Space is left out, also when it is the active Space; the active Space is listed even with an old last use; **the active Space is listed and last even when three other Task Spaces have a last use or `createdAt` after `now`**; `createdAt` is used when there is no last use or it is newer; `byCreation()` order differs from row order when last use and creation disagree
-- [ ] write tests for `swipeTarget`: next / previous in the order, `undefined` at both ends, `undefined` when the active Space is not in the order
-- [ ] run `make lint && make test` - must pass before task 2
+- [x] create `src/utils/recentTaskSpaces.ts` (`.ts` imports, no chrome, no `import.meta.env`) with `RECENT_TASK_SPACES_WINDOW_MS`, `RECENT_TASK_SPACES_LIMIT`, the `LastUseLookup` / `HiddenLookup` interfaces, `recentTaskSpaces(input)` returning the `RecentTaskSpaces` class (`rows`, `byCreation()`, `isEmpty`) and `recentAgeLabel(row, now)` per Technical Details (takes the row, not `recentAt`, so the active row reads `now`)
+- [x] add `swipeTarget(order, activeSpaceId, direction)` to the same module per Technical Details
+- [x] write tests for `recentTaskSpaces`: regular Spaces never listed; 24 h cut-off (23h59m in, exactly 24 h out); only the 3 most recent of 5; rows oldest → newest; a hidden Task Space is left out, also when it is the active Space; the active Space is listed even with an old last use; **the active Space is listed and last even when three other Task Spaces have a last use or `createdAt` after `now`**; `createdAt` is used when there is no last use or it is newer; `byCreation()` order differs from row order when last use and creation disagree
+- [x] write tests for `swipeTarget`: next / previous in the order, `undefined` at both ends, `undefined` when the active Space is not in the order
+- [x] run `make lint && make test` - must pass before task 2
 
 ### Task 2: Hidden marks value class and manager
 
