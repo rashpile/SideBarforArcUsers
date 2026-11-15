@@ -20,6 +20,7 @@ import { BookmarkRecencyStore } from './stores/bookmarkRecencyStore';
 import { TaskSpaceLastUseStore } from './stores/taskSpaceLastUse';
 import { isTaskSpace } from './utils/taskSpaces';
 import { BrowserSessionMarker } from './stores/browserSessionMarker';
+import { RESTORE_MAX_WAIT_MS, RESTORE_QUIET_MS, RestoredWindowsWait } from './utils/restoredWindowsWait';
 import { TabActivityTracker } from './stores/tabActivityTracker';
 import { queryOpenTabs, readTabActivityRecording, TabAutoArchiver } from './services/tabAutoArchiver';
 import { TaskSpaceArchiver } from './services/taskSpaceArchiver';
@@ -325,7 +326,9 @@ async function assignUntrackedTabsToSpaces(): Promise<void>
     nameCounts.set(space.name, (nameCounts.get(space.name) ?? 0) + 1);
   }
 
-  const groups = await chrome.tabGroups.query({});
+  // Rejects with "No current window" while Chrome has no window, and a rejection here would reject
+  // managerLoadPromise and leave stateReady false. Without a window there are no groups to read.
+  const groups = await chrome.tabGroups.query({}).catch((): chrome.tabGroups.TabGroup[] => []);
   const groupSpaceIds = new Map<number, string>();
   for (const group of groups)
   {
@@ -420,6 +423,28 @@ const sameBrowserSession = browserSessionMarker.isSameBrowserSession().then((sam
   return same;
 });
 
+const restoredWindowsWait = new RestoredWindowsWait({
+  countNormalWindows: async () => (await chrome.windows.getAll({ windowTypes: ['normal'] })).length,
+  addWindowCreatedListener: (listener) => chrome.windows.onCreated.addListener(listener, { windowTypes: ['normal'] }),
+  removeWindowCreatedListener: (listener) => chrome.windows.onCreated.removeListener(listener),
+  addTabCreatedListener: (listener) => chrome.tabs.onCreated.addListener(listener),
+  removeTabCreatedListener: (listener) => chrome.tabs.onCreated.removeListener(listener),
+  setTimeout: (callback, ms) => setTimeout(callback, ms),
+  clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+  quietMs: RESTORE_QUIET_MS,
+  maxWaitMs: RESTORE_MAX_WAIT_MS,
+});
+
+// sameBrowserSession, once the tabs the startup restore matches stored records against exist. At
+// browser start the worker can run before Chrome has restored any window; a worker restart within
+// the browser session finds its windows in place and doesn't wait. A failed window count also ends
+// the wait, possibly before any tab exists.
+const startupTabsReady: Promise<boolean> = sameBrowserSession.then(async (same) =>
+{
+  if (!same) await restoredWindowsWait.wait();
+  return same;
+});
+
 /**
  * Brings the page cache up to date with the live tabs once the registry knows their Spaces.
  * Runs before assignUntrackedTabsToSpaces, whose registrations reach the cache through onAssigned.
@@ -467,9 +492,9 @@ const managerLoadPromise = Promise.all([
   pageStyleManager.load(),
   // Never rejects: an unreadable key keeps the notes unwritten, it doesn't hold back the tabs
   noteManager.load(),
-  sameBrowserSession.then((same) => tabSpaceRegistry.load(same)).then(seedOpenTabPages),
-  sameBrowserSession.then((same) => attentionMarkManager.load(same)),
-  loadTabActivity()
+  startupTabsReady.then((same) => tabSpaceRegistry.load(same)).then(seedOpenTabPages),
+  startupTabsReady.then((same) => attentionMarkManager.load(same)),
+  startupTabsReady.then(() => loadTabActivity())
 ])
   .then(normalizeLoadedWindowSpaces)
   .then(assignUntrackedTabsToSpaces)
@@ -1157,6 +1182,8 @@ chrome.tabs.onActivated.addListener(async (activeInfo) =>
 // Refresh tab indices in local backup for all managed tabs in a window.
 // Called after any tab creation, move, removal, attach or detach that may shift indices,
 // so a browser restart can place the entries by index (index+domain restore pass).
+// tabSpaceRegistry.refreshWindowMetadata runs next to each call for the same reason: a browser
+// restart matches the registry's tabs on the same URL by their stored position.
 async function refreshBackupIndices(windowId: number): Promise<void>
 {
   const associations = await getTabAssociations(windowId);
@@ -1305,7 +1332,10 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) =>
     }
 
     // Any tab removal shifts indices of tabs after it
-    await refreshBackupIndices(removeInfo.windowId);
+    await Promise.all([
+      refreshBackupIndices(removeInfo.windowId),
+      tabSpaceRegistry.refreshWindowMetadata(removeInfo.windowId),
+    ]);
   }
 });
 
@@ -1360,6 +1390,7 @@ chrome.tabs.onDetached.addListener(async (tabId, detachInfo) =>
     spaceId ? tabSpaceRegistry.unregister(detachInfo.oldWindowId, tabId) : Promise.resolve(),
     // The tabs right of the detached one move left
     refreshBackupIndices(detachInfo.oldWindowId),
+    tabSpaceRegistry.refreshWindowMetadata(detachInfo.oldWindowId),
   ]);
 });
 
@@ -1378,7 +1409,10 @@ chrome.tabs.onAttached.addListener(async (tabId, attachInfo) =>
   }
 
   // The tabs right of the attached one move right
-  await refreshBackupIndices(attachInfo.newWindowId);
+  await Promise.all([
+    refreshBackupIndices(attachInfo.newWindowId),
+    tabSpaceRegistry.refreshWindowMetadata(attachInfo.newWindowId),
+  ]);
 });
 
 // Favicon loading scenario 5 - see "Favicon loading" in docs/development.md
@@ -1535,7 +1569,8 @@ chrome.windows.onCreated.addListener((createdWindow) =>
   if (createdWindow.id !== undefined) recentWindows.markCreated(createdWindow.id, Date.now());
 });
 
-// A new tab joins the current Space; Chrome's native groupId plays no part in the Space lifecycle.
+// A new tab joins the current Space. A tab that already has a Space keeps it: Chrome reports the
+// tabs it restores at browser start as created too, after the startup restore gave them their Spaces.
 chrome.tabs.onCreated.addListener(async (tab) =>
 {
   if (!tab.id || !tab.windowId) return;
@@ -1554,19 +1589,19 @@ chrome.tabs.onCreated.addListener(async (tab) =>
     spaceManager.getSpaces(),
     spaceStateManager.getActiveSpace(tab.windowId)
   );
-  if (targetSpaceId)
-  {
-    await tabSpaceRegistry.register(tab.windowId, tab.id, targetSpaceId);
-  }
+  const tabSpaceId = await tabSpaceRegistry.registerNewTab(tab.windowId, tab.id, targetSpaceId);
 
   if (tab.openerTabId !== undefined)
   {
-    await moveLinkTabToTabListTop(tab.id, tab.windowId, tab.openerTabId, targetSpaceId)
+    await moveLinkTabToTabListTop(tab.id, tab.windowId, tab.openerTabId, tabSpaceId)
       .catch((error) => console.error('[LinkTabPlacement] failed to move a link tab to the Tab list top:', error));
   }
 
-  // A tab opened left of a bookmark or Favorite tab (a link opened next to its tab) moves it right
-  await refreshBackupIndices(tab.windowId);
+  // A tab opened left of other tabs (a link opened next to its tab) moves them right
+  await Promise.all([
+    refreshBackupIndices(tab.windowId),
+    tabSpaceRegistry.refreshWindowMetadata(tab.windowId),
+  ]);
 });
 
 // =============================================================================

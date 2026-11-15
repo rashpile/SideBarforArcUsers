@@ -91,7 +91,7 @@ sidebar                                  background.ts
 | `SpaceWindowStateManager` | `spaceWindowState_{windowId}` (session) |
 | `SpaceManager` | `spaces`, `archivedTaskSpaces` (local) |
 | `TabHistoryManager` | `bg_windowTabHistory` (session) |
-| `TabSpaceRegistry` | `bg_tabSpaces` (session) |
+| `TabSpaceRegistry` | `tabSpaceAssignments` (local); reads the legacy `bg_tabSpaces` (session) at load to migrate it |
 | `LastAudibleTracker` | `bg_lastAudibleTabIds` (session) |
 | `FavoriteIconsManager` | `favoriteIcons` (local) |
 | `AttentionMarkManager` | `attentionMarkedTabs`, `attentionMarkedBookmarks` (local) |
@@ -191,6 +191,7 @@ These caused real bugs before:
 - Listen to `chrome.tabs.onDetached` as well as `onRemoved`. A tab moved to another window only fires `onDetached`.
 - When the active tab closes, Chrome activates a neighbour itself, and its `onActivated` can come before or after the close's `onRemoved`. `ActiveTabCloseFollower` (`src/services/activeTabCloseFollower.ts`) lands on the Space's previously used tab instead. While it follows a window, `onActivated` there returns at `absorbActivation`, before `markActivated`: Chrome's pick gets no last-use stamp, history entry, Space switch or `TAB_ACTIVATED`. The follower then runs `markActivated` and `handleTabActivation` for the tab it lands on. So code added to `onActivated` must expect skipped activations: put per-activation work in `handleTabActivation`.
 - Tab and window ids are only unique within one browser session. See "Tab identity across restarts" in [CLAUDE.md](../CLAUDE.md).
+- At browser start the service worker can run before Chrome has restored any window. `chrome.tabs.query` then returns no tab and `chrome.tabGroups.query` rejects with "No current window". Startup code that matches stored tab records starts from `startupTabsReady` in `src/background.ts`, which waits for the restored windows (`RestoredWindowsWait`).
 - Bookmark root ids `'1'`, `'2'`, `'3'` are not guaranteed. Chrome profiles with account-only bookmarks have different roots.
 
 UI rules:

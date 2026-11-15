@@ -7,7 +7,7 @@ import { TabSpaceRegistry } from '../src/managers/impl/tabSpaceRegistry.ts';
 const assignment = (tabId, windowId, spaceId, url, index) => ({ windowId, tabId, spaceId, url, index });
 const tab = (id, windowId, url, index) => ({ id, windowId, url, index });
 
-// Fake the chrome APIs load() and save() use; returns the local storage area so tests can read it back
+// Fake the chrome APIs load(), register() and save() use; returns the local storage area so tests can read it back
 function installChrome(storedAssignments, liveTabs)
 {
   const local = { [TabSpaceRegistry.STORAGE_KEY]: storedAssignments };
@@ -19,7 +19,15 @@ function installChrome(storedAssignments, liveTabs)
       },
       session: { get: async () => ({}) },
     },
-    tabs: { query: async () => liveTabs },
+    tabs: {
+      query: async () => liveTabs,
+      get: async (tabId) =>
+      {
+        const live = liveTabs.find(candidate => candidate.id === tabId);
+        if (!live) throw new Error(`No tab with id: ${tabId}.`);
+        return live;
+      },
+    },
     runtime: { sendMessage: async () => {} },
   };
   return local;
@@ -53,4 +61,102 @@ test('new browser session: a reused tab ID on another site is not taken; the rec
 
   assert.equal(registry.getSpace(1, 7), undefined);
   assert.equal(registry.getSpace(1, 2), 'work');
+});
+
+test('browser restart: a restored tab Chrome reports as created keeps the Space the startup restore gave it', async () =>
+{
+  // Window and tab ids change at a browser restart; the restored tabs are found by URL
+  const local = installChrome(
+    [
+      assignment(12, 1, 'task', 'https://code.test/agterm', 0),
+      assignment(15, 1, 'space2', 'https://swarm.test/', 1),
+    ],
+    [tab(3, 5, 'https://code.test/agterm', 0), tab(4, 5, 'https://swarm.test/', 1)]
+  );
+  const registry = new TabSpaceRegistry();
+  await registry.load(false);
+
+  // The queued onCreated events of the restored tabs, with the window's active Space fallen back to Home
+  assert.equal(await registry.registerNewTab(5, 3, 'home'), 'task');
+  assert.equal(await registry.registerNewTab(5, 4, 'home'), 'space2');
+
+  assert.equal(registry.getSpace(5, 3), 'task');
+  assert.equal(registry.getSpace(5, 4), 'space2');
+  assert.deepEqual(local[TabSpaceRegistry.STORAGE_KEY], [
+    assignment(3, 5, 'task', 'https://code.test/agterm', 0),
+    assignment(4, 5, 'space2', 'https://swarm.test/', 1),
+  ]);
+});
+
+test('browser start before Chrome restored a window: a load that sees no tab keeps the stored Spaces', async () =>
+{
+  const stored = [
+    assignment(12, 1, 'task', 'https://code.test/agterm', 0),
+    assignment(15, 1, 'space2', 'https://swarm.test/', 1),
+  ];
+  const local = installChrome(stored, []);
+  const registry = new TabSpaceRegistry();
+
+  await registry.load(false);
+
+  assert.deepEqual(registry.getWindowAssignments(1), {});
+  assert.deepEqual(local[TabSpaceRegistry.STORAGE_KEY], [
+    assignment(12, 1, 'task', 'https://code.test/agterm', 0),
+    assignment(15, 1, 'space2', 'https://swarm.test/', 1),
+  ]);
+
+  // The next worker start, after Chrome restored the window with new window and tab ids
+  installChrome(
+    local[TabSpaceRegistry.STORAGE_KEY],
+    [tab(3, 5, 'https://code.test/agterm', 0), tab(4, 5, 'https://swarm.test/', 1)]
+  );
+  const nextRegistry = new TabSpaceRegistry();
+  await nextRegistry.load(false);
+
+  assert.equal(nextRegistry.getSpace(5, 3), 'task');
+  assert.equal(nextRegistry.getSpace(5, 4), 'space2');
+});
+
+test('browser restart: two tabs on one URL in different Spaces keep their own Space after a tab before them closed', async () =>
+{
+  const docs = 'https://docs.test/';
+  installChrome([], [tab(10, 1, 'https://news.test/', 0), tab(11, 1, docs, 1), tab(12, 1, docs, 2)]);
+  const registry = new TabSpaceRegistry();
+  await registry.load(true);
+  await registry.register(1, 10, 'home');
+  await registry.register(1, 11, 'work');
+  await registry.register(1, 12, 'play');
+
+  // Tab 10 closes: the tabs right of it move left without a move event
+  const afterClose = installChrome([], [tab(11, 1, docs, 0), tab(12, 1, docs, 1)]);
+  await registry.unregister(1, 10);
+  // Precondition: the stored indexes are stale until the refresh
+  assert.deepEqual(afterClose[TabSpaceRegistry.STORAGE_KEY].map(record => record.index), [1, 2]);
+
+  await registry.refreshWindowMetadata(1);
+
+  // Chrome restores the window with new window and tab ids, so only the URL and position pair them
+  installChrome(
+    afterClose[TabSpaceRegistry.STORAGE_KEY],
+    [tab(3, 5, docs, 0), tab(4, 5, docs, 1)]
+  );
+  const restarted = new TabSpaceRegistry();
+  await restarted.load(false);
+
+  assert.equal(restarted.getSpace(5, 3), 'work');
+  assert.equal(restarted.getSpace(5, 4), 'play');
+});
+
+test('a tab without a Space joins the active Space; without an active Space it stays unassigned', async () =>
+{
+  const local = installChrome([], [tab(8, 2, 'https://news.test/', 0), tab(9, 2, 'https://docs.test/', 1)]);
+  const registry = new TabSpaceRegistry();
+  await registry.load(true);
+
+  assert.equal(await registry.registerNewTab(2, 8, 'work'), 'work');
+  assert.equal(registry.getSpace(2, 8), 'work');
+
+  assert.equal(await registry.registerNewTab(2, 9, null), null);
+  assert.equal(registry.getSpace(2, 9), undefined);
+  assert.deepEqual(local[TabSpaceRegistry.STORAGE_KEY], [assignment(8, 2, 'work', 'https://news.test/', 0)]);
 });

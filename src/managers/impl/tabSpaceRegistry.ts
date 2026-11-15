@@ -69,6 +69,20 @@ export class TabSpaceRegistry implements RoutedManager, TabSpaceRegistryApi
     this.broadcast(windowId);
   }
 
+  /**
+   * Gives a tab Chrome reports as created its Space and returns it. A tab the registry already
+   * holds keeps its Space: Chrome reports the tabs it restores at browser start as created too,
+   * after load gave them their stored Spaces. Any other tab joins activeSpaceId.
+   */
+  async registerNewTab(windowId: number, tabId: number, activeSpaceId: string | null): Promise<string | null>
+  {
+    const heldSpaceId = this.getSpace(windowId, tabId);
+    if (heldSpaceId) return heldSpaceId;
+    if (!activeSpaceId) return null;
+    await this.register(windowId, tabId, activeSpaceId);
+    return activeSpaceId;
+  }
+
   getSpace(windowId: number, tabId: number): string | undefined
   {
     return this.#registry.get(windowId)?.get(tabId);
@@ -143,6 +157,9 @@ export class TabSpaceRegistry implements RoutedManager, TabSpaceRegistryApi
       }>
       : [];
     const tabs = await chrome.tabs.query({});
+    // Chrome may not have restored any window yet, and a save now would wipe every stored Space.
+    // The records stay for the next worker start; any registration in this worker rewrites the key.
+    if (tabs.length === 0) return;
     const liveTabs = new Map<number, chrome.tabs.Tab>(
       tabs.flatMap(tab => tab.id === undefined ? [] : [[tab.id, tab] as const])
     );
