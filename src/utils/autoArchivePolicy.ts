@@ -90,14 +90,16 @@ function comparablePageUrlWithHash(url: string): string
 
 /**
  * The bookmarks and Favorites (pinned sites) one run judges tabs against.
- * Favorites are compared the way the sidebar's URL recovery compares them;
- * bookmarks also by hash, so only a tab on its bookmark's exact page closes
- * without an archive bookmark.
+ * Favorites are compared the way the sidebar's URL recovery compares them, to
+ * keep their tabs open; bookmarks, and Favorites when a tab closes without a
+ * save, also by hash, so only a tab on the exact saved page closes without an
+ * archive bookmark.
  */
 export class SavedPages
 {
   #bookmarkUrlById = new Map<string, string>();
   #favoriteUrls = new Set<string>();
+  #favoriteUrlsWithHash = new Set<string>();
 
   static fromTree(roots: readonly SavedNodeLike[], favorites: readonly { url: string }[]): SavedPages
   {
@@ -108,15 +110,23 @@ export class SavedPages
     {
       const url = comparablePageUrl(favorite.url);
       if (url) saved.#favoriteUrls.add(url);
+      const urlWithHash = comparablePageUrlWithHash(favorite.url);
+      if (urlWithHash) saved.#favoriteUrlsWithHash.add(urlWithHash);
     }
     saved.#addBookmarks(roots);
     return saved;
   }
 
-  /** True when the page is a Favorite's page. */
+  /** True when the page is a Favorite's page, whatever the hash. */
   isFavoritePage(pageUrl: string): boolean
   {
     return this.#favoriteUrls.has(comparablePageUrl(pageUrl));
+  }
+
+  /** True when the page is a Favorite's URL, hash included. */
+  isExactFavoritePage(pageUrl: string): boolean
+  {
+    return this.#favoriteUrlsWithHash.has(comparablePageUrlWithHash(pageUrl));
   }
 
   /** True when the bookmark still exists and the page is its URL, hash included. */
@@ -193,9 +203,16 @@ function tabKind(itemKey: string | undefined, pageUrl: string, savedPages: Saved
   // it is archived, so the page is not lost
   if (itemKey.startsWith(BOOKMARK_ITEM_KEY_PREFIX))
   {
-    return savedPages.isBookmarkPage(itemKey.slice(BOOKMARK_ITEM_KEY_PREFIX.length), pageUrl) ? 'bookmark' : 'regular';
+    return isOnOwnBookmarkPage(itemKey, pageUrl, savedPages) ? 'bookmark' : 'regular';
   }
   return 'favorite-tab';
+}
+
+// A bookmark tab on its bookmark's exact page, hash included
+function isOnOwnBookmarkPage(itemKey: string | undefined, pageUrl: string, savedPages: SavedPages): boolean
+{
+  return itemKey?.startsWith(BOOKMARK_ITEM_KEY_PREFIX) === true
+    && savedPages.isBookmarkPage(itemKey.slice(BOOKMARK_ITEM_KEY_PREFIX.length), pageUrl);
 }
 
 /** What happens to a tab that closes with its whole Space. */
@@ -203,14 +220,18 @@ export type ClosingTabAction = 'save' | 'close-only';
 
 /**
  * Whether a tab closing with its whole Space (Task Space auto-archive) is saved to the Space's
- * archive first. Unlike tab auto-archive, nothing stays open: only a tab on its bookmark's exact
- * page, on a Favorite's page or on an empty page closes without saving. Every other tab, a
- * Favorite or bookmark tab that navigated elsewhere included, is saved, so its page is not lost.
+ * archive first. Unlike tab auto-archive, nothing stays open: only a tab on its bookmark's or a
+ * Favorite's exact page, hash included, or on an empty page closes without saving. Every other
+ * tab, a Favorite or bookmark tab that navigated elsewhere included, is saved, so its page is not
+ * lost. The hash counts here, unlike for keeping a Favorite's tab open: hash-routed apps (Gmail)
+ * show another page under another hash.
  */
 export function closingTabAction(itemKey: string | undefined, pageUrl: string, savedPages: SavedPages): ClosingTabAction
 {
-  const kind = tabKind(itemKey, pageUrl, savedPages);
-  return kind === 'favorite' || kind === 'bookmark' || isEmptyPage(pageUrl) ? 'close-only' : 'save';
+  const nothingToLose = isEmptyPage(pageUrl)
+    || savedPages.isExactFavoritePage(pageUrl)
+    || isOnOwnBookmarkPage(itemKey, pageUrl, savedPages);
+  return nothingToLose ? 'close-only' : 'save';
 }
 
 /** The fields of a tab that place it in a split view. */

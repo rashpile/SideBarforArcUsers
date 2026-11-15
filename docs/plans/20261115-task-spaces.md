@@ -161,10 +161,11 @@ never reaches an icon the strip has already hidden. Swipe uses `[...regular, ...
    with `isSystemFolder` at any depth. Skip the Space this run when one of them is marked for attention or
    always kept by tab auto-archive's rule (`isAlwaysKept`: active, audible, Chrome-pinned, incognito, or
    in a split view on screen).
-4. Folder missing → skip. Classify each tab as `tabKind` does, with `SavedPages.fromTree(roots,
+4. Folder missing → skip. Classify each tab with `closingTabAction`, with `SavedPages.fromTree(roots,
    favorites)` (`allFavoriteUrls(roots, spaces)`): close without saving only a tab on its bookmark's exact
-   page, a tab on a Favorite's page, or an empty page; every other tab — a bookmark or Favorite tab that
-   navigated elsewhere included — is saved with `SpaceArchive.archive(folderId, { title, url:
+   page, a tab on a Favorite's exact page (hash included, unlike the tab auto-archive exemption), or an
+   empty page; every other tab — a bookmark or Favorite tab that navigated elsewhere, another hash route
+   included — is saved with `SpaceArchive.archive(folderId, { title, url:
    getEffectiveTabUrl(tabPageUrl(tab)) })`. Any save failure → skip the Space, close nothing.
 5. Re-check right before acting: the Space is still not the active Space of any window, and each tab,
    re-read, is still closable (not marked, `tabChangedDuringRun(snapshot, current, runStartedAt)` false).

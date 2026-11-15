@@ -199,6 +199,21 @@ test('a Favorite tab on another page is saved, a tab on a Favorite\'s page and a
   assert.deepEqual(result, { saved: ['https://other.test/'], archived: ['t1'], closed: [1, 2, 3] });
 });
 
+test('a Favorite tab on another hash route of the Favorite\'s URL is saved before it closes', async () =>
+{
+  const result = await outcome({
+    tabs: [
+      tab(1, { url: 'https://mail.test/mail/u/0/#inbox' }),
+      tab(2, { url: 'https://mail.test/mail/u/0/#drafts/123' }),
+    ],
+    registry: { 1: 't1', 2: 't1' },
+    associations: { 1: 'pinned-f1', 2: 'pinned-f1' },
+    folderChildren: { t1: [{ id: 'favorites', title: FAVORITES_FOLDER_TITLE, children: [{ id: 'f1', url: 'https://mail.test/mail/u/0/#inbox' }] }] },
+  });
+
+  assert.deepEqual(result, { saved: ['https://mail.test/mail/u/0/#drafts/123'], archived: ['t1'], closed: [1, 2] });
+});
+
 test('a marked, audible, Chrome-pinned or active tab keeps its Task Space with all its tabs', async () =>
 {
   const cases = [

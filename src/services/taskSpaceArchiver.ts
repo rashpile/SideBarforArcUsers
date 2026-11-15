@@ -287,7 +287,7 @@ export class TaskSpaceArchiver
     const [associations, tree] = await Promise.all([this.#loadAssociations(tabs), this.#deps.getTree()]);
     const roots = tree[0]?.children ?? [];
 
-    // Every Space's Favorites: a tab on the page of any Favorite closes without a copy in the archive
+    // Every Space's Favorites: a tab on the exact page of any Favorite, hash included, closes without a copy in the archive
     const favorites = allFavoriteUrls(roots, spaces).map(url => ({ url }));
     return {
       startedAt,
