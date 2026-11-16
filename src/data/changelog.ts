@@ -3,7 +3,7 @@
 // Entries are shown in the "What's New" dialog when the user upgrades past them.
 export const CHANGELOG: Record<string, string[]> = {
   '2.0.404': [
-    'New: Task Spaces - New Task Space in the Space bar\'s + menu makes a Space for one task in one click, named after today\'s date, with its own folder under Other Bookmarks/Tasks Spaces. Task Spaces stay out of the row of Space icons: the list button left of + lists them, and a temporary icon shows while you use one. Convert to Regular Space keeps one for good, and "Archive Task Spaces after" in Settings > Behaviour puts away the ones you stopped using, with Restore in the list',
+    'New: Task Spaces - New Task Space in the Space bar\'s + menu makes a Space for one task in one click, named after today\'s date, with its own folder under Other Bookmarks/Tasks Spaces. Task Spaces stay out of the row of Space icons: the list button left of + lists them, and up to three you used in the last day show as rows right above the Space buttons. Convert to Regular Space keeps one for good, and "Archive Task Spaces after" in Settings > Behaviour puts away the ones you stopped using, with Restore in the list',
   ],
   '2.0.403': [
     'New: search popup - a shortcut opens one field over the page that finds open tabs, Space bookmarks, archived pages and recently closed tabs, in This Space or All Spaces, and lists each page once; pick a result to switch to it or open it, or press Shift+Enter to search the web for what you typed. Set the shortcut in chrome://extensions/shortcuts',

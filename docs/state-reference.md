@@ -264,7 +264,7 @@ Array<{
 ```
 - Owner: `src/managers/impl/spaceManager.ts` (`SpaceManager`, background, the only writer). The sidebar writes the whole list through `spaceManagerProxy.updateSpaces`; `useSpaces` (`src/hooks/useSpaces.ts`) reads the proxy's mirror
 - Live Spaces only: an archived Task Space is in `archivedTaskSpaces`, never in both. `updateSpaces` drops ids that are in the archived list, so a sidebar whose mirror missed the archive broadcast can't add the Space back
-- `task`: set by **New Task Space** (`SpacesContext.createTaskSpace`), removed by **Convert to Regular Space** (`withoutTaskMarker`, `src/utils/taskSpaces.ts`). Task Spaces stay out of the Space bar strip except as temporary icons (`spaceBarItems`, `src/utils/spaceBarItems.ts`), and Switch to Space 1…9 skips them. `archivedAt` never appears here
+- `task`: set by **New Task Space** (`SpacesContext.createTaskSpace`), removed by **Convert to Regular Space** (`withoutTaskMarker`, `src/utils/taskSpaces.ts`). Task Spaces stay out of the Space bar strip (it renders `regularSpaces`, `src/utils/taskSpaces.ts`); the recent list above it shows the last few (`recentTaskSpaces`, `src/utils/recentTaskSpaces.ts`), and Switch to Space 1…9 skips them. `archivedAt` never appears here
 - Consumers: `src/contexts/SpacesContext.tsx`, `src/background.ts` (debug), `src/services/tabAutoArchiver.ts` (finds the Space folder that holds `asd_Archive` from `bookmarkFolderSegments` / `bookmarkFolderInAccount`), `src/services/taskSpaceArchiver.ts` (the live Task Spaces to archive)
 - Instances: 1 per extension (shared across windows)
 
@@ -347,14 +347,26 @@ string  // JSON of Record<bookmarkId, epochMillis>
 - Instances: 1 per extension (shared across windows)
 
 ### `taskSpaceLastUsedAt`
-Last use of each Task Space: the Space bar's temporary icon and "Archive Task Spaces after" count from it
+Last use of each Task Space: the recent Task Spaces list above the Space buttons and "Archive Task Spaces after" count from it
 ```typescript
 string  // JSON of Record<spaceId, epochMillis>
 ```
 - Owner: `src/background.ts` through `TaskSpaceLastUseStore` (`src/stores/taskSpaceLastUse.ts`, the only writer; serialized read-modify-write, every write reads storage first)
 - Writes: `touch(spaceId)` for live Task Spaces only, when a window's active Space changes (the Space left and the Space entered, `SpaceWindowStateManager` `onActiveSpaceChanged`), on a tab activation in a window whose active Space is a Task Space or of a tab that belongs to a Task Space, which with Follow active tab off leaves the window's Space as it is (`handleTabActivation`) and on a restore from the archive (`SpaceManager` `onRestored`). A touch is skipped while the stored time is less than 60 s old; a stored time ahead of the clock is overwritten. `retain(taskSpaceIds)` drops entries of Spaces that are no longer live or archived Task Spaces, on a `spaces` / `archivedTaskSpaces` change after the manager load, skipped while the live list is empty
-- Consumers: `useSpaceBarItems` (`src/hooks/useSpaceBarItems.ts`, via `useChromeLocalStorage`, read-only, wrapped in `TaskSpaceLastUse.fromStored`) for the 10-minute temporary icon; `TaskSpaceArchiver` (`read()`), which takes `max(task.createdAt, lastUsedAt)` as the last use
+- Consumers: `useRecentTaskSpaces` (`src/hooks/useRecentTaskSpaces.ts`, via `useChromeLocalStorage`, read-only, wrapped in `TaskSpaceLastUse.fromStored`) for which Task Spaces the recent list and swipe include, the rows' order and their time labels (`recentTaskSpaces`, `src/utils/recentTaskSpaces.ts`, takes `max(task.createdAt, lastUsedAt)`; the window's active Task Space ranks newest whatever its stored time, and the leave touch keeps the Space just left right above it); `TaskSpaceArchiver` (`read()`), which takes `max(task.createdAt, lastUsedAt)` as the last use
 - Unreadable value or entry (not a JSON object, a time that isn't a finite number): reads as no entry, so the Task Space counts from its `createdAt`
+- Instances: 1 per extension (shared across windows)
+
+### `hiddenRecentTaskSpaces`
+Task Spaces hidden from the recent Task Spaces list above the Space buttons with a row's (−). A mark hides the Space from that list and from swipe only, never from the Task Spaces (sandwich) list
+```typescript
+string[]  // Space ids
+```
+- Owner: `src/managers/impl/hiddenTaskSpacesManager.ts` (`HiddenTaskSpacesManager`, background, the only writer; writes serialized). API (`getHidden`, `hide`) and the immutable `HiddenTaskSpaces` value in `src/managers/shared/hiddenTaskSpacesApi.ts`
+- Writes: `hide(spaceId)` from the sidebar's (−) (`RecentTaskSpacesSection` → `hiddenTaskSpacesProxy.hide`, optimistic, resyncs from `getHidden` on failure); `unhide(spaceId)` for the Space a window enters by any route (`SpaceWindowStateManager` `onActiveSpaceChanged`, after the manager load; leaving a Space doesn't unhide it, so a Space hidden while active stays hidden after the switch away); `retain(liveTaskSpaceIds)` drops the marks of Spaces that are no longer live Task Spaces (archived, deleted, converted), on a `spaces` / `archivedTaskSpaces` change after the manager load, skipped while the live list is empty. An unchanged value is neither written nor broadcast; a change broadcasts `HIDDEN_TASK_SPACES_CHANGED` with the requester's `senderId`
+- Consumers: `hiddenTaskSpacesProxy.store` (`src/managers/proxies/hiddenTaskSpacesProxy.ts`, mirror, read by `useHiddenTaskSpaces`, `src/hooks/useHiddenTaskSpaces.ts`) → `useRecentTaskSpaces` → `recentTaskSpaces` for the recent list and swipe
+- Unreadable value (not an array): reads as empty; non-string items are dropped. A failed read at load is logged and starts with none hidden
+- Lifespan: persistent; a mark goes when its Space is entered again or stops being a live Task Space
 - Instances: 1 per extension (shared across windows)
 
 ### `autoArchiveAfter`
@@ -655,6 +667,7 @@ Lost on page reload or service worker restart.
 │  ├─ spaces                                                      │
 │  ├─ archivedTaskSpaces              (archived Task Spaces)      │
 │  ├─ taskSpaceLastUsedAt             (Task Space last use)       │
+│  ├─ hiddenRecentTaskSpaces          (hidden recent Task Spaces) │
 │  ├─ taskSpaceArchiveAfter           (Task Space archive setting)│
 │  ├─ favoriteIcons                   (Favorite icons by bookmark)│
 │  ├─ favoritesMigration              (one-time Favorites copy)   │

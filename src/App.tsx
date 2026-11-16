@@ -6,6 +6,7 @@ import { PinnedBar } from './components/PinnedBar';
 import { Toolbar } from './components/Toolbar';
 import { FilterBar } from './components/FilterBar';
 import { SpaceBar } from './components/SpaceBar';
+import { RecentTaskSpacesSection } from './components/RecentTaskSpacesSection';
 import type { SettingsValues, TabGroupDisplayOrder } from './components/SettingsDialog';
 import { getWhatsNewSince, getRecentWhatsNew, ChangelogGroup } from './data/changelog';
 import { AudioTabsDropdown } from './components/AudioTabsDropdown';
@@ -15,21 +16,21 @@ import { usePinnedSites, PinnedSite } from './hooks/usePinnedSites';
 import type { FavoritesImportTarget } from './utils/backupRestore';
 import { useTabs } from './hooks/useTabs';
 import { useBookmarks, refreshAllBookmarks } from './hooks/useBookmarks';
-import { useAttentionMarks } from './hooks/useAttentionMarks';
+import { useCloseAllTabsInSpace } from './hooks/useCloseAllTabsInSpace';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useChromeLocalStorage } from './hooks/useChromeLocalStorage';
-import { useSpaceBarItems } from './hooks/useSpaceBarItems';
+import { useRecentTaskSpaces } from './hooks/useRecentTaskSpaces';
 import { useSectionCollapseState } from './hooks/useSectionCollapseState';
 import { SectionCollapseState, ToggleSection } from './utils/sectionCollapseState';
 import { useSwipeNavigation } from './hooks/useSwipeNavigation';
 import { FontSizeContext } from './contexts/FontSizeContext';
 import { BookmarkTabsProvider, useBookmarkTabsContext } from './contexts/BookmarkTabsContext';
-import { CloseTabAction } from './actions/closeTabAction';
 import { ConfirmDeleteDialog } from './components/ConfirmDeleteDialog';
 import { BookmarkCreateFolderModal } from './components/BookmarkCreateFolderModal';
 import { PasteYamlDialog } from './components/PasteYamlDialog';
 import { copyBookmarksAsYaml } from './utils/bookmarkYamlCopy';
-import { isTaskSpace } from './utils/taskSpaces';
+import { isTaskSpace, regularSpaces } from './utils/taskSpaces';
+import { swipeTarget } from './utils/recentTaskSpaces';
 import { SpacesProvider, Space, useSpacesContext } from './contexts/SpacesContext';
 import { SelectionProvider } from './contexts/SelectionContext';
 import { UnifiedDndProvider, useUnifiedDndOptional } from './contexts/UnifiedDndContext';
@@ -355,15 +356,11 @@ const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({
   bookmarkOpenMode,
 }) =>
 {
-  const { activeSpace, activeSpaceId, getTabIdsInSpace, windowId } = useSpacesContext();
-  const { getItemKeyForTab, restoreItemAssociation, openBookmarkTab } = useBookmarkTabsContext();
+  const { activeSpace, activeSpaceId, windowId } = useSpacesContext();
+  const { openBookmarkTab } = useBookmarkTabsContext();
   const fontSize = useFontSize();
   const { findFolderBySegments, createFolder } = useBookmarks();
-  const { isTabMarked } = useAttentionMarks();
-  const [confirmCloseAllDialog, setConfirmCloseAllDialog] = useState<{
-    isOpen: boolean;
-    tabIds: number[];
-  }>({ isOpen: false, tabIds: [] });
+  const { closeAllTabs: handleCloseAllTabs, confirmation: closeAllConfirmation } = useCloseAllTabsInSpace(onPerformAction);
   const [creatingFolderParentId, setCreatingFolderParentId] = useState<string | null>(null);
   const [pasteYamlFolderId, setPasteYamlFolderId] = useState<string | null>(null);
 
@@ -512,45 +509,6 @@ const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({
     }
   }, [bookmarksCollapsed, handleToggleBookmarks]);
 
-  const handleCloseAllTabs = useCallback(async (space: Space) =>
-  {
-    if (!windowId) return;
-
-    // Marked tabs stay open; filtered before the whole-window check so it sees what really closes
-    const tabIds = (await getTabIdsInSpace(space)).filter(id => !isTabMarked(id));
-    if (tabIds.length === 0) return;
-
-    // Check if this would close all tabs in the window
-    const allTabs = await chrome.tabs.query({ windowId });
-    const remaining = allTabs.filter(t => t.id !== undefined && !tabIds.includes(t.id!));
-    if (remaining.length === 0)
-    {
-      // Show confirmation — closing will destroy the window (no undo possible)
-      setConfirmCloseAllDialog({ isOpen: true, tabIds });
-      return;
-    }
-
-    const action = new CloseTabAction(tabIds, windowId, getItemKeyForTab, restoreItemAssociation);
-    if (onPerformAction)
-    {
-      onPerformAction(action);
-    }
-    else
-    {
-      action.do();
-    }
-  }, [onPerformAction, windowId, getTabIdsInSpace, isTabMarked, getItemKeyForTab, restoreItemAssociation]);
-
-  // Confirm close all tabs in window (no undo — window will close)
-  const handleConfirmCloseAll = useCallback(() =>
-  {
-    if (confirmCloseAllDialog.tabIds.length > 0)
-    {
-      chrome.tabs.remove(confirmCloseAllDialog.tabIds);
-    }
-    setConfirmCloseAllDialog({ isOpen: false, tabIds: [] });
-  }, [confirmCloseAllDialog.tabIds]);
-
   return (
     <>
       <SpaceTitle
@@ -604,12 +562,12 @@ const SpaceTitleWrapper: React.FC<SpaceTitleWrapperProps> = ({
         onClose={() => setPasteYamlFolderId(null)}
       />
       <ConfirmDeleteDialog
-        isOpen={confirmCloseAllDialog.isOpen}
-        itemCount={confirmCloseAllDialog.tabIds.length}
+        isOpen={closeAllConfirmation.isOpen}
+        itemCount={closeAllConfirmation.tabCount}
         itemType="tabs"
         details="This will close the window."
-        onConfirm={handleConfirmCloseAll}
-        onClose={() => setConfirmCloseAllDialog({ isOpen: false, tabIds: [] })}
+        onConfirm={closeAllConfirmation.confirm}
+        onClose={closeAllConfirmation.cancel}
       />
     </>
   );
@@ -622,29 +580,26 @@ interface SwipeableContainerProps extends SidebarContentProps
 
 const SwipeableContainer: React.FC<SwipeableContainerProps> = (props) =>
 {
-  const { activeSpaceId, switchToSpace } = useSpacesContext();
-  // The Space bar's order, temporary Task Space icons included: swipe goes only where the strip shows
-  const { regular, temporary } = useSpaceBarItems();
-  const stripSpaces = useMemo(() => [...regular, ...temporary], [regular, temporary]);
+  const { spaces, activeSpaceId, switchToSpace } = useSpacesContext();
+  // The strip's Spaces, then the recent list's Task Spaces by creation: the rows reorder on every
+  // switch, so swiping in their order would bounce between two of them
+  const { recent } = useRecentTaskSpaces();
+  const swipeOrder = useMemo(() => [...regularSpaces(spaces), ...recent.byCreation()], [spaces, recent]);
   const containerRef = useRef<HTMLDivElement>(null);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
   const prevSpaceIdRef = useRef(activeSpaceId);
-
-  const currentIndex = stripSpaces.findIndex(s => s.id === activeSpaceId);
-  const canSwipeLeft = currentIndex < stripSpaces.length - 1;
-  const canSwipeRight = currentIndex > 0;
 
   // Detect space change and set slide direction
   useEffect(() =>
   {
     if (activeSpaceId !== prevSpaceIdRef.current)
     {
-      const prevIndex = stripSpaces.findIndex(s => s.id === prevSpaceIdRef.current);
-      const newIndex = stripSpaces.findIndex(s => s.id === activeSpaceId);
+      const prevIndex = swipeOrder.findIndex(s => s.id === prevSpaceIdRef.current);
+      const newIndex = swipeOrder.findIndex(s => s.id === activeSpaceId);
       setSlideDirection(newIndex > prevIndex ? 'left' : 'right');
       prevSpaceIdRef.current = activeSpaceId;
     }
-  }, [activeSpaceId, stripSpaces]);
+  }, [activeSpaceId, swipeOrder]);
 
   // Clear animation after it completes
   useEffect(() =>
@@ -656,17 +611,15 @@ const SwipeableContainer: React.FC<SwipeableContainerProps> = (props) =>
     }
   }, [slideDirection]);
 
+  // A swipe from a Space outside the order (a hidden or old Task Space) does nothing
   const handleSwipe = useCallback((direction: 'left' | 'right') =>
   {
-    if (direction === 'left' && canSwipeLeft)
+    const target = swipeTarget(swipeOrder, activeSpaceId, direction);
+    if (target)
     {
-      switchToSpace(stripSpaces[currentIndex + 1].id);
+      switchToSpace(target.id);
     }
-    else if (direction === 'right' && canSwipeRight)
-    {
-      switchToSpace(stripSpaces[currentIndex - 1].id);
-    }
-  }, [stripSpaces, currentIndex, canSwipeLeft, canSwipeRight, switchToSpace]);
+  }, [swipeOrder, activeSpaceId, switchToSpace]);
 
   useSwipeNavigation(containerRef, { onSwipe: handleSwipe });
 
@@ -1659,6 +1612,15 @@ function Sidebar() {
               />
             </Suspense>
           )}
+
+          {/* Recent Task Spaces: last in the content column, right above the Space bar. Not in the Space bar,
+              which spans the whole panel: in the vertical layout the list stays right of the toolbar column */}
+          <RecentTaskSpacesSection
+            onEditSpace={handleEditSpace}
+            onDeleteSpace={handleDeleteSpace}
+            onPerformAction={performAction}
+            onShowToast={showToast}
+          />
         </div>
       </div>
 

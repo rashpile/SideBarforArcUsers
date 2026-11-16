@@ -25,6 +25,7 @@ export const ManagerId = {
   RECENTLY_CLOSED: 'RecentlyClosedManager',
   PAGE_STYLES: 'PageStyleManager',
   NOTES: 'NoteManager',
+  HIDDEN_TASK_SPACES: 'HiddenTaskSpacesManager',
 } as const;
 
 export type ManagerIdType = typeof ManagerId[keyof typeof ManagerId];

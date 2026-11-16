@@ -5,17 +5,14 @@ import { FolderPlus, LayoutGrid, ListTodo, Menu, Plus } from 'lucide-react';
 import { SpaceIcon } from './SpaceIcon';
 import { TaskSpacesPopover } from './TaskSpacesPopover';
 import { useSpacesContext, Space } from '../contexts/SpacesContext';
-import { useBookmarkTabsContext } from '../contexts/BookmarkTabsContext';
 import { useUnifiedDnd, DropHandler } from '../contexts/UnifiedDndContext';
 import { DragData, DragFormat, DropData, DropPosition, getItemsByFormat, getPrimaryItem, hasFormat } from '../types/dragDrop';
 import { moveTabToSpace, createTabInSpace } from '../utils/tabOperations';
-import { CloseTabAction } from '../actions/closeTabAction';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import { BookmarkCreateFolderModal } from './BookmarkCreateFolderModal';
 import { useBookmarks } from '../hooks/useBookmarks';
-import { useAttentionMarks } from '../hooks/useAttentionMarks';
-import { useSpaceBarItems } from '../hooks/useSpaceBarItems';
-import { isTaskSpace } from '../utils/taskSpaces';
+import { useCloseAllTabsInSpace } from '../hooks/useCloseAllTabsInSpace';
+import { regularSpaces } from '../utils/taskSpaces';
 import { spaceManagerProxy } from '../managers/proxies/spaceManagerProxy';
 import * as DropdownMenu from './menu/DropdownMenu';
 import type { UndoableAction } from '../actions/types';
@@ -42,17 +39,13 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
   alignEnd,
 }) =>
 {
-  const { spaces, activeSpace, activeSpaceId, switchToSpace, moveSpace, createTaskSpace, convertToRegularSpace, getTabIdsInSpace, windowId } = useSpacesContext();
-  const { regular, temporary } = useSpaceBarItems();
+  const { spaces, activeSpace, activeSpaceId, switchToSpace, moveSpace, createTaskSpace, convertToRegularSpace, windowId } = useSpacesContext();
+  // Task Spaces stay out of the strip; the recent list above it (RecentTaskSpacesSection) holds the last few
+  const regular = useMemo(() => regularSpaces(spaces), [spaces]);
+  const { closeAllTabs: handleCloseAllTabsInSpace, confirmation: closeAllConfirmation } = useCloseAllTabsInSpace(onPerformAction);
   const { findFolderBySegments, createFolder } = useBookmarks();
-  const { getItemKeyForTab, restoreItemAssociation } = useBookmarkTabsContext();
-  const { isTabMarked } = useAttentionMarks();
   const { activeDragData, overId, dropPosition, registerDropHandler, unregisterDropHandler } = useUnifiedDnd();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [confirmCloseAllDialog, setConfirmCloseAllDialog] = useState<{
-    isOpen: boolean;
-    tabIds: number[];
-  }>({ isOpen: false, tabIds: [] });
   const [creatingFolderParentId, setCreatingFolderParentId] = useState<string | null>(null);
   const [taskListAnchor, setTaskListAnchor] = useState<DOMRect | null>(null);
 
@@ -156,45 +149,6 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
     onDeleteSpace(space);
   };
 
-  const handleCloseAllTabsInSpace = useCallback(async (space: Space) =>
-  {
-    if (!windowId) return;
-
-    // Marked tabs stay open; filtered before the whole-window check so it sees what really closes
-    const tabIds = (await getTabIdsInSpace(space)).filter(id => !isTabMarked(id));
-    if (tabIds.length === 0) return;
-
-    // Check if this would close all tabs in the window
-    const allTabs = await chrome.tabs.query({ windowId });
-    const remaining = allTabs.filter(t => t.id !== undefined && !tabIds.includes(t.id!));
-    if (remaining.length === 0)
-    {
-      // Show confirmation — closing will destroy the window (no undo possible)
-      setConfirmCloseAllDialog({ isOpen: true, tabIds });
-      return;
-    }
-
-    const action = new CloseTabAction(tabIds, windowId, getItemKeyForTab, restoreItemAssociation);
-    if (onPerformAction)
-    {
-      onPerformAction(action);
-    }
-    else
-    {
-      action.do();
-    }
-  }, [onPerformAction, windowId, getTabIdsInSpace, isTabMarked, getItemKeyForTab, restoreItemAssociation]);
-
-  // Confirm close all tabs in window (no undo — window will close)
-  const handleConfirmCloseAll = useCallback(() =>
-  {
-    if (confirmCloseAllDialog.tabIds.length > 0)
-    {
-      chrome.tabs.remove(confirmCloseAllDialog.tabIds);
-    }
-    setConfirmCloseAllDialog({ isOpen: false, tabIds: [] });
-  }, [confirmCloseAllDialog.tabIds]);
-
   // Drop handler for SpaceBar zone
   const handleDrop: DropHandler = useCallback(async (
     dragData: DragData,
@@ -287,13 +241,12 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
     hasFormat(activeDragData, DragFormat.TAB) || hasFormat(activeDragData, DragFormat.URL)
   ));
 
-  // Only the regular Spaces sort: a temporary Task Space icon is not a place in the strip's order
   const sortableSpaceIds = useMemo(
     () => regular.map(space => `space-${space.id}`),
     [regular]
   );
 
-  const renderSpaceIcon = (space: Space, index: number, isTemporary: boolean) => (
+  const renderSpaceIcon = (space: Space, index: number) => (
     <SpaceIcon
       key={space.id}
       space={space}
@@ -303,10 +256,8 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
       onEdit={() => onEditSpace(space)}
       onDelete={() => handleDelete(space)}
       onCloseAllTabs={() => handleCloseAllTabsInSpace(space)}
-      onConvertToRegular={isTaskSpace(space) ? () => convertToRegularSpace(space.id) : undefined}
       canDelete={spaces.length > 1}
-      isDraggable={!isTemporary}
-      acceptsSpaceDrops={!isTemporary}
+      isDraggable
       isDropTarget={
         dropTargetSpaceId === space.id ||
         (isSpaceDrag && overId === `space-${space.id}`) ||
@@ -355,17 +306,8 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
           data-dnd-zone="spaceBar"
         >
           <SortableContext items={sortableSpaceIds} strategy={horizontalListSortingStrategy}>
-            {regular.map((space, index) => renderSpaceIcon(space, index, false))}
+            {regular.map((space, index) => renderSpaceIcon(space, index))}
           </SortableContext>
-          {temporary.length > 0 && (
-            <>
-              <div
-                className="w-px h-5 flex-shrink-0 bg-gray-300 dark:bg-gray-600"
-                aria-hidden="true"
-              />
-              {temporary.map((space, index) => renderSpaceIcon(space, regular.length + index, true))}
-            </>
-          )}
         </div>
 
         {/* Task Spaces list and Arc-style create menu */}
@@ -441,12 +383,12 @@ export const SpaceBar: React.FC<SpaceBarProps> = ({
       )}
 
       <ConfirmDeleteDialog
-        isOpen={confirmCloseAllDialog.isOpen}
-        itemCount={confirmCloseAllDialog.tabIds.length}
+        isOpen={closeAllConfirmation.isOpen}
+        itemCount={closeAllConfirmation.tabCount}
         itemType="tabs"
         details="This will close the window."
-        onConfirm={handleConfirmCloseAll}
-        onClose={() => setConfirmCloseAllDialog({ isOpen: false, tabIds: [] })}
+        onConfirm={closeAllConfirmation.confirm}
+        onClose={closeAllConfirmation.cancel}
       />
 
       <BookmarkCreateFolderModal
