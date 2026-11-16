@@ -31,6 +31,8 @@ I missed Arc's sidebar after switching to Chrome in how Arc puts favorites, book
 
 - Search Popup - One shortcut opens a search field over the page that finds open tabs, bookmarks, archived pages and recently closed tabs, in the current Space or all Spaces. Hold the modifier and press again to move down, release to open; Shift+Enter searches the web for the text.
 
+- Task Spaces - One click makes a temporary Space for a task or research, with its own bookmark folder. The last three you used show above the Space buttons, the rest are in the Task Spaces list; unused ones can be archived automatically.
+
 - Markdown Notes - New Note in a folder's menu adds a note next to the folder's bookmarks. Write it in markdown in its own tab; it shows rendered when you open it again. A note moves, renames and deletes with Undo like any bookmark, and Export / Import carries its text to another computer.
 
 - Page Agent (experimental) - Ask an AI model to restyle the page or answer questions about it, including the subtitles of the video on the page. Save a style to a bookmark and it comes back whenever a page of that site loads in the bookmark's tab. With the optional Page scripts plugin it can also add behaviour with JavaScript, such as keys that seek a video to the next subtitle line, after you read the code and allow it. Or paste your own CSS and JavaScript into its code editor and apply them to the page. Uses your own AI endpoint.
