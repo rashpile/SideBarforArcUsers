@@ -44,6 +44,8 @@ To update, run `git pull && make build` and press reload on the extension's card
 
 Open the sidebar with the extension icon or `Cmd+Shift+E` (`Ctrl+Shift+E` on Windows and Linux).
 
+Chrome doesn't let the side panel get narrower than about 360 px, and extensions can't change that. [docs/sidebar-size-issue.md](docs/sidebar-size-issue.md) explains why and links the Chromium issue you can vote for.
+
 Coming from Arc? **Import from Arc Browser...** in the sidebar menu reads Arc's `StorableSidebar.json` and brings over your Favorites, Spaces and pinned pages. Arc's Favorites go into every Space the import creates, or into the active Space when it creates none.
 
 ## How it fits together
