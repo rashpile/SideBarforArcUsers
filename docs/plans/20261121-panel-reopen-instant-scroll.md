@@ -62,8 +62,8 @@
 - [x] run `make lint`, `make build` and `make test` - must pass
 
 ### Task 2: [Final] Update documentation
-- [ ] add `## Latest Version` above `## 2.0.407` in `docs/changelog.md` with one line `- Fixed: ...` (the side panel opens at the active tab without a visible scroll animation)
-- [ ] mark this plan's checkboxes done; do not move the plan file
+- [x] add `## Latest Version` above `## 2.0.407` in `docs/changelog.md` with one line `- Fixed: ...` (the side panel opens at the active tab without a visible scroll animation)
+- [x] mark this plan's checkboxes done; do not move the plan file
 
 ## Post-Completion
 
