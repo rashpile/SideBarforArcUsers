@@ -1,6 +1,6 @@
 # Changelog
 
-## Latest Version
+## 2.0.410
 
 - Fixed: reopening the side panel shows the active tab right away; the list no longer scrolls down to it from the top
 - Fixed: switching Spaces shows the Space's active tab right away instead of scrolling to it with an animation from wherever the previous Space's list was
