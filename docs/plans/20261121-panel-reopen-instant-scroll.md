@@ -55,11 +55,11 @@
 - Modify: `src/utils/scrollHelpers.ts`
 - Modify: `src/hooks/useFollowActiveTab.ts`
 
-- [ ] add an exported `ScrollRequestOptions` type (`behavior`, `delay`) to `src/utils/scrollHelpers.ts` and make `scrollToDataElement`, `scrollToBookmark` and `scrollToTab` take it, defaults `'smooth'` and `DEFAULT_DELAY`
-- [ ] in `src/hooks/useFollowActiveTab.ts`, let `useScrollToTabItem`'s callback take the options and pass them to `scrollToBookmark` / `scrollToTab`
-- [ ] make `useScrollToActiveTab` scroll with `{ behavior: 'instant', delay: 0 }`, extending its existing header comment with the reason
-- [ ] code check: grep shows `'instant'` / `delay: 0` passed only from `useScrollToActiveTab`; every other caller of `scrollToBookmark`, `scrollToTab` and `useScrollToTabItem` uses the defaults
-- [ ] run `make lint`, `make build` and `make test` - must pass
+- [x] add an exported `ScrollRequestOptions` type (`behavior`, `delay`) to `src/utils/scrollHelpers.ts` and make `scrollToDataElement`, `scrollToBookmark` and `scrollToTab` take it, defaults `'smooth'` and `DEFAULT_DELAY`
+- [x] in `src/hooks/useFollowActiveTab.ts`, let `useScrollToTabItem`'s callback take the options and pass them to `scrollToBookmark` / `scrollToTab`
+- [x] make `useScrollToActiveTab` scroll with `{ behavior: 'instant', delay: 0 }`, extending its existing header comment with the reason
+- [x] code check: grep shows `'instant'` / `delay: 0` passed only from `useScrollToActiveTab`; every other caller of `scrollToBookmark`, `scrollToTab` and `useScrollToTabItem` uses the defaults
+- [x] run `make lint`, `make build` and `make test` - must pass
 
 ### Task 2: [Final] Update documentation
 - [ ] add `## Latest Version` above `## 2.0.407` in `docs/changelog.md` with one line `- Fixed: ...` (the side panel opens at the active tab without a visible scroll animation)
