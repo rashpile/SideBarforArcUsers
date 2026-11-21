@@ -6,6 +6,11 @@ import { FollowActiveTabMode } from '../utils/followActiveTab';
 import { flashBookmark, flashTab, scrollToBookmark, scrollToTab } from '../utils/scrollHelpers';
 import type { ScrollRequestOptions } from '../utils/scrollHelpers';
 
+// How long after the sidebar's Space changes a tab activation still counts as
+// part of that switch: the background activates the Space's tab right after the
+// click, so its TAB_ACTIVATED arrives well within this
+const SPACE_SWITCH_SCROLL_WINDOW_MS = 1000;
+
 // Shape of the TAB_ACTIVATED message broadcast by background.ts on tab
 // activation (see spaceMessages.ts). `explicit` marks activations the user
 // asked for directly, which always scroll.
@@ -129,10 +134,23 @@ export function useShowActiveTab(): () => void
 // Space switching itself is handled by background.ts.
 export function useFollowActiveTab(mode: FollowActiveTabMode): void
 {
-  const { windowId } = useSpacesContext();
+  const { windowId, activeSpaceId } = useSpacesContext();
   const { isInitialized } = useBookmarkTabsContext();
   const scrollToTabItem = useScrollToTabItem();
   const scrollToActiveTab = useScrollToActiveTab();
+
+  // When the sidebar itself switches Space (click on a Space), the background's
+  // TAB_ACTIVATED for that Space's tab arrives with spaceSwitched false, because
+  // the Space is already switched. Remember when the Space changed, so that
+  // activation is still treated as a scroll in a freshly replaced list.
+  const lastSpaceChangeAtRef = useRef(0);
+  const prevActiveSpaceIdRef = useRef(activeSpaceId);
+  useEffect(() =>
+  {
+    if (activeSpaceId === prevActiveSpaceIdRef.current) return;
+    prevActiveSpaceIdRef.current = activeSpaceId;
+    lastSpaceChangeAtRef.current = Date.now();
+  }, [activeSpaceId]);
 
   // Scroll on tab activation. Registered in every mode, including 'off',
   // because explicit activations must still scroll.
@@ -151,10 +169,15 @@ export function useFollowActiveTab(mode: FollowActiveTabMode): void
         || mode === 'space-and-scroll'
         || (mode === 'space' && message.spaceSwitched);
 
-      if (shouldScroll)
-      {
-        scrollToTabItem(message.tabId);
-      }
+      if (!shouldScroll) return;
+
+      // After a Space switch the list holds another Space's rows at a scroll
+      // position left from before, so a smooth scroll animates from an unrelated
+      // spot. Jump there instead; within one Space the animation shows where the
+      // row is.
+      const spaceJustChanged = message.spaceSwitched
+        || Date.now() - lastSpaceChangeAtRef.current < SPACE_SWITCH_SCROLL_WINDOW_MS;
+      scrollToTabItem(message.tabId, spaceJustChanged ? { behavior: 'instant', delay: 0 } : undefined);
     };
 
     chrome.runtime.onMessage.addListener(handleMessage);
