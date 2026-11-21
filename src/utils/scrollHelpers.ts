@@ -18,8 +18,23 @@ export interface RevealBookmarkDetail
 // in-flight polling from a previous one so rapid tab activations don't fight.
 let currentRequestId = 0;
 
-function scrollToDataElement(dataAttribute: string, id: string, delay: number, onMissing?: () => void): void
+const DEFAULT_DELAY = 100;
+
+export interface ScrollRequestOptions
 {
+  behavior?: ScrollBehavior;
+  delay?: number;
+}
+
+function scrollToDataElement(
+  dataAttribute: string,
+  id: string,
+  options: ScrollRequestOptions,
+  onMissing?: () => void
+): void
+{
+  const behavior = options.behavior ?? 'smooth';
+  const delay = options.delay ?? DEFAULT_DELAY;
   currentRequestId++;
   const requestId = currentRequestId;
   const startTime = Date.now();
@@ -31,7 +46,7 @@ function scrollToDataElement(dataAttribute: string, id: string, delay: number, o
     const element = document.querySelector(`[${dataAttribute}="${id}"]`);
     if (element)
     {
-      element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      element.scrollIntoView({ behavior, block: 'nearest' });
       return;
     }
 
@@ -51,9 +66,7 @@ function scrollToDataElement(dataAttribute: string, id: string, delay: number, o
   setTimeout(attempt, delay);
 }
 
-const DEFAULT_DELAY = 100;
-
-export function scrollToBookmark(bookmarkId: string, delay: number = DEFAULT_DELAY): void
+export function scrollToBookmark(bookmarkId: string, options: ScrollRequestOptions = {}): void
 {
   // Ask BookmarkTree to expand the bookmark's ancestor folders whenever the row
   // is missing. Dispatched on every retry (not just once) because during a space
@@ -64,12 +77,12 @@ export function scrollToBookmark(bookmarkId: string, delay: number = DEFAULT_DEL
     const detail: RevealBookmarkDetail = { bookmarkId };
     window.dispatchEvent(new CustomEvent(REVEAL_BOOKMARK_EVENT, { detail }));
   };
-  scrollToDataElement('data-bookmark-id', bookmarkId, delay, requestReveal);
+  scrollToDataElement('data-bookmark-id', bookmarkId, options, requestReveal);
 }
 
-export function scrollToTab(tabId: string | number, delay: number = DEFAULT_DELAY): void
+export function scrollToTab(tabId: string | number, options: ScrollRequestOptions = {}): void
 {
-  scrollToDataElement('data-tab-id', String(tabId), delay);
+  scrollToDataElement('data-tab-id', String(tabId), options);
 }
 
 // How long a flashed row keeps data-flash - matches the arc-row-flash animation in index.css

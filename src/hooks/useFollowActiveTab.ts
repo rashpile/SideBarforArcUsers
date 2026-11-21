@@ -4,6 +4,7 @@ import { useBookmarkTabsContext } from '../contexts/BookmarkTabsContext';
 import { SpaceMessageAction } from '../utils/spaceMessages';
 import { FollowActiveTabMode } from '../utils/followActiveTab';
 import { flashBookmark, flashTab, scrollToBookmark, scrollToTab } from '../utils/scrollHelpers';
+import type { ScrollRequestOptions } from '../utils/scrollHelpers';
 
 // Shape of the TAB_ACTIVATED message broadcast by background.ts on tab
 // activation (see spaceMessages.ts). `explicit` marks activations the user
@@ -20,20 +21,20 @@ interface TabActivatedMessage
 // Returns a function that scrolls the sidebar row for a tab into view,
 // routing to the right list: Arc-style bookmark tabs render in BookmarkTree
 // under data-bookmark-id, all other tabs render in TabList under data-tab-id.
-export function useScrollToTabItem(): (tabId: number) => void
+export function useScrollToTabItem(): (tabId: number, options?: ScrollRequestOptions) => void
 {
   const { getItemKeyForTab } = useBookmarkTabsContext();
 
-  return useCallback((tabId: number) =>
+  return useCallback((tabId: number, options?: ScrollRequestOptions) =>
   {
     const itemKey = getItemKeyForTab(tabId);
     if (itemKey && itemKey.startsWith('bookmark-'))
     {
-      scrollToBookmark(itemKey.substring('bookmark-'.length));
+      scrollToBookmark(itemKey.substring('bookmark-'.length), options);
     }
     else
     {
-      scrollToTab(tabId);
+      scrollToTab(tabId, options);
     }
   }, [getItemKeyForTab]);
 }
@@ -61,6 +62,10 @@ function useFlashTabItem(): (tabId: number) => void
 // Returns a function that scrolls the sidebar to the window's currently active
 // tab without changing the space. Used for the one-time scroll on sidebar open,
 // where switching space would override the space the user last chose.
+//
+// Chrome unloads the side panel page on hide and loads it again on show, so the
+// list always renders from the top. A delayed smooth scroll would show the top of
+// the list and then animate down to the tab, hence the immediate instant jump.
 export function useScrollToActiveTab(): () => void
 {
   const { windowId } = useSpacesContext();
@@ -73,7 +78,7 @@ export function useScrollToActiveTab(): () => void
     {
       if (tabs[0]?.id !== undefined)
       {
-        scrollToTabItem(tabs[0].id);
+        scrollToTabItem(tabs[0].id, { behavior: 'instant', delay: 0 });
       }
     });
   }, [windowId, scrollToTabItem]);
