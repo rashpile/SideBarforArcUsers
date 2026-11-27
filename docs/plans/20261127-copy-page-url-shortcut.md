@@ -96,12 +96,12 @@
 - Create: `src/utils/offscreenClipboardMessage.ts`
 - Modify: `vite.config.ts`
 
-- [ ] add command `copy-page-url` with description "Copy the current page URL" and `suggested_key` `{ "default": "Ctrl+Shift+C", "mac": "Command+Shift+C" }` to `public/manifest.json`
-- [ ] add `offscreen` and `clipboardWrite` to `permissions` in `public/manifest.json`
-- [ ] create `src/utils/offscreenClipboardMessage.ts` with the message target/action constants, the request/response types and a type guard for the request
-- [ ] create `offscreen.html` (minimal page, loads `/src/offscreen.ts`) and `src/offscreen.ts` (listener that copies via a textarea and `document.execCommand('copy')`, answers `{ ok }`, ignores every other message)
-- [ ] add `offscreen: 'offscreen.html'` to the `rollupOptions.input` in `vite.config.ts`, and check that the build emits `dist/offscreen.html`
-- [ ] run `make test` and `npm run build` - must pass before task 2
+- [x] add command `copy-page-url` with description "Copy the current page URL" and `suggested_key` `{ "default": "Ctrl+Shift+C", "mac": "Command+Shift+C" }` to `public/manifest.json`
+- [x] add `offscreen` and `clipboardWrite` to `permissions` in `public/manifest.json`
+- [x] create `src/utils/offscreenClipboardMessage.ts` with the message target/action constants, the request/response types and a type guard for the request
+- [x] create `offscreen.html` (minimal page, loads `/src/offscreen.ts`) and `src/offscreen.ts` (listener that copies via a textarea and `document.execCommand('copy')`, answers `{ ok }`, ignores every other message)
+- [x] add `offscreen: 'offscreen.html'` to the `rollupOptions.input` in `vite.config.ts`, and check that the build emits `dist/offscreen.html`
+- [x] run `make test` and `npm run build` - must pass before task 2
 
 ### Task 2: PageUrlCopier service and command wiring
 

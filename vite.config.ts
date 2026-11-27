@@ -14,6 +14,7 @@ export default defineConfig({
         sidepanel: 'index.html',
         note: 'note.html',
         search: 'search.html',
+        offscreen: 'offscreen.html',
         background: resolve(__dirname, 'src/background.ts'),
         switcherOverlay: resolve(__dirname, 'src/switcherOverlay.ts'),
         searchPopupFrame: resolve(__dirname, 'src/searchPopupFrame.ts'),
