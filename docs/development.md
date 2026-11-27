@@ -44,6 +44,7 @@ Tests cover decisions that are easy to get wrong: which tabs auto-archive closes
 ```
 note.html        note page entry, a Vite input built to dist/note.html (src/note/ has the page)
 search.html      search popup page entry, a Vite input built to dist/search.html (src/searchPopup/ has the page)
+offscreen.html   offscreen document entry, a Vite input built to dist/offscreen.html (src/offscreen.ts copies text to the clipboard)
 public/          manifest.json, icons, static pages
 src/
   background.ts  service worker: tab events, Space ownership, auto-archive, keyboard switchers, search popup
@@ -58,7 +59,7 @@ src/
   hooks/         hooks over Chrome APIs and shared state
   managers/      background-owned state and its sidebar proxies (see below)
   stores/        storage-backed classes without React (tab activity, session marker, ...)
-  services/      longer flows: auto-archive, page agent, keyboard switchers, search popup
+  services/      longer flows: auto-archive, page agent, keyboard switchers, search popup, page URL copier
   actions/       undoable user actions (close tabs, delete bookmark, archive tabs, ...)
   utils/         pure helpers, most of them covered by tests/
   data/          What's New entries (changelog.ts)
@@ -179,6 +180,10 @@ The page connects a port named `search-popup:<session id>`. Background accepts o
 `SearchKeyboard` (`src/searchPopup/searchKeyboard.ts`) makes the key decisions in the page. Chrome turns further shortcut presses into commands, which background forwards to the page as `move`. A keyup with no Cmd, Ctrl or Alt held picks the selected row only after such a press. Shift+Enter with text in the field searches the web; with Cmd, Ctrl or Alt also held it stays a pick, so Enter pressed before letting go of a shortcut like Ctrl+Shift+K opens the row the user moved to.
 
 A web search (Shift+Enter, or a click on the Search the web hint shown while the field has text) sends `searchWeb` with the trimmed text instead of a pick. `SearchPopup` closes the popup as a pick does, then creates an active tab in the origin window and runs `chrome.search.query({ text, tabId })` in it, which uses the default search engine. Chrome doesn't document which window `disposition: 'NEW_TAB'` opens in, and with the popup in its own window or an incognito origin it could be the wrong one; a tab of our own keeps the search in the origin window. `tabs.onCreated` puts that tab in the window's active Space, as it does any new tab. Without a default search provider `search.query` fails: background logs the error and the user is left on the New Tab page.
+
+## Copy page URL
+
+The `copy-page-url` command (`Cmd+Shift+C` / `Ctrl+Shift+C`) goes to `PageUrlCopier` (`src/services/pageUrlCopier.ts`). Background handles it before the `stateReady` wait: it reads only the active tab of the last focused normal window and touches no Space state. The copy runs in an offscreen document (`offscreen.html`, reason `CLIPBOARD`), because the service worker has no DOM and a copy inside the page fails while the side panel has focus. Background sends it `{ target: 'offscreen', action: 'copy-to-clipboard', text }` (`src/utils/offscreenClipboardMessage.ts`) and the page answers `{ ok }`. The offscreen listener ignores every message without `target: 'offscreen'`, and no sidebar listener answers it, so only the offscreen page replies. The document is created on the first copy and stays open; `getContexts` finds it after a worker restart, and one shared creation promise keeps two quick presses from creating it twice. After a copy, `executeScript` under `activeTab` shows a "URL copied" toast in a closed shadow root; pages that refuse scripts get the copy without it.
 
 ## Chrome API rules
 

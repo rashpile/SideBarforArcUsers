@@ -134,14 +134,14 @@
 - Modify: `docs/chrome-web-store-info.md`
 - Modify: `PRIVACY.md`
 
-- [ ] README Keyboard table: add `Cmd+Shift+C` / `Ctrl+Shift+C` "Copy the current page's URL; a short toast on the page confirms it". Add a note after the table: on macOS this is also Chrome's DevTools "Inspect element" shortcut (DevTools keeps `Cmd+Option+C`), so Chrome may leave the key unset, on a new install or an update; set it once in `chrome://extensions/shortcuts`
-- [ ] README Permissions table: rows for `offscreen` and `clipboardWrite` (copy the page URL to the clipboard when you press the shortcut; say that Chrome may show "Modify data you copy and paste" for `clipboardWrite`), and add the toast to the `activeTab` row
-- [ ] `docs/changelog.md`: a "New:" entry under `## Latest Version` (create the heading above `## 2.0.410`) describing the shortcut, the toast, parked tabs copying their original URL, the key that Chrome may leave unset and the two new permissions
-- [ ] `src/data/changelog.ts`: a `'2.0.411'` entry with one What's New line for the shortcut (feature PRs add the next version's key, as 38d905b did; the release renames it if needed)
-- [ ] `docs/development.md`: an `offscreen.html` line in Project layout, "page URL copier" in the `services/` description, and a short paragraph on `PageUrlCopier` (why an offscreen document, the `target: 'offscreen'` message, the document staying open)
-- [ ] `docs/chrome-web-store-info.md`: a Key Features line and permission justifications for `offscreen` and `clipboardWrite`; extend `activeTab` with the toast
-- [ ] `PRIVACY.md`: one line saying the copied URL goes only to the local clipboard and is sent nowhere, if the file lists data handling per feature
-- [ ] mark this plan's tasks done (the orchestrator moves the plan to `docs/plans/completed/`)
+- [x] README Keyboard table: add `Cmd+Shift+C` / `Ctrl+Shift+C` "Copy the current page's URL; a short toast on the page confirms it". Add a note after the table: on macOS this is also Chrome's DevTools "Inspect element" shortcut (DevTools keeps `Cmd+Option+C`), so Chrome may leave the key unset, on a new install or an update; set it once in `chrome://extensions/shortcuts`
+- [x] README Permissions table: rows for `offscreen` and `clipboardWrite` (copy the page URL to the clipboard when you press the shortcut; say that Chrome may show "Modify data you copy and paste" for `clipboardWrite`), and add the toast to the `activeTab` row
+- [x] `docs/changelog.md`: a "New:" entry under `## Latest Version` (create the heading above `## 2.0.410`) describing the shortcut, the toast, parked tabs copying their original URL, the key that Chrome may leave unset and the two new permissions
+- [x] `src/data/changelog.ts`: a `'2.0.411'` entry with one What's New line for the shortcut (feature PRs add the next version's key, as 38d905b did; the release renames it if needed)
+- [x] `docs/development.md`: an `offscreen.html` line in Project layout, "page URL copier" in the `services/` description, and a short paragraph on `PageUrlCopier` (why an offscreen document, the `target: 'offscreen'` message, the document staying open)
+- [x] `docs/chrome-web-store-info.md`: a Key Features line and permission justifications for `offscreen` and `clipboardWrite`; extend `activeTab` with the toast
+- [x] `PRIVACY.md`: one line saying the copied URL goes only to the local clipboard and is sent nowhere, if the file lists data handling per feature
+- [x] mark this plan's tasks done (the orchestrator moves the plan to `docs/plans/completed/`)
 
 ## Post-Completion
 

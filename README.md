@@ -235,12 +235,15 @@ One search field over the page that finds open tabs, bookmarks, archived pages a
 | `Cmd+Shift+E` / `Ctrl+Shift+E` | Open the sidebar |
 | `Cmd+Shift+<` / `Ctrl+Shift+<` | Previous tab in this window's history |
 | `Cmd+Shift+>` / `Ctrl+Shift+>` | Next tab in history |
+| `Cmd+Shift+C` / `Ctrl+Shift+C` | Copy the current page's URL; a short toast on the page confirms it |
 | not set | Tab Switcher: hold the modifier, press to list the Space's tabs (its Favorite tabs included) by last use, press again to move, release to switch; `Esc` or `Cmd+.` closes the list without switching |
 | not set | Space Switcher: the same for Spaces |
 | not set | Search popup: one field over the page that finds open tabs, bookmarks, archived pages and recently closed tabs; press again to move down, release to open (see Search popup) |
 | not set | Switch to Space 1 … 9: the Space at that position in the Space bar, opened as by a click on it. Only regular Spaces count, not Task Spaces |
 
 Set or change shortcuts in `chrome://extensions/shortcuts`.
+
+On macOS `Cmd+Shift+C` is also Chrome's DevTools "Inspect element" shortcut (DevTools keeps `Cmd+Option+C`), so Chrome may leave the copy key unset, on a new install or an update. If **Copy the current page URL** shows no key in `chrome://extensions/shortcuts`, set it there once. A tab parked by a tab suspender copies the URL of the page it stands for. Pages the extension can't draw on, such as `chrome://` pages, the Web Store and PDFs, get the copy without the toast.
 
 On macOS `Cmd+Esc` often doesn't reach Chrome, because the system or another app takes it. While you hold `Cmd`, close a switcher or the search popup with `Cmd+.` instead; `Ctrl+.` does the same while you hold `Ctrl`.
 
@@ -388,8 +391,10 @@ Light and dark mode follow your system.
 | `favicon` | Website icons |
 | `scripting` | Read the page's text, layout and video subtitles, insert or remove CSS and show the answer popup when you use the page agent; insert CSS when a saved page style loads |
 | `webNavigation` | Notice when a page starts loading in a bookmark's tab, to put the bookmark's saved page style on it |
-| `activeTab` | Draw the Tab and Space Switcher and the search popup over the current page |
+| `activeTab` | Draw the Tab and Space Switcher, the search popup and the "URL copied" toast over the current page |
 | `search` | Search the web with your default search engine for the text in the search popup, when you press `Shift+Enter` or click Search the web |
+| `offscreen` | Open a hidden extension page that copies the page URL to the clipboard when you press the copy shortcut; the background worker can't use the clipboard itself |
+| `clipboardWrite` | Copy the page URL to the clipboard when you press the copy shortcut. Chrome may list it as "Modify data you copy and paste" |
 | `alarms` | Check for unused tabs every few minutes while auto-archive is on, and for unused Task Spaces every 30 minutes while Archive Task Spaces after is on |
 | Optional `http://*/*`, `https://*/*` | Asked for when you use the page agent or Validate configuration, to read the page, restyle it, show answers on it and call your AI endpoint |
 | Optional `<all_urls>` | Asked for only when you turn on page agent screenshots, to capture the visible tab |

@@ -31,6 +31,10 @@ This data stays on your device and is not accessible to the developer or any thi
 
 The Iconify and favicon requests send no user data beyond standard HTTP headers.
 
+## Clipboard
+
+When you press the copy page URL shortcut (`Cmd+Shift+C` / `Ctrl+Shift+C`), the extension writes the current page's URL to your clipboard. The URL goes only to the local clipboard; the extension stores it nowhere and sends it nowhere. It never reads the clipboard.
+
 ## Page Agent (experimental)
 
 The page agent sends nothing until you type a request in its drawer. While it works on a request in a tab:
