@@ -243,7 +243,7 @@ One search field over the page that finds open tabs, bookmarks, archived pages a
 
 Set or change shortcuts in `chrome://extensions/shortcuts`.
 
-On macOS `Cmd+Shift+C` is also Chrome's DevTools "Inspect element" shortcut (DevTools keeps `Cmd+Option+C`), so Chrome may leave the copy key unset, on a new install or an update. If **Copy the current page URL** shows no key in `chrome://extensions/shortcuts`, set it there once. A tab parked by a tab suspender copies the URL of the page it stands for. Pages the extension can't draw on, such as `chrome://` pages, the Web Store and PDFs, get the copy without the toast.
+`Cmd+Shift+C` on macOS and `Ctrl+Shift+C` on Windows and Linux are also Chrome's DevTools "Inspect element" shortcut, so Chrome may leave the copy key unset, on a new install or an update. While the copy key is set, it takes the key from DevTools: on macOS DevTools keeps `Cmd+Option+C`, on Windows and Linux use the inspect button in DevTools or give the copy command another key. If **Copy the current page URL** shows no key in `chrome://extensions/shortcuts`, set it there once. A tab parked by a tab suspender copies the URL of the page it stands for. Pages the extension can't draw on, such as `chrome://` pages, the Web Store and PDFs, get the copy without the toast.
 
 On macOS `Cmd+Esc` often doesn't reach Chrome, because the system or another app takes it. While you hold `Cmd`, close a switcher or the search popup with `Cmd+.` instead; `Ctrl+.` does the same while you hold `Ctrl`.
 
