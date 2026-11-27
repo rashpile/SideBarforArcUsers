@@ -109,20 +109,20 @@
 - Create: `src/services/pageUrlCopier.ts`
 - Modify: `src/background.ts`
 
-- [ ] create `PageUrlCopier` in `src/services/pageUrlCopier.ts`: `chrome.windows.getLastFocused({ windowTypes: ['normal'] })` + `chrome.tabs.query({ active: true, windowId })`, take `getEffectiveTabUrl(tab.url)`, return early when there is no window, tab or URL
-- [ ] add the offscreen lifecycle: `getContexts` check, one shared in-flight creation promise (cleared on failure), the document stays open (no `closeDocument`); send the copy message and check `{ ok }`; errors logged with `console.error('[PageUrlCopier] ...')`
-- [ ] add the toast: a self-contained `showCopiedToast` function (no args) injected with `chrome.scripting.executeScript`; it removes any existing toast host found by its data attribute, creates a new one and removes only its own host after ~1.5 s; injection errors logged only when the debug flag is set
-- [ ] in `src/background.ts` create the copier with the `debug` flag `import.meta.env.DEV`, and handle `command === 'copy-page-url'` in `chrome.commands.onCommand` before the `stateReady` block
-- [ ] confirm the sidebar's `chrome.runtime.onMessage` listeners don't call `sendResponse` (plan review found none do); change nothing if that holds
-- [ ] run `make test` and `npm run build` - must pass before task 3
+- [x] create `PageUrlCopier` in `src/services/pageUrlCopier.ts`: `chrome.windows.getLastFocused({ windowTypes: ['normal'] })` + `chrome.tabs.query({ active: true, windowId })`, take `getEffectiveTabUrl(tab.url)`, return early when there is no window, tab or URL
+- [x] add the offscreen lifecycle: `getContexts` check, one shared in-flight creation promise (cleared on failure), the document stays open (no `closeDocument`); send the copy message and check `{ ok }`; errors logged with `console.error('[PageUrlCopier] ...')`
+- [x] add the toast: a self-contained `showCopiedToast` function (no args) injected with `chrome.scripting.executeScript`; it removes any existing toast host found by its data attribute, creates a new one and removes only its own host after ~1.5 s; injection errors logged only when the debug flag is set
+- [x] in `src/background.ts` create the copier with the `debug` flag `import.meta.env.DEV`, and handle `command === 'copy-page-url'` in `chrome.commands.onCommand` before the `stateReady` block
+- [x] confirm the sidebar's `chrome.runtime.onMessage` listeners don't call `sendResponse` (plan review found none do); change nothing if that holds
+- [x] run `make test` and `npm run build` - must pass before task 3
 
 ### Task 3: Verify acceptance criteria
 
-- [ ] verify the manifest has the command with both suggested keys and the two permissions, and `dist/manifest.json` after the build has them too
-- [ ] verify the `copy-page-url` command path doesn't wait for `stateReady` and doesn't touch Space state
-- [ ] verify the offscreen listener ignores messages without `target: 'offscreen'`
-- [ ] run full test suite: `make test`
-- [ ] run `npm run build` (includes the TypeScript check)
+- [x] verify the manifest has the command with both suggested keys and the two permissions, and `dist/manifest.json` after the build has them too
+- [x] verify the `copy-page-url` command path doesn't wait for `stateReady` and doesn't touch Space state
+- [x] verify the offscreen listener ignores messages without `target: 'offscreen'`
+- [x] run full test suite: `make test`
+- [x] run `npm run build` (includes the TypeScript check)
 
 ### Task 4: [Final] Update documentation
 

@@ -39,6 +39,7 @@ import { ActiveTabCloseFollower } from './services/activeTabCloseFollower';
 import { buildSpaceCards, buildTabCards, findLastUsedTab, WindowSpaces } from './services/switcherLists';
 import { SwitcherMessageAction } from './utils/switcherMessages';
 import { SearchPopup, SEARCH_POPUP_COMMAND } from './services/searchPopup';
+import { COPY_PAGE_URL_COMMAND, PageUrlCopier } from './services/pageUrlCopier';
 import { SearchPicker } from './services/searchPick';
 import { SearchCandidates } from './services/searchResults';
 import { parseSearchCollapseDuplicates, SEARCH_COLLAPSE_DUPLICATES_KEY } from './utils/searchCollapseDuplicates';
@@ -1055,6 +1056,8 @@ const searchPopup = new SearchPopup({
   debug: import.meta.env.DEV,
 });
 
+const pageUrlCopier = new PageUrlCopier(import.meta.env.DEV);
+
 // The popup page connects as soon as it loads; SearchPopup refuses every port but its session's
 chrome.runtime.onConnect.addListener((port) =>
 {
@@ -1795,6 +1798,13 @@ chrome.commands.onCommand.addListener((command) =>
   {
     void stateReady.then(() =>
       keyboardSwitcher.handleShortcut(switcherCommand.kind, switcherCommand.direction));
+    return;
+  }
+
+  // Reads only the active tab, so it doesn't wait for the Space state
+  if (command === COPY_PAGE_URL_COMMAND)
+  {
+    void pageUrlCopier.copyActiveTabUrl();
     return;
   }
 
