@@ -1,5 +1,9 @@
 # Changelog
 
+## Latest Version
+
+- New: copy the page URL with `Cmd+Shift+C` (`Ctrl+Shift+C` on Windows and Linux), as in Arc. It copies the URL of the active tab of the last focused browser window, whether keyboard focus is in the page or in the side panel, and a short "URL copied" toast at the top of the page confirms it. Pages the extension can't script (`chrome://` pages, the Web Store, the PDF viewer) get the copy without a toast. A tab parked by a tab suspender copies the URL of the page it stands for. On every platform the key is also Chrome's DevTools "Inspect element" shortcut, so Chrome may leave it unset on a new install or an update; set it once for **Copy the current page URL** in `chrome://extensions/shortcuts`. An offscreen document does the copy, because the background worker has no clipboard; this adds the `offscreen` and `clipboardWrite` permissions, and Chrome may ask to allow "Modify data you copy and paste"
+
 ## 2.0.410
 
 - Fixed: reopening the side panel shows the active tab right away; the list no longer scrolls down to it from the top

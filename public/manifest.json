@@ -14,7 +14,9 @@
     "alarms",
     "activeTab",
     "webNavigation",
-    "search"
+    "search",
+    "offscreen",
+    "clipboardWrite"
   ],
   "optional_permissions": [
     "userScripts"
@@ -70,6 +72,13 @@
         "mac": "Command+Shift+Period"
       },
       "description": "Next Used Tab"
+    },
+    "copy-page-url": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+C",
+        "mac": "Command+Shift+C"
+      },
+      "description": "Copy the current page URL"
     },
     "tab-switcher-next": {
       "description": "Tab Switcher: next tab"
